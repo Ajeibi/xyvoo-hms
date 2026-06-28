@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   addOrderItem,
   closeFbOrder,
+  loadOrderById,
   loadOrders,
   sendOrderToKitchen,
   setOrderRush,
@@ -63,8 +64,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         menuItemId: body.menuItemId,
       });
       if (result.error) return NextResponse.json({ error: result.error }, { status: 400 });
-      const orders = await loadOrders(auth.service, auth.tenant.id);
-      const order = orders.find((o) => o.id === id);
+      const order = await loadOrderById(auth.service, auth.tenant.id, id);
       return NextResponse.json({ ok: true, order, item: result.item });
     }
 

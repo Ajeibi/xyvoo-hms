@@ -145,6 +145,51 @@ export async function loadOrders(
   }));
 }
 
+export async function loadOrderById(
+  supabase: SupabaseClient,
+  tenantId: string,
+  orderId: string,
+): Promise<FbOrderWithItems | null> {
+  const { data } = await supabase
+    .schema("hotel")
+    .from("fb_orders")
+    .select("*")
+    .eq("id", orderId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+
+  if (!data) return null;
+
+  const order = mapOrder(data as Record<string, unknown>);
+  const itemsByOrder = await loadOrderItems(supabase, [orderId]);
+  const items = itemsByOrder.get(orderId) ?? [];
+
+  const [{ data: table }, { data: outlet }] = await Promise.all([
+    order.table_id
+      ? supabase
+          .schema("hotel")
+          .from("fb_tables")
+          .select("id,table_code")
+          .eq("id", order.table_id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    supabase
+      .schema("hotel")
+      .from("fb_outlets")
+      .select("id,name,outlet_type")
+      .eq("id", order.outlet_id)
+      .maybeSingle(),
+  ]);
+
+  return {
+    ...order,
+    items,
+    table_code: table ? (table.table_code as string) : null,
+    outlet_name: outlet ? (outlet.name as string) : undefined,
+    outlet_type: outlet ? (outlet.outlet_type as FbOrderWithItems["outlet_type"]) : undefined,
+  };
+}
+
 export async function createFbOrder(
   supabase: SupabaseClient,
   params: {

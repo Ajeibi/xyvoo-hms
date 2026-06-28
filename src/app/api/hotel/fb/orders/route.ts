@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   addOrderItem,
   createFbOrder,
+  loadOrderById,
   loadOrders,
   sendOrderToKitchen,
 } from "@/lib/hms/fb-orders";
@@ -89,8 +90,8 @@ export async function POST(req: Request) {
       order = sent.order ?? order;
     }
 
-    const orders = await loadOrders(auth.service, auth.tenant.id, { status: ["open", "sent_to_kitchen", "ready"] });
-    const full = orders.find((o) => o.id === order.id) ?? { ...order, items: [] };
+    const full =
+      (await loadOrderById(auth.service, auth.tenant.id, order.id)) ?? { ...order, items: [] };
     return NextResponse.json({ ok: true, order: full });
   } catch (e) {
     if (e instanceof z.ZodError) {

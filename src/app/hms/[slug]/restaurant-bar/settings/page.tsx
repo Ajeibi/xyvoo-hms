@@ -13,13 +13,7 @@ export default async function RestaurantBarSettingsPage({
   return (
     <HMSLayout slug={slug} requiredSection="restaurant-bar-settings">
       {model ? (
-        <FbSettingsClient
-          slug={model.slug}
-          initial={{
-            outlets: model.initial.outlets,
-            tables: model.initial.tables,
-          }}
-        />
+        <FbSettingsClient slug={model.slug} />
       ) : (
         <p className="p-8 text-sm text-slate-500">Property not found.</p>
       )}

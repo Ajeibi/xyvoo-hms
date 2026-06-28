@@ -304,6 +304,16 @@ export async function loadStations(supabase: SupabaseClient, tenantId: string) {
   return { stations: (data ?? []).map(mapStation), error: null };
 }
 
+export async function deleteTable(supabase: SupabaseClient, tenantId: string, tableId: string) {
+  const { error } = await supabase
+    .schema("hotel")
+    .from("fb_tables")
+    .delete()
+    .eq("id", tableId)
+    .eq("tenant_id", tenantId);
+  return { error: error?.message ?? null };
+}
+
 export async function upsertTable(
   supabase: SupabaseClient,
   tenantId: string,
@@ -344,14 +354,16 @@ export async function loadMenuForAdmin(supabase: SupabaseClient, tenantId: strin
 
 /** Outlets + stations only — for fast section/station CRUD without reloading the full menu. */
 export async function loadMenuSetupMeta(supabase: SupabaseClient, tenantId: string) {
-  const [outletsRes, stationsRes] = await Promise.all([
+  const [outletsRes, stationsRes, tablesRes] = await Promise.all([
     supabase.schema("hotel").from("fb_outlets").select("*").eq("tenant_id", tenantId).order("code"),
     supabase.schema("hotel").from("fb_stations").select("*").eq("tenant_id", tenantId).order("sort_order"),
+    supabase.schema("hotel").from("fb_tables").select("*").eq("tenant_id", tenantId).order("table_code"),
   ]);
 
   return {
     outlets: (outletsRes.data ?? []).map(mapOutlet),
     stations: (stationsRes.data ?? []).map(mapStation),
+    tables: (tablesRes.data ?? []).map(mapTable),
   };
 }
 
@@ -404,6 +416,13 @@ export type MenuSetupBatchPayload = {
     sortOrder?: number;
   }[];
   deleteStationIds?: string[];
+  upsertTables?: {
+    id?: string;
+    outletId: string;
+    tableCode: string;
+    covers: number;
+  }[];
+  deleteTableIds?: string[];
   reorderCategories?: { id: string; sortOrder: number }[];
   reorderItems?: { id: string; sortOrder: number }[];
 };
@@ -621,6 +640,16 @@ export async function saveMenuSetupBatch(
 
   for (const station of payload.upsertStations ?? []) {
     const result = await upsertStation(supabase, tenantId, station);
+    if (result.error) return { error: result.error };
+  }
+
+  for (const id of payload.deleteTableIds ?? []) {
+    const result = await deleteTable(supabase, tenantId, id);
+    if (result.error) return { error: result.error };
+  }
+
+  for (const table of payload.upsertTables ?? []) {
+    const result = await upsertTable(supabase, tenantId, table);
     if (result.error) return { error: result.error };
   }
 

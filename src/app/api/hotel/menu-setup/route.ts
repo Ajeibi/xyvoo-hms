@@ -49,12 +49,21 @@ const UpsertStationSchema = z.object({
   sortOrder: z.number().int().optional(),
 });
 
+const UpsertTableSchema = z.object({
+  id: z.string().uuid().optional(),
+  outletId: z.string().uuid(),
+  tableCode: z.string().min(1).max(20),
+  covers: z.coerce.number().int().min(1).max(30),
+});
+
 const MenuSetupPostSchema = z.object({
   slug: z.string().min(1),
   upsertOutlets: z.array(UpsertOutletSchema).optional().default([]),
   deleteOutletIds: z.array(z.string().uuid()).optional().default([]),
   upsertStations: z.array(UpsertStationSchema).optional().default([]),
   deleteStationIds: z.array(z.string().uuid()).optional().default([]),
+  upsertTables: z.array(UpsertTableSchema).optional().default([]),
+  deleteTableIds: z.array(z.string().uuid()).optional().default([]),
   upsertCategories: z.array(UpsertCategorySchema).optional().default([]),
   upsertItems: z.array(UpsertItemSchema).optional().default([]),
   deleteCategoryIds: z.array(z.string().uuid()).optional().default([]),
@@ -139,6 +148,8 @@ export async function POST(req: Request) {
       deleteOutletIds: body.deleteOutletIds,
       upsertStations: body.upsertStations,
       deleteStationIds: body.deleteStationIds,
+      upsertTables: body.upsertTables,
+      deleteTableIds: body.deleteTableIds,
       upsertCategories: body.upsertCategories,
       upsertItems: body.upsertItems,
       deleteCategoryIds: body.deleteCategoryIds,

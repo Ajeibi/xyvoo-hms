@@ -73,7 +73,7 @@ export async function loadFbPosPageModel(slug: string) {
   if (!ctx) return null;
 
   const [config, orders] = await Promise.all([
-    loadFbConfig(ctx.service, ctx.tenant.id),
+    loadFbConfig(ctx.service, ctx.tenant.id, { seedDefaults: false }),
     loadOrders(ctx.service, ctx.tenant.id),
   ]);
 

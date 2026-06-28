@@ -41,6 +41,7 @@ import type {
   FbOutletRow,
   FbOutletType,
   FbStationRow,
+  FbTableRow,
 } from "@/lib/hms/fb-types";
 import { cn } from "@/lib/utils";
 
@@ -71,7 +72,8 @@ type DeleteTarget =
   | { type: "category"; key: string }
   | { type: "item"; categoryKey: string; itemKey: string }
   | { type: "outlet"; id: string }
-  | { type: "station"; id: string };
+  | { type: "station"; id: string }
+  | { type: "table"; id: string };
 
 const OUTLET_TYPE_OPTIONS: { value: FbOutletType; label: string }[] = [
   { value: "restaurant", label: "Restaurant" },
@@ -138,6 +140,7 @@ function serverMenuFingerprint(initial: FbConfigPayload) {
   return [
     initial.outlets.map((o) => o.id).join(","),
     initial.stations.map((s) => s.id).join(","),
+    initial.tables.map((t) => t.id).join(","),
     initial.categories.map((c) => c.id).join(","),
     initial.items.map((i) => i.id).join(","),
   ].join("|");
@@ -189,6 +192,7 @@ export default function HotelMenuSetup({
 }) {
   const [outlets, setOutlets] = useState<FbOutletRow[]>(initial.outlets);
   const [stations, setStations] = useState<FbStationRow[]>(initial.stations);
+  const [tables, setTables] = useState<FbTableRow[]>(initial.tables);
   const [outletId, setOutletId] = useState(() =>
     pickDefaultOutletId(initial.outlets, initial.categories),
   );
@@ -212,6 +216,10 @@ export default function HotelMenuSetup({
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newOutletName, setNewOutletName] = useState("");
   const [newStationName, setNewStationName] = useState("");
+  const [newTableCode, setNewTableCode] = useState("");
+  const [newTableCovers, setNewTableCovers] = useState("4");
+  const [tableSaving, setTableSaving] = useState(false);
+  const [showAddTable, setShowAddTable] = useState(false);
   const [newOutletType, setNewOutletType] = useState<FbOutletType>("restaurant");
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
 
@@ -228,6 +236,7 @@ export default function HotelMenuSetup({
 
     setOutlets(initial.outlets);
     setStations(initial.stations);
+    setTables(initial.tables);
     setCategories(buildEditableCategories(initial.categories, initial.items));
     setOutletId((prev) => {
       if (prev && initial.outlets.some((o) => o.id === prev)) return prev;
@@ -235,12 +244,13 @@ export default function HotelMenuSetup({
     });
   }, [initial, serverFingerprint, slug]);
 
-  const applyMetaPayload = useCallback((data: { outlets?: FbOutletRow[]; stations?: FbStationRow[] }) => {
+  const applyMetaPayload = useCallback((data: { outlets?: FbOutletRow[]; stations?: FbStationRow[]; tables?: FbTableRow[] }) => {
     if (data.outlets) {
       setOutlets(data.outlets);
       setOutletId((prev) => resolveOutletId(slug, data.outlets!, [], prev || undefined));
     }
     if (data.stations) setStations(data.stations);
+    if (data.tables) setTables(data.tables);
   }, [slug]);
 
   const applyContentPayload = useCallback(
@@ -256,11 +266,13 @@ export default function HotelMenuSetup({
     (data: {
       outlets: FbOutletRow[];
       stations: FbStationRow[];
+      tables?: FbTableRow[];
       categories: FbMenuCategoryRow[];
       items: FbMenuItemRow[];
     }) => {
       setOutlets(data.outlets ?? []);
       setStations(data.stations ?? []);
+      if (data.tables) setTables(data.tables);
       setCategories(buildEditableCategories(data.categories ?? [], data.items ?? []));
       setOutletId((prev) =>
         resolveOutletId(slug, data.outlets ?? [], data.categories ?? [], prev || undefined),
@@ -463,6 +475,30 @@ export default function HotelMenuSetup({
     toastSuccess("Kitchen station added");
   };
 
+  const addTable = async () => {
+    if (!newTableCode.trim()) {
+      toastError("Table code required", "Enter a table name or number.");
+      return;
+    }
+    const covers = Number(newTableCovers);
+    if (!Number.isFinite(covers) || covers < 1) {
+      toastError("Invalid covers", "Enter how many guests the table seats.");
+      return;
+    }
+
+    setTableSaving(true);
+    const code = newTableCode.trim();
+    const data = await postMenuSetup({
+      upsertTables: [{ outletId, tableCode: code, covers }],
+    });
+    setTableSaving(false);
+
+    if (!data) return;
+    setNewTableCode("");
+    setShowAddTable(false);
+    toastSuccess("Table added");
+  };
+
   const addCategory = () => {
     if (!newCategoryName.trim()) {
       toastError("Category name required", "Enter a name for the new category.");
@@ -637,6 +673,12 @@ export default function HotelMenuSetup({
           succeeded = true;
           toastSuccess("Kitchen station deleted");
         }
+      } else if (deleteTarget.type === "table") {
+        const data = await postMenuSetup({ deleteTableIds: [deleteTarget.id] });
+        if (data) {
+          succeeded = true;
+          toastSuccess("Table deleted");
+        }
       } else if (deleteTarget.type === "category") {
         const cat = categories.find((c) => c.key === deleteTarget.key);
         if (!cat) return;
@@ -678,6 +720,13 @@ export default function HotelMenuSetup({
     [categories, outletId],
   );
 
+  const selectedOutlet = outlets.find((o) => o.id === outletId);
+  const isRestaurantOutlet = selectedOutlet?.outlet_type === "restaurant";
+  const outletTables = useMemo(
+    () => tables.filter((t) => t.outlet_id === outletId),
+    [tables, outletId],
+  );
+
   const deleteDialog = useMemo(() => {
     if (!deleteTarget) return null;
     if (deleteTarget.type === "outlet") {
@@ -701,6 +750,14 @@ export default function HotelMenuSetup({
           "This kitchen station will be removed. Menu items assigned to it will have no station until you pick another.",
       };
     }
+    if (deleteTarget.type === "table") {
+      const table = tables.find((t) => t.id === deleteTarget.id);
+      const name = table?.table_code?.trim() || "this table";
+      return {
+        title: `Delete table "${name}"?`,
+        description: "This table will be removed from the restaurant floor plan. Open orders keep their history.",
+      };
+    }
     if (deleteTarget.type === "category") {
       const cat = categories.find((c) => c.key === deleteTarget.key);
       const name = cat?.name?.trim() || "this category";
@@ -720,7 +777,7 @@ export default function HotelMenuSetup({
       title: `Delete "${name}"?`,
       description: "This item will be permanently removed from the menu.",
     };
-  }, [categories, deleteTarget, outlets, stations]);
+  }, [categories, deleteTarget, outlets, stations, tables]);
 
   return (
     <TooltipProvider>
@@ -939,6 +996,105 @@ export default function HotelMenuSetup({
           </Button>
         )}
       </div>
+
+      {isRestaurantOutlet ? (
+        <div id="restaurant-tables" className="mt-8 scroll-mt-24 space-y-3">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <h3 className="text-sm font-semibold text-slate-800">Restaurant tables</h3>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex size-7 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+                  aria-label="What are restaurant tables?"
+                >
+                  <CircleHelp className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-xs text-left leading-relaxed">
+                Tables appear on the POS and floor plan for your restaurant section. Staff pick a
+                table when starting an order.
+              </TooltipContent>
+            </Tooltip>
+          </div>
+
+          {outletTables.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-slate-200 px-4 py-6 text-sm text-slate-500">
+              No tables for {selectedOutlet?.name ?? "this restaurant"} yet. Add your floor tables
+              below.
+            </p>
+          ) : (
+            <ul className="flex flex-wrap gap-2">
+              {outletTables.map((t) => (
+                <li
+                  key={t.id}
+                  className="inline-flex items-center gap-1 rounded-lg bg-slate-100 pl-3 pr-1 py-1 text-sm text-slate-800"
+                >
+                  {t.table_code} ({t.covers} covers)
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="text-slate-400 hover:text-red-600"
+                    title={`Delete ${t.table_code}`}
+                    onClick={() => setDeleteTarget({ type: "table", id: t.id })}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {showAddTable ? (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <p className="mb-2 text-sm font-medium text-slate-800">New table</p>
+              <div className="flex flex-wrap items-end gap-2">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-500">Table code</label>
+                  <Input
+                    value={newTableCode}
+                    onChange={(e) => setNewTableCode(e.target.value)}
+                    placeholder="e.g. T5"
+                    className="max-w-[120px]"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") void addTable();
+                    }}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-slate-500">Covers</label>
+                  <Input
+                    value={newTableCovers}
+                    onChange={(e) => setNewTableCovers(e.target.value)}
+                    type="number"
+                    min={1}
+                    className="max-w-[100px]"
+                  />
+                </div>
+                <Button type="button" disabled={tableSaving} onClick={() => void addTable()}>
+                  Add table
+                </Button>
+                <Button type="button" variant="outline" onClick={() => setShowAddTable(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={tableSaving}
+              onClick={() => setShowAddTable(true)}
+              className="gap-1.5"
+            >
+              <Plus className="h-4 w-4" />
+              Add table
+            </Button>
+          )}
+        </div>
+      ) : null}
 
       {outlets.length > 0 ? (
       <div className="mt-6 flex flex-wrap gap-2">
