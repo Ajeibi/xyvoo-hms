@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Sans:wght@400;500;600&family=Exo+2:wght@700;800&display=swap");
 @import "../styles/xyvoo-theme.css";
 @import "driver.js/dist/driver.css";
 @import "tailwindcss";
@@ -8,6 +8,9 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-products-display: "Exo 2", sans-serif;
+  --font-products-sans: "DM Sans", sans-serif;
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: var(--xyvoo-blue);
