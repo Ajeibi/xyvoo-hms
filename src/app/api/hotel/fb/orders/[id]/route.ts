@@ -48,7 +48,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (body.action === "send_to_kitchen") {
       const result = await sendOrderToKitchen(auth.service, auth.tenant.id, id);
       if (result.error) return NextResponse.json({ error: result.error }, { status: 400 });
-      return NextResponse.json({ ok: true, order: result.order });
+      const order =
+        result.order ?? (await loadOrderById(auth.service, auth.tenant.id, id));
+      return NextResponse.json({ ok: true, order });
     }
 
     if (body.action === "rush") {

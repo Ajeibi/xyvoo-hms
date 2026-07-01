@@ -1,4 +1,5 @@
 import HMSLayout from "@/components/hms/HMSLayout";
+import { FbSectionWithNotifications } from "@/components/hms/fb/FbSectionWithNotifications";
 import { FbTablesClient } from "@/components/hms/fb/FbTablesClient";
 import { loadFbTablesPageModel } from "@/lib/hms/load-fb-pages";
 
@@ -13,7 +14,9 @@ export default async function RestaurantBarTablesPage({
   return (
     <HMSLayout slug={slug} requiredSection="restaurant-bar">
       {model ? (
-        <FbTablesClient slug={model.slug} tenantId={model.tenantId} initial={model.initial} />
+        <FbSectionWithNotifications slug={model.slug} tenantId={model.tenantId} area="restaurant">
+          <FbTablesClient slug={model.slug} tenantId={model.tenantId} initial={model.initial} />
+        </FbSectionWithNotifications>
       ) : (
         <p className="p-8 text-sm text-slate-500">Property not found.</p>
       )}

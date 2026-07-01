@@ -33,7 +33,7 @@ export function getFbCapabilities(
     canCloseOrder: canOperate,
     canPostFolio: canOperate,
     canTakePayment: canOperate,
-    canVoidOrder: admin,
+    canVoidOrder: canOperate,
     hidePrices: isKitchen && !admin,
   };
 }

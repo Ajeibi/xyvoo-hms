@@ -33,6 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { isMenuItemSoldOut } from "@/lib/hms/fb-menu-availability";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import type { FbConfigPayload } from "@/lib/hms/load-fb-pages";
 import type {
@@ -56,6 +57,7 @@ type EditableItem = {
   description: string;
   sortOrder: number;
   isAvailable: boolean;
+  eightySixedAt: string | null;
 };
 
 type EditableCategory = {
@@ -177,6 +179,7 @@ function buildEditableCategories(
           description: i.description ?? "",
           sortOrder: i.sort_order,
           isAvailable: i.is_available,
+          eightySixedAt: i.eighty_sixed_at,
         })),
     }));
 }
@@ -487,16 +490,18 @@ export default function HotelMenuSetup({
     }
 
     setTableSaving(true);
-    const code = newTableCode.trim();
-    const data = await postMenuSetup({
-      upsertTables: [{ outletId, tableCode: code, covers }],
-    });
-    setTableSaving(false);
-
-    if (!data) return;
-    setNewTableCode("");
-    setShowAddTable(false);
-    toastSuccess("Table added");
+    try {
+      const code = newTableCode.trim();
+      const data = await postMenuSetup({
+        upsertTables: [{ outletId, tableCode: code, covers }],
+      });
+      if (!data) return;
+      setNewTableCode("");
+      setShowAddTable(false);
+      toastSuccess("Table added");
+    } finally {
+      setTableSaving(false);
+    }
   };
 
   const addCategory = () => {
@@ -618,6 +623,7 @@ export default function HotelMenuSetup({
               description: "",
               sortOrder: c.items.length,
               isAvailable: true,
+              eightySixedAt: null,
             },
           ],
         };
@@ -1012,8 +1018,9 @@ export default function HotelMenuSetup({
                 </button>
               </TooltipTrigger>
               <TooltipContent side="top" className="max-w-xs text-left leading-relaxed">
-                Tables appear on the POS and floor plan for your restaurant section. Staff pick a
-                table when starting an order.
+                Tables help restaurant staff track which seat an order is for on the POS and floor
+                plan. The kitchen display only sees items — not table numbers. Add, rename, or remove
+                tables here; nothing is pre-configured.
               </TooltipContent>
             </Tooltip>
           </div>
@@ -1057,6 +1064,7 @@ export default function HotelMenuSetup({
                     onChange={(e) => setNewTableCode(e.target.value)}
                     placeholder="e.g. T5"
                     className="max-w-[120px]"
+                    disabled={tableSaving}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") void addTable();
                     }}
@@ -1070,12 +1078,30 @@ export default function HotelMenuSetup({
                     type="number"
                     min={1}
                     className="max-w-[100px]"
+                    disabled={tableSaving}
                   />
                 </div>
-                <Button type="button" disabled={tableSaving} onClick={() => void addTable()}>
-                  Add table
+                <Button
+                  type="button"
+                  disabled={tableSaving}
+                  onClick={() => void addTable()}
+                  className="gap-2"
+                >
+                  {tableSaving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                      Adding...
+                    </>
+                  ) : (
+                    "Add table"
+                  )}
                 </Button>
-                <Button type="button" variant="outline" onClick={() => setShowAddTable(false)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={tableSaving}
+                  onClick={() => setShowAddTable(false)}
+                >
                   Cancel
                 </Button>
               </div>
@@ -1239,7 +1265,7 @@ export default function HotelMenuSetup({
                   </AccordionTrigger>
                 </div>
                 <AccordionContent className="min-h-[min(52vh,540px)] max-h-[80vh] overflow-y-auto px-4 pb-4">
-                  <div className="mb-2 grid grid-cols-[1fr_100px_1fr_120px_80px] gap-2 text-xs font-medium text-slate-500">
+                  <div className="mb-2 grid grid-cols-[1fr_100px_1fr_120px_100px_80px] gap-2 text-xs font-medium text-slate-500">
                     <span>Item</span>
                     <span>Price ({currency})</span>
                     <span>Description</span>
@@ -1258,13 +1284,22 @@ export default function HotelMenuSetup({
                         </Tooltip>
                       ) : null}
                     </span>
+                    <span>In stock</span>
                     <span />
                   </div>
                   <div className="space-y-2">
-                    {cat.items.map((item) => (
+                    {cat.items.map((item) => {
+                      const soldOut = isMenuItemSoldOut({
+                        is_available: item.isAvailable,
+                        eighty_sixed_at: item.eightySixedAt,
+                      });
+                      return (
                       <div
                         key={item.key}
-                        className="grid grid-cols-[1fr_100px_1fr_120px_80px] items-center gap-2 rounded-lg bg-slate-50 p-2"
+                        className={cn(
+                          "grid grid-cols-[1fr_100px_1fr_120px_100px_80px] items-center gap-2 rounded-lg p-2",
+                          soldOut ? "bg-slate-100 opacity-75" : "bg-slate-50",
+                        )}
                       >
                         <Input
                           value={item.name}
@@ -1311,6 +1346,34 @@ export default function HotelMenuSetup({
                             </option>
                           ))}
                         </select>
+                        <label className="flex flex-col items-start gap-0.5 text-xs">
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={!soldOut}
+                            title={
+                              soldOut
+                                ? "Mark back in stock — item will appear on POS again"
+                                : "Mark sold out — item stays visible on POS but grayed out"
+                            }
+                            onClick={() =>
+                              updateItem(cat.key, item.key, soldOut
+                                ? { isAvailable: true, eightySixedAt: null }
+                                : { isAvailable: false })
+                            }
+                            className={cn(
+                              "rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors",
+                              soldOut
+                                ? "bg-slate-300 text-slate-700 hover:bg-slate-400"
+                                : "bg-emerald-100 text-emerald-800 hover:bg-emerald-200",
+                            )}
+                          >
+                            {soldOut ? "Sold out" : "In stock"}
+                          </button>
+                          {item.eightySixedAt ? (
+                            <span className="text-[10px] text-slate-500">Kitchen marked</span>
+                          ) : null}
+                        </label>
                   <Button
                     type="button"
                     variant="ghost"
@@ -1327,7 +1390,8 @@ export default function HotelMenuSetup({
                     Remove
                   </Button>
                       </div>
-                    ))}
+                    );
+                    })}
                   </div>
                   <Button
                     type="button"

@@ -53,7 +53,7 @@ import {
   MobileNavAuthSection,
 } from "@/components/website/WebsiteHeaderAuthMenus";
 
-const LOGO_URL = "/images/xyvoo-logo.png";
+import { LOGO_URL } from "@/constants/branding";
 
 function isNavGroup(item: NavItem): item is NavItemGroup {
   return "children" in item && Array.isArray(item.children);
@@ -212,14 +212,7 @@ function MobileNavSidebar({ pathname }: { pathname: string }) {
         <SidebarHeader className="shrink-0 border-0 border-b border-border/70 p-5 pb-4">
           <div className="flex items-center justify-between gap-3">
             <Link href="/home" onClick={close} className="flex min-w-0 items-center">
-              <Image
-                src={LOGO_URL}
-                alt="XYVOO"
-                width={140}
-                height={40}
-                className="h-9 w-auto object-contain"
-                style={{ width: "auto", height: "auto" }}
-              />
+              <Image src={LOGO_URL} alt="XYVOO" width={125} height={50} />
             </Link>
             <button
               type="button"
@@ -484,14 +477,7 @@ function WebsiteHeader({ pathname }: { pathname: string }) {
       >
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-3">
           <Link href="/home" className="group flex shrink-0 items-center">
-            <Image
-              src={LOGO_URL}
-              alt="XYVOO"
-              width={140}
-              height={40}
-              className="h-10 w-auto object-contain"
-              style={{ width: "auto", height: "auto" }}
-            />
+            <Image src={LOGO_URL} alt="XYVOO" width={125} height={50} />
           </Link>
           <nav className="hidden min-[1024px]:flex flex-1 justify-center gap-1">
             {NAV.map((item) =>
@@ -559,10 +545,9 @@ export default function WebsiteLayout({
             <Image
               src={LOGO_URL}
               alt="XYVOO"
-              width={140}
-              height={40}
-              className="h-10 w-auto object-contain mb-4 brightness-0 invert"
-              style={{ width: "auto", height: "auto" }}
+              width={125}
+              height={50}
+              className="mb-4 brightness-0 invert"
             />
             <p className="text-sm text-slate-400 leading-relaxed max-w-xs">
               The modern Hotel Management System built for independent

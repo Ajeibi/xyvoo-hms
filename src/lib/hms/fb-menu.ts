@@ -182,6 +182,9 @@ export async function upsertMenuItem(
     updated_at: new Date().toISOString(),
     ...(input.sortOrder !== undefined ? { sort_order: input.sortOrder } : {}),
     ...(input.isAvailable !== undefined ? { is_available: input.isAvailable } : {}),
+    ...(input.isAvailable === true
+      ? { eighty_sixed_at: null, eighty_sixed_by: null }
+      : {}),
   };
 
   if (input.id) {

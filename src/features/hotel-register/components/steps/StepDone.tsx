@@ -1,11 +1,11 @@
 import { CheckCircle2 } from "lucide-react";
 import Image from "next/image";
-import { LOGO_URL } from "@/features/hotel-register/constants";
+import { LOGO_URL } from "@/constants/branding";
 
 export default function StepDone() {
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-10 text-center">
-      <Image src={LOGO_URL} alt="XYVOO" width={140} height={40} className="h-10 w-auto object-contain mx-auto mb-6" style={{ width: "auto", height: "auto" }} />
+      <Image src={LOGO_URL} alt="XYVOO" width={125} height={50} className="mx-auto mb-6" />
       <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
         <CheckCircle2 className="w-12 h-12 text-green-600" />
       </div>

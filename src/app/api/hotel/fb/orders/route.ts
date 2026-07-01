@@ -23,6 +23,15 @@ const CreateSchema = z.object({
   reservationId: z.string().uuid().optional().nullable(),
   notes: z.string().max(300).optional(),
   menuItemId: z.string().uuid().optional(),
+  items: z
+    .array(
+      z.object({
+        menuItemId: z.string().uuid(),
+        quantity: z.coerce.number().int().min(1).max(99).default(1),
+      }),
+    )
+    .optional(),
+  rush: z.boolean().optional(),
   sendToKitchen: z.boolean().optional(),
 });
 
@@ -67,20 +76,28 @@ export async function POST(req: Request) {
       reservationId: body.reservationId,
       placedBy: auth.user.id,
       notes: body.notes,
+      rush: body.rush,
     });
     if (created.error || !created.order) {
       return NextResponse.json({ error: created.error ?? "Could not create order." }, { status: 400 });
     }
 
     let order = created.order;
-    if (body.menuItemId) {
-      const added = await addOrderItem(auth.service, {
-        tenantId: auth.tenant.id,
-        orderId: order.id,
-        menuItemId: body.menuItemId,
-      });
-      if (added.error) {
-        return NextResponse.json({ error: added.error }, { status: 400 });
+
+    const lines =
+      body.items ??
+      (body.menuItemId ? [{ menuItemId: body.menuItemId, quantity: 1 }] : []);
+
+    for (const line of lines) {
+      for (let i = 0; i < line.quantity; i += 1) {
+        const added = await addOrderItem(auth.service, {
+          tenantId: auth.tenant.id,
+          orderId: order.id,
+          menuItemId: line.menuItemId,
+        });
+        if (added.error) {
+          return NextResponse.json({ error: added.error }, { status: 400 });
+        }
       }
     }
 

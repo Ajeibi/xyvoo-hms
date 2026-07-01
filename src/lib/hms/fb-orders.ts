@@ -200,6 +200,7 @@ export async function createFbOrder(
     reservationId?: string | null;
     placedBy: string;
     notes?: string;
+    rush?: boolean;
   },
 ) {
   const { data, error } = await supabase
@@ -215,6 +216,7 @@ export async function createFbOrder(
       placed_by: params.placedBy,
       notes: params.notes ?? null,
       status: "open",
+      rush: Boolean(params.rush),
     })
     .select("*")
     .single();
@@ -321,7 +323,8 @@ export async function sendOrderToKitchen(
     : { data: null };
 
   void table;
-  return { order: mapOrder(data as Record<string, unknown>), error: null };
+  const full = await loadOrderById(supabase, tenantId, orderId);
+  return { order: full, error: null };
 }
 
 export async function updateOrderItemKitchenStatus(
@@ -435,10 +438,11 @@ export async function voidFbOrder(
     })
     .eq("id", orderId)
     .eq("tenant_id", tenantId)
+    .in("status", ["open", "sent_to_kitchen", "ready"])
     .select("*")
     .maybeSingle();
 
-  if (error || !data) return { order: null, error: error?.message ?? "Could not void order." };
+  if (error || !data) return { order: null, error: error?.message ?? "Could not cancel order." };
 
   await supabase
     .schema("hotel")
@@ -446,6 +450,14 @@ export async function voidFbOrder(
     .update({ kitchen_status: "voided", updated_at: now })
     .eq("order_id", orderId)
     .eq("tenant_id", tenantId);
+
+  if (data.table_id) {
+    await supabase
+      .schema("hotel")
+      .from("fb_tables")
+      .update({ status: "available" })
+      .eq("id", data.table_id);
+  }
 
   return { order: mapOrder(data as Record<string, unknown>), error: null };
 }

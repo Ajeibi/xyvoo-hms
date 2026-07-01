@@ -1,6 +1,6 @@
 import { countries } from "countries-list";
 
-export const LOGO_URL = "/images/xyvoo-logo.png";
+export { LOGO_URL } from "@/constants/branding";
 export const COUNTRY_LIST = Object.entries(countries).map(([code, c]) => ({ code, name: c.name })).sort((a, b) => a.name.localeCompare(b.name));
 export const HOTEL_TYPES = ["Independent Hotel", "Boutique Hotel", "Resort", "Serviced Apartment", "Hotel Chain or Group"];
 export const INPUT_CLASS = "w-full px-4 py-3 text-sm bg-white border border-slate-200 rounded-xl";
