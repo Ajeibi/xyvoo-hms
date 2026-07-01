@@ -1,0 +1,811 @@
+================================================================================
+XYVOO — MODULE STATUS GUIDE
+What is built vs what is not (as of June 2026)
+================================================================================
+
+This document lists every major module for both XYVOO products and states
+clearly what works today, what is partly done, and what is still only planned
+or marketing copy.
+
+Repositories:
+  xyvoo-next  = Hotel HMS app (most hotel code lives here)
+  xyvoo       = Online Store app (ecommerce code lives here)
+
+Status labels used in this file:
+  [BUILT]     Real UI + database/API; usable in production-style flows
+  [PARTIAL]   Meaningful work shipped, but major gaps remain
+  [SCAFFOLD]  Page exists with checklist/placeholder; little or no backend
+  [PLANNED]   Described in PRD/FAQs/marketing; no real module yet
+  [MARKETING] Claimed on website/FAQs; not implemented in code
+
+================================================================================
+HOW TO READ THIS FILE
+================================================================================
+
+"BUILT" does not always mean "feature complete for every PRD card."
+Front Desk, for example, has many working flows but 39 PRD capability cards
+still say "Coming soon."
+
+When in doubt, trust this file over marketing FAQs for what actually runs.
+
+
+================================================================================
+PART A — XYVOO HMS (HOTEL MANAGEMENT SYSTEM)
+Repository: xyvoo-next
+================================================================================
+
+------------------------------------------------------------------------------
+A1. PLATFORM & ONBOARDING
+------------------------------------------------------------------------------
+
+Module: Marketing website (/home)
+Status: [BUILT]
+What works:
+  - Home, pricing, about, team, blog, careers, support, contact
+  - HMS and Store positioning, FAQs, pricing tabs
+What does not:
+  - Blog may be static/editorial (no full CMS confirmed)
+
+Module: Hotel self-registration (/register)
+Status: [BUILT]
+What works:
+  - 5-step wizard: hotel details → email OTP → account → plan/trial → payment
+  - Paystack payment path, geocoding for city/address
+  - Creates tenant + membership on success
+What does not:
+  - Assisted sales-led onboarding is separate (/onboard)
+
+Module: Login & session (/auth/login)
+Status: [BUILT]
+What works:
+  - Supabase email/password login
+  - Redirect to /admin (xyvoo staff) or /hms/[slug]/dashboard (hotel staff)
+What does not:
+  - Store merchant login (that is a different product/repo)
+
+Module: Platform admin (/admin, /tenants, /onboard)
+Status: [PARTIAL]
+What works:
+  - Tenant list for hotels, basic drill-down, onboard entry
+What does not:
+  - Full operator tooling, deep tenant lifecycle management
+
+Module: HMS shell (sidebar, layout, branding)
+Status: [BUILT]
+What works:
+  - Department-based navigation, hotel logo/name, notifications bell
+  - Section access enforcement (department roles)
+What does not:
+  - Fine-grained per-route RBAC everywhere (auth yes, granular roles evolving)
+
+Module: Setup wizard (/hms/[slug]/setup)
+Status: [SCAFFOLD]
+What works:
+  - Static checklist linking to settings and modules
+What does not:
+  - Progress tracking, completion state, blocking "go live"
+
+Module: Dashboard setup modal + tour
+Status: [BUILT]
+What works:
+  - 5 tracked setup tasks (branding, floor plan, pricing, staff, Paystack)
+  - Optional dashboard tour after first login
+What does not:
+  - Auto-enforcement that setup must finish before operations
+
+
+------------------------------------------------------------------------------
+A2. SETTINGS (OWNER / ADMIN)
+------------------------------------------------------------------------------
+
+Module: Settings hub (/hms/[slug]/settings)
+Status: [BUILT]
+What works:
+  - Central place for property configuration
+What does not:
+  - Not every future module has settings wired yet
+
+Module: Hotel branding
+Status: [BUILT]
+What works:
+  - Display name, logo upload/URL, brand presentation in HMS shell
+What does not:
+  - Full theme designer beyond core branding fields
+
+Module: Floor plan
+Status: [BUILT]
+What works:
+  - Configure floors and room counts; feeds room inventory setup
+What does not:
+  - Visual drag-drop floor designer (if not in current UI)
+
+Module: Rooms & pricing setup
+Status: [BUILT]
+What works:
+  - Room types, rates, pricing rules, room unit assignment to types/floors
+What does not:
+  - Dynamic yield/revenue rules (Revenue module not built)
+
+Module: Department access & staff creation
+Status: [BUILT]
+What works:
+  - Create staff logins with department roles
+  - Role → allowed HMS sections mapping
+What does not:
+  - Per-action permissions inside every screen
+
+Module: Paystack settings (hotel billing + guest payments)
+Status: [BUILT]
+What works:
+  - Tenant Paystack configuration, folio charge UI, reconciliation card
+  - Webhook handling for payments/refunds
+What does not:
+  - Full accounting system export (Accounts module scaffold)
+
+Module: Smart lock settings
+Status: [PARTIAL]
+What works:
+  - Settings UI, room asset records, API hooks
+What does not:
+  - Full live lock vendor integration (ASSA ABLOY, SALTO, etc.) — [MARKETING]
+  - Digital guest keys on phone — [MARKETING]
+
+Module: Menu setup (F&B)
+Status: [BUILT]
+What works:
+  - Outlets (restaurant/bar/room service), categories, items, prices
+  - Kitchen stations, restaurant tables, sold-out / in-stock toggles
+  - Category move between sections
+What does not:
+  - Scheduled menus by time of day — [MARKETING]
+  - Guest-facing digital menu beyond existing guest menu path (check separately)
+
+
+------------------------------------------------------------------------------
+A3. FRONT DESK
+------------------------------------------------------------------------------
+
+Module: Front desk overview (/frontdesk)
+Status: [BUILT]
+What works:
+  - Live operations board, room status summary, KPI tiles, shift notes
+  - Realtime updates via Supabase
+What does not:
+  - All 8 KPI cards are not separate deep modules (some are live aggregates)
+
+Module: Arrivals & check-in
+Status: [BUILT]
+What works:
+  - Arrivals list, reservation detail, check-in dialog, assign room
+  - No-show, bulk actions, walk-in check-in form
+What does not:
+  - Pre-arrival digital check-in for guests — [MARKETING]
+  - Self-service kiosk mode — [MARKETING]
+  - Group check-in, parcel management, upsell prompts — [PLANNED] (WIP cards)
+
+Module: Rooms workbench (/frontdesk/rooms)
+Status: [BUILT]
+What works:
+  - Room status board, blocks, connecting rooms, moves, keys, incidents
+  - Room detail sheet with status changes and history
+What does not:
+  - Property-wide emergency lockdown — [MARKETING]
+  - Full smart-lock live control — [PARTIAL]
+
+Module: Guest services
+Status: [BUILT]
+What works:
+  - Service requests, categories, SLA, assignment, folio charges, analytics
+What does not:
+  - Guest messaging / broadcast — [PLANNED] (WIP cards)
+
+Module: Folio & billing (/frontdesk/folio)
+Status: [BUILT]
+What works:
+  - Live folio lines, charges, payments, void, discount, transfer, FX
+  - Cash float, Paystack charge button, corporate billing form
+What does not:
+  - Full chart of accounts — [PLANNED] (Accounts module)
+
+Module: Checkout (/frontdesk/checkout)
+Status: [BUILT]
+What works:
+  - Folio review, settlement, checkout completion
+What does not:
+  - Express self-checkout on guest phone — [MARKETING]
+  - Feedback collection workflow — [PLANNED] (WIP card)
+
+Module: Calendar & activity
+Status: [BUILT]
+What works:
+  - Reservation calendar from board data
+  - Activity / audit log
+What does not:
+  - Full reporting exports from activity
+
+Module: Requests & incidents (/frontdesk/requests)
+Status: [SCAFFOLD]
+What works:
+  - Navigation entry, capability shell
+What does not:
+  - Dedicated complaints/incidents/waitlist product surface (guest services
+    covers much of service requests already)
+
+Module: Night shift (/frontdesk/night)
+Status: [SCAFFOLD]
+What works:
+  - Navigation + PRD capability cards
+What does not:
+  - Automated night audit, night audit report — [MARKETING] / [PLANNED]
+
+Module: Front desk reports (/frontdesk/reports)
+Status: [SCAFFOLD]
+What works:
+  - Navigation + PRD capability cards
+What does not:
+  - Operational report library (arrivals list, departures, roll-call, etc.)
+
+Module: Front desk PRD capability registry (80 cards)
+Status: [PARTIAL]
+What works:
+  - 41 capabilities route to real pages or anchors
+What does not:
+  - 39 capabilities → /frontdesk/wip/[key] "Coming soon"
+
+
+------------------------------------------------------------------------------
+A4. RESERVATIONS
+------------------------------------------------------------------------------
+
+Module: Reservations module (/reservations)
+Status: [SCAFFOLD]
+What works:
+  - Empty list page, "New reservation" link shell
+  - Reservation data exists in database; created via front desk flows
+What does not:
+  - Standalone reservation CRUD UI
+  - Group blocks, rooming lists, corporate accounts — [MARKETING]
+  - OTA sync — [MARKETING]
+
+Module: Direct booking engine (hotel website widget)
+Status: [MARKETING]
+What works:
+  - Described in FAQs
+What does not:
+  - Embeddable booking widget for hotel websites
+
+
+------------------------------------------------------------------------------
+A5. ROOMS (STANDALONE MODULE)
+------------------------------------------------------------------------------
+
+Module: Rooms (/rooms)
+Status: [PARTIAL]
+What works:
+  - Room-focused entry (overlaps heavily with front desk rooms workbench)
+What does not:
+  - Separate deep module beyond front desk room operations
+
+
+------------------------------------------------------------------------------
+A6. GUESTS
+------------------------------------------------------------------------------
+
+Module: Guest directory (/guests)
+Status: [PARTIAL]
+What works:
+  - Guest list and profile view, linked to reservations/folio context
+What does not:
+  - Full CRM, loyalty points, guest messaging — loyalty is [MARKETING]
+
+
+------------------------------------------------------------------------------
+A7. FOOD & BEVERAGE (RESTAURANT & BAR)
+------------------------------------------------------------------------------
+
+Module: F&B POS (/restaurant-bar)
+Status: [BUILT]
+What works:
+  - Outlet tabs from database (restaurant, bar, etc.)
+  - Local draft cart, qty +/- , send to kitchen in one action
+  - Optional table selection; sold-out items grayed on POS
+  - Realtime menu sync
+What does not:
+  - Room service-specific guest-room routing UI (outlet type exists)
+  - Time-scheduled menus — [MARKETING]
+
+Module: Restaurant tables (/restaurant-bar/tables)
+Status: [BUILT]
+What works:
+  - Table list from settings, floor view for restaurant outlet
+What does not:
+  - Full visual floor plan designer for tables
+
+Module: Open orders (/restaurant-bar/orders)
+Status: [BUILT]
+What works:
+  - List open tickets with item kitchen status
+  - Charge to room (folio), cash close, cancel/void order
+  - Standing notifications when kitchen/restaurant status changes
+What does not:
+  - Split checks across multiple payment methods at POS (folio path exists)
+
+Module: F&B settings shortcut (/restaurant-bar/settings)
+Status: [BUILT]
+What works:
+  - Links to central menu setup in Settings
+What does not:
+  - Outlet-specific settings beyond menu setup
+
+
+------------------------------------------------------------------------------
+A8. KITCHEN (KDS)
+------------------------------------------------------------------------------
+
+Module: Kitchen display (/kitchen)
+Status: [BUILT]
+What works:
+  - Live tickets by station, rush priority, wait-time colour on cards
+  - Preparing / Ready / Sold out actions with loading states
+  - Overdue modal + buzz (10+ min), 3-minute snooze on acknowledge
+  - Realtime ticket refresh
+What does not:
+  - Bump bar hardware integration
+  - Recipe / plating instructions
+
+Module: Kitchen history (/kitchen/history)
+Status: [BUILT]
+What works:
+  - Read-only list of completed/voided tickets for today
+What does not:
+  - Deep historical analytics
+
+Module: Kitchen settings
+Status: [SCAFFOLD]
+What works:
+  - Settings page shell
+What does not:
+  - KDS configuration beyond menu setup stations
+
+
+------------------------------------------------------------------------------
+A9. HOUSEKEEPING
+------------------------------------------------------------------------------
+
+Module: Housekeeping (/housekeeping)
+Status: [PARTIAL]
+What works:
+  - Task list UI, tasks in database, status updates, realtime
+  - Sync concept with front desk room status
+What does not:
+  - Auto-generated morning run sheets — [MARKETING]
+  - Mobile attendant app with GPS — [MARKETING]
+  - Supervisor inspection sign-off workflow
+  - Full live housekeeping board matching PRD
+
+
+------------------------------------------------------------------------------
+A10. ACCOUNTS & FINANCE
+------------------------------------------------------------------------------
+
+Module: Accounts (/accounts)
+Status: [SCAFFOLD]
+What works:
+  - Module scaffold with checklist (chart of accounts, tax, etc.)
+What does not:
+  - General ledger, invoicing engine, accounting exports
+  - Xero / QuickBooks / Sage sync — [MARKETING]
+
+Note: Guest folio, Paystack payments, and void/discount ARE built under
+Front Desk → Folio. Accounts as a department module is not.
+
+
+------------------------------------------------------------------------------
+A11. INVENTORY (HOTEL STOCK — NOT ECOMMERCE STORE)
+------------------------------------------------------------------------------
+
+Module: Inventory (/inventory)
+Status: [SCAFFOLD]
+What works:
+  - Module scaffold page
+What does not:
+  - SKU catalog, stock levels, consumption, reorder alerts
+  - Auto stock deduction from F&B sales into inventory module
+
+
+------------------------------------------------------------------------------
+A12. PROCUREMENT
+------------------------------------------------------------------------------
+
+Module: Procurement (/procurement)
+Status: [SCAFFOLD]
+What works:
+  - Static department dashboard with placeholder KPI numbers
+What does not:
+  - Vendors, purchase orders, approvals, goods receiving
+
+
+------------------------------------------------------------------------------
+A13. MAINTENANCE
+------------------------------------------------------------------------------
+
+Module: Maintenance (/maintenance)
+Status: [SCAFFOLD]
+What works:
+  - Static department dashboard scaffold
+What does not:
+  - Work orders, technician routing, preventive maintenance, asset register
+  - (Room incidents exist partially under front desk rooms)
+
+
+------------------------------------------------------------------------------
+A14. HR & SCHEDULING
+------------------------------------------------------------------------------
+
+Module: HR (/hr)
+Status: [SCAFFOLD]
+What works:
+  - Static department dashboard scaffold
+What does not:
+  - Shift roster, clock in/out, leave requests, payroll export — [MARKETING]
+
+
+------------------------------------------------------------------------------
+A15. REVENUE MANAGEMENT
+------------------------------------------------------------------------------
+
+Module: Revenue (/revenue)
+Status: [SCAFFOLD]
+What works:
+  - Static department dashboard scaffold
+What does not:
+  - Dynamic pricing, yield management, forecasting, rate shopping
+
+
+------------------------------------------------------------------------------
+A16. DASHBOARD & ANALYTICS (GM HOME)
+------------------------------------------------------------------------------
+
+Module: HMS dashboard (/dashboard)
+Status: [PARTIAL]
+What works:
+  - Live: reservations count, in-house guests, financial chart (folio),
+    occupancy trend, room/floor status, operational alerts
+  - Rooms/pricing summary cards from tenant config
+What does not:
+  - F&B revenue card (shows preview/zeros — KDS is live but dashboard not wired)
+  - Kitchen metrics card (preview/zeros)
+  - Inventory watch (preview/zeros)
+  - Full report scheduling / email delivery — [MARKETING]
+
+
+------------------------------------------------------------------------------
+A17. NOTIFICATIONS
+------------------------------------------------------------------------------
+
+Module: In-app notifications (/notifications)
+Status: [BUILT]
+What works:
+  - Notification list, mark read, clear, realtime refresh
+What does not:
+  - WhatsApp / SMS guest notifications — [MARKETING]
+
+
+------------------------------------------------------------------------------
+A18. INTEGRATIONS (HMS — CROSS-CUTTING)
+------------------------------------------------------------------------------
+
+Integration              Status
+-----------------------  --------------------------------------------------
+Supabase Auth/DB/RLS     [BUILT]
+Supabase Realtime        [BUILT] — front desk + F&B tables
+Paystack (billing/folio) [BUILT]
+Email OTP (registration) [BUILT]
+OpenStreetMap geocoding  [BUILT]
+Smart lock vendors       [PARTIAL] / [MARKETING]
+OTA (Booking.com, etc.)  [MARKETING]
+Offline-first 24h ops    [MARKETING]
+Accounting exports       [MARKETING]
+Multi-property groups    [PARTIAL] — data model direction; UI limited
+
+
+================================================================================
+PART B — XYVOO STORE (E-COMMERCE)
+================================================================================
+
+Note: Store merchant app is in the **xyvoo** repo. Marketing and placeholder
+signup pages are in **xyvoo-next**.
+
+------------------------------------------------------------------------------
+B1. STORE — MARKETING & SIGNUP (xyvoo-next)
+------------------------------------------------------------------------------
+
+Module: Store solutions page (/home/solutions/store)
+Status: [BUILT]
+What works:
+  - Full marketing page for Store features and positioning
+What does not:
+  - N/A (marketing only)
+
+Module: Store pricing on /home/pricing
+Status: [BUILT]
+What works:
+  - Free / Standard / Enterprise plans, feature comparison matrix, FAQs
+What does not:
+  - Self-serve signup from Store CTAs may point to HMS register in places
+    (known copy inconsistency on some plan buttons)
+
+Module: Store register (/register/store)
+Status: [SCAFFOLD]
+What works:
+  - Placeholder page: "Store signup is almost here"
+What does not:
+  - Real merchant registration (use xyvoo /register in store repo)
+
+Module: Store login (/auth/login/store)
+Status: [SCAFFOLD]
+What works:
+  - Placeholder page: "Store sign-in coming soon"
+What does not:
+  - Real authentication flow in xyvoo-next
+
+
+------------------------------------------------------------------------------
+B2. STORE — MERCHANT APP (xyvoo repo)
+------------------------------------------------------------------------------
+
+Module: Merchant registration & login
+Status: [BUILT] (in xyvoo repo)
+What works:
+  - /register, /login on store app
+What does not:
+  - Unified with xyvoo-next marketing register page yet
+
+Module: Merchant dashboard home
+Status: [BUILT]
+What works:
+  - /dashboard overview
+What does not:
+  - Depth varies; some widgets may use mock/placeholder data
+
+Module: Products & catalog management
+Status: [BUILT]
+What works:
+  - /dashboard/products — CRUD, variants, pricing in Naira
+  - /dashboard/import-products — bulk import path
+What does not:
+  - Every advanced merchandising rule may not be complete
+
+Module: Inventory
+Status: [PARTIAL]
+What works:
+  - /dashboard/inventory page exists
+What does not:
+  - Verify end-to-end stock sync with all order states in your deployment
+
+Module: Orders
+Status: [BUILT]
+What works:
+  - /dashboard/orders — list, filter by status, export XLSX/PDF, detail dialog
+What does not:
+  - Full warehouse/3PL integration
+
+Module: Customers
+Status: [BUILT]
+What works:
+  - /dashboard/customers
+What does not:
+  - Advanced CRM beyond store customer records
+
+Module: Discounts & promotions
+Status: [BUILT]
+What works:
+  - /dashboard/discounts
+What does not:
+  - Every automatic rule type in marketing matrix
+
+Module: Shipping
+Status: [BUILT]
+What works:
+  - /dashboard/shipping — zones/rates (store schema: shipping_prices)
+What does not:
+  - All carrier integrations in marketing matrix
+
+Module: Payments & finances
+Status: [PARTIAL]
+What works:
+  - /dashboard/payments, /dashboard/finances
+What does not:
+  - Full reconciliation suite; verify Paystack depth per deployment
+
+Module: Subscription & billing (merchant → XYVOO)
+Status: [PARTIAL]
+What works:
+  - /dashboard/subscription — plan cards (Free/Standard/Enterprise)
+  - Admin API can set plan_type and transaction_fee_percentage
+What does not:
+  - Upgrade payment flow may show stub toast ("Redirecting to payment…")
+  - Billing history may include placeholder rows
+
+Module: Analytics
+Status: [BUILT]
+What works:
+  - /dashboard/analytics
+What does not:
+  - "Enhanced" vs basic analytics per plan — verify plan gating
+
+Module: Email marketing
+Status: [BUILT]
+What works:
+  - /dashboard/email-marketing page/route
+What does not:
+  - Full campaign automation depth vs marketing claims
+
+Module: SEO manager
+Status: [BUILT]
+What works:
+  - /dashboard/seo-manager
+What does not:
+  - Advanced SEO tooling vs enterprise competitors
+
+Module: Pages manager (CMS)
+Status: [BUILT]
+What works:
+  - /dashboard/pages-manager
+What does not:
+  - Full page builder parity with dedicated CMS products
+
+Module: Staff & roles
+Status: [BUILT]
+What works:
+  - /dashboard/staff
+What does not:
+  - Granular permission matrix vs every marketing row
+
+Module: Domains
+Status: [PARTIAL]
+What works:
+  - /dashboard/domains
+What does not:
+  - End-to-end custom domain SSL verification — [PLANNED] in store PRD
+
+Module: PWA manager
+Status: [BUILT]
+What works:
+  - /dashboard/PWA-manager
+What does not:
+  - Push notification delivery infrastructure (plan-gated in matrix)
+
+Module: Integrations
+Status: [PARTIAL]
+What works:
+  - /dashboard/integrations route (Enterprise positioning)
+What does not:
+  - Full ERP/CRM connector marketplace
+
+Module: Bank details onboarding
+Status: [BUILT]
+What works:
+  - /dashboard/onboarding/bank-details
+What does not:
+  - Payout settlement automation depth
+
+Module: Platform admin (store tenants)
+Status: [PARTIAL]
+What works:
+  - /dashboard/admin, subscription admin API
+What does not:
+  - Full parity with xyvoo-next /tenants for hotels
+
+
+------------------------------------------------------------------------------
+B3. STORE — SHOPPER STOREFRONT (xyvoo repo)
+------------------------------------------------------------------------------
+
+Module: Store home
+Status: [BUILT]
+What works:
+  - /store (rewritten from merchant subdomain)
+
+Module: Product catalog & PDP
+Status: [BUILT]
+What works:
+  - /store/products, /store/products/[id]
+
+Module: Shopping cart
+Status: [BUILT]
+What works:
+  - /store/cart
+
+Module: Checkout
+Status: [BUILT]
+What works:
+  - /store/checkout with Paystack-oriented flow
+What does not:
+  - Flutterwave/Stripe on storefront — [MARKETING] / Enterprise roadmap
+
+Module: Store about page
+Status: [BUILT]
+What works:
+  - /store/about
+
+Module: Subdomain routing
+Status: [BUILT]
+What works:
+  - {shop}.xyvoo.com → /store/* via middleware
+  - Local dev: ?subdomain=demo
+
+
+================================================================================
+PART C — QUICK REFERENCE SUMMARY
+================================================================================
+
+HMS — STRONGEST (USE THESE TODAY)
+---------------------------------
+  Registration & trial
+  Settings (branding, rooms, pricing, staff, menu, Paystack)
+  Front desk (arrivals, check-in, rooms, folio, checkout, guest services)
+  F&B POS + open orders + kitchen KDS
+  Notifications + realtime operations board
+
+HMS — SHELL ONLY (PAGES EXIST, NOT A REAL MODULE YET)
+-----------------------------------------------------
+  Accounts, Inventory, Procurement, Maintenance, HR, Revenue
+  Reservations (standalone), Front desk night/reports/requests shells
+  39 front desk PRD "WIP" capability cards
+
+HMS — MARKETING AHEAD OF CODE
+-----------------------------
+  OTA/channel manager, offline-first 24h, digital keys, night audit automation
+  Loyalty points, direct booking widget, accounting integrations
+  WhatsApp notifications, express guest self-check-in
+
+STORE — STRONGEST (xyvoo repo)
+------------------------------
+  Storefront (catalog, cart, checkout)
+  Merchant dashboard (products, orders, customers, shipping, discounts)
+  Core dashboard modules exist with real pages
+
+STORE — GAPS
+------------
+  Self-serve signup/login in xyvoo-next (placeholder only)
+  Subscription upgrade payment E2E
+  Custom domains E2E
+  Some marketing comparison rows (SMS, advanced integrations) unverified
+  Marketing site and store app not fully unified in one repo yet
+
+
+================================================================================
+PART D — MODULE COUNT AT A GLANCE
+================================================================================
+
+HMS departments (target = 13):
+  BUILT or strong PARTIAL:  Front Desk, F&B, Kitchen, Settings, Notifications
+  PARTIAL:                  Housekeeping, Guests, Dashboard, Rooms
+  SCAFFOLD/PLANNED:         Reservations, Accounts, Inventory, Procurement,
+                            Maintenance, HR, Revenue
+
+Store (xyvoo):
+  BUILT (app):              Most dashboard routes + full /store shopper flow
+  SCAFFOLD (xyvoo-next):    /register/store, /auth/login/store
+  PARTIAL:                  Subscription billing, domains, integrations depth
+
+
+================================================================================
+SOURCE FILES FOR UPDATING THIS DOCUMENT
+================================================================================
+
+  xyvoo-next/src/lib/hms/frontdesk-capabilities.ts  — 80 FD capability cards
+  xyvoo-next/src/lib/hms/department-access.ts       — HMS roles & nav
+  xyvoo-next/src/components/hms/ModuleScaffold.tsx  — scaffold pattern
+  xyvoo-next/docs/PRD.md                            — HMS PRD
+  xyvoo-next/docs/XYVOO_FULL_PRD.txt                — combined PRD
+  xyvoo/docs/PRD.md                                 — Store app description
+  xyvoo/src/app/dashboard/**                        — Store merchant modules
+  xyvoo/src/app/store/**                            — Store shopper modules
+
+When a module ships, update its section here and change the status label.
+
+================================================================================
+END OF DOCUMENT
+================================================================================

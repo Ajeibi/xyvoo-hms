@@ -1,0 +1,741 @@
+================================================================================
+XYVOO — FULL PRODUCT REQUIREMENTS DOCUMENT
+HMS (Hotel Management System) + Store (E-Commerce Platform)
+================================================================================
+
+Document version: 1.0
+Date: 2026-06-22
+Status: Living document — synthesized from docs/PRD.md, xyvoo/docs/PRD.md,
+        marketing copy (FAQs, pricing, solutions pages), and codebase audit.
+
+Repositories:
+  - xyvoo-next  → Hotel HMS (product = "hotel")  — primary implementation
+  - xyvoo       → Online Store (product = "store") — sibling ecommerce app
+
+Stack (shared): Next.js App Router, Supabase (Auth + Postgres), Paystack,
+                email OTP, PWA, white-label multi-tenancy.
+
+================================================================================
+PART 0 — PLATFORM OVERVIEW
+================================================================================
+
+0.1 WHAT IS XYVOO?
+------------------
+XYVOO is a multi-product business platform built for African businesses. It
+offers two separate products on shared infrastructure:
+
+  1. XYVOO HMS  — Hotel / hospitality management (PMS + operations)
+  2. XYVOO Store — Multi-tenant e-commerce for online merchants
+
+Both products are white-label: tenants run under their own brand (name, logo,
+colours). XYVOO is invisible to staff, guests, and shoppers.
+
+0.2 PRODUCT PROMISE (PLATFORM)
+------------------------------
+  - Single full-featured plan per product (no per-module tier locks on HMS)
+  - African-market first: Naira pricing, Paystack, local operations reality
+  - Web-first + PWA (install to home screen, no app store required)
+  - Department-scoped staff access (HMS) / role-based dashboard (Store)
+  - Multi-tenant isolation: each business gets slug/subdomain + tenant_id
+
+0.3 TARGET CUSTOMERS
+--------------------
+Hospitality:
+  - Independent hotels, boutique hotels, resorts, serviced apartments
+  - Hotel chains and multi-property groups (roadmap: group roll-up)
+
+Retail / e-commerce:
+  - Retailers, product businesses, SMBs selling online
+  - Hotels with gift shops / resort boutiques (can use both products)
+
+0.4 PERSONAS (CROSS-PRODUCT)
+------------------------------
+  - Prospect          → marketing site, pricing, contact, register
+  - Business owner    → full setup, billing, staff, branding
+  - Department staff  → scoped operational UI (HMS stations / Store roles)
+  - Platform operator → @xyvoo.com internal admin, tenant directory
+  - Guest / shopper   → hotel guest flows, store storefront (no XYVOO branding)
+
+0.5 NON-GOALS (CURRENT PHASE)
+-----------------------------
+  - Native iOS/Android app store apps (PWA is in scope)
+  - Full OTA/channel-manager parity on day one (marketing claims roadmap)
+  - Single login across unrelated hotel + store tenants (unless same org)
+
+
+================================================================================
+PART 1 — XYVOO HMS (HOTEL MANAGEMENT SYSTEM)
+================================================================================
+
+1.1 VISION & PROBLEM STATEMENT
+------------------------------
+Vision:
+  Give independent hotels chain-grade PMS and operations software without
+  enterprise cost or complexity — tuned for African markets.
+
+Problems solved:
+  - Fragmented tools (spreadsheets, WhatsApp, paper) for reservations and ops
+  - Weak staff access control (shared logins, everyone sees everything)
+  - Slow check-in, poor room/housekeeping visibility
+  - Unaffordable or ill-fitting international HMS for smaller properties
+
+1.2 GOALS
+---------
+  G1  Authenticated users onboard or join a hotel tenant; land in correct UX
+  G2  Each hotel isolated by tenant (slug + hotel schema + RLS)
+  G3  Operators configure branding, staff, modules from consistent HMS shell
+  G4  Marketing drives conversion to registration
+  G5  Security: protected routes; Supabase session; server-only secrets
+
+1.3 PRICING & BILLING (HMS)
+---------------------------
+Model: Single plan, all features included. Billing cycle choice only.
+
+  Monthly:    ₦200,000 / month
+  Quarterly:  ₦550,000 / quarter (save 8%)
+  Yearly:     ₦2,000,000 / year (save 17%)
+
+  - 14-day free trial, full access, no credit card to start
+  - Unlimited rooms (no per-room pricing)
+  - Payment via Paystack (cards, bank transfer, Visa/Mastercard/Verve)
+  - End of trial without payment → read-only mode (data retained)
+
+1.4 INFORMATION ARCHITECTURE (HMS ROUTES)
+-----------------------------------------
+Public:
+  /home, /home/pricing, /home/about, /home/contact, /home/support, …
+  /register          → 5-step hotel self-registration
+  /auth/login        → Supabase email/password
+  /privacy, /terms
+
+Platform (authenticated):
+  /admin             → platform overview
+  /tenants           → hotel tenant directory
+  /tenants/[id]      → tenant drill-down
+  /onboard           → assisted onboarding
+
+Hotel HMS (authenticated, /hms/[slug]/…):
+  /dashboard         → operational home, KPIs, analytics cards
+  /setup             → guided setup checklist
+  /settings          → branding, rooms/pricing, floor plan, staff, Paystack,
+                       smart lock, menu setup, department access
+  /notifications     → in-app notification centre
+
+  Front Desk (/frontdesk/…):
+    /frontdesk              → overview board, live KPIs
+    /frontdesk/arrivals     → arrivals list, check-in, assign room, no-show
+    /frontdesk/check-in     → walk-in check-in form
+    /frontdesk/rooms        → room status board, blocks, moves, keys
+    /frontdesk/guest-services → service requests, SLA, folio charges
+    /frontdesk/folio        → live folio, charges, payments, discounts
+    /frontdesk/checkout     → guest departure, settlement
+    /frontdesk/calendar     → reservation calendar
+    /frontdesk/activity     → audit log
+    /frontdesk/requests     → requests & incidents (shell)
+    /frontdesk/night        → night shift (shell)
+    /frontdesk/reports      → admin reports (shell)
+    /frontdesk/wip/[key]    → PRD capability placeholders (39 cards)
+
+  Reservations:
+    /reservations, /reservations/new, /reservations/[id]  (scaffold)
+
+  Rooms:
+    /rooms  → room inventory / status (front desk rooms workbench)
+
+  Guests:
+    /guests, /guests/[id]  → guest directory and profile
+
+  Food & Beverage:
+    /restaurant-bar         → POS (outlet tabs, draft cart, send to kitchen)
+    /restaurant-bar/tables  → floor tables
+    /restaurant-bar/orders  → open orders, charge-to-room, cash/close, cancel
+    /restaurant-bar/settings → links to central menu setup
+
+  Kitchen:
+    /kitchen          → KDS live orders, station filters, sold-out, overdue alerts
+    /kitchen/history  → completed/voided tickets (read-only)
+    /kitchen/settings → scaffold
+
+  Other departments (scaffold / static dashboards):
+    /accounts, /inventory, /procurement, /housekeeping, /maintenance,
+    /hr, /revenue
+
+1.5 DEPARTMENT ROLES & ACCESS (HMS)
+-----------------------------------
+Access model:
+  - Owner / Admin / GM → all 28+ section keys
+  - Department staff → scoped nav via user_metadata.department_role
+  - Enforcement: HMSLayout hasSectionAccess(); middleware = auth only
+
+Creatable department roles (staff provisioning):
+  Admin/GM, Front Desk, Reservations, Housekeeping, F&B Staff, Kitchen,
+  Maintenance, Procurement, Store/Inventory, Accounts, HR Manager,
+  Revenue Manager. Owner role is not creatable via UI.
+
+Department → primary home & sections (summary):
+  Front Desk     → /frontdesk — frontdesk, guests, notifications
+  Reservations   → /reservations
+  F&B Staff      → /restaurant-bar — POS, tables, orders
+  Kitchen        → /kitchen — live orders, history
+  Housekeeping   → /housekeeping
+  Maintenance    → /maintenance
+  Procurement    → /procurement
+  Store/Inventory→ /inventory  (hotel stock, NOT ecommerce Store product)
+  Accounts       → /accounts
+  HR Manager     → /hr
+  Revenue Manager→ /revenue
+
+Submodule RBAC (finer than section):
+  arrivals-rbac, rooms-rbac, guest-services-rbac, fb-rbac
+
+1.6 FUNCTIONAL REQUIREMENTS BY MODULE
+-------------------------------------
+
+--- 1.6.1 Registration & onboarding ---
+  R1  Capture hotel profile: name, email, phone, country, city, address,
+      room count, hotel type, terms acceptance
+  R2  Email OTP verification (send-otp, verify-otp APIs)
+  R3  Account password with validation
+  R4  14-day trial and/or Paystack payment (start-trial, initiate-payment,
+      verify-payment)
+  R5  City/address lookup via /api/location/search (Nominatim proxy)
+  R6  Post-registration: dashboard setup modal (5 tasks), optional tour
+
+--- 1.6.2 Authentication ---
+  A1  Email/password via Supabase
+  A2  post-login-redirect: @xyvoo.com → /admin; hotel member → /hms/[slug]/dashboard
+  A3  Middleware protects /admin, /tenants, /onboard, /hms/*
+
+--- 1.6.3 Settings & property configuration ---
+  S1  Hotel branding: display name, logo_url, colours
+  S2  Floor plan: floors and room counts per floor
+  S3  Room types, pricing, hotel-wide pricing rules
+  S4  Room inventory assignment (types to physical units)
+  S5  Department access matrix + staff creation (Supabase user provisioning)
+  S6  Paystack tenant configuration + reconciliation UI
+  S7  Smart lock setup (partial — audit_only default)
+  S8  F&B menu setup: outlets, categories, items, kitchen stations,
+      restaurant tables, sold-out / in-stock toggles
+
+--- 1.6.4 Front Desk (deepest module — 80 PRD capability cards) ---
+Sections:
+  1. Dashboard KPIs (8): arrivals, departures, in-house, rooms ready,
+     open requests, VIP, overdue checkouts, unpreauthed rooms
+  2. Arrival workflow (12): pre-arrival through walk-in booking
+  3. Room management (8): status board, assignments, OOO, keys, connecting rooms
+  4. Guest management (10): profile, VIP, messaging, group check-in, parcels
+  5. Requests & incidents (7): service requests, SLA, complaints, waitlist
+  6. Financial & folio (11): live folio, charges, splits, payments, corporate,
+     FX, cash float
+  7. Check-out workflow (9): final review, void, settle, receipt, revoke key,
+     early departure, express checkout, feedback
+  8. Night shift (5): night audit, no-shows, late arrivals, handover, distress
+  9. Admin & reporting (10): operational lists, SLA, compliance exports, roll-call
+
+Built workflows (representative):
+  - Live front desk board with room status, reservations, KPIs
+  - Arrivals: list, detail sheet, check-in dialog, assign room, no-show, bulk
+  - Walk-in check-in with guest detail fields
+  - Rooms workbench: status changes, blocks, connecting rooms, keys, incidents
+  - Guest services: requests, SLA, assign staff, folio charge, analytics
+  - Folio: charges, payments, void, discount, transfer, FX, cash float
+  - Checkout: folio review, settlement, Paystack charge
+  - Activity log (audit_logs), calendar view
+  - Realtime updates across 17+ hotel tables
+
+Planned / WIP: 39 capability cards route to /frontdesk/wip/[key] "Coming soon"
+
+--- 1.6.5 Reservations ---
+  Target: Full reservation pipeline (create, modify, cancel, calendar, groups)
+  Current: Data model exists; creation via front desk; dedicated module UI scaffold
+
+--- 1.6.6 Rooms & inventory ---
+  Target: Real-time room status aligned with housekeeping and reservations
+  Current: room_units table, front desk rooms board, floor plan in settings
+
+--- 1.6.7 Guests ---
+  Target: Guest directory, profiles, loyalty, history
+  Current: Guest directory + profile view (partial); loyalty planned in marketing
+
+--- 1.6.8 Food & Beverage & Kitchen ---
+  F&B requirements:
+  - Multi-outlet menu (restaurant, bar, room service)
+  - POS: outlet tabs, optional table, local draft cart, send to kitchen in one POST
+  - Open orders: kitchen status, charge-to-room, cash close, cancel/void order
+  - Menu setup in Settings: categories, items, stations, tables, sold-out
+  - Realtime menu/order sync
+
+  Kitchen (KDS) requirements:
+  - Live tickets by station, rush priority, wait-time colour ramp
+  - Item actions: Preparing, Ready, Sold out (86)
+  - Overdue alert modal + buzz at 10+ minutes (3-min snooze on acknowledge)
+  - Standing order-update notifications (restaurant ↔ kitchen acknowledge)
+
+  Sold-out logic: is_available=false OR eighty_sixed_at set; POS shows grayed;
+  guest menu hides; kitchen can mark sold out from ticket line
+
+--- 1.6.9 Housekeeping ---
+  Target: Run sheets, mobile attendant tasks, supervisor sign-off, live board
+  Current: housekeeping_tasks table + task list UI (partial)
+
+--- 1.6.10 Accounts & finance ---
+  Target: Invoices, reconciliation, tax/VAT, accounting exports (Xero, etc.)
+  Current: Folio transactions + Paystack; accounts module scaffold
+
+--- 1.6.11 Inventory & procurement ---
+  Target: Stock per department, POs, receiving, reorder alerts, F&B consumption
+  Current: Module scaffolds only
+
+--- 1.6.12 Maintenance, HR, Revenue ---
+  Target: Work orders, scheduling, timesheets, revenue management, reporting
+  Current: Static department dashboard scaffolds
+
+--- 1.6.13 Dashboard & analytics ---
+  Live when hotel schema queries succeed:
+    reservations count, in-house guests, financial performance (folio),
+    occupancy trend, room/floor status, operational alerts
+  Preview placeholders: F&B revenue, kitchen metrics, inventory (zeros)
+
+--- 1.6.14 Notifications ---
+  In-app notification centre; realtime refresh; mark read / clear
+
+--- 1.6.15 Smart access ---
+  Marketing: digital keys, ASSA ABLOY/Dormakaba/SALTO, remote lock/unlock
+  Current: smart_lock_setup on tenant, room_unit_assets, audit_only mode
+
+1.7 DATA MODEL (HMS — hotel schema, summary)
+--------------------------------------------
+Core groups (18 migrations through fb_orders):
+
+  Tenancy & auth:
+    memberships, profiles, registration_sessions, registration_otps
+
+  Property:
+    tenants (room_types, pricing_setup, floor_plan, logo_url, paystack_setup,
+             smart_lock_setup)
+
+  Inventory & guests:
+    room_units, guests, reservations, reservation_guests, group_bookings
+
+  Front desk ops:
+    room_unit_flags, notifications, audit_logs, shift_notes,
+    housekeeping_tasks, guest_requests, guest_request_notes/events,
+    room_blocks, room_connecting_links, room_unit_notes, room_incidents,
+    room_key_events, room_unit_assets
+
+  Folio & payments:
+    folio_transactions, cash_float_sessions, tenant_folio_settings,
+    payment_intents (Paystack)
+
+  F&B:
+    fb_outlets, fb_stations, fb_menu_categories, fb_menu_items,
+    fb_tables, fb_orders, fb_order_items
+
+1.8 INTEGRATIONS (HMS)
+----------------------
+  Built:     Supabase Auth, Postgres, RLS, Realtime (front desk + F&B buses)
+  Built:     Paystack (registration billing, folio charges, webhooks, refunds)
+  Built:     Email OTP (registration)
+  Built:     Nominatim geocoding (server-side)
+  Partial:   Smart lock (settings + API, limited runtime)
+  Planned:   OTA/channel manager, WhatsApp/SMS, Xero/QuickBooks/Sage sync
+
+1.9 NON-FUNCTIONAL REQUIREMENTS (HMS)
+-------------------------------------
+  NFR1  Good LCP on marketing; next/image for assets
+  NFR2  No service role keys in client bundles
+  NFR3  Published privacy/terms; minimize PII in logs
+  NFR4  Observability TBD (structured logging, Sentry)
+  NFR5  ESLint/TypeScript clean; shared types in @/types
+  NFR6  Offline-first front desk (marketing claim — verify implementation depth)
+  NFR7  PWA installable for staff devices
+
+1.10 HMS SUCCESS METRICS (TBD targets)
+------------------------------------
+  Activation: registered → OTP verified → trial started
+  Time-to-value: first reservation or room configured
+  Retention: MAU per property / churn
+  NPS: post-trial survey
+  Revenue: MRR / ARPA
+
+1.11 HMS MILESTONE ROADMAP (ENGINEERING)
+----------------------------------------
+  Completed / in progress:
+    - Registration + trial + Paystack signup
+    - Settings: branding, pricing, floor plan, staff, menu, Paystack
+    - Front desk: arrivals, check-in, rooms, folio, checkout, guest services
+    - F&B POS + Kitchen KDS + order notifications
+    - Dashboard live metrics (rooms, reservations, finance)
+
+  Next priorities:
+    1. Wire dashboard F&B/kitchen cards to live fb_* data
+    2. Reservations module CRUD (standalone UI)
+    3. Complete 39 front-desk WIP capabilities
+    4. Accounts depth + Paystack reconciliation
+    5. Inventory / procurement backends
+    6. Route-level RBAC beyond section checks
+    7. OTA / messaging integrations
+
+1.12 HMS OPEN QUESTIONS
+-----------------------
+  - Channel manager vendor and timeline?
+  - Multi-property single login across hotel group?
+  - Offline scope for front desk (24h claim)?
+  - Localization beyond V1 18 languages?
+  - In-app support ticketing vs email-only?
+
+
+================================================================================
+PART 2 — XYVOO STORE (E-COMMERCE PLATFORM)
+================================================================================
+
+2.1 VISION & PROBLEM STATEMENT
+------------------------------
+Vision:
+  Let merchants launch a branded online store in minutes — catalog, checkout,
+  orders, and marketing — without building a custom site or juggling bolt-ons.
+
+Problems solved:
+  - High cost/time to build and host ecommerce
+  - Fragmented tools for products, orders, payments, shipping
+  - Platform fees and feature gates on competitor tiers
+  - Lack of Africa-ready payment rails (Paystack first)
+
+Implementation note:
+  Store application code lives primarily in the **xyvoo** repository.
+  **xyvoo-next** hosts marketing, pricing, FAQs, and placeholder register/login
+  routes (/register/store, /auth/login/store) until unified or linked.
+
+2.2 GOALS
+---------
+  G1  Merchant self-serve signup → live storefront on subdomain
+  G2  Multi-tenant isolation (store schema + tenant_id + RLS, product=store)
+  G3  Merchant dashboard for full commerce operations
+  G4  Shopper-facing PWA storefront (catalog, cart, checkout)
+  G5  Clear fee model: Free (4% per order) vs Standard (₦10k/mo, 0% fee)
+
+2.3 PRICING & PLANS (STORE)
+---------------------------
+  Free:
+    ₦0/month, 4% platform fee per order
+    Unlimited products, website + PWA, Paystack, invoices/receipts/discounts,
+    analytics dashboard
+
+  Standard:
+    ₦10,000/month, 0% platform fee
+    Everything in Free + enhanced analytics, marketing tools, export reports,
+    priority support, custom domain (per comparison matrix)
+
+  Enterprise:
+    Custom pricing, custom transaction fees
+    Dedicated support, custom automations, enterprise integrations, SLA,
+    API access, additional payment gateways
+
+Feature comparison matrix: 50+ rows across core platform, analytics, PWA,
+custom domain, SEO/marketing, notifications, discounts, shipping/tax,
+team/RBAC, integrations/API, payments/checkout, support
+(see src/constants/pricing.ts STORE_FEATURE_COMPARISON_ROWS)
+
+2.4 INFORMATION ARCHITECTURE (STORE ROUTES)
+-------------------------------------------
+Main site (apex / www):
+  /                    → landing
+  /register            → merchant registration (xyvoo repo)
+  /login               → sign in
+  /privacy-policy, /terms-of-service
+
+Tenant storefront (subdomain → /store/* rewrite):
+  /store               → store home
+  /store/products      → catalog
+  /store/products/[id] → product detail
+  /store/cart          → shopping cart
+  /store/checkout      → checkout
+  /store/about         → about page
+
+Merchant dashboard (/dashboard/*):
+  Overview:            dashboard, onboarding/bank-details
+  Catalog:             products, inventory, import-products, discounts
+  Sales:               orders, customers
+  Money:               finances, payments, subscription, shipping
+  Growth:              analytics, email-marketing, seo-manager, pages-manager
+  Platform:            settings, staff, domains, integrations, PWA-manager
+  Admin:               dashboard/admin (platform operator)
+
+Marketing in xyvoo-next (conversion layer):
+  /home/solutions/store
+  /register/store       (placeholder — "coming soon")
+  /auth/login/store     (placeholder)
+
+2.5 FUNCTIONAL REQUIREMENTS BY AREA
+-----------------------------------
+
+--- 2.5.1 Identity & tenant ---
+  S1  Merchant registration creates tenant (product=store) + membership
+  S2  Subdomain provisioning: {store}.xyvoo.com → storefront
+  S3  Bank details onboarding (/dashboard/onboarding/bank-details)
+  S4  Staff invites with role-based dashboard access
+  S5  Custom domain linking (Standard+; SSL, dashboard setup)
+
+--- 2.5.2 Storefront (shopper) ---
+  SF1 Branded home, product listing, product detail with variants
+  SF2 Shopping cart (persist session / account)
+  SF3 Checkout: shipping address, Paystack payment, order confirmation
+  SF4 Guest checkout + optional customer accounts
+  SF5 PWA: add to home screen, offline browsing (per plan matrix)
+  SF6 About / CMS pages (pages-manager)
+
+--- 2.5.3 Catalog & inventory ---
+  C1  Unlimited products (all plans)
+  C2  Variants (size, colour, SKU)
+  C3  Categories and merchandising
+  C4  Bulk import (CSV/structured file)
+  C5  Automatic stock deduction on sale
+  C6  Inventory dashboard per SKU/variant
+
+--- 2.5.4 Orders & fulfilment ---
+  O1  Order board in merchant dashboard
+  O2  Order status workflow (paid → fulfilled → delivered)
+  O3  Shipping zones and rates (by zone or weight)
+  O4  Multiple shipping carriers (Standard+)
+  O5  Tax rules per region
+  O6  Email notifications (order confirmations, merchant alerts)
+
+--- 2.5.5 Payments ---
+  P1  Paystack as primary gateway (cards, Nigerian market)
+  P2  Platform fee: 4% on Free plan; 0% on Standard
+  P3  Enterprise: custom fee percentage
+  P4  Receipts and invoices for customers
+  P5  Saved cards for repeat customers (per matrix)
+  P6  Roadmap: Flutterwave, Stripe, Adyen (Enterprise / global)
+
+--- 2.5.6 Marketing & growth ---
+  M1  SEO: meta titles/descriptions per store and product
+  M2  Discounts and coupon codes
+  M3  Flash sales / automatic discount rules (Standard+)
+  M4  Email marketing lists and campaigns
+  M5  Campaign tracking (Standard+)
+  M6  Social sharing integration
+  M7  CRM for subscribers (Standard+)
+
+--- 2.5.7 Analytics ---
+  A1  Sales trends, traffic, conversion metrics
+  A2  Top products, order volume
+  A3  Visual dashboards with charts
+  A4  Exportable CSV/PDF reports (Standard+)
+
+--- 2.5.8 Subscription & billing (merchant → XYVOO) ---
+  B1  Plan selection: Free / Standard / Enterprise
+  B2  Upgrade flow with Paystack (partial — UI may stub redirect)
+  B3  Billing history
+  B4  Platform admin can set plan_type and transaction_fee_percentage
+
+--- 2.5.9 Platform administration ---
+  PA1 List store tenants
+  PA2 Adjust subscription plan and fees
+  PA3 Assisted onboarding entry points
+
+2.6 DATA MODEL (STORE — store schema, summary)
+----------------------------------------------
+(Implemented in xyvoo repo migrations)
+
+  products (+ options, variants)
+  orders (+ order items)
+  shipping_prices
+  subscriptions
+  bank_details
+  memberships (store schema)
+  tenant_id on all store tables; RLS via store.memberships
+  public.tenants.product = 'store'
+
+2.7 MULTI-TENANCY & ROUTING (STORE)
+-----------------------------------
+  - Apex / www / host "xyvoo" → main site (marketing + auth)
+  - Other subdomains → rewrite to /store/* + x-subdomain header
+  - Local dev: ?subdomain=demo on localhost
+  - Store and hotel may share Supabase project; MUST isolate by product,
+    schema, and RLS — no cross-read of hotel.* from store flows
+
+2.8 INTEGRATIONS (STORE)
+------------------------
+  Built (xyvoo):   Supabase, Paystack checkout, subdomain middleware
+  Planned/matrix:  Flutterwave, Stripe, custom domains E2E, webhooks, ERP/CRM
+
+2.9 NON-FUNCTIONAL REQUIREMENTS (STORE)
+---------------------------------------
+  NFR1  RLS on all tenant data; service keys server-only
+  NFR2  Mobile-first storefront; PWA performance
+  NFR3  Payment webhooks idempotent
+  NFR4  Legal pages aligned with data handling
+  NFR5  White-label: shopper sees merchant brand only
+
+2.10 STORE SUCCESS METRICS (TBD)
+--------------------------------
+  Merchant activation: signup → first product → first order
+  GMV per tenant; platform fee revenue (Free tier)
+  Subscription conversion Free → Standard
+  Churn; support ticket volume
+
+2.11 STORE OPEN QUESTIONS
+-------------------------
+  - Custom domain verification workflow end-to-end?
+  - Single vs multi-gateway per market?
+  - Enterprise contracting and SLA process?
+  - Unified marketing register in xyvoo-next vs xyvoo app?
+  - Shared auth across hotel + store for same business entity?
+
+
+================================================================================
+PART 3 — IMPLEMENTATION STATUS MATRIX (HONEST AUDIT, 2026-06)
+================================================================================
+
+Legend:  [BUILT]  [PARTIAL]  [PLANNED]  [MARKETING ONLY]
+
+--- HMS (xyvoo-next) ---
+  Marketing website                    [BUILT]
+  Hotel registration + trial           [BUILT]
+  Auth + post-login redirect           [BUILT]
+  Platform admin / tenants             [PARTIAL]
+  HMS shell + department RBAC          [BUILT]
+  Settings (branding, pricing, staff)  [BUILT]
+  Front desk core workflows            [BUILT]
+  Front desk 80 PRD cards              [PARTIAL] 41 routed, 39 WIP
+  Reservations module UI               [PLANNED]
+  Guests directory                     [PARTIAL]
+  F&B POS + orders + cancel            [BUILT]
+  Kitchen KDS + alerts + notifications [BUILT]
+  Housekeeping                         [PARTIAL]
+  Dashboard live KPIs                  [PARTIAL]
+  Accounts / inventory / HR / etc.     [PLANNED]
+  Paystack folio                       [BUILT]
+  Smart lock                           [PARTIAL]
+  OTA / offline-first / digital keys   [MARKETING ONLY] or [PLANNED]
+  Accounting integrations (Xero, etc.) [MARKETING ONLY]
+
+--- Store ---
+  Marketing + pricing + FAQs (xyvoo-next) [BUILT]
+  Store register/login (xyvoo-next)       [PLANNED] placeholder pages
+  Store app (xyvoo repo)                  [BUILT] core routes exist
+  Storefront / cart / checkout (xyvoo)    [BUILT] depth varies by area
+  Merchant dashboard (xyvoo)              [BUILT] breadth of modules
+  Subscription billing E2E                [PARTIAL]
+  Custom domains                        [PARTIAL]
+  Enterprise integrations               [PLANNED]
+
+
+================================================================================
+PART 4 — SHARED PLATFORM ARCHITECTURE
+================================================================================
+
+4.1 TENANCY
+-----------
+  public.tenants
+    - id, subdomain, name, display_name, product ("hotel" | "store")
+    - branding fields, billing metadata
+
+  Isolation:
+    - hotel.* schema + hotel.memberships (HMS)
+    - store.* schema + store.memberships (Store)
+    - RLS policies per table; product isolation guards on registration
+
+4.2 AUTH
+--------
+  Supabase Auth users; metadata carries department_role (HMS) or store role
+  Middleware: authentication on protected routes
+  Fine-grained authorization: section-level (HMS) evolving to route-level
+
+4.3 PAYMENTS
+------------
+  Paystack: HMS registration + folio; Store checkout + platform fees
+  Webhooks for payment confirmation and reconciliation
+
+4.4 REALTIME
+------------
+  HMS: useFrontDeskRealtime (17 tables), useFbRealtime (4 fb_* tables)
+  Store: (per xyvoo implementation)
+
+4.5 WHITE-LABEL
+---------------
+  Tenant logo, display name, colours in HMS shell and Store storefront
+  PWA install icon and name = tenant brand
+  XYVOO not shown to end users
+
+
+================================================================================
+PART 5 — CROSS-PRODUCT SCENARIOS
+================================================================================
+
+5.1 HOTEL WITH GIFT SHOP
+------------------------
+  HMS for property operations; Store for retail catalog and online sales.
+  Separate tenant rows (product=hotel vs product=store) unless unified later.
+  Marketing FAQ explicitly supports this use case.
+
+5.2 DUAL PRODUCT ON MARKETING SITE
+----------------------------------
+  Single xyvoo.com home positions both products.
+  Separate registration paths: /register (HMS) vs /register/store (Store).
+  Pricing page tabs: HMS cycles vs Store plans.
+
+
+================================================================================
+APPENDIX A — HMS MODULE LIST (MARKETING / TARGET STATE)
+================================================================================
+
+  1.  Front Desk
+  2.  Reservations
+  3.  Housekeeping
+  4.  Restaurant & Bar (F&B POS)
+  5.  Kitchen (KDS)
+  6.  Accounts & Finance
+  7.  Maintenance
+  8.  Procurement
+  9.  Inventory
+  10. HR & Scheduling
+  11. Revenue Management
+  12. Smart Access
+  13. Analytics & Reporting
+
+All departments included in single HMS plan — no module upsells.
+
+
+================================================================================
+APPENDIX B — STORE DASHBOARD MODULE LIST (TARGET STATE)
+================================================================================
+
+  Products, Inventory, Import products, Discounts
+  Orders, Customers
+  Finances, Payments, Subscription, Shipping
+  Analytics, Email marketing, SEO manager, Pages manager
+  Settings, Staff, Domains, Integrations, PWA manager
+  Onboarding (bank details), Admin (platform)
+
+
+================================================================================
+APPENDIX C — KEY SOURCE FILES (FOR MAINTAINERS)
+================================================================================
+
+  xyvoo-next/docs/PRD.md                    — HMS PRD (codebase-derived)
+  xyvoo/docs/PRD.md                         — Store application description
+  xyvoo-next/src/lib/hms/frontdesk-capabilities.ts — Front Desk PRD v1 registry
+  xyvoo-next/src/lib/hms/department-access.ts      — HMS roles & nav
+  xyvoo-next/src/constants/faqs.ts          — Product FAQs (HMS + Store)
+  xyvoo-next/src/constants/pricing.ts       — HMS + Store pricing
+  xyvoo-next/src/constants/solutions-store.ts — Store marketing features
+  xyvoo-next/supabase/migrations/           — HMS schema
+  xyvoo/supabase/migrations/                — Store schema
+
+
+================================================================================
+DOCUMENT CONTROL
+================================================================================
+
+  Version  Date        Notes
+  -------  ----------  --------------------------------------------------------
+  1.0      2026-06-22  Combined HMS + Store PRD for product and engineering
+
+  Maintainer: Update when modules ship or marketing claims change.
+  Distinguish TARGET (this PRD + FAQs) vs BUILT (Part 3 matrix) in planning.
+
+================================================================================
+END OF DOCUMENT
+================================================================================
