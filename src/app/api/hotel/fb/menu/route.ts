@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { upsertMenuCategory, upsertMenuItem, upsertStation, upsertTable } from "@/lib/hms/fb-menu";
+import {
+  deleteTable,
+  upsertMenuCategory,
+  upsertMenuItem,
+  upsertStation,
+  upsertTable,
+} from "@/lib/hms/fb-menu";
 import { fbForbidden, requireFbApi } from "../_lib";
 
 const BodySchema = z.discriminatedUnion("type", [
@@ -11,6 +17,7 @@ const BodySchema = z.discriminatedUnion("type", [
     outletId: z.string().uuid(),
     name: z.string().min(1).max(80),
     sortOrder: z.number().int().optional(),
+    prepMinutes: z.number().int().min(1).max(240).nullable().optional(),
   }),
   z.object({
     type: z.literal("item"),
@@ -56,6 +63,7 @@ export async function POST(req: Request) {
         outletId: body.outletId,
         name: body.name,
         sortOrder: body.sortOrder,
+        prepMinutes: body.prepMinutes,
       });
       if (result.error) return NextResponse.json({ error: result.error }, { status: 400 });
       return NextResponse.json({ ok: true, category: result.category });
@@ -94,6 +102,32 @@ export async function POST(req: Request) {
     });
     if (result.error) return NextResponse.json({ error: result.error }, { status: 400 });
     return NextResponse.json({ ok: true, table: result.table });
+  } catch (e) {
+    if (e instanceof z.ZodError) {
+      return NextResponse.json({ error: e.issues[0]?.message }, { status: 400 });
+    }
+    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+  }
+}
+
+const DeleteSchema = z.object({
+  slug: z.string().min(1),
+  type: z.literal("table"),
+  id: z.string().uuid(),
+});
+
+export async function DELETE(req: Request) {
+  try {
+    const body = DeleteSchema.parse(await req.json());
+    const auth = await requireFbApi(body.slug);
+    if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
+
+    const denied = fbForbidden(auth.capabilities, "canConfigure");
+    if (denied) return NextResponse.json({ error: denied.error }, { status: denied.status });
+
+    const result = await deleteTable(auth.service, auth.tenant.id, body.id);
+    if (result.error) return NextResponse.json({ error: result.error }, { status: 400 });
+    return NextResponse.json({ ok: true });
   } catch (e) {
     if (e instanceof z.ZodError) {
       return NextResponse.json({ error: e.issues[0]?.message }, { status: 400 });

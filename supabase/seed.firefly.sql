@@ -1,4 +1,7 @@
 -- Apply migration 20260513120000_hotel_guests_reservations.sql before running.
+-- SUPERSEDED for guests, reservations, folio, and F&B: use `npm run seed:demo -- <slug>` instead.
+-- This SQL file is retained for bulk room inventory load only. Do not run both SQL guest seed and TS seed
+-- on the same tenant without clearing demo data first (`npm run seed:demo -- <slug> --force` after clear).
 -- Run: psql $DATABASE_URL -f supabase/seed.firefly.sql  OR paste in Supabase SQL editor.
 
 begin;

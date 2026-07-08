@@ -1,8 +1,6 @@
 import HMSLayout from "@/components/hms/HMSLayout";
 import DepartmentAccessSetup from "@/components/hms/DepartmentAccessSetup";
 import { SmartLockSettingsCard } from "@/components/hms/settings/SmartLockSettingsCard";
-import { PaystackReconciliationCard } from "@/components/hms/settings/PaystackReconciliationCard";
-import { PaystackSettingsCard } from "@/components/hms/settings/PaystackSettingsCard";
 import HotelBrandingSetup from "@/components/hms/HotelBrandingSetup";
 import HotelMenuSetup from "@/components/hms/HotelMenuSetup";
 import HotelRoomPricingSetup from "@/components/hms/HotelRoomPricingSetup";
@@ -77,14 +75,6 @@ export default async function SettingsPage({ params }: { params: Promise<{ slug:
 
           <section id="smart-lock-setup" className="scroll-mt-24">
             <SmartLockSettingsCard slug={slug} />
-          </section>
-
-          <section id="paystack-setup" className="scroll-mt-24">
-            <PaystackSettingsCard slug={slug} />
-          </section>
-
-          <section id="paystack-reconciliation" className="scroll-mt-24">
-            <PaystackReconciliationCard slug={slug} currency={pricingSetup.currency} />
           </section>
         </div>
       ) : (

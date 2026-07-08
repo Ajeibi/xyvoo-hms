@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { FrontDeskCheckoutDialog } from "@/components/hms/frontdesk/checkout/FrontDeskCheckoutDialog";
@@ -103,6 +103,7 @@ export default function HMSLayoutShell({
       .sort((left, right) => right.path.length - left.path.length)[0]?.key ?? null;
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const logoutFormId = `hms-account-logout-${slug}`;
+  const mainRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const onOpenCheckout = (e: Event) => {
@@ -131,11 +132,80 @@ export default function HMSLayoutShell({
     document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
 
+    // Reset scroll positions of document and window
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    window.scrollTo(0, 0);
+
     return () => {
       document.documentElement.style.overflow = previousHtmlOverflow;
       document.body.style.overflow = previousBodyOverflow;
     };
   }, []);
+
+  /**
+   * Robust hash-scroll handler:
+   * 1. Decodes and normalizes hash (supports spaces, dashes, underscores).
+   * 2. Resets document & window scroll to prevent the header from scrolling away.
+   * 3. Walks up parent tree to reset any scroll position forced on overflow:hidden parents.
+   * 4. Scrolls the <main> container to the target section.
+   */
+  useEffect(() => {
+    const doScroll = () => {
+      const hash = window.location.hash.slice(1);
+      if (!hash) return;
+
+      const main = mainRef.current;
+      if (!main) return;
+
+      const decoded = decodeURIComponent(hash);
+      const target =
+        document.getElementById(decoded) ||
+        document.getElementById(hash) ||
+        document.getElementById(decoded.replace(/[\s_]+/g, "-")) ||
+        document.getElementById(hash.replace(/[\s_]+/g, "-"));
+
+      if (!target) return;
+
+      // Reset document and window scroll
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      window.scrollTo(0, 0);
+
+      // Reset any scroll that the browser forced on overflow:hidden parents
+      let parent = target.parentElement;
+      while (parent && parent !== document.body) {
+        if (parent !== main && parent.scrollTop > 0) {
+          parent.scrollTop = 0;
+        }
+        parent = parent.parentElement;
+      }
+
+      const HEADER_HEIGHT = 72; // 4.5rem — matches h-[4.5rem] on the header
+      const targetTop =
+        target.getBoundingClientRect().top -
+        main.getBoundingClientRect().top +
+        main.scrollTop -
+        HEADER_HEIGHT -
+        16;
+      main.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
+    };
+
+    let rafId: number;
+    let timerId: ReturnType<typeof setTimeout>;
+
+    rafId = requestAnimationFrame(() => {
+      timerId = setTimeout(doScroll, 100);
+    });
+
+    window.addEventListener("hashchange", doScroll);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      clearTimeout(timerId);
+      window.removeEventListener("hashchange", doScroll);
+    };
+  }, [pathname]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
@@ -337,7 +407,7 @@ export default function HMSLayoutShell({
           </div>
         </header>
 
-        <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
+        <main ref={mainRef} className="min-h-0 flex-1 overflow-y-auto">{children}</main>
       </div>
 
       {showFrontDeskCta ? (

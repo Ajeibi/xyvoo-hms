@@ -1,6 +1,7 @@
 export type FbOutletType = "restaurant" | "bar" | "room_service";
 export type FbTableStatus = "available" | "seated" | "dirty";
 export type FbOrderStatus = "open" | "sent_to_kitchen" | "ready" | "closed" | "voided";
+export type FbOrderSettlementMethod = "cash" | "card" | "pos" | "room_charge";
 export type FbKitchenStatus = "pending" | "preparing" | "ready" | "served" | "voided";
 
 export type FbOutletRow = {
@@ -28,6 +29,8 @@ export type FbMenuCategoryRow = {
   name: string;
   sort_order: number;
   is_active: boolean;
+  /** Per-category cook-time target in minutes. null = use the global kitchen threshold. */
+  prep_minutes: number | null;
 };
 
 export type FbMenuItemRow = {
@@ -65,8 +68,12 @@ export type FbOrderRow = {
   rush: boolean;
   placed_by: string | null;
   sent_to_kitchen_at: string | null;
+  ready_acknowledged_at: string | null;
+  kitchen_ready_at: string | null;
+  served_at: string | null;
   closed_at: string | null;
   voided_at: string | null;
+  settlement_method: FbOrderSettlementMethod | null;
   subtotal: number;
   notes: string | null;
   created_at: string;
@@ -93,6 +100,8 @@ export type FbOrderWithItems = FbOrderRow & {
   table_code?: string | null;
   outlet_name?: string;
   outlet_type?: FbOutletType;
+  /** Effective cook-time target (max of item categories' prep_minutes). null = use global. */
+  category_overdue_minutes?: number | null;
 };
 
 export type FbKitchenTicket = {
@@ -103,6 +112,8 @@ export type FbKitchenTicket = {
   created_at: string;
   sent_to_kitchen_at: string | null;
   status: FbOrderStatus;
+  /** Effective cook-time target for this ticket. null = use global kitchen threshold. */
+  overdue_minutes: number | null;
   items: {
     id: string;
     name: string;

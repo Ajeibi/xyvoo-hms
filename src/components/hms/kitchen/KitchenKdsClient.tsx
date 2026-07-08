@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import type { FbKitchenTicket, FbStationRow } from "@/lib/hms/fb-types";
 import { filterKitchenTicketsByStation } from "@/lib/hms/load-fb-pages";
 import { useFbRealtime } from "@/hooks/useFbRealtime";
+import { useClientNow } from "@/hooks/useClientNow";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -17,8 +18,17 @@ import {
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { toastError, toastSuccess } from "@/lib/app-toast";
+import { DEFAULT_KITCHEN_OVERDUE_MINUTES } from "@/lib/hms/fb-settings";
+import {
+  formatWaitMinutes,
+  hasOpenKitchenItems,
+  isKitchenWorkComplete,
+  isOrderKitchenOverdue,
+  resolveTimingNow,
+  ticketAgeStyle,
+  ticketWaitMinsFloat,
+} from "@/lib/hms/fb-order-timing";
 
-const OVERDUE_MINUTES = 10;
 const ACK_SNOOZE_MS = 3 * 60_000;
 const CLOCK_MS = 15_000;
 
@@ -29,79 +39,11 @@ function ticketStartMs(ticket: FbKitchenTicket) {
 }
 
 function ticketWaitMins(ticket: FbKitchenTicket, now: number) {
-  return Math.floor((now - ticketStartMs(ticket)) / 60_000);
-}
-
-function ticketHasOpenItems(ticket: FbKitchenTicket) {
-  return ticket.items.some(
-    (item) => item.kitchen_status === "pending" || item.kitchen_status === "preparing",
-  );
-}
-
-function isTicketOverdue(ticket: FbKitchenTicket, now: number) {
-  return ticketWaitMins(ticket, now) >= OVERDUE_MINUTES && ticketHasOpenItems(ticket);
-}
-
-function ticketWaitMinsFromTimes(sentAt: string | null, createdAt: string, now: number) {
-  return (now - new Date(sentAt ?? createdAt).getTime()) / 60_000;
-}
-
-function lerp(a: number, b: number, t: number) {
-  return a + (b - a) * t;
-}
-
-function lerpRgb(
-  from: [number, number, number],
-  to: [number, number, number],
-  t: number,
-): string {
-  const r = Math.round(lerp(from[0], to[0], t));
-  const g = Math.round(lerp(from[1], to[1], t));
-  const b = Math.round(lerp(from[2], to[2], t));
-  return `rgb(${r}, ${g}, ${b})`;
-}
-
-/** Border + background deepen from green → amber → red as wait time grows. */
-function ticketAgeStyle(sentAt: string | null, createdAt: string, now: number): CSSProperties {
-  const mins = ticketWaitMinsFromTimes(sentAt, createdAt, now);
-
-  if (mins < OVERDUE_MINUTES) {
-    return {
-      borderColor: "#6ee7b7",
-      backgroundColor: "#ecfdf5",
-    };
-  }
-
-  const overdueMins = mins - OVERDUE_MINUTES;
-  const maxOverdue = 50;
-  const t = Math.min(1, overdueMins / maxOverdue);
-
-  const bgEarly: [number, number, number] = [255, 251, 235];
-  const bgMid: [number, number, number] = [254, 226, 226];
-  const bgLate: [number, number, number] = [254, 202, 202];
-
-  const borderEarly: [number, number, number] = [251, 191, 36];
-  const borderMid: [number, number, number] = [248, 113, 113];
-  const borderLate: [number, number, number] = [220, 38, 38];
-
-  if (t < 0.5) {
-    const local = t * 2;
-    return {
-      borderColor: lerpRgb(borderEarly, borderMid, local),
-      backgroundColor: lerpRgb(bgEarly, bgMid, local),
-    };
-  }
-
-  const local = (t - 0.5) * 2;
-  return {
-    borderColor: lerpRgb(borderMid, borderLate, local),
-    backgroundColor: lerpRgb(bgMid, bgLate, local),
-  };
+  return Math.floor(ticketWaitMinsFloat(ticket.sent_to_kitchen_at, ticket.created_at, now));
 }
 
 function formatWait(sentAt: string | null, createdAt: string, now: number) {
-  const mins = Math.floor((now - new Date(sentAt ?? createdAt).getTime()) / 60_000);
-  return `${mins}m`;
+  return formatWaitMinutes(sentAt, createdAt, now);
 }
 
 function playKitchenBuzz() {
@@ -128,16 +70,21 @@ export function KitchenKdsClient({
   slug,
   tenantId,
   initial,
+  kitchenOverdueMinutes: initialOverdueMinutes = DEFAULT_KITCHEN_OVERDUE_MINUTES,
+  observerMode = false,
 }: {
   slug: string;
   tenantId: string;
   initial: { tickets: FbKitchenTicket[]; stations: FbStationRow[] };
+  kitchenOverdueMinutes?: number;
+  observerMode?: boolean;
 }) {
   const [station, setStation] = useState("all");
   const [stations, setStations] = useState<FbStationRow[]>(initial.stations);
   const [tickets, setTickets] = useState<FbKitchenTicket[]>(initial.tickets);
+  const [overdueMinutes, setOverdueMinutes] = useState(initialOverdueMinutes);
   const [busy, setBusy] = useState<{ itemId: string; action: KitchenItemAction } | null>(null);
-  const [now, setNow] = useState(() => Date.now());
+  const [now, refreshNow] = useClientNow(CLOCK_MS);
   const [overdueAlertOpen, setOverdueAlertOpen] = useState(false);
   const [snoozedUntil, setSnoozedUntil] = useState(0);
   const lastBuzzAt = useRef(0);
@@ -150,15 +97,13 @@ export function KitchenKdsClient({
     if (res.ok) {
       setTickets(data.tickets ?? []);
       setStations(data.stations ?? []);
+      if (typeof data.kitchenOverdueMinutes === "number") {
+        setOverdueMinutes(data.kitchenOverdueMinutes);
+      }
     }
   }, [slug]);
 
   useFbRealtime(tenantId, () => void load());
-
-  useEffect(() => {
-    const id = window.setInterval(() => setNow(Date.now()), CLOCK_MS);
-    return () => window.clearInterval(id);
-  }, []);
 
   const filtered = useMemo(
     () => filterKitchenTicketsByStation(tickets, station),
@@ -173,12 +118,26 @@ export function KitchenKdsClient({
   }, [filtered]);
 
   const overdueTickets = useMemo(
-    () => sorted.filter((ticket) => isTicketOverdue(ticket, now)),
-    [sorted, now],
+    () =>
+      sorted.filter((ticket) => {
+        const timingNow = resolveTimingNow(
+          now,
+          ticket.sent_to_kitchen_at,
+          ticket.created_at,
+        );
+        return isOrderKitchenOverdue(
+          ticket.sent_to_kitchen_at,
+          ticket.created_at,
+          timingNow,
+          hasOpenKitchenItems(ticket.items),
+          ticket.overdue_minutes ?? overdueMinutes,
+        );
+      }),
+    [sorted, now, overdueMinutes],
   );
 
-  const hasOverdue = overdueTickets.length > 0;
-  const isSnoozed = snoozedUntil > now;
+  const hasOverdue = now !== null && overdueTickets.length > 0;
+  const isSnoozed = now !== null && snoozedUntil > now;
 
   const acknowledgeOverdueAlert = useCallback(() => {
     setSnoozedUntil(Date.now() + ACK_SNOOZE_MS);
@@ -186,6 +145,11 @@ export function KitchenKdsClient({
   }, []);
 
   useEffect(() => {
+    if (observerMode) {
+      setOverdueAlertOpen(false);
+      setSnoozedUntil(0);
+      return;
+    }
     if (!hasOverdue) {
       setSnoozedUntil(0);
       setOverdueAlertOpen(false);
@@ -200,24 +164,24 @@ export function KitchenKdsClient({
       playKitchenBuzz();
       lastBuzzAt.current = Date.now();
     }
-  }, [hasOverdue, isSnoozed, overdueTickets]);
+  }, [hasOverdue, isSnoozed, overdueTickets, observerMode]);
 
   useEffect(() => {
-    if (!hasOverdue || !isSnoozed) return;
+    if (observerMode || !hasOverdue || !isSnoozed) return;
     const delay = snoozedUntil - Date.now();
     if (delay <= 0) return;
-    const id = window.setTimeout(() => setNow(Date.now()), delay);
+    const id = window.setTimeout(refreshNow, delay);
     return () => window.clearTimeout(id);
-  }, [hasOverdue, isSnoozed, snoozedUntil]);
+  }, [hasOverdue, isSnoozed, snoozedUntil, observerMode, refreshNow]);
 
   useEffect(() => {
-    if (!overdueAlertOpen || !hasOverdue) return;
+    if (observerMode || !overdueAlertOpen || !hasOverdue) return;
     const id = window.setInterval(() => {
       playKitchenBuzz();
       lastBuzzAt.current = Date.now();
     }, 3000);
     return () => window.clearInterval(id);
-  }, [overdueAlertOpen, hasOverdue]);
+  }, [overdueAlertOpen, hasOverdue, observerMode]);
 
   const updateItem = async (itemId: string, kitchenStatus: "preparing" | "ready") => {
     const action: KitchenItemAction = kitchenStatus;
@@ -255,15 +219,17 @@ export function KitchenKdsClient({
   };
 
   return (
-    <div className="mx-auto max-w-[1500px] space-y-4 px-6 py-6">
+    <div className="w-full space-y-4 px-6 py-6">
       <div>
         <h1 className="text-xl font-semibold text-slate-900">Live orders</h1>
         <p className="text-sm text-slate-500">
-          Kitchen display — tickets sorted by time, rush first. Amber/red cards are waiting over{" "}
-          {OVERDUE_MINUTES} minutes.
+          Kitchen display — tickets sorted by time, rush first. Cards shift green → amber → red as
+          each ticket nears its cook-time target ({overdueMinutes} min default; per-category targets
+          set in Kitchen settings).
         </p>
       </div>
 
+      {!observerMode ? (
       <AlertDialog
         open={overdueAlertOpen}
         onOpenChange={(open) => {
@@ -275,7 +241,7 @@ export function KitchenKdsClient({
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-red-700">
               <AlertTriangle className="h-5 w-5" aria-hidden />
-              Orders waiting over {OVERDUE_MINUTES} minutes
+              Orders waiting over {overdueMinutes} minutes
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-2 text-left text-sm text-slate-700">
@@ -289,7 +255,11 @@ export function KitchenKdsClient({
                       <span className="font-semibold">#{ticket.order_number}</span>
                       <span className="text-slate-600"> · {ticket.table_label}</span>
                       <span className="ml-2 font-bold text-red-700 tabular-nums">
-                        {formatWait(ticket.sent_to_kitchen_at, ticket.created_at, now)}
+                        {formatWait(
+                          ticket.sent_to_kitchen_at,
+                          ticket.created_at,
+                          resolveTimingNow(now, ticket.sent_to_kitchen_at, ticket.created_at),
+                        )}
                       </span>
                     </li>
                   ))}
@@ -306,6 +276,7 @@ export function KitchenKdsClient({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      ) : null}
 
       <div className="flex flex-wrap gap-2">
         <button
@@ -343,10 +314,30 @@ export function KitchenKdsClient({
             No open tickets.
           </p>
         ) : (
-          sorted.map((ticket) => (
+          sorted.map((ticket) => {
+            const kitchenDone = isKitchenWorkComplete(ticket.items);
+            const timingNow = resolveTimingNow(
+              now,
+              ticket.sent_to_kitchen_at,
+              ticket.created_at,
+            );
+            const waitLabel = formatWait(ticket.sent_to_kitchen_at, ticket.created_at, timingNow);
+            const ticketThreshold = ticket.overdue_minutes ?? overdueMinutes;
+            const ticketOverdue = isOrderKitchenOverdue(
+              ticket.sent_to_kitchen_at,
+              ticket.created_at,
+              timingNow,
+              hasOpenKitchenItems(ticket.items),
+              ticketThreshold,
+            );
+
+            return (
             <div
               key={ticket.id}
-              style={ticketAgeStyle(ticket.sent_to_kitchen_at, ticket.created_at, now)}
+              style={ticketAgeStyle(ticket.sent_to_kitchen_at, ticket.created_at, timingNow, {
+                kitchenComplete: kitchenDone,
+                overdueMinutes: ticketThreshold,
+              })}
               className={cn(
                 "rounded-2xl border-2 p-4 shadow-sm transition-[background-color,border-color] duration-500",
                 ticket.rush && "ring-2 ring-red-400 ring-offset-2",
@@ -360,18 +351,20 @@ export function KitchenKdsClient({
                 <span
                   className={cn(
                     "rounded-lg px-2 py-1 text-sm font-bold tabular-nums",
-                    isTicketOverdue(ticket, now)
-                      ? "bg-red-600 text-white"
-                      : "bg-slate-100 text-slate-700",
+                    kitchenDone
+                      ? "bg-emerald-600 text-white"
+                      : ticketOverdue
+                        ? "bg-red-600 text-white"
+                        : "bg-slate-100 text-slate-700",
                   )}
                 >
-                  {formatWait(ticket.sent_to_kitchen_at, ticket.created_at, now)}
+                  {kitchenDone ? `Ready · ${waitLabel}` : waitLabel}
                 </span>
               </div>
               {ticket.rush ? (
                 <p className="mt-1 text-xs font-bold uppercase text-red-700">Rush</p>
               ) : null}
-              {isTicketOverdue(ticket, now) ? (
+              {ticketOverdue ? (
                 <p className="mt-1 text-xs font-semibold text-red-700">Overdue — check this ticket</p>
               ) : null}
               <ul className="mt-3 space-y-2">
@@ -420,7 +413,10 @@ export function KitchenKdsClient({
                           Ready
                         </Button>
                       ) : null}
-                      {item.menu_item_id ? (
+                      {item.menu_item_id &&
+                      item.kitchen_status !== "ready" &&
+                      item.kitchen_status !== "served" &&
+                      item.kitchen_status !== "voided" ? (
                         <Button
                           type="button"
                           size="sm"
@@ -442,7 +438,8 @@ export function KitchenKdsClient({
                 })}
               </ul>
             </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>

@@ -1,13 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import {
-  addOrderItem,
-  createFbOrder,
-  loadOrderById,
-  loadOrders,
-  sendOrderToKitchen,
-} from "@/lib/hms/fb-orders";
+import { addOrderItem, createFbOrder, loadOrderById, loadOrders, sendOrderToKitchen } from "@/lib/hms/fb-orders";
 import type { FbOrderStatus } from "@/lib/hms/fb-types";
+import { getTenantFbSettings } from "@/lib/hms/fb-settings";
 import { fbForbidden, requireFbApi } from "../_lib";
 
 const QuerySchema = z.object({
@@ -50,7 +45,12 @@ export async function GET(req: Request) {
       : (["open", "sent_to_kitchen", "ready"] as FbOrderStatus[]);
 
     const orders = await loadOrders(auth.service, auth.tenant.id, { status: statusList });
-    return NextResponse.json({ orders, capabilities: auth.capabilities });
+    const fbSettings = await getTenantFbSettings(auth.service, auth.tenant.id);
+    return NextResponse.json({
+      orders,
+      capabilities: auth.capabilities,
+      kitchenOverdueMinutes: fbSettings.kitchenOverdueMinutes,
+    });
   } catch (e) {
     if (e instanceof z.ZodError) {
       return NextResponse.json({ error: e.issues[0]?.message }, { status: 400 });

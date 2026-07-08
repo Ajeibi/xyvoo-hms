@@ -1,4 +1,5 @@
 -- Rich operational seed: guests, reservations (past + present + future), folio/rate fields, links.
+-- SUPERSEDED: use `npm run seed:demo -- <slug>` for guests, reservations, folio, and F&B demo data.
 -- Dates are anchored to UTC "today" so dashboard (arrivals/departures/revenue/occupancy trend) stays meaningful.
 --
 -- Prerequisites:

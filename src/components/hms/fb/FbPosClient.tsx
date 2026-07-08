@@ -222,7 +222,7 @@ export function FbPosClient({
   const hasDraft = draft.lines.length > 0;
 
   return (
-    <div className="mx-auto max-w-[1500px] space-y-4 px-6 py-6">
+    <div className="w-full space-y-4 px-6 py-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold text-slate-900">POS</h1>

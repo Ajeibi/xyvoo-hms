@@ -20,6 +20,7 @@ const UpsertCategorySchema = z.object({
   name: z.string().min(1).max(80),
   sortOrder: z.number().int().optional(),
   isActive: z.boolean().optional(),
+  prepMinutes: z.number().int().min(1).max(240).nullable().optional(),
 });
 
 const UpsertItemSchema = z.object({

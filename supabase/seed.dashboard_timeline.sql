@@ -1,4 +1,5 @@
 -- Dashboard-friendly timeline data for Firefly (tenant 41604dc6-9ce1-49bd-a0bb-5aa777ec7463).
+-- SUPERSEDED: use `npm run seed:demo -- firefly` instead. Do not combine with TS seed without clearing first.
 -- Uses UTC dates relative to now() so "arrivals today", revenue today, and occupancy trend stay fresh.
 -- Safe to re-run: removes only rows with confirmation_code LIKE 'XYV-D-%' (demo overlay).
 --

@@ -1,21 +1,29 @@
-import {
-  buildDashboardAnalyticsModel,
-  type DashboardAnalyticsModel,
-  type FloorStatusItem,
-  type OccupancyTrend,
-  type RoomStatusItem,
-} from "@/components/hms/dashboard/analytics/mock-data";
+import type {
+  DashboardAnalyticsModel,
+  FloorStatusItem,
+  OccupancyTrend,
+  RoomStatusItem,
+} from "@/components/hms/dashboard/analytics/dashboard-analytics-types";
 import type { MetricTileItem, StatusRowItem, SummaryTileItem } from "@/components/hms/dashboard/analytics/shared";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import {
+  buildDashboardFbSections,
+  type DashboardFbItemRow,
+  type DashboardFbOrderRow,
+  type DashboardFbOutletRow,
+} from "@/lib/hms/dashboard-fb-metrics";
+import {
+  buildFinancialTrendViews,
+  computeGrossRevenueForUtcDay,
+  emptyFinancialTrendViews,
+  getGrossRevenueForUtcDay,
+  inUtcDay,
+  type FolioRevenueRow,
+} from "@/lib/hms/dashboard-revenue-series";
+import { getTenantFbSettings } from "@/lib/hms/fb-settings";
 
-type FolioRevenueRow = {
-  reservation_id: string;
-  kind: string;
-  amount: string | number;
-  voided_at: string | null;
-  created_at: string;
-};
+export { computeGrossRevenueForUtcDay, getGrossRevenueForUtcDay };
 
 type RoomUnitRow = { id: string; status: string; floor: number };
 type ReservationRow = {
@@ -44,56 +52,13 @@ function parseTs(value: string) {
   return new Date(value).getTime();
 }
 
-function inUtcDay(value: string, reference = new Date()) {
-  const t = parseTs(value);
-  const { startIso, nextIso } = utcDayRangeIso(reference);
-  return t >= parseTs(startIso) && t < parseTs(nextIso);
-}
-
-function countChildrenJson(raw: unknown): number {
-  if (!Array.isArray(raw)) return 0;
-  return raw.length;
-}
+import {
+  countInHouseGuestHeadcount,
+} from "@/lib/hms/reservation-metrics";
 
 function num(value: string | number): number {
   const n = typeof value === "number" ? value : Number.parseFloat(value);
   return Number.isFinite(n) ? n : 0;
-}
-
-/** Daily gross revenue from folio charges and payments posted today (UTC). */
-export function computeGrossRevenueForUtcDay(
-  transactions: FolioRevenueRow[],
-  reference = new Date(),
-): number {
-  let fromCharges = 0;
-  let fromPayments = 0;
-  const chargesByReservation = new Map<string, number>();
-  const paymentsByReservation = new Map<string, number>();
-
-  for (const tx of transactions) {
-    if (tx.voided_at) continue;
-    if (!inUtcDay(tx.created_at, reference)) continue;
-
-    const reservationId = tx.reservation_id;
-    const amount = num(tx.amount);
-
-    if (tx.kind === "charge") {
-      fromCharges += amount;
-      chargesByReservation.set(reservationId, (chargesByReservation.get(reservationId) ?? 0) + amount);
-    } else if (tx.kind === "payment") {
-      const payment = Math.abs(amount);
-      fromPayments += payment;
-      paymentsByReservation.set(reservationId, (paymentsByReservation.get(reservationId) ?? 0) + payment);
-    }
-  }
-
-  let sameDayOverlap = 0;
-  for (const [reservationId, chargeTotal] of chargesByReservation) {
-    const paymentTotal = paymentsByReservation.get(reservationId) ?? 0;
-    sameDayOverlap += Math.min(chargeTotal, paymentTotal);
-  }
-
-  return Math.round((fromCharges + fromPayments - sameDayOverlap) * 100) / 100;
 }
 
 function monthShortLabel(year: number, monthIndex: number) {
@@ -153,40 +118,40 @@ function emptyDepartmentPlaceholders(currency: string): Pick<
       {
         label: "F&B revenue",
         value: formatPricingAmount(0, currency),
-        description: "F&B module not connected — no live outlet totals yet.",
+        description: "No tickets closed today.",
       },
       {
         label: "Orders today",
         value: "0",
-        description: "Point-of-sale integration will populate order counts.",
+        description: "Closed outlet orders for today (UTC).",
       },
       {
         label: "Average bill",
         value: formatPricingAmount(0, currency),
-        description: "Average cheque appears once cashier data is linked.",
+        description: "Average spend per closed order today.",
       },
       {
         label: "Charge to room",
         value: formatPricingAmount(0, currency),
-        description: "Room charges from outlets will post into folios here.",
+        description: "Room-charge orders posted to folios today.",
       },
     ],
     outletBreakdownItems: [
       {
         title: "Restaurant",
-        detail: "No restaurant sales feed configured for this property.",
+        detail: "No restaurant tickets closed today.",
         value: formatPricingAmount(0, currency),
         tone: "info",
       },
       {
         title: "Bar",
-        detail: "No bar sales feed configured for this property.",
+        detail: "No bar tickets closed today.",
         value: formatPricingAmount(0, currency),
         tone: "info",
       },
       {
         title: "Room service",
-        detail: "No room-service tickets synced yet.",
+        detail: "No room-service tickets closed today.",
         value: formatPricingAmount(0, currency),
         tone: "info",
       },
@@ -195,40 +160,81 @@ function emptyDepartmentPlaceholders(currency: string): Pick<
       {
         label: "Open tickets",
         value: "0",
-        description: "Kitchen display integration is not enabled.",
+        description: "Kitchen tickets still in prep.",
       },
       {
         label: "Average prep time",
         value: "—",
-        description: "Prep timers will surface once the kitchen module is live.",
+        description: "Average prep time for tickets closed today.",
       },
       {
         label: "Delayed orders",
         value: "0",
-        description: "Late orders appear when KDS data is connected.",
+        description: "Tickets past the kitchen SLA today.",
       },
       {
         label: "Ready for service",
         value: "0",
-        description: "Expediter status will map from live kitchen events.",
+        description: "Tickets marked ready and awaiting pickup.",
       },
     ],
     kitchenAlertItems: [
       {
-        title: "Kitchen data",
-        detail: "Connect kitchen / KDS analytics to monitor tickets and delays here.",
+        title: "Kitchen queue",
+        detail: "No kitchen alerts for the current shift.",
         tone: "info",
       },
     ],
     inventorySummary: [
-      { label: "Tracked SKUs", value: "0", caption: "Inventory module not linked." },
-      { label: "Par variance", value: "0", caption: "Par levels appear after stock sync." },
-      { label: "Reorder queue", value: "0", caption: "Procurement alerts will populate automatically." },
+      { label: "Tracked SKUs", value: "0", caption: "No stock items on file." },
+      { label: "Par variance", value: "0", caption: "No par levels configured." },
+      { label: "Reorder queue", value: "0", caption: "No reorder alerts." },
     ],
     lowStockItems: [
       {
         title: "Stock visibility",
-        detail: "No consumables catalog is synced to HMS yet.",
+        detail: "No consumables catalog on file.",
+        tone: "info",
+      },
+    ],
+  };
+}
+
+function emptyDashboardModel(currency: string): DashboardAnalyticsModel {
+  const dept = emptyDepartmentPlaceholders(currency);
+  return {
+    financialBase: {
+      grossRevenueToday: 0,
+      effectiveAverageRate: 0,
+      occupancyRate: 0,
+    },
+    financialTrendViews: emptyFinancialTrendViews(),
+    movementItems: [
+      { label: "Arrivals today", value: "0", description: "No arrivals scheduled for today." },
+      { label: "Departures today", value: "0", description: "No departures scheduled for today." },
+      { label: "No-shows", value: "0", description: "Marked no-show in the last 7 days (UTC)." },
+      { label: "Cancellations", value: "0", description: "Cancelled in the last 30 days (UTC)." },
+    ],
+    roomStatusItems: [
+      { label: "Occupied", value: 0 },
+      { label: "Vacant clean", value: 0 },
+      { label: "Dirty", value: 0 },
+      { label: "Inspected", value: 0 },
+    ],
+    floorStatusItems: [
+      {
+        label: "No room inventory",
+        value: 0,
+        color: "rgba(148, 163, 184, 0.78)",
+        colorClass: "bg-slate-400",
+      },
+    ],
+    occupancyTrend: { labels: [], values: [] },
+    ...dept,
+    operationalAlerts: [
+      {
+        title: "Operations clear",
+        detail: "No property alerts from room or reservation data.",
         tone: "info",
       },
     ],
@@ -243,7 +249,7 @@ function buildOperationalAlerts(
   const alerts: StatusRowItem[] = [];
   const maint = rooms.filter((r) => r.status === "maintenance" || r.status === "out_of_order").length;
   const dirty = rooms.filter((r) => r.status === "dirty").length;
-  const { startIso, nextIso } = utcDayRangeIso(now);
+  const { startIso } = utcDayRangeIso(now);
   const noShowsWeek = reservations.filter(
     (r) =>
       r.status === "no_show" && parseTs(r.arrival_at) >= parseTs(startIso) - 7 * 86400000,
@@ -280,7 +286,7 @@ function buildOperationalAlerts(
   if (alerts.length === 0) {
     alerts.push({
       title: "Operations clear",
-      detail: "No automated property alerts fired from live room and reservation data.",
+      detail: "No automated property alerts fired from room and reservation data.",
       tone: "info",
     });
   }
@@ -289,16 +295,13 @@ function buildOperationalAlerts(
 
 export type DashboardMetricsResult = {
   model: DashboardAnalyticsModel;
-  /** True when `hotel.room_units` / `hotel.reservations` returned without transport errors */
-  usedLiveHotelData: boolean;
   reservationRecordCount: number;
   inHouseGuestHeadcount: number;
 };
 
 /**
- * Loads dashboard analytics from `hotel.room_units` and `hotel.reservations` when available.
+ * Loads dashboard analytics from hotel schema tables.
  * Room/floor "occupied" KPIs follow in-house check-ins on assigned keys (not raw `occupied` alone).
- * Falls back to the legacy mock model only if Supabase errors (missing migration, network, etc.).
  */
 export async function getHotelDashboardMetrics(params: {
   tenantId: string | null;
@@ -311,12 +314,7 @@ export async function getHotelDashboardMetrics(params: {
 
   if (!tenantId) {
     return {
-      model: buildDashboardAnalyticsModel({
-        totalRooms: Math.max(totalRoomsFromPricing, 1),
-        currency,
-        averageRate: averageRateFromPricing,
-      }),
-      usedLiveHotelData: false,
+      model: emptyDashboardModel(currency),
       reservationRecordCount: 0,
       inHouseGuestHeadcount: 0,
     };
@@ -324,8 +322,15 @@ export async function getHotelDashboardMetrics(params: {
 
   const supabase = createServerSupabaseClient();
 
-  const [{ data: roomRows, error: roomError }, { data: resRows, error: resError }, { data: folioRows, error: folioError }] =
-    await Promise.all([
+  const [
+    { data: roomRows, error: roomError },
+    { data: resRows, error: resError },
+    { data: folioRows, error: folioError },
+    { data: fbOrderRows, error: fbOrderError },
+    { data: fbOutletRows, error: fbOutletError },
+    { data: fbItemRows, error: fbItemError },
+    fbSettings,
+  ] = await Promise.all([
     supabase.schema("hotel").from("room_units").select("id,status,floor").eq("tenant_id", tenantId),
     supabase
       .schema("hotel")
@@ -339,17 +344,26 @@ export async function getHotelDashboardMetrics(params: {
       .from("folio_transactions")
       .select("reservation_id,kind,amount,voided_at,created_at")
       .eq("tenant_id", tenantId),
+    supabase
+      .schema("hotel")
+      .from("fb_orders")
+      .select(
+        "id,outlet_id,status,settlement_method,subtotal,closed_at,sent_to_kitchen_at,kitchen_ready_at,created_at,voided_at",
+      )
+      .eq("tenant_id", tenantId),
+    supabase.schema("hotel").from("fb_outlets").select("id,name,outlet_type").eq("tenant_id", tenantId),
+    supabase
+      .schema("hotel")
+      .from("fb_order_items")
+      .select("order_id,kitchen_status")
+      .eq("tenant_id", tenantId),
+    getTenantFbSettings(supabase, tenantId),
   ]);
 
   if (roomError || resError || folioError) {
-    console.warn("[dashboard-metrics] hotel schema query failed, using demo analytics:", roomError ?? resError ?? folioError);
+    console.warn("[dashboard-metrics] hotel schema query failed:", roomError ?? resError ?? folioError);
     return {
-      model: buildDashboardAnalyticsModel({
-        totalRooms: Math.max(totalRoomsFromPricing, 1),
-        currency,
-        averageRate: averageRateFromPricing,
-      }),
-      usedLiveHotelData: false,
+      model: emptyDashboardModel(currency),
       reservationRecordCount: 0,
       inHouseGuestHeadcount: 0,
     };
@@ -357,6 +371,7 @@ export async function getHotelDashboardMetrics(params: {
 
   const rooms = (roomRows ?? []) as RoomUnitRow[];
   const reservations = (resRows ?? []) as ReservationRow[];
+  const folio = (folioRows ?? []) as FolioRevenueRow[];
   const now = new Date();
   const { startIso, nextIso } = utcDayRangeIso(now);
 
@@ -367,9 +382,6 @@ export async function getHotelDashboardMetrics(params: {
     inHouseRes.map((r) => r.room_unit_id).filter((id): id is string => Boolean(id)),
   );
 
-  // Inventory `status` can stay `occupied` after reservations are deleted. Align KPIs with
-  // in-house stays: only keys with an active checked-in reservation count as occupied; stale
-  // `occupied` rows roll into vacant clean for this summary (housekeeping can update keys later).
   const statusCounts = new Map<string, number>();
   for (const r of rooms) {
     let bucket: string;
@@ -446,10 +458,7 @@ export async function getHotelDashboardMetrics(params: {
     return parseTs(r.arrival_at) >= parseTs(startIso) - 30 * 86400000;
   }).length;
 
-  const inHouseGuestHeadcount = inHouseRes.reduce(
-    (sum, r) => sum + r.adults + countChildrenJson(r.children_json),
-    0,
-  );
+  const inHouseGuestHeadcount = countInHouseGuestHeadcount(reservations);
 
   const stayOversTonight = inHouseRes.filter((r) => parseTs(r.departure_at) > parseTs(nextIso)).length;
 
@@ -482,7 +491,8 @@ export async function getHotelDashboardMetrics(params: {
     },
   ];
 
-  const grossRevenueToday = computeGrossRevenueForUtcDay(folioRows ?? [], now);
+  const fbOrders = (fbOrderRows ?? []) as DashboardFbOrderRow[];
+  const grossRevenueToday = getGrossRevenueForUtcDay(folio, fbOrderError == null ? fbOrders : [], now);
 
   const adrSamples = inHouseRes.map((r) => num(r.rate_per_night));
   const effectiveAverageRate =
@@ -495,7 +505,26 @@ export async function getHotelDashboardMetrics(params: {
 
   const occupancyTrend = buildOccupancyTrendFromReservations(reservations, inventoryRooms);
 
-  const dept = emptyDepartmentPlaceholders(currency);
+  const financialTrendViews = buildFinancialTrendViews({
+    folioRows: folio,
+    fbOrders: fbOrderError == null ? fbOrders : [],
+    reservations,
+    totalRooms: inventoryRooms,
+    reference: now,
+  });
+
+  const fbDataOk = fbOrderError == null && fbOutletError == null && fbItemError == null;
+  const fbSections = fbDataOk
+    ? buildDashboardFbSections({
+        orders: fbOrders,
+        outlets: (fbOutletRows ?? []) as DashboardFbOutletRow[],
+        items: (fbItemRows ?? []) as DashboardFbItemRow[],
+        currency,
+        kitchenOverdueMinutes: fbSettings.kitchenOverdueMinutes,
+        reference: now,
+      })
+    : null;
+  const deptPlaceholders = emptyDepartmentPlaceholders(currency);
   const operationalAlerts = buildOperationalAlerts(rooms, reservations, now);
 
   const model: DashboardAnalyticsModel = {
@@ -504,17 +533,22 @@ export async function getHotelDashboardMetrics(params: {
       effectiveAverageRate: effectiveAverageRate || 0,
       occupancyRate,
     },
+    financialTrendViews,
     movementItems,
     roomStatusItems,
     floorStatusItems,
     occupancyTrend,
-    ...dept,
+    foodAndBeverageItems: fbSections?.foodAndBeverageItems ?? deptPlaceholders.foodAndBeverageItems,
+    outletBreakdownItems: fbSections?.outletBreakdownItems ?? deptPlaceholders.outletBreakdownItems,
+    kitchenItems: fbSections?.kitchenItems ?? deptPlaceholders.kitchenItems,
+    kitchenAlertItems: fbSections?.kitchenAlertItems ?? deptPlaceholders.kitchenAlertItems,
+    inventorySummary: deptPlaceholders.inventorySummary,
+    lowStockItems: deptPlaceholders.lowStockItems,
     operationalAlerts,
   };
 
   return {
     model,
-    usedLiveHotelData: true,
     reservationRecordCount: reservations.length,
     inHouseGuestHeadcount,
   };

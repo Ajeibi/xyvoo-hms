@@ -10,7 +10,6 @@ export default function StepChoosePlan() {
   const error = useHotelRegisterStore((s) => s.error);
   const loading = useHotelRegisterStore((s) => s.loading);
   const startTrial = useHotelRegisterStore((s) => s.startTrial);
-  const initiatePayment = useHotelRegisterStore((s) => s.initiatePayment);
 
   return (
     <div>
@@ -61,10 +60,6 @@ export default function StepChoosePlan() {
         className="mb-3 flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-xyvoo-blue py-4 text-base font-bold text-white transition-all disabled:cursor-not-allowed disabled:opacity-50"
       >
         {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : "Start 14-Day Free Trial →"}
-      </button>
-
-      <button onClick={initiatePayment} disabled={loading} className="w-full py-3 border-2 border-slate-200 text-slate-600 text-sm font-semibold rounded-2xl hover:border-slate-300 hover:bg-slate-50 transition-all cursor-pointer disabled:cursor-not-allowed">
-        Pay now & skip trial
       </button>
       <p className="text-center text-xs text-slate-400 mt-3">No credit card required for trial · Cancel anytime</p>
     </div>

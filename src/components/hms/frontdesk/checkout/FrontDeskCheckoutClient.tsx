@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { requestNotificationsRefresh } from "@/lib/hms/notifications-bus";
-import { PaystackCaptureButton, PaystackChargeButton } from "@/components/hms/payments/PaystackChargeButton";
 
 export function FrontDeskCheckoutClient({
   slug,
@@ -30,8 +29,6 @@ export function FrontDeskCheckoutClient({
     guestName?: string;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [paystackEnabled, setPaystackEnabled] = useState(false);
-  const [cardPayAmount, setCardPayAmount] = useState("");
 
   const loadFolio = useCallback(async () => {
     if (!reservationId) return;
@@ -70,19 +67,6 @@ export function FrontDeskCheckoutClient({
   useEffect(() => {
     if (reservationId) void loadFolio();
   }, [reservationId, loadFolio]);
-
-  useEffect(() => {
-    fetch(`/api/hotel/paystack?slug=${encodeURIComponent(slug)}`)
-      .then((r) => r.json())
-      .then((d) => setPaystackEnabled(Boolean(d.setup?.enabled && d.setup?.publicKey)))
-      .catch(() => setPaystackEnabled(false));
-  }, [slug]);
-
-  useEffect(() => {
-    if (folio?.balance != null && folio.balance > 0) {
-      setCardPayAmount(String(folio.balance.toFixed(2)));
-    }
-  }, [folio?.balance]);
 
   const settleAndCheckout = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -185,36 +169,10 @@ export function FrontDeskCheckoutClient({
 
       <form onSubmit={settleAndCheckout} className="mt-6 space-y-4 rounded-2xl border border-slate-200 bg-white p-6 print:hidden">
         <h3 className="font-semibold text-slate-900">Settle & check out</h3>
-        {paystackEnabled && reservationId && folio && folio.balance > 0 ? (
-          <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4 space-y-2">
-            <p className="text-sm font-medium text-slate-900">Pay with Paystack</p>
-            <Input
-              type="number"
-              step="0.01"
-              min="0.01"
-              value={cardPayAmount}
-              onChange={(e) => setCardPayAmount(e.target.value)}
-            />
-            <div className="flex flex-wrap gap-2">
-              <PaystackChargeButton
-                slug={slug}
-                reservationId={reservationId}
-                amount={Number(cardPayAmount) || 0}
-                onSuccess={() => void loadFolio()}
-              />
-              <PaystackCaptureButton
-                slug={slug}
-                reservationId={reservationId}
-                amount={Number(cardPayAmount) || 0}
-                onSuccess={() => void loadFolio()}
-              />
-            </div>
-          </div>
-        ) : null}
-        <Input name="payAmount" type="number" step="0.01" min="0" placeholder="Manual payment amount (cash/POS)" />
+        <Input name="payAmount" type="number" step="0.01" min="0" placeholder="Payment amount (cash/POS/card)" />
         <select name="method" className="h-10 w-full rounded-md border border-slate-200 px-3 text-sm">
           <option value="cash">Cash</option>
-          {!paystackEnabled ? <option value="card">Card (manual)</option> : null}
+          <option value="card">Card (manual)</option>
           <option value="pos">POS terminal</option>
           <option value="direct_bill">Direct bill</option>
         </select>

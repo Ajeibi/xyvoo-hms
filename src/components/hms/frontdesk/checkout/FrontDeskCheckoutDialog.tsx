@@ -6,7 +6,6 @@ import type { FolioLineRow } from "@/lib/hms/folio";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { requestNotificationsRefresh } from "@/lib/hms/notifications-bus";
-import { PaystackCaptureButton, PaystackChargeButton } from "@/components/hms/payments/PaystackChargeButton";
 import {
   Dialog,
   DialogContent,
@@ -58,8 +57,6 @@ export function FrontDeskCheckoutDialog({
   const [balance, setBalance] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [paystackEnabled, setPaystackEnabled] = useState(false);
-  const [cardPayAmount, setCardPayAmount] = useState("");
   const [manualPayAmount, setManualPayAmount] = useState("");
   const [manualMethod, setManualMethod] = useState("cash");
   const [overrideBalance, setOverrideBalance] = useState(false);
@@ -86,10 +83,6 @@ export function FrontDeskCheckoutDialog({
       reset();
       return;
     }
-    fetch(`/api/hotel/paystack?slug=${encodeURIComponent(slug)}`)
-      .then((r) => r.json())
-      .then((d) => setPaystackEnabled(Boolean(d.setup?.enabled && d.setup?.publicKey)))
-      .catch(() => setPaystackEnabled(false));
 
     if (initialReservationId) {
       setReservationId(initialReservationId);
@@ -122,7 +115,6 @@ export function FrontDeskCheckoutDialog({
         setFolioNumber(data.reservation.folioNumber);
         setLines(data.folio.lines);
         setBalance(data.folio.balance);
-        setCardPayAmount(String(Math.max(0, data.folio.balance).toFixed(2)));
         setManualPayAmount(data.folio.balance > 0 ? String(data.folio.balance.toFixed(2)) : "");
         setStep("settle");
 
@@ -136,7 +128,6 @@ export function FrontDeskCheckoutDialog({
           setLines(adjData.folio.lines ?? data.folio.lines);
           const bal = Number(adjData.folio.balance) || 0;
           setBalance(bal);
-          setCardPayAmount(String(Math.max(0, bal).toFixed(2)));
           setManualPayAmount(bal > 0 ? String(bal.toFixed(2)) : "");
         }
       } finally {
@@ -360,33 +351,6 @@ export function FrontDeskCheckoutDialog({
 
               {balance > 0.01 ? (
                 <div className="space-y-3">
-                  {paystackEnabled ? (
-                    <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4 space-y-2">
-                      <p className="text-sm font-medium text-slate-900">Pay with Paystack</p>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0.01"
-                        value={cardPayAmount}
-                        onChange={(e) => setCardPayAmount(e.target.value)}
-                      />
-                      <div className="flex flex-wrap gap-2">
-                        <PaystackChargeButton
-                          slug={slug}
-                          reservationId={reservationId}
-                          amount={Number(cardPayAmount) || 0}
-                          size="sm"
-                          onSuccess={() => void loadFolio(reservationId)}
-                        />
-                        <PaystackCaptureButton
-                          slug={slug}
-                          reservationId={reservationId}
-                          amount={Number(cardPayAmount) || 0}
-                          onSuccess={() => void loadFolio(reservationId)}
-                        />
-                      </div>
-                    </div>
-                  ) : null}
                   <div className="rounded-xl border border-slate-200 p-4 space-y-2">
                     <p className="text-sm font-medium text-slate-900">Cash / POS payment</p>
                     <Input

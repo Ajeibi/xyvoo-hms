@@ -42,7 +42,9 @@ export async function POST(
         postedBy: auth.user.id,
       });
       if (posted.error) return NextResponse.json({ error: posted.error }, { status: 400 });
-      const closed = await closeFbOrder(auth.service, auth.tenant.id, id);
+      const closed = await closeFbOrder(auth.service, auth.tenant.id, id, {
+        settlementMethod: "room_charge",
+      });
       return NextResponse.json({ ok: true, line: posted.line, order: closed.order });
     }
 
@@ -75,7 +77,9 @@ export async function POST(
         cashFloatSessionId,
       });
       if (posted.error) return NextResponse.json({ error: posted.error }, { status: 400 });
-      const closed = await closeFbOrder(auth.service, auth.tenant.id, id);
+      const closed = await closeFbOrder(auth.service, auth.tenant.id, id, {
+        settlementMethod: payBody.method,
+      });
       return NextResponse.json({ ok: true, order: closed.order });
     }
 

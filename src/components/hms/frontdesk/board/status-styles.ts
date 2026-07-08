@@ -33,5 +33,5 @@ export const SUMMARY_CARD_LABELS: Record<
   dirty: "Dirty / Cleaning",
   maintenance: "Maintenance",
   outOfService: "Out of Service",
-  inHouse: "In-house",
+  inHouse: "Occupied rooms",
 };

@@ -31,15 +31,7 @@ ChartJS.register(
 
 const chartFont = { family: "inherit", size: 11 };
 
-export function FrontDeskAnalyticsSection({
-  analytics,
-  usedLiveData,
-}: {
-  analytics: FrontDeskAnalytics;
-  usedLiveData: boolean;
-}) {
-  const badge = usedLiveData ? "Live" : "Preview";
-
+export function FrontDeskAnalyticsSection({ analytics }: { analytics: FrontDeskAnalytics }) {
   const occupancyData = {
     labels: analytics.occupancyTrend.labels,
     datasets: [
@@ -123,7 +115,6 @@ export function FrontDeskAnalyticsSection({
         <AnalyticsCard
           icon={TrendingUp}
           title="Occupancy trend"
-          badge={badge}
           description="Monthly occupancy from reservation room-nights vs inventory."
         >
           <div className="h-[220px]">
@@ -132,6 +123,8 @@ export function FrontDeskAnalyticsSection({
           <p className="mt-3 text-sm text-slate-600">
             Current occupancy: <span className="font-semibold text-slate-900">{analytics.occupancyRate}%</span>
             {" · "}
+            Guests on property: <span className="font-semibold text-slate-900">{analytics.inHouseGuestHeadcount}</span>
+            {" · "}
             Revenue today: <span className="font-semibold text-slate-900">{analytics.revenueToday}</span>
           </p>
         </AnalyticsCard>
@@ -139,7 +132,6 @@ export function FrontDeskAnalyticsSection({
         <AnalyticsCard
           icon={BarChart3}
           title="Available vs occupied"
-          badge={badge}
           description="Keys available for sale vs in-house or reserved."
         >
           <div className="mx-auto h-[220px] max-w-[280px]">
@@ -159,7 +151,6 @@ export function FrontDeskAnalyticsSection({
         <AnalyticsCard
           icon={BarChart3}
           title="Daily check-ins"
-          badge={badge}
           description="Completed check-ins over the last 7 days (UTC)."
         >
           <div className="h-[200px]">
@@ -170,7 +161,6 @@ export function FrontDeskAnalyticsSection({
         <AnalyticsCard
           icon={BarChart3}
           title="Daily check-outs"
-          badge={badge}
           description="Completed check-outs over the last 7 days (UTC)."
         >
           <div className="h-[200px]">

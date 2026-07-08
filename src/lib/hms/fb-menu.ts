@@ -126,6 +126,10 @@ function mapCategory(r: Record<string, unknown>): FbMenuCategoryRow {
     name: r.name as string,
     sort_order: Number(r.sort_order) || 0,
     is_active: Boolean(r.is_active),
+    prep_minutes:
+      r.prep_minutes == null || !Number.isFinite(Number(r.prep_minutes))
+        ? null
+        : Number(r.prep_minutes),
   };
 }
 
@@ -211,7 +215,14 @@ export async function upsertMenuItem(
 export async function upsertMenuCategory(
   supabase: SupabaseClient,
   tenantId: string,
-  input: { id?: string; outletId: string; name: string; sortOrder?: number; isActive?: boolean },
+  input: {
+    id?: string;
+    outletId: string;
+    name: string;
+    sortOrder?: number;
+    isActive?: boolean;
+    prepMinutes?: number | null;
+  },
 ) {
   const row = {
     tenant_id: tenantId,
@@ -219,6 +230,7 @@ export async function upsertMenuCategory(
     name: input.name.trim(),
     sort_order: input.sortOrder ?? 0,
     ...(input.isActive !== undefined ? { is_active: input.isActive } : {}),
+    ...(input.prepMinutes !== undefined ? { prep_minutes: input.prepMinutes } : {}),
   };
 
   if (input.id) {
@@ -383,6 +395,42 @@ export async function loadMenuContentForAdmin(supabase: SupabaseClient, tenantId
   };
 }
 
+export type FbCategoryPrepRow = {
+  id: string;
+  name: string;
+  outletId: string;
+  outletName: string;
+  prepMinutes: number | null;
+};
+
+/** Categories with their per-category cook-time target — for the kitchen ETA admin screen. */
+export async function loadFbCategoryPrepTimes(
+  supabase: SupabaseClient,
+  tenantId: string,
+): Promise<FbCategoryPrepRow[]> {
+  const [outletsRes, categoriesRes] = await Promise.all([
+    supabase.schema("hotel").from("fb_outlets").select("id,name").eq("tenant_id", tenantId),
+    supabase
+      .schema("hotel")
+      .from("fb_menu_categories")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .order("sort_order"),
+  ]);
+
+  const outletName = new Map(
+    (outletsRes.data ?? []).map((o) => [o.id as string, o.name as string]),
+  );
+
+  return (categoriesRes.data ?? []).map(mapCategory).map((c) => ({
+    id: c.id,
+    name: c.name,
+    outletId: c.outlet_id,
+    outletName: outletName.get(c.outlet_id) ?? "",
+    prepMinutes: c.prep_minutes,
+  }));
+}
+
 export type MenuSetupBatchPayload = {
   upsertCategories?: {
     id?: string;
@@ -390,6 +438,7 @@ export type MenuSetupBatchPayload = {
     name: string;
     sortOrder?: number;
     isActive?: boolean;
+    prepMinutes?: number | null;
   }[];
   upsertItems?: {
     id?: string;

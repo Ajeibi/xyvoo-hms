@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Bell } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Bell, CheckCircle2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,7 +12,41 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import type { FbStatusNotification } from "@/lib/hms/fb-status-notifications";
+import {
+  notificationTone,
+  type FbStatusNotification,
+} from "@/lib/hms/fb-status-notifications";
+import { cn } from "@/lib/utils";
+
+const TONE_STYLES = {
+  positive: {
+    bar: "border-emerald-200 bg-emerald-50",
+    barTitle: "text-emerald-950",
+    item: "border-emerald-200 bg-white",
+    itemBtn: "border-emerald-300 bg-white hover:bg-emerald-50",
+    modal: "border-emerald-200",
+    modalTitle: "text-emerald-950",
+    listItem: "border-emerald-100 bg-emerald-50/80",
+    primaryBtn: "bg-emerald-600 hover:bg-emerald-700",
+    outlineBtn: "border-emerald-300 bg-white",
+  },
+  default: {
+    bar: "border-blue-200 bg-blue-50",
+    barTitle: "text-blue-950",
+    item: "border-blue-200 bg-white",
+    itemBtn: "border-blue-300 bg-white hover:bg-blue-50",
+    modal: "border-blue-200",
+    modalTitle: "text-blue-950",
+    listItem: "border-blue-100 bg-blue-50/80",
+    primaryBtn: "bg-blue-600 hover:bg-blue-700",
+    outlineBtn: "border-blue-300 bg-white",
+  },
+} as const;
+
+function dominantTone(pending: FbStatusNotification[]) {
+  if (pending.some((n) => notificationTone(n) === "positive")) return "positive";
+  return "default";
+}
 
 export function FbStatusNotificationBar({
   pending,
@@ -25,6 +59,9 @@ export function FbStatusNotificationBar({
 }) {
   const [modalOpen, setModalOpen] = useState(false);
   const prevCount = useRef(0);
+  const tone = dominantTone(pending);
+  const styles = TONE_STYLES[tone];
+  const allPositive = pending.every((n) => notificationTone(n) === "positive");
 
   useEffect(() => {
     if (pending.length > prevCount.current) {
@@ -35,25 +72,43 @@ export function FbStatusNotificationBar({
 
   if (pending.length === 0) return null;
 
+  const ackAllLabel = pending.length === 1 ? "Acknowledge" : "Acknowledge all";
+  const headerLabel = allPositive
+    ? `${pending.length} order${pending.length === 1 ? "" : "s"} ready for service`
+    : `${pending.length} update${pending.length === 1 ? "" : "s"} for you`;
+
   return (
     <>
       <AlertDialog open={modalOpen} onOpenChange={setModalOpen}>
-        <AlertDialogContent className="border-amber-300">
+        <AlertDialogContent className={styles.modal}>
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2 text-amber-900">
-              <Bell className="h-5 w-5" aria-hidden />
-              Order updates ({pending.length})
+            <AlertDialogTitle
+              className={cn("flex items-center gap-2", styles.modalTitle)}
+            >
+              {allPositive ? (
+                <CheckCircle2 className="h-5 w-5 text-emerald-600" aria-hidden />
+              ) : (
+                <Bell className="h-5 w-5" aria-hidden />
+              )}
+              {headerLabel}
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <ul className="max-h-56 space-y-2 overflow-y-auto text-left text-sm text-slate-700">
-                {pending.map((note) => (
-                  <li
-                    key={note.id}
-                    className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-slate-900"
-                  >
-                    {note.message}
-                  </li>
-                ))}
+                {pending.map((note) => {
+                  const noteTone = notificationTone(note);
+                  const noteStyles = TONE_STYLES[noteTone];
+                  return (
+                    <li
+                      key={note.id}
+                      className={cn(
+                        "rounded-lg border px-3 py-2 text-slate-900",
+                        noteStyles.listItem,
+                      )}
+                    >
+                      {note.message}
+                    </li>
+                  );
+                })}
               </ul>
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -62,12 +117,13 @@ export function FbStatusNotificationBar({
               Keep showing
             </Button>
             <AlertDialogAction
+              className={styles.primaryBtn}
               onClick={() => {
                 onAcknowledgeAll();
                 setModalOpen(false);
               }}
             >
-              Acknowledge all
+              {ackAllLabel}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -76,26 +132,33 @@ export function FbStatusNotificationBar({
       <div
         role="status"
         aria-live="polite"
-        className="border-b border-amber-300 bg-amber-100 px-6 py-3 shadow-sm"
+        className={cn("border-b px-6 py-3 shadow-sm", styles.bar)}
       >
-        <div className="mx-auto flex max-w-[1500px] flex-wrap items-start justify-between gap-3">
+        <div className="flex w-full flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 text-sm font-semibold text-amber-950">
-              <Bell className="h-4 w-4 shrink-0" aria-hidden />
-              Order updates waiting — {pending.length} unacknowledged
+            <div className={cn("flex items-center gap-2 text-sm font-semibold", styles.barTitle)}>
+              {allPositive ? (
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" aria-hidden />
+              ) : (
+                <Bell className="h-4 w-4 shrink-0" aria-hidden />
+              )}
+              {headerLabel}
             </div>
             <ul className="mt-2 max-h-36 space-y-1.5 overflow-y-auto">
               {pending.map((note) => (
                 <li
                   key={note.id}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-300/80 bg-white px-3 py-2 text-sm text-slate-800"
+                  className={cn(
+                    "flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm text-slate-800",
+                    styles.item,
+                  )}
                 >
                   <span>{note.message}</span>
                   <Button
                     type="button"
                     size="sm"
                     variant="outline"
-                    className="h-7 shrink-0 border-amber-400 bg-white text-xs"
+                    className={cn("h-7 shrink-0 text-xs", styles.itemBtn)}
                     onClick={() => onAcknowledge(note.id)}
                   >
                     Acknowledge
@@ -109,7 +172,7 @@ export function FbStatusNotificationBar({
               type="button"
               size="sm"
               variant="outline"
-              className="border-amber-400 bg-white"
+              className={styles.outlineBtn}
               onClick={() => setModalOpen(true)}
             >
               View
@@ -117,10 +180,10 @@ export function FbStatusNotificationBar({
             <Button
               type="button"
               size="sm"
-              className="bg-amber-700 hover:bg-amber-800"
+              className={styles.primaryBtn}
               onClick={onAcknowledgeAll}
             >
-              Acknowledge all
+              {ackAllLabel}
             </Button>
           </div>
         </div>

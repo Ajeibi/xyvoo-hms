@@ -4,7 +4,7 @@ const sk = "bg-slate-200";
 
 export function FbPosSkeleton() {
   return (
-    <div className="mx-auto max-w-[1500px] space-y-4 px-6 py-6">
+    <div className="w-full space-y-4 px-6 py-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="space-y-2">
           <Skeleton className={`h-7 w-14 ${sk}`} />
@@ -54,7 +54,7 @@ export function FbPosSkeleton() {
 
 export function FbTablesSkeleton() {
   return (
-    <div className="mx-auto max-w-[1200px] px-6 py-6">
+    <div className="w-full px-6 py-6">
       <Skeleton className={`h-7 w-24 ${sk}`} />
       <Skeleton className={`mt-2 h-4 w-64 ${sk}`} />
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
@@ -72,7 +72,7 @@ export function FbTablesSkeleton() {
 
 export function FbOrdersSkeleton() {
   return (
-    <div className="mx-auto max-w-[1100px] space-y-4 px-6 py-6">
+    <div className="w-full space-y-4 px-6 py-6">
       <div className="space-y-2">
         <Skeleton className={`h-7 w-32 ${sk}`} />
         <Skeleton className={`h-4 w-48 ${sk}`} />
@@ -110,7 +110,7 @@ export function FbOrdersSkeleton() {
 
 export function FbSettingsSkeleton() {
   return (
-    <div className="mx-auto max-w-[1100px] space-y-6 px-6 py-6">
+    <div className="w-full space-y-6 px-6 py-6">
       <div className="space-y-2">
         <Skeleton className={`h-7 w-36 ${sk}`} />
         <Skeleton className={`h-4 w-56 ${sk}`} />

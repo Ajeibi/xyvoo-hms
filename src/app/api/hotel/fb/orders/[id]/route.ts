@@ -5,6 +5,7 @@ import {
   closeFbOrder,
   loadOrderById,
   loadOrders,
+  markFbOrderServed,
   sendOrderToKitchen,
   setOrderRush,
   voidFbOrder,
@@ -13,7 +14,7 @@ import { fbForbidden, requireFbApi } from "../../_lib";
 
 const PatchSchema = z.object({
   slug: z.string().min(1),
-  action: z.enum(["send_to_kitchen", "rush", "close", "void", "add_item"]),
+  action: z.enum(["send_to_kitchen", "serve", "rush", "close", "void", "add_item"]),
   rush: z.boolean().optional(),
   menuItemId: z.string().uuid().optional(),
   voidReason: z.string().max(200).optional(),
@@ -37,7 +38,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (body.action === "close") {
       const denied = fbForbidden(auth.capabilities, "canCloseOrder");
       if (denied) return NextResponse.json({ error: denied.error }, { status: denied.status });
-      const result = await closeFbOrder(auth.service, auth.tenant.id, id);
+      const result = await closeFbOrder(auth.service, auth.tenant.id, id, {
+        settlementMethod: "pos",
+      });
       if (result.error) return NextResponse.json({ error: result.error }, { status: 400 });
       return NextResponse.json({ ok: true, order: result.order });
     }
@@ -47,6 +50,16 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
     if (body.action === "send_to_kitchen") {
       const result = await sendOrderToKitchen(auth.service, auth.tenant.id, id);
+      if (result.error) return NextResponse.json({ error: result.error }, { status: 400 });
+      const order =
+        result.order ?? (await loadOrderById(auth.service, auth.tenant.id, id));
+      return NextResponse.json({ ok: true, order });
+    }
+
+    if (body.action === "serve") {
+      const deniedServe = fbForbidden(auth.capabilities, "canCloseOrder");
+      if (deniedServe) return NextResponse.json({ error: deniedServe.error }, { status: deniedServe.status });
+      const result = await markFbOrderServed(auth.service, auth.tenant.id, id);
       if (result.error) return NextResponse.json({ error: result.error }, { status: 400 });
       const order =
         result.order ?? (await loadOrderById(auth.service, auth.tenant.id, id));

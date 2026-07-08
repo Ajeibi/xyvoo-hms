@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import type { FrontDeskBoardData, FrontDeskRoomBoardItem } from "@/lib/hms/front-desk-board";
 import { Button } from "@/components/ui/button";
 import { FrontDeskOccupancyWidget } from "./FrontDeskOccupancyWidget";
+import { FrontDeskPropertySnapshot } from "./FrontDeskPropertySnapshot";
 import { FrontDeskQuickActionsBar } from "./FrontDeskQuickActionsBar";
 import { FrontDeskMovementTimeline } from "./FrontDeskMovementTimeline";
 import { FrontDeskAnalyticsSection } from "./FrontDeskAnalyticsSection";
@@ -95,6 +96,10 @@ export function FrontDeskOperationalBoard({
     <>
       <div className="mt-6 space-y-6">
         <FrontDeskQuickActionsBar slug={slug} />
+        <FrontDeskPropertySnapshot
+          reservationRecordCount={data.reservationRecordCount}
+          inHouseGuestHeadcount={data.occupancy.inHouseGuestHeadcount}
+        />
         <FrontDeskOccupancyWidget stats={data.occupancy} />
 
         <FrontDeskRoomBoardShell
@@ -131,7 +136,7 @@ export function FrontDeskOperationalBoard({
           departures={data.departuresToday}
         />
 
-        <FrontDeskAnalyticsSection analytics={data.analytics} usedLiveData={data.usedLiveData} />
+        <FrontDeskAnalyticsSection analytics={data.analytics} />
 
         <FrontDeskShiftNotes slug={slug} notes={data.shiftNotes} />
 

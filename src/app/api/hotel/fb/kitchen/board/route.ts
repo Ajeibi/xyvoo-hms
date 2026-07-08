@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { loadKitchenBoard } from "@/lib/hms/fb-orders";
 import { loadStations } from "@/lib/hms/fb-menu";
+import { getTenantFbSettings } from "@/lib/hms/fb-settings";
 import { fbForbidden, requireFbApi } from "../../_lib";
 
 const QuerySchema = z.object({
@@ -28,7 +29,12 @@ export async function GET(req: Request) {
       query.station ?? "all",
     );
     const { stations } = await loadStations(auth.service, auth.tenant.id);
-    return NextResponse.json({ tickets, stations });
+    const fbSettings = await getTenantFbSettings(auth.service, auth.tenant.id);
+    return NextResponse.json({
+      tickets,
+      stations,
+      kitchenOverdueMinutes: fbSettings.kitchenOverdueMinutes,
+    });
   } catch (e) {
     if (e instanceof z.ZodError) {
       return NextResponse.json({ error: e.issues[0]?.message }, { status: 400 });

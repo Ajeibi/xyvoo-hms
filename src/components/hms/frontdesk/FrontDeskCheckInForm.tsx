@@ -61,7 +61,7 @@ const SETTLEMENT_OPTIONS = [
   {
     value: "card" as const,
     label: "Credit card",
-    help: "Card payments are collected via Paystack on the guest folio — charge at check-in, during the stay, or at checkout.",
+    help: "Card payments are recorded on the guest folio — post at check-in, during the stay, or at checkout.",
   },
   {
     value: "pos" as const,
@@ -1275,7 +1275,7 @@ export function FrontDeskCheckInForm({
                   <CheckInFieldLabelRow
                     htmlFor="preauthAmount"
                     helpTitle="Deposit / authorization amount"
-                    helpText="Optional hold amount for card stays. Authorize via Paystack on the folio after check-in, or charge the full balance when ready."
+                    helpText="Optional hold amount for card stays. Post the deposit or full balance on the folio after check-in when ready."
                   >
                     Deposit / auth amount ({pricing.currency})
                   </CheckInFieldLabelRow>

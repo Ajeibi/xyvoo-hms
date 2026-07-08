@@ -1,35 +1,47 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { loadKitchenHistory } from "@/lib/hms/fb-orders";
+import { loadKitchenOrderHistory, type FbOrderHistoryRange } from "@/lib/hms/fb-orders";
+import { getTenantFbSettings } from "@/lib/hms/fb-settings";
+import { mapKitchenOrderHistoryRows } from "@/lib/hms/load-fb-pages";
 import { fbForbidden, requireFbApi } from "../../_lib";
+
+const RANGE_VALUES = [
+  "all",
+  "today",
+  "yesterday",
+  "last_week",
+  "last_2_weeks",
+  "last_month",
+] as const satisfies readonly FbOrderHistoryRange[];
 
 const QuerySchema = z.object({
   slug: z.string().min(1),
+  range: z.enum(RANGE_VALUES).optional(),
 });
 
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
-    const query = QuerySchema.parse({ slug: url.searchParams.get("slug") });
+    const query = QuerySchema.parse({
+      slug: url.searchParams.get("slug"),
+      range: url.searchParams.get("range") ?? undefined,
+    });
     const auth = await requireFbApi(query.slug);
     if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
     const denied = fbForbidden(auth.capabilities, "canViewKitchenBoard");
     if (denied) return NextResponse.json({ error: denied.error }, { status: denied.status });
 
-    const orders = await loadKitchenHistory(auth.service, auth.tenant.id);
+    const range = query.range ?? "all";
+    const [orders, fbSettings] = await Promise.all([
+      loadKitchenOrderHistory(auth.service, auth.tenant.id, range),
+      getTenantFbSettings(auth.service, auth.tenant.id),
+    ]);
     return NextResponse.json({
-      orders: orders.map((o) => ({
-        id: o.id,
-        order_number: o.order_number,
-        table_label: o.table_code ?? o.tab_label ?? "—",
-        status: o.status,
-        closed_at: o.closed_at,
-        voided_at: o.voided_at,
-        item_count: o.items.length,
-        created_at: o.created_at,
-        sent_to_kitchen_at: o.sent_to_kitchen_at,
-      })),
+      orders: mapKitchenOrderHistoryRows(orders),
+      capabilities: auth.capabilities,
+      kitchenOverdueMinutes: fbSettings.kitchenOverdueMinutes,
+      range,
     });
   } catch (e) {
     if (e instanceof z.ZodError) {

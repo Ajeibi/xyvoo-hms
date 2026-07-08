@@ -1,6 +1,7 @@
 import HMSLayout from "@/components/hms/HMSLayout";
-import { FbSectionWithNotifications } from "@/components/hms/fb/FbSectionWithNotifications";
+import { FbRestaurantBarShell } from "@/components/hms/fb/FbRestaurantBarShell";
 import { FbOrdersClient } from "@/components/hms/fb/FbOrdersClient";
+import { getHmsAccessContext } from "@/lib/hms/access";
 import { loadFbOrdersPageModel } from "@/lib/hms/load-fb-pages";
 
 export default async function RestaurantBarOrdersPage({
@@ -9,19 +10,28 @@ export default async function RestaurantBarOrdersPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const model = await loadFbOrdersPageModel(slug);
+  const [model, access] = await Promise.all([
+    loadFbOrdersPageModel(slug),
+    getHmsAccessContext(slug),
+  ]);
 
   return (
     <HMSLayout slug={slug} requiredSection="restaurant-bar">
       {model ? (
-        <FbSectionWithNotifications slug={model.slug} tenantId={model.tenantId} area="restaurant">
+        <FbRestaurantBarShell
+          slug={model.slug}
+          tenantId={model.tenantId}
+          observerMode={access.canAccessAllDepartments}
+          showDepartmentNav={access.canAccessAllDepartments}
+        >
           <FbOrdersClient
             slug={model.slug}
             tenantId={model.tenantId}
             currency={model.currency}
             initial={model.initial}
+            kitchenOverdueMinutes={model.kitchenOverdueMinutes}
           />
-        </FbSectionWithNotifications>
+        </FbRestaurantBarShell>
       ) : (
         <p className="p-8 text-sm text-slate-500">Property not found.</p>
       )}

@@ -8,7 +8,7 @@ ChartJS.register(ArcElement, Tooltip);
 
 export function FrontDeskOccupancyWidget({ stats }: { stats: FrontDeskOccupancyStats }) {
   const segments = [
-    { label: "Occupied", value: stats.occupiedRooms, color: "rgb(37, 99, 235)" },
+    { label: "Occupied rooms", value: stats.occupiedRooms, color: "rgb(37, 99, 235)" },
     { label: "Available", value: stats.availableRooms, color: "rgb(16, 185, 129)" },
     { label: "Reserved", value: stats.reservedRooms, color: "rgb(251, 191, 36)" },
     { label: "Maintenance", value: stats.maintenanceRooms, color: "rgb(249, 115, 22)" },
@@ -42,7 +42,9 @@ export function FrontDeskOccupancyWidget({ stats }: { stats: FrontDeskOccupancyS
         <div className="min-w-0 flex-1">
           <h2 className="text-lg font-semibold tracking-tight text-slate-900">Property snapshot</h2>
           <p className="mt-1 text-sm text-slate-500">
-            {stats.totalRooms} rooms · {stats.occupancyPercent}% occupied
+            {stats.totalRooms} rooms · {stats.inHouseGuestHeadcount} guest
+            {stats.inHouseGuestHeadcount === 1 ? "" : "s"} on property · {stats.occupiedRooms} room
+            {stats.occupiedRooms === 1 ? "" : "s"} occupied ({stats.occupancyPercent}%)
           </p>
           <div className="mt-4 flex h-3 overflow-hidden rounded-full bg-slate-100">
             {segments.map((seg, i) =>

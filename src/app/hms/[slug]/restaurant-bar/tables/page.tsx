@@ -1,6 +1,7 @@
 import HMSLayout from "@/components/hms/HMSLayout";
-import { FbSectionWithNotifications } from "@/components/hms/fb/FbSectionWithNotifications";
+import { FbRestaurantBarShell } from "@/components/hms/fb/FbRestaurantBarShell";
 import { FbTablesClient } from "@/components/hms/fb/FbTablesClient";
+import { getHmsAccessContext } from "@/lib/hms/access";
 import { loadFbTablesPageModel } from "@/lib/hms/load-fb-pages";
 
 export default async function RestaurantBarTablesPage({
@@ -9,14 +10,27 @@ export default async function RestaurantBarTablesPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const model = await loadFbTablesPageModel(slug);
+  const [model, access] = await Promise.all([
+    loadFbTablesPageModel(slug),
+    getHmsAccessContext(slug),
+  ]);
 
   return (
     <HMSLayout slug={slug} requiredSection="restaurant-bar">
       {model ? (
-        <FbSectionWithNotifications slug={model.slug} tenantId={model.tenantId} area="restaurant">
-          <FbTablesClient slug={model.slug} tenantId={model.tenantId} initial={model.initial} />
-        </FbSectionWithNotifications>
+        <FbRestaurantBarShell
+          slug={model.slug}
+          tenantId={model.tenantId}
+          observerMode={access.canAccessAllDepartments}
+          showDepartmentNav={access.canAccessAllDepartments}
+        >
+          <FbTablesClient
+            slug={model.slug}
+            tenantId={model.tenantId}
+            outletId={model.outletId}
+            initial={model.initial}
+          />
+        </FbRestaurantBarShell>
       ) : (
         <p className="p-8 text-sm text-slate-500">Property not found.</p>
       )}

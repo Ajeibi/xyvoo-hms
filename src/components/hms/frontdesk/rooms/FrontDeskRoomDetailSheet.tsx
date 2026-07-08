@@ -500,8 +500,39 @@ export function FrontDeskRoomDetailSheet({
                   <CardHeader>
                     <CardTitle className="text-base">Current occupancy</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-2 text-sm">
-                    <p className="font-semibold">{stay.guestName}</p>
+                  <CardContent className="space-y-4 text-sm">
+                    <p className="text-slate-600">
+                      Party of {stay.partySize} ({stay.adults} adult{stay.adults === 1 ? "" : "s"}
+                      {stay.childrenCount > 0
+                        ? `, ${stay.childrenCount} child${stay.childrenCount === 1 ? "" : "ren"}`
+                        : ""}
+                      )
+                    </p>
+                    <div className="space-y-3">
+                      {stay.partyGuests.map((guest) => (
+                        <div
+                          key={guest.id}
+                          className="rounded-lg border border-slate-200 bg-white p-3"
+                        >
+                          <p className="font-semibold text-slate-900">
+                            {guest.displayName}
+                            <span className="ml-2 text-xs font-normal capitalize text-slate-500">
+                              {guest.relationship}
+                              {guest.isPrimary ? " · lead" : ""}
+                            </span>
+                          </p>
+                          <p className="text-slate-600">{guest.phone}</p>
+                          <p className="text-slate-600">{guest.email}</p>
+                          <p className="text-slate-600">
+                            {guest.nationality} · {guest.idType} {guest.idNumber}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            DOB {guest.dateOfBirth}
+                            {guest.idExpiryDate ? ` · ID exp. ${guest.idExpiryDate}` : ""}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
                     <p className="text-slate-600">Ref {stay.confirmationCode}</p>
                     <p className="text-slate-600">{stay.bookingSourceLabel}</p>
                     <p className="text-slate-600">

@@ -189,14 +189,19 @@ export const DEPARTMENT_ROLE_SCOPES: Record<string, DepartmentScopeDefinition> =
     homeSection: "restaurant-bar",
     settingsSection: "restaurant-bar-settings",
     homePath: (slug) => `/hms/${slug}/restaurant-bar`,
-    settingsPath: (slug) => `/hms/${slug}/restaurant-bar/settings`,
+    settingsPath: (slug) => `/hms/${slug}/restaurant-bar`,
     navItems: (slug) => [
       { key: "fb-pos", icon: "dashboard", label: "POS", path: `/hms/${slug}/restaurant-bar` },
       { key: "fb-tables", icon: "rooms", label: "Tables", path: `/hms/${slug}/restaurant-bar/tables` },
       { key: "fb-orders", icon: "reservations", label: "Orders", path: `/hms/${slug}/restaurant-bar/orders` },
-      { key: "fb-settings", icon: "settings", label: "Settings", path: `/hms/${slug}/restaurant-bar/settings` },
+      {
+        key: "fb-history",
+        icon: "reservations",
+        label: "Order history",
+        path: `/hms/${slug}/restaurant-bar/history`,
+      },
     ],
-    allowedSections: ["restaurant-bar", "restaurant-bar-settings", "notifications"],
+    allowedSections: ["restaurant-bar", "notifications"],
   },
   Kitchen: {
     departmentRole: "Kitchen",

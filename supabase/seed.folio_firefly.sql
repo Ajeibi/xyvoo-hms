@@ -1,4 +1,5 @@
 -- Sample folio lines for Firefly in-house stays (run after frontdesk_ops + folio_phase10 migrations)
+-- SUPERSEDED for operational demo data: use `npm run seed:demo -- firefly` instead. Retained for reference only.
 -- Tenant: 41604dc6-9ce1-49bd-a0bb-5aa777ec7463
 
 insert into hotel.folio_transactions (

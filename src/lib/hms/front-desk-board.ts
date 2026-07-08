@@ -1,11 +1,13 @@
-import type { OccupancyTrend } from "@/components/hms/dashboard/analytics/mock-data";
+import type { OccupancyTrend } from "@/components/hms/dashboard/analytics/dashboard-analytics-types";
 import type { FrontDeskAccent } from "@/lib/hms/frontdesk-capabilities";
 import { FRONT_DESK_PAGE_BLOCKS } from "@/lib/hms/frontdesk-capabilities";
 import type { HotelRoomTypeSetup } from "@/lib/hms/room-pricing";
 import { formatPricingAmount, roomTypeGridAbbrev } from "@/lib/hms/room-pricing";
 import { normalizeFloorPlan } from "@/lib/hms/floor-plan";
 import { formatAuditMessage } from "@/lib/hms/front-desk-ops";
-import { computeGrossRevenueForUtcDay } from "@/lib/hms/dashboard-metrics";
+import { getGrossRevenueForUtcDay } from "@/lib/hms/dashboard-revenue-series";
+import type { DashboardFbOrderRow } from "@/lib/hms/dashboard-fb-metrics";
+import { countChildrenJson, countInHouseGuestHeadcount } from "@/lib/hms/reservation-metrics";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { computeFolioBalance, mapFolioLineRow, type FolioLineRow } from "@/lib/hms/folio";
 
@@ -27,6 +29,8 @@ export type FrontDeskOccupancyStats = {
   reservedRooms: number;
   maintenanceRooms: number;
   occupancyPercent: number;
+  /** Adults + children on checked-in stays — same as dashboard Guests. */
+  inHouseGuestHeadcount: number;
 };
 
 export type FrontDeskMovementItem = {
@@ -147,12 +151,22 @@ export type FrontDeskSummaryCounts = {
   inHouse: number;
 };
 
+export type FrontDeskPartyGuest = FrontDeskGuestInfo & {
+  isPrimary: boolean;
+  relationship: string;
+};
+
 export type FrontDeskStayInfo = {
   reservationId: string;
   confirmationCode: string;
   guest: FrontDeskGuestInfo | null;
   guestId: string | null;
   guestName: string;
+  /** Every guest on the reservation (primary + additional adults + children). */
+  partyGuests: FrontDeskPartyGuest[];
+  partySize: number;
+  adults: number;
+  childrenCount: number;
   phone: string;
   email: string;
   arrivalAt: string;
@@ -224,6 +238,7 @@ export type FrontDeskAnalytics = {
   roomMix: { available: number; occupied: number };
   revenueToday: string;
   occupancyRate: number;
+  inHouseGuestHeadcount: number;
 };
 
 export type CalendarWeekStay = {
@@ -243,7 +258,6 @@ export type FrontDeskCalendarWeek = {
 };
 
 export type FrontDeskBoardData = {
-  usedLiveData: boolean;
   tenantId: string | null;
   calendarWeek: FrontDeskCalendarWeek;
   summaryCounts: FrontDeskSummaryCounts;
@@ -261,6 +275,8 @@ export type FrontDeskBoardData = {
   auditFeed: FrontDeskAuditItem[];
   analytics: FrontDeskAnalytics;
   currency: string;
+  /** Total reservations on file — same as dashboard Reservations card. */
+  reservationRecordCount: number;
 };
 
 type RoomUnitRow = {
@@ -327,6 +343,23 @@ type ReservationGuestRow = {
   reservation_id: string;
   guest_id: string;
   is_primary: boolean;
+  relationship: string | null;
+};
+
+type ReservationGuestEmbed = {
+  is_primary: boolean;
+  relationship: string | null;
+  guests: GuestRow | GuestRow[] | null;
+};
+
+type StayGuestRow = GuestRow & {
+  isPrimary: boolean;
+  relationship: string;
+};
+
+type ReservationGuestsResolved = {
+  primaryByReservation: Map<string, GuestRow>;
+  partyByReservation: Map<string, StayGuestRow[]>;
 };
 
 export function formatGuestDisplayName(guest: GuestRow) {
@@ -356,6 +389,107 @@ export function toGuestInfo(guest: GuestRow): FrontDeskGuestInfo {
     preferredChannel: guest.preferred_channel,
     tags: parseGuestTags(guest.tags),
   };
+}
+
+function embedGuestRow(raw: GuestRow | GuestRow[] | null): GuestRow | undefined {
+  if (!raw) return undefined;
+  return Array.isArray(raw) ? raw[0] : raw;
+}
+
+function collectEmbeddedStayGuests(
+  embeds: ReservationGuestEmbed[] | null | undefined,
+): StayGuestRow[] {
+  if (!embeds?.length) return [];
+  return embeds
+    .map((embed) => {
+      const row = embedGuestRow(embed.guests);
+      if (!row) return null;
+      return {
+        ...row,
+        isPrimary: embed.is_primary,
+        relationship:
+          embed.relationship?.trim() || (embed.is_primary ? "primary" : "guest"),
+      };
+    })
+    .filter((g): g is StayGuestRow => Boolean(g))
+    .sort((a, b) => {
+      if (a.isPrimary !== b.isPrimary) return a.isPrimary ? -1 : 1;
+      return a.relationship.localeCompare(b.relationship);
+    });
+}
+
+function toPartyGuest(guest: StayGuestRow): FrontDeskPartyGuest {
+  return {
+    ...toGuestInfo(guest),
+    isPrimary: guest.isPrimary,
+    relationship: guest.relationship,
+  };
+}
+
+async function resolveReservationGuests(
+  supabase: ReturnType<typeof createServerSupabaseClient>,
+  tenantId: string,
+  guestSelect: string,
+  reservationsRaw: { id: string; reservation_guests?: ReservationGuestEmbed[] | null }[],
+): Promise<ReservationGuestsResolved> {
+  const primaryByReservation = new Map<string, GuestRow>();
+  const partyByReservation = new Map<string, StayGuestRow[]>();
+
+  for (const row of reservationsRaw) {
+    const party = collectEmbeddedStayGuests(row.reservation_guests);
+    if (!party.length) continue;
+    partyByReservation.set(row.id, party);
+    const primary = party.find((g) => g.isPrimary) ?? party[0];
+    primaryByReservation.set(row.id, primary);
+  }
+
+  const missingIds = reservationsRaw
+    .map((r) => r.id)
+    .filter((id) => !partyByReservation.has(id));
+  if (!missingIds.length) {
+    return { primaryByReservation, partyByReservation };
+  }
+
+  const [{ data: rgRows }, { data: tenantGuestRows }] = await Promise.all([
+    supabase
+      .schema("hotel")
+      .from("reservation_guests")
+      .select("reservation_id,guest_id,is_primary,relationship")
+      .in("reservation_id", missingIds),
+    supabase.schema("hotel").from("guests").select(guestSelect).eq("tenant_id", tenantId),
+  ]);
+
+  const guestById = new Map(
+    ((tenantGuestRows ?? []) as unknown as GuestRow[]).map((g) => [g.id, g]),
+  );
+  const linksByReservation = new Map<string, ReservationGuestRow[]>();
+  for (const link of (rgRows ?? []) as ReservationGuestRow[]) {
+    const list = linksByReservation.get(link.reservation_id) ?? [];
+    list.push(link);
+    linksByReservation.set(link.reservation_id, list);
+  }
+
+  for (const [resId, links] of linksByReservation) {
+    const party: StayGuestRow[] = [];
+    for (const link of links) {
+      const guest = guestById.get(link.guest_id);
+      if (!guest) continue;
+      party.push({
+        ...guest,
+        isPrimary: link.is_primary,
+        relationship: link.relationship?.trim() || (link.is_primary ? "primary" : "guest"),
+      });
+    }
+    party.sort((a, b) => {
+      if (a.isPrimary !== b.isPrimary) return a.isPrimary ? -1 : 1;
+      return a.relationship.localeCompare(b.relationship);
+    });
+    if (!party.length) continue;
+    partyByReservation.set(resId, party);
+    primaryByReservation.set(resId, party.find((g) => g.isPrimary) ?? party[0]);
+  }
+
+  return { primaryByReservation, partyByReservation };
 }
 
 function parseTs(value: string) {
@@ -466,14 +600,33 @@ function buildStayInfo(
   reservation: ReservationRow,
   guest: GuestRow | undefined,
   folioLines: FolioLineRow[] = [],
+  partyGuests: StayGuestRow[] = [],
 ): FrontDeskStayInfo {
-  const guestInfo = guest ? toGuestInfo(guest) : null;
+  const party =
+    partyGuests.length > 0
+      ? partyGuests.map(toPartyGuest)
+      : guest
+        ? [toPartyGuest({ ...guest, isPrimary: true, relationship: "primary" })]
+        : [];
+
+  const primaryParty = party.find((g) => g.isPrimary) ?? party[0] ?? null;
+  const guestInfo = primaryParty;
+  const childrenCount = countChildrenJson(reservation.children_json);
+  const partySize = reservation.adults + childrenCount;
+
   return {
     reservationId: reservation.id,
     confirmationCode: reservation.confirmation_code,
     guest: guestInfo,
-    guestId: guest?.id ?? null,
-    guestName: guestInfo?.displayName ?? "Guest not linked",
+    guestId: guestInfo?.id ?? null,
+    guestName:
+      party.length > 1
+        ? party.map((g) => g.displayName).join(" · ")
+        : guestInfo?.displayName ?? "Guest not linked",
+    partyGuests: party,
+    partySize,
+    adults: reservation.adults,
+    childrenCount,
     phone: guestInfo?.phone ?? "—",
     email: guestInfo?.email ?? "—",
     arrivalAt: reservation.arrival_at,
@@ -503,11 +656,6 @@ function movementHighlight(
   const diff = t - now.getTime();
   if (diff >= 0 && diff <= 60 * 60 * 1000) return "soon";
   return "none";
-}
-
-function countChildrenJson(raw: unknown): number {
-  if (!Array.isArray(raw)) return 0;
-  return raw.length;
 }
 
 export function resolveRoomDisplayStatus(params: {
@@ -621,7 +769,7 @@ function buildKpiTiles(params: {
     {
       key: "unpreauthed-rooms",
       value: String(params.unpreauthedRooms),
-      detail: "Card stays without Paystack auth or payment",
+      detail: "Card stays without card auth or payment",
       accent: "financial",
     },
   ];
@@ -711,9 +859,9 @@ function emptyBoard(currency: string): FrontDeskBoardData {
     reservedRooms: 0,
     maintenanceRooms: 0,
     occupancyPercent: 0,
+    inHouseGuestHeadcount: 0,
   };
   return {
-    usedLiveData: false,
     tenantId: null,
     summaryCounts: {
       overdueCheckout: 0,
@@ -755,8 +903,10 @@ function emptyBoard(currency: string): FrontDeskBoardData {
       roomMix: { available: 0, occupied: 0 },
       revenueToday: formatPricingAmount(0, currency),
       occupancyRate: 0,
+      inHouseGuestHeadcount: 0,
     },
     currency,
+    reservationRecordCount: 0,
   };
 }
 
@@ -787,6 +937,7 @@ export async function getFrontDeskBoardData(params: {
     { data: profileRows },
     { data: hkRows },
     { data: paymentIntentRows },
+    { data: fbOrderRows },
   ] = await Promise.all([
     supabase
       .schema("hotel")
@@ -798,7 +949,7 @@ export async function getFrontDeskBoardData(params: {
       .schema("hotel")
       .from("reservations")
       .select(
-        `id,confirmation_code,status,arrival_at,departure_at,room_unit_id,room_type_code,checked_in_at,checked_out_at,settlement_method,preauth_amount,total_room_charges,rate_per_night,guest_remarks,folio_number,vip_flag,source,booking_channel,adults,children_json,reservation_guests(is_primary,guests(${guestSelect}))`,
+        `id,confirmation_code,status,arrival_at,departure_at,room_unit_id,room_type_code,checked_in_at,checked_out_at,settlement_method,preauth_amount,total_room_charges,rate_per_night,guest_remarks,folio_number,vip_flag,source,booking_channel,adults,children_json,reservation_guests(is_primary,relationship,guests(${guestSelect}))`,
       )
       .eq("tenant_id", tenantId),
     supabase
@@ -846,6 +997,11 @@ export async function getFrontDeskBoardData(params: {
       .select("reservation_id,purpose,status")
       .eq("tenant_id", tenantId)
       .eq("status", "success"),
+    supabase
+      .schema("hotel")
+      .from("fb_orders")
+      .select("status,settlement_method,subtotal,closed_at,voided_at")
+      .eq("tenant_id", tenantId),
   ]);
 
   if (roomError || resError) {
@@ -856,10 +1012,6 @@ export async function getFrontDeskBoardData(params: {
   const rooms = (roomRows ?? []) as RoomUnitRow[];
   if (rooms.length === 0) return emptyBoard(currency);
 
-  type ReservationGuestEmbed = {
-    is_primary: boolean;
-    guests: GuestRow | GuestRow[] | null;
-  };
   type ReservationWithGuests = ReservationRow & {
     reservation_guests?: ReservationGuestEmbed[] | null;
   };
@@ -887,7 +1039,7 @@ export async function getFrontDeskBoardData(params: {
     if (
       row.kind === "payment" &&
       !row.voided_at &&
-      row.metadata?.provider === "paystack"
+      (row.method === "card" || row.metadata?.provider === "paystack")
     ) {
       cardSecuredReservationIds.add(row.reservation_id);
     }
@@ -934,50 +1086,8 @@ export async function getFrontDeskBoardData(params: {
     });
   }
 
-  const guestByReservation = new Map<string, GuestRow>();
-
-  function pickEmbeddedGuest(embeds: ReservationGuestEmbed[] | null | undefined): GuestRow | undefined {
-    if (!embeds?.length) return undefined;
-    const primary = embeds.find((e) => e.is_primary) ?? embeds[0];
-    const raw = primary?.guests;
-    if (!raw) return undefined;
-    return Array.isArray(raw) ? raw[0] : raw;
-  }
-
-  for (const row of reservationsRaw) {
-    const embedded = pickEmbeddedGuest(row.reservation_guests);
-    if (embedded) guestByReservation.set(row.id, embedded);
-  }
-
-  const reservationIds = reservations.map((r) => r.id);
-  const missingGuestResIds = reservationIds.filter((id) => !guestByReservation.has(id));
-
-  if (missingGuestResIds.length > 0) {
-    const [{ data: rgRows }, { data: tenantGuestRows }] = await Promise.all([
-      supabase
-        .schema("hotel")
-        .from("reservation_guests")
-        .select("reservation_id,guest_id,is_primary")
-        .in("reservation_id", missingGuestResIds),
-      supabase.schema("hotel").from("guests").select(guestSelect).eq("tenant_id", tenantId),
-    ]);
-
-    const guestById = new Map(((tenantGuestRows ?? []) as GuestRow[]).map((g) => [g.id, g]));
-    const links = (rgRows ?? []) as ReservationGuestRow[];
-    const primaryGuestIds = new Map<string, string>();
-    for (const link of links) {
-      if (link.is_primary) primaryGuestIds.set(link.reservation_id, link.guest_id);
-    }
-    for (const link of links) {
-      if (!primaryGuestIds.has(link.reservation_id)) {
-        primaryGuestIds.set(link.reservation_id, link.guest_id);
-      }
-    }
-    for (const [resId, guestId] of primaryGuestIds) {
-      const guest = guestById.get(guestId);
-      if (guest) guestByReservation.set(resId, guest);
-    }
-  }
+  const { primaryByReservation: guestByReservation, partyByReservation } =
+    await resolveReservationGuests(supabase, tenantId, guestSelect, reservationsRaw);
 
   const now = new Date();
   const inHouseByRoom = new Map<string, ReservationRow>();
@@ -1035,10 +1145,20 @@ export async function getFrontDeskBoardData(params: {
       statusLabel: FRONT_DESK_STATUS_LABELS[displayStatus],
       statusShortLabel: FRONT_DESK_STATUS_SHORT_LABELS[displayStatus],
       stay: activeStay
-        ? buildStayInfo(activeStay, guestForActive, folioLinesByReservation.get(activeStay.id) ?? [])
+        ? buildStayInfo(
+            activeStay,
+            guestForActive,
+            folioLinesByReservation.get(activeStay.id) ?? [],
+            partyByReservation.get(activeStay.id) ?? [],
+          )
         : null,
       reservedStay: reservedStay
-        ? buildStayInfo(reservedStay, guestForReserved, folioLinesByReservation.get(reservedStay.id) ?? [])
+        ? buildStayInfo(
+            reservedStay,
+            guestForReserved,
+            folioLinesByReservation.get(reservedStay.id) ?? [],
+            partyByReservation.get(reservedStay.id) ?? [],
+          )
         : null,
       lastCheckoutAt: lastCheckoutByRoom.get(room.id) ?? null,
       roomFlags: flagsByRoom.get(room.id) ?? DEFAULT_ROOM_FLAGS,
@@ -1200,9 +1320,7 @@ export async function getFrontDeskBoardData(params: {
     (r) => r.displayStatus === "inHouse" || r.displayStatus === "overdueCheckout",
   ).length;
 
-  const inHouseGuests = reservations
-    .filter((r) => r.status === "checked_in")
-    .reduce((sum, r) => sum + r.adults + countChildrenJson(r.children_json), 0);
+  const inHouseGuestHeadcount = countInHouseGuestHeadcount(reservations);
 
   const roomsReady = rooms.filter((u) =>
     ["vacant_clean", "inspected", "ready_for_occupancy"].includes(u.status),
@@ -1244,6 +1362,7 @@ export async function getFrontDeskBoardData(params: {
     reservedRooms: summaryCounts.reserved,
     maintenanceRooms: summaryCounts.maintenance + summaryCounts.dirty + summaryCounts.outOfService,
     occupancyPercent: rooms.length > 0 ? Math.round((inHouseCount / rooms.length) * 100) : 0,
+    inHouseGuestHeadcount,
   };
 
   const kpiTiles = buildKpiTiles({
@@ -1251,7 +1370,7 @@ export async function getFrontDeskBoardData(params: {
     arrivalsCheckedIn,
     departuresTodayTotal,
     departuresCheckedOut,
-    inHouseGuests,
+    inHouseGuests: inHouseGuestHeadcount,
     roomsReady,
     overdueCheckouts: summaryCounts.overdueCheckout,
     openRequests: 0,
@@ -1329,14 +1448,17 @@ export async function getFrontDeskBoardData(params: {
     createdAt: log.created_at,
   }));
 
-  let grossRevenueToday = computeGrossRevenueForUtcDay(
-    (folioRows ?? []).map((tx) => ({
-      reservation_id: tx.reservation_id as string,
-      kind: tx.kind as string,
-      amount: tx.amount as string | number,
-      voided_at: (tx.voided_at as string | null) ?? null,
-      created_at: tx.created_at as string,
-    })),
+  const folioForRevenue = (folioRows ?? []).map((tx) => ({
+    reservation_id: tx.reservation_id as string,
+    kind: tx.kind as string,
+    amount: tx.amount as string | number,
+    voided_at: (tx.voided_at as string | null) ?? null,
+    created_at: tx.created_at as string,
+  }));
+
+  const grossRevenueToday = getGrossRevenueForUtcDay(
+    folioForRevenue,
+    (fbOrderRows ?? []) as DashboardFbOrderRow[],
     now,
   );
 
@@ -1393,10 +1515,10 @@ export async function getFrontDeskBoardData(params: {
     revenueToday: formatPricingAmount(grossRevenueToday, currency),
     occupancyRate:
       rooms.length > 0 ? Math.min(100, Math.round((inHouseCount / rooms.length) * 100)) : 0,
+    inHouseGuestHeadcount,
   };
 
   return {
-    usedLiveData: true,
     tenantId,
     summaryCounts,
     kpiTiles,
@@ -1414,6 +1536,7 @@ export async function getFrontDeskBoardData(params: {
     calendarWeek,
     analytics,
     currency,
+    reservationRecordCount: reservations.length,
   };
 }
 
@@ -1445,7 +1568,7 @@ export async function loadFrontDeskRoomBoardItemForUnit(params: {
     .schema("hotel")
     .from("reservations")
     .select(
-      `id,confirmation_code,status,arrival_at,departure_at,room_unit_id,room_type_code,checked_in_at,checked_out_at,settlement_method,preauth_amount,total_room_charges,rate_per_night,guest_remarks,folio_number,vip_flag,source,booking_channel,adults,children_json,reservation_guests(is_primary,guests(${guestSelect}))`,
+      `id,confirmation_code,status,arrival_at,departure_at,room_unit_id,room_type_code,checked_in_at,checked_out_at,settlement_method,preauth_amount,total_room_charges,rate_per_night,guest_remarks,folio_number,vip_flag,source,booking_channel,adults,children_json,reservation_guests(is_primary,relationship,guests(${guestSelect}))`,
     )
     .eq("tenant_id", tenantId)
     .eq("room_unit_id", unit.id);
@@ -1454,10 +1577,6 @@ export async function loadFrontDeskRoomBoardItemForUnit(params: {
     console.warn("[loadFrontDeskRoomBoardItemForUnit] reservation query failed:", resError);
   }
 
-  type ReservationGuestEmbed = {
-    is_primary: boolean;
-    guests: GuestRow | GuestRow[] | null;
-  };
   type ReservationWithGuests = ReservationRow & {
     reservation_guests?: ReservationGuestEmbed[] | null;
   };
@@ -1467,50 +1586,10 @@ export async function loadFrontDeskRoomBoardItemForUnit(params: {
     ({ reservation_guests: _rg, ...row }) => row as ReservationRow,
   );
 
-  const guestByReservation = new Map<string, GuestRow>();
-
-  function pickEmbeddedGuest(embeds: ReservationGuestEmbed[] | null | undefined): GuestRow | undefined {
-    if (!embeds?.length) return undefined;
-    const primary = embeds.find((e) => e.is_primary) ?? embeds[0];
-    const raw = primary?.guests;
-    if (!raw) return undefined;
-    return Array.isArray(raw) ? raw[0] : raw;
-  }
-
-  for (const row of reservationsRaw) {
-    const embedded = pickEmbeddedGuest(row.reservation_guests);
-    if (embedded) guestByReservation.set(row.id, embedded);
-  }
+  const { primaryByReservation: guestByReservation, partyByReservation } =
+    await resolveReservationGuests(supabase, tenantId, guestSelect, reservationsRaw);
 
   const reservationIds = reservations.map((r) => r.id);
-  const missingGuestResIds = reservationIds.filter((id) => !guestByReservation.has(id));
-
-  if (missingGuestResIds.length > 0) {
-    const [{ data: rgRows }, { data: tenantGuestRows }] = await Promise.all([
-      supabase
-        .schema("hotel")
-        .from("reservation_guests")
-        .select("reservation_id,guest_id,is_primary")
-        .in("reservation_id", missingGuestResIds),
-      supabase.schema("hotel").from("guests").select(guestSelect).eq("tenant_id", tenantId),
-    ]);
-
-    const guestById = new Map(((tenantGuestRows ?? []) as GuestRow[]).map((g) => [g.id, g]));
-    const links = (rgRows ?? []) as ReservationGuestRow[];
-    const primaryGuestIds = new Map<string, string>();
-    for (const link of links) {
-      if (link.is_primary) primaryGuestIds.set(link.reservation_id, link.guest_id);
-    }
-    for (const link of links) {
-      if (!primaryGuestIds.has(link.reservation_id)) {
-        primaryGuestIds.set(link.reservation_id, link.guest_id);
-      }
-    }
-    for (const [resId, guestId] of primaryGuestIds) {
-      const guest = guestById.get(guestId);
-      if (guest) guestByReservation.set(resId, guest);
-    }
-  }
 
   const [folioResult, flagResult, hkResult] = await Promise.all([
     reservationIds.length
@@ -1637,10 +1716,20 @@ export async function loadFrontDeskRoomBoardItemForUnit(params: {
     statusLabel: FRONT_DESK_STATUS_LABELS[displayStatus],
     statusShortLabel: FRONT_DESK_STATUS_SHORT_LABELS[displayStatus],
     stay: activeStay
-      ? buildStayInfo(activeStay, guestForActive, folioLinesByReservation.get(activeStay.id) ?? [])
+      ? buildStayInfo(
+          activeStay,
+          guestForActive,
+          folioLinesByReservation.get(activeStay.id) ?? [],
+          partyByReservation.get(activeStay.id) ?? [],
+        )
       : null,
     reservedStay: reservedStay
-      ? buildStayInfo(reservedStay, guestForReserved, folioLinesByReservation.get(reservedStay.id) ?? [])
+      ? buildStayInfo(
+          reservedStay,
+          guestForReserved,
+          folioLinesByReservation.get(reservedStay.id) ?? [],
+          partyByReservation.get(reservedStay.id) ?? [],
+        )
       : null,
     lastCheckoutAt,
     roomFlags,

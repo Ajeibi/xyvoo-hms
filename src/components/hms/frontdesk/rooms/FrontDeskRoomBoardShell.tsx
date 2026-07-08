@@ -85,7 +85,7 @@ export function FrontDeskRoomBoardShell({
                 {selectedRoom
                   ? "Selected room is highlighted on the grid below."
                   : "Click a room to select it — the cell will pulse with a blue ring."}
-                {data.usedLiveData ? <FrontDeskRealtimeRefresh tenantId={data.tenantId} /> : null}
+                {data.tenantId ? <FrontDeskRealtimeRefresh tenantId={data.tenantId} /> : null}
               </p>
             </div>
             {showCalendar ? (

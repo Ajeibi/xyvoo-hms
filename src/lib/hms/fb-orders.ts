@@ -1,10 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { insertFolioLine } from "@/lib/hms/folio";
+import { isKitchenWorkComplete, isOrderFullyServed } from "@/lib/hms/fb-order-timing";
 import type {
   FbKitchenStatus,
   FbKitchenTicket,
   FbOrderItemRow,
   FbOrderRow,
+  FbOrderSettlementMethod,
   FbOrderStatus,
   FbOrderWithItems,
 } from "@/lib/hms/fb-types";
@@ -30,9 +32,13 @@ function mapOrder(r: Record<string, unknown>): FbOrderRow {
     status: r.status as FbOrderStatus,
     rush: Boolean(r.rush),
     placed_by: (r.placed_by as string) ?? null,
-    sent_to_kitchen_at: (r.sent_to_kitchen_at as string) ?? null,
-    closed_at: (r.closed_at as string) ?? null,
+  sent_to_kitchen_at: (r.sent_to_kitchen_at as string) ?? null,
+  ready_acknowledged_at: (r.ready_acknowledged_at as string) ?? null,
+    kitchen_ready_at: (r.kitchen_ready_at as string) ?? null,
+    served_at: (r.served_at as string) ?? null,
+  closed_at: (r.closed_at as string) ?? null,
     voided_at: (r.voided_at as string) ?? null,
+    settlement_method: (r.settlement_method as FbOrderRow["settlement_method"]) ?? null,
     subtotal: num(r.subtotal),
     notes: (r.notes as string) ?? null,
     created_at: r.created_at as string,
@@ -120,12 +126,20 @@ export async function loadOrders(
 
   const tableIds = [...new Set(orderRows.map((o) => o.table_id).filter(Boolean))] as string[];
   const outletIds = [...new Set(orderRows.map((o) => o.outlet_id))];
+  const menuItemIds = [
+    ...new Set(
+      orderRows.flatMap((o) =>
+        (itemsByOrder.get(o.id) ?? []).map((i) => i.menu_item_id).filter(Boolean),
+      ),
+    ),
+  ] as string[];
 
-  const [{ data: tables }, { data: outlets }] = await Promise.all([
+  const [{ data: tables }, { data: outlets }, prepByMenuItem] = await Promise.all([
     tableIds.length
       ? supabase.schema("hotel").from("fb_tables").select("id,table_code").in("id", tableIds)
       : Promise.resolve({ data: [] }),
     supabase.schema("hotel").from("fb_outlets").select("id,name,outlet_type").in("id", outletIds),
+    loadPrepMinutesByMenuItem(supabase, tenantId, menuItemIds),
   ]);
 
   const tableById = new Map((tables ?? []).map((t) => [t.id as string, t.table_code as string]));
@@ -136,13 +150,75 @@ export async function loadOrders(
     ]),
   );
 
-  return orderRows.map((order) => ({
-    ...order,
-    items: itemsByOrder.get(order.id) ?? [],
-    table_code: order.table_id ? (tableById.get(order.table_id) ?? null) : null,
-    outlet_name: outletById.get(order.outlet_id)?.name,
-    outlet_type: outletById.get(order.outlet_id)?.type as FbOrderWithItems["outlet_type"],
-  }));
+  return orderRows.map((order) => {
+    const items = itemsByOrder.get(order.id) ?? [];
+    return {
+      ...order,
+      items,
+      table_code: order.table_id ? (tableById.get(order.table_id) ?? null) : null,
+      outlet_name: outletById.get(order.outlet_id)?.name,
+      outlet_type: outletById.get(order.outlet_id)?.type as FbOrderWithItems["outlet_type"],
+      category_overdue_minutes: orderCategoryOverdueMinutes(items, prepByMenuItem),
+    };
+  });
+}
+
+/** menu_item_id -> its category's prep_minutes (null when the category has no override). */
+async function loadPrepMinutesByMenuItem(
+  supabase: SupabaseClient,
+  tenantId: string,
+  menuItemIds: string[],
+): Promise<Map<string, number | null>> {
+  const map = new Map<string, number | null>();
+  if (!menuItemIds.length) return map;
+
+  const { data: items } = await supabase
+    .schema("hotel")
+    .from("fb_menu_items")
+    .select("id,category_id")
+    .eq("tenant_id", tenantId)
+    .in("id", menuItemIds);
+
+  const categoryIds = [
+    ...new Set((items ?? []).map((i) => i.category_id).filter(Boolean)),
+  ] as string[];
+
+  const prepByCategory = new Map<string, number | null>();
+  if (categoryIds.length) {
+    const { data: cats } = await supabase
+      .schema("hotel")
+      .from("fb_menu_categories")
+      .select("id,prep_minutes")
+      .eq("tenant_id", tenantId)
+      .in("id", categoryIds);
+    for (const c of cats ?? []) {
+      const raw = (c as Record<string, unknown>).prep_minutes;
+      prepByCategory.set(
+        c.id as string,
+        raw == null || !Number.isFinite(Number(raw)) ? null : Number(raw),
+      );
+    }
+  }
+
+  for (const it of items ?? []) {
+    const cat = it.category_id as string | null;
+    map.set(it.id as string, cat ? (prepByCategory.get(cat) ?? null) : null);
+  }
+  return map;
+}
+
+/** Effective cook-time target for an order = slowest category among its items (null = none set). */
+function orderCategoryOverdueMinutes(
+  items: FbOrderItemRow[],
+  prepByMenuItem: Map<string, number | null>,
+): number | null {
+  let max: number | null = null;
+  for (const it of items) {
+    if (!it.menu_item_id) continue;
+    const prep = prepByMenuItem.get(it.menu_item_id);
+    if (prep != null && (max == null || prep > max)) max = prep;
+  }
+  return max;
 }
 
 export async function loadOrderById(
@@ -327,6 +403,53 @@ export async function sendOrderToKitchen(
   return { order: full, error: null };
 }
 
+export async function markFbOrderServed(
+  supabase: SupabaseClient,
+  tenantId: string,
+  orderId: string,
+) {
+  const order = await loadOrderById(supabase, tenantId, orderId);
+  if (!order) return { order: null, error: "Order not found." };
+  if (order.status !== "ready") {
+    return { order: null, error: "Order is not ready for service." };
+  }
+
+  const hasReady = order.items.some((item) => item.kitchen_status === "ready");
+  if (!hasReady) {
+    return { order: null, error: "No ready items to mark as served." };
+  }
+
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .schema("hotel")
+    .from("fb_order_items")
+    .update({ kitchen_status: "served", updated_at: now })
+    .eq("order_id", orderId)
+    .eq("tenant_id", tenantId)
+    .eq("kitchen_status", "ready");
+
+  if (error) return { order: null, error: error.message };
+
+  await supabase
+    .schema("hotel")
+    .from("fb_orders")
+    .update({ ready_acknowledged_at: now, updated_at: now })
+    .eq("id", orderId)
+    .eq("tenant_id", tenantId)
+    .is("ready_acknowledged_at", null);
+
+  await supabase
+    .schema("hotel")
+    .from("fb_orders")
+    .update({ served_at: now })
+    .eq("id", orderId)
+    .eq("tenant_id", tenantId)
+    .is("served_at", null);
+
+  const full = await loadOrderById(supabase, tenantId, orderId);
+  return { order: full, error: null };
+}
+
 export async function updateOrderItemKitchenStatus(
   supabase: SupabaseClient,
   tenantId: string,
@@ -353,12 +476,20 @@ export async function updateOrderItemKitchenStatus(
   const anyActive = items.some((i) => !["voided", "served"].includes(i.kitchen_status));
 
   if (allReady && anyActive) {
+    const readyNow = new Date().toISOString();
     await supabase
       .schema("hotel")
       .from("fb_orders")
-      .update({ status: "ready", updated_at: new Date().toISOString() })
+      .update({ status: "ready", updated_at: readyNow })
       .eq("id", orderId)
       .eq("tenant_id", tenantId);
+    await supabase
+      .schema("hotel")
+      .from("fb_orders")
+      .update({ kitchen_ready_at: readyNow })
+      .eq("id", orderId)
+      .eq("tenant_id", tenantId)
+      .is("kitchen_ready_at", null);
   }
 
   return { item: mapOrderItem(data as Record<string, unknown>), error: null };
@@ -387,12 +518,17 @@ export async function closeFbOrder(
   supabase: SupabaseClient,
   tenantId: string,
   orderId: string,
+  options?: { settlementMethod?: FbOrderSettlementMethod },
 ) {
   const now = new Date().toISOString();
+  const patch: Record<string, unknown> = { status: "closed", closed_at: now, updated_at: now };
+  if (options?.settlementMethod) {
+    patch.settlement_method = options.settlementMethod;
+  }
   const { data, error } = await supabase
     .schema("hotel")
     .from("fb_orders")
-    .update({ status: "closed", closed_at: now, updated_at: now })
+    .update(patch)
     .eq("id", orderId)
     .eq("tenant_id", tenantId)
     .neq("status", "voided")
@@ -408,6 +544,14 @@ export async function closeFbOrder(
     .eq("order_id", orderId)
     .eq("tenant_id", tenantId)
     .neq("kitchen_status", "voided");
+
+  await supabase
+    .schema("hotel")
+    .from("fb_orders")
+    .update({ served_at: now })
+    .eq("id", orderId)
+    .eq("tenant_id", tenantId)
+    .is("served_at", null);
 
   if (data.table_id) {
     await supabase
@@ -487,6 +631,28 @@ export async function eightySixMenuItem(
   return { error: null };
 }
 
+export async function acknowledgeFbOrdersReady(
+  supabase: SupabaseClient,
+  tenantId: string,
+  orderIds: string[],
+) {
+  const uniqueIds = [...new Set(orderIds.filter(Boolean))];
+  if (!uniqueIds.length) return { error: null };
+
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .schema("hotel")
+    .from("fb_orders")
+    .update({ ready_acknowledged_at: now, updated_at: now })
+    .eq("tenant_id", tenantId)
+    .in("id", uniqueIds)
+    .in("status", ["sent_to_kitchen", "ready"])
+    .is("ready_acknowledged_at", null);
+
+  if (error) return { error: error.message };
+  return { error: null };
+}
+
 export async function loadKitchenBoard(
   supabase: SupabaseClient,
   tenantId: string,
@@ -500,7 +666,14 @@ export async function loadKitchenBoard(
   const tickets: FbKitchenTicket[] = [];
 
   for (const order of orders) {
-    let items = order.items.filter((i) => i.kitchen_status !== "voided" && i.kitchen_status !== "served");
+    if (isOrderFullyServed(order.items)) continue;
+
+    const activeItems = order.items.filter(
+      (i) => i.kitchen_status !== "voided" && i.kitchen_status !== "served",
+    );
+    if (!activeItems.length) continue;
+
+    let items = activeItems;
     if (stationCode && stationCode !== "all") {
       items = items.filter((i) => i.station_code_snapshot === stationCode);
     }
@@ -517,6 +690,7 @@ export async function loadKitchenBoard(
       created_at: order.created_at,
       sent_to_kitchen_at: order.sent_to_kitchen_at,
       status: order.status,
+      overdue_minutes: order.category_overdue_minutes ?? null,
       items: items.map((i) => ({
         id: i.id,
         name: i.name_snapshot,
@@ -538,19 +712,153 @@ export async function loadKitchenBoard(
   return tickets;
 }
 
-export async function loadKitchenHistory(supabase: SupabaseClient, tenantId: string) {
-  const startOfDay = new Date();
-  startOfDay.setUTCHours(0, 0, 0, 0);
+export type FbOrderHistoryRange =
+  | "all"
+  | "today"
+  | "yesterday"
+  | "last_week"
+  | "last_2_weeks"
+  | "last_month";
 
-  const orders = await loadOrders(supabase, tenantId, {
-    status: ["closed", "voided"],
-    limit: 100,
-  });
+function orderHistoryClosedAt(order: FbOrderWithItems) {
+  return new Date(order.closed_at ?? order.voided_at ?? order.updated_at);
+}
 
-  return orders.filter((o) => {
-    const closed = o.closed_at ?? o.voided_at ?? o.updated_at;
-    return new Date(closed).getTime() >= startOfDay.getTime();
-  });
+export function orderMatchesHistoryRange(order: FbOrderWithItems, range: FbOrderHistoryRange) {
+  if (range === "all") return true;
+
+  const closed = orderHistoryClosedAt(order);
+  const now = new Date();
+  const startOfToday = new Date(now);
+  startOfToday.setHours(0, 0, 0, 0);
+
+  if (range === "today") {
+    return closed.getTime() >= startOfToday.getTime();
+  }
+
+  if (range === "yesterday") {
+    const startYesterday = new Date(startOfToday);
+    startYesterday.setDate(startYesterday.getDate() - 1);
+    return closed.getTime() >= startYesterday.getTime() && closed.getTime() < startOfToday.getTime();
+  }
+
+  const start = new Date(startOfToday);
+  if (range === "last_week") start.setDate(start.getDate() - 7);
+  if (range === "last_2_weeks") start.setDate(start.getDate() - 14);
+  if (range === "last_month") start.setMonth(start.getMonth() - 1);
+
+  return closed.getTime() >= start.getTime();
+}
+
+/**
+ * Restaurant / F&B history: settled tickets (closed / voided) plus tickets that are
+ * done but still awaiting payment (fully served, or kitchen finished and not yet paid).
+ * Unlike kitchen history, bar tickets that never went to the kitchen still count.
+ */
+export function isFbOrderHistoryEligible(order: FbOrderWithItems) {
+  if (order.status === "closed" || order.status === "voided") return true;
+  if (isOrderFullyServed(order.items)) return true;
+  if (order.sent_to_kitchen_at && isKitchenWorkComplete(order.items)) return true;
+  return false;
+}
+
+export async function loadFbOrderHistory(
+  supabase: SupabaseClient,
+  tenantId: string,
+  range: FbOrderHistoryRange = "all",
+) {
+  const orders = await loadOrders(supabase, tenantId, { limit: 500 });
+
+  return orders
+    .filter(isFbOrderHistoryEligible)
+    .filter((o) => orderMatchesKitchenHistoryRange(o, range))
+    .sort(
+      (a, b) => kitchenTicketHistoryAt(b).getTime() - kitchenTicketHistoryAt(a).getTime(),
+    );
+}
+
+/** Kitchen finished tickets — includes served-but-awaiting-payment, not only F&B-closed. */
+export function isKitchenTicketHistoryEligible(order: FbOrderWithItems) {
+  if (!order.sent_to_kitchen_at) return false;
+  if (order.status === "voided" || order.status === "closed") return true;
+  if (isOrderFullyServed(order.items)) return true;
+  return isKitchenWorkComplete(order.items);
+}
+
+export function kitchenTicketHistoryAt(order: FbOrderWithItems) {
+  if (order.closed_at) return new Date(order.closed_at);
+  if (order.voided_at) return new Date(order.voided_at);
+  if (isOrderFullyServed(order.items) || isKitchenWorkComplete(order.items)) {
+    return new Date(order.updated_at);
+  }
+  return new Date(order.sent_to_kitchen_at ?? order.created_at);
+}
+
+/** When the kitchen finished prep — used for cook-time duration and history badges. */
+export function kitchenTicketTimingEnd(order: FbOrderWithItems): string {
+  if (order.kitchen_ready_at) return order.kitchen_ready_at;
+  if (order.voided_at) return order.voided_at;
+  if (order.closed_at) return order.closed_at;
+  if (isOrderFullyServed(order.items) || isKitchenWorkComplete(order.items)) {
+    return order.updated_at;
+  }
+  return order.sent_to_kitchen_at ?? order.created_at;
+}
+
+export function orderMatchesKitchenHistoryRange(
+  order: FbOrderWithItems,
+  range: FbOrderHistoryRange,
+) {
+  if (range === "all") return true;
+
+  const completed = kitchenTicketHistoryAt(order);
+  const now = new Date();
+  const startOfToday = new Date(now);
+  startOfToday.setHours(0, 0, 0, 0);
+
+  if (range === "today") {
+    return completed.getTime() >= startOfToday.getTime();
+  }
+
+  if (range === "yesterday") {
+    const startYesterday = new Date(startOfToday);
+    startYesterday.setDate(startYesterday.getDate() - 1);
+    return (
+      completed.getTime() >= startYesterday.getTime() &&
+      completed.getTime() < startOfToday.getTime()
+    );
+  }
+
+  const start = new Date(startOfToday);
+  if (range === "last_week") start.setDate(start.getDate() - 7);
+  if (range === "last_2_weeks") start.setDate(start.getDate() - 14);
+  if (range === "last_month") start.setMonth(start.getMonth() - 1);
+
+  return completed.getTime() >= start.getTime();
+}
+
+export async function loadKitchenOrderHistory(
+  supabase: SupabaseClient,
+  tenantId: string,
+  range: FbOrderHistoryRange = "all",
+) {
+  const orders = await loadOrders(supabase, tenantId, { limit: 500 });
+
+  return orders
+    .filter(isKitchenTicketHistoryEligible)
+    .filter((o) => orderMatchesKitchenHistoryRange(o, range))
+    .sort(
+      (a, b) => kitchenTicketHistoryAt(b).getTime() - kitchenTicketHistoryAt(a).getTime(),
+    );
+}
+
+/** @deprecated Use loadKitchenOrderHistory */
+export async function loadKitchenHistory(
+  supabase: SupabaseClient,
+  tenantId: string,
+  range: FbOrderHistoryRange = "all",
+) {
+  return loadKitchenOrderHistory(supabase, tenantId, range);
 }
 
 export async function postOrderToFolio(

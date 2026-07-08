@@ -8,7 +8,7 @@ export function FbSettingsClient({ slug }: { slug: string }) {
   const settingsMenuUrl = `/hms/${slug}/settings#menu-setup`;
 
   return (
-    <div className="mx-auto max-w-[1100px] space-y-6 px-6 py-6">
+    <div className="w-full space-y-6 px-6 py-6">
       <div>
         <h1 className="text-xl font-semibold text-slate-900">F&amp;B settings</h1>
         <p className="text-sm text-slate-500">Operational shortcuts for food &amp; beverage setup.</p>

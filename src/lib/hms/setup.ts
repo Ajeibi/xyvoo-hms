@@ -13,12 +13,11 @@ import {
   isRoomPricingSetupComplete,
   normalizeRoomTypes,
 } from "@/lib/hms/room-pricing";
-import { getPaystackConfig, isPaystackReady } from "@/lib/paystack/config";
 
 const ADMIN_LIKE_ROLES = new Set(["owner", "admin"]);
 
 export type HMSSetupTask = {
-  id: "branding" | "floor-plan" | "room-pricing" | "department-access" | "paystack";
+  id: "branding" | "floor-plan" | "room-pricing" | "department-access";
   title: string;
   description: string;
   complete: boolean;
@@ -96,7 +95,6 @@ export async function getDashboardSetupSummary(slug: string): Promise<HMSDashboa
   const roomPricingSummary = getRoomPricingSummary(roomTypes, signupRoomCount);
   const roomPricingComplete = isRoomPricingSetupComplete(roomTypes, signupRoomCount);
   const departmentAccessComplete = (departmentLoginCount || 0) > 0;
-  const paystackComplete = isPaystackReady(getPaystackConfig(tenant));
 
   const tasks: HMSSetupTask[] = [
     {
@@ -136,13 +134,6 @@ export async function getDashboardSetupSummary(slug: string): Promise<HMSDashboa
       description: "Set up role-based access for departments like Front Desk, Housekeeping, Accounts, and F&B.",
       complete: departmentAccessComplete,
       href: `/hms/${slug}/settings`,
-    },
-    {
-      id: "paystack",
-      title: "Connect Paystack for card payments",
-      description: "Add your hotel's Paystack keys so front desk can charge guest folios by card.",
-      complete: paystackComplete,
-      href: `/hms/${slug}/settings#paystack-setup`,
     },
   ];
 

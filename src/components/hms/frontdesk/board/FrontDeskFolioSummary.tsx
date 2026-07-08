@@ -7,7 +7,6 @@ import { PAYMENT_STATUS_LABEL } from "./payment-styles";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toastError, toastSuccess } from "@/lib/app-toast";
-import { PaystackChargeButton } from "@/components/hms/payments/PaystackChargeButton";
 
 export function FrontDeskFolioSummary({
   slug,
@@ -23,7 +22,6 @@ export function FrontDeskFolioSummary({
   const [balance, setBalance] = useState<number | null>(null);
   const [status, setStatus] = useState<string>("");
   const [payAmount, setPayAmount] = useState("");
-  const [paystackEnabled, setPaystackEnabled] = useState(false);
 
   const reload = useCallback(async () => {
     const res = await fetch(
@@ -39,11 +37,7 @@ export function FrontDeskFolioSummary({
 
   useEffect(() => {
     void reload();
-    fetch(`/api/hotel/paystack?slug=${encodeURIComponent(slug)}`)
-      .then((r) => r.json())
-      .then((d) => setPaystackEnabled(Boolean(d.setup?.enabled && d.setup?.publicKey)))
-      .catch(() => setPaystackEnabled(false));
-  }, [reload, slug]);
+  }, [reload]);
 
   const quickPay = async () => {
     const amount = Number(payAmount);
@@ -87,20 +81,9 @@ export function FrontDeskFolioSummary({
           type="number"
           className="h-8 max-w-[120px] text-sm"
         />
-        {paystackEnabled && balance != null && balance > 0 ? (
-          <PaystackChargeButton
-            slug={slug}
-            reservationId={reservationId}
-            amount={Number(payAmount) || 0}
-            size="sm"
-            label="Paystack"
-            onSuccess={() => void reload()}
-          />
-        ) : (
-          <Button type="button" size="sm" variant="outline" className="h-8" onClick={() => void quickPay()}>
-            Post cash
-          </Button>
-        )}
+        <Button type="button" size="sm" variant="outline" className="h-8" onClick={() => void quickPay()}>
+          Post cash
+        </Button>
         <Link
           href={`/hms/${slug}/frontdesk/folio?reservationId=${reservationId}`}
           className="text-xs font-medium text-blue-600 hover:underline"

@@ -1,12 +1,27 @@
 import { getHotelTenantBySlug } from "@/lib/hms/data";
-import { loadFbConfig, loadMenuForAdmin, loadPublicMenu, loadStations } from "@/lib/hms/fb-menu";
-import { loadKitchenBoard, loadKitchenHistory, loadOrders } from "@/lib/hms/fb-orders";
+import { getTenantFbSettings } from "@/lib/hms/fb-settings";
+import {
+  loadFbCategoryPrepTimes,
+  loadFbConfig,
+  loadMenuForAdmin,
+  loadPublicMenu,
+  loadStations,
+} from "@/lib/hms/fb-menu";
+import {
+  kitchenTicketHistoryAt,
+  kitchenTicketTimingEnd,
+  loadFbOrderHistory,
+  loadKitchenBoard,
+  loadKitchenOrderHistory,
+  loadOrders,
+} from "@/lib/hms/fb-orders";
 import { normalizePricingSetup } from "@/lib/hms/room-pricing";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type {
   FbKitchenTicket,
   FbMenuCategoryRow,
   FbMenuItemRow,
+  FbOrderSettlementMethod,
   FbOrderWithItems,
   FbOutletRow,
   FbStationRow,
@@ -22,17 +37,32 @@ export type FbConfigPayload = {
   tables: FbTableRow[];
 };
 
-export type KitchenHistoryRow = {
+export type FbOrderHistoryRow = {
   id: string;
   order_number: string;
   table_label: string;
   status: string;
   closed_at: string | null;
   voided_at: string | null;
+  settlement_method: FbOrderSettlementMethod | null;
   item_count: number;
   created_at: string;
   sent_to_kitchen_at: string | null;
+  subtotal: number;
+  /** End of kitchen prep (for timing); set on kitchen history rows. */
+  kitchen_end_at: string | null;
+  /** When the ticket left the kitchen board (for date filters/display). */
+  history_at: string | null;
+  /** Per-category cook-time target for this ticket. null = use the global threshold. */
+  overdue_minutes: number | null;
+  /** When the kitchen marked the ticket ready — start of the F&B service window. */
+  kitchen_ready_at: string | null;
+  /** When F&B marked it served — end of the F&B service window. */
+  served_at: string | null;
 };
+
+/** @deprecated Use FbOrderHistoryRow */
+export type KitchenHistoryRow = FbOrderHistoryRow;
 
 export type PublicMenuPagePayload = {
   hotel: { name: string; logoUrl: string | null; currency: string };
@@ -49,7 +79,7 @@ async function fbServerContext(slug: string) {
   };
 }
 
-export function mapKitchenHistoryRows(orders: FbOrderWithItems[]): KitchenHistoryRow[] {
+export function mapFbOrderHistoryRows(orders: FbOrderWithItems[]): FbOrderHistoryRow[] {
   return orders.map((o) => ({
     id: o.id,
     order_number: o.order_number,
@@ -57,11 +87,24 @@ export function mapKitchenHistoryRows(orders: FbOrderWithItems[]): KitchenHistor
     status: o.status,
     closed_at: o.closed_at,
     voided_at: o.voided_at,
+    settlement_method: o.settlement_method,
     item_count: o.items.length,
     created_at: o.created_at,
     sent_to_kitchen_at: o.sent_to_kitchen_at,
+    subtotal: o.subtotal,
+    kitchen_end_at: kitchenTicketTimingEnd(o),
+    history_at: kitchenTicketHistoryAt(o).toISOString(),
+    overdue_minutes: o.category_overdue_minutes ?? null,
+    kitchen_ready_at: o.kitchen_ready_at,
+    served_at: o.served_at,
   }));
 }
+
+/** Kitchen and restaurant history share the same row shape. */
+export const mapKitchenOrderHistoryRows = mapFbOrderHistoryRows;
+
+/** @deprecated Use mapKitchenOrderHistoryRows */
+export const mapKitchenHistoryRows = mapFbOrderHistoryRows;
 
 export function filterRestaurantTables(config: FbConfigPayload): FbTableRow[] {
   const restaurant = config.outlets.find((o) => o.outlet_type === "restaurant");
@@ -94,9 +137,12 @@ export async function loadFbTablesPageModel(slug: string) {
     loadOrders(ctx.service, ctx.tenant.id),
   ]);
 
+  const restaurant = config.outlets.find((o) => o.outlet_type === "restaurant");
+
   return {
     slug,
     tenantId: ctx.tenant.id,
+    outletId: restaurant?.id ?? config.outlets[0]?.id ?? null,
     initial: {
       tables: filterRestaurantTables(config),
       orders,
@@ -108,12 +154,18 @@ export async function loadFbOrdersPageModel(slug: string) {
   const ctx = await fbServerContext(slug);
   if (!ctx) return null;
 
-  const orders = await loadOrders(ctx.service, ctx.tenant.id);
+  const [orders, fbSettings] = await Promise.all([
+    loadOrders(ctx.service, ctx.tenant.id, {
+      status: ["open", "sent_to_kitchen", "ready"],
+    }),
+    getTenantFbSettings(ctx.service, ctx.tenant.id),
+  ]);
 
   return {
     slug,
     tenantId: ctx.tenant.id,
     currency: ctx.currency,
+    kitchenOverdueMinutes: fbSettings.kitchenOverdueMinutes,
     initial: { orders },
   };
 }
@@ -139,15 +191,35 @@ export async function loadKitchenKdsPageModel(slug: string) {
   const ctx = await fbServerContext(slug);
   if (!ctx) return null;
 
-  const [tickets, { stations }] = await Promise.all([
+  const [tickets, { stations }, fbSettings] = await Promise.all([
     loadKitchenBoard(ctx.service, ctx.tenant.id, "all"),
     loadStations(ctx.service, ctx.tenant.id),
+    getTenantFbSettings(ctx.service, ctx.tenant.id),
   ]);
 
   return {
     slug,
     tenantId: ctx.tenant.id,
+    kitchenOverdueMinutes: fbSettings.kitchenOverdueMinutes,
+    kitchenOverdueMinutesConfigured: fbSettings.kitchenOverdueMinutesConfigured,
     initial: { tickets, stations },
+  };
+}
+
+export async function loadKitchenSettingsPageModel(slug: string) {
+  const ctx = await fbServerContext(slug);
+  if (!ctx) return null;
+
+  const [fbSettings, categories] = await Promise.all([
+    getTenantFbSettings(ctx.service, ctx.tenant.id),
+    loadFbCategoryPrepTimes(ctx.service, ctx.tenant.id),
+  ]);
+
+  return {
+    slug,
+    tenantId: ctx.tenant.id,
+    initial: fbSettings,
+    categories,
   };
 }
 
@@ -155,12 +227,35 @@ export async function loadKitchenHistoryPageModel(slug: string) {
   const ctx = await fbServerContext(slug);
   if (!ctx) return null;
 
-  const orders = await loadKitchenHistory(ctx.service, ctx.tenant.id);
+  const [orders, fbSettings] = await Promise.all([
+    loadKitchenOrderHistory(ctx.service, ctx.tenant.id, "all"),
+    getTenantFbSettings(ctx.service, ctx.tenant.id),
+  ]);
 
   return {
     slug,
     tenantId: ctx.tenant.id,
-    initial: { rows: mapKitchenHistoryRows(orders) },
+    currency: ctx.currency,
+    kitchenOverdueMinutes: fbSettings.kitchenOverdueMinutes,
+    initial: { rows: mapKitchenOrderHistoryRows(orders) },
+  };
+}
+
+export async function loadFbOrderHistoryPageModel(slug: string) {
+  const ctx = await fbServerContext(slug);
+  if (!ctx) return null;
+
+  const [orders, fbSettings] = await Promise.all([
+    loadFbOrderHistory(ctx.service, ctx.tenant.id, "all"),
+    getTenantFbSettings(ctx.service, ctx.tenant.id),
+  ]);
+
+  return {
+    slug,
+    tenantId: ctx.tenant.id,
+    currency: ctx.currency,
+    kitchenOverdueMinutes: fbSettings.kitchenOverdueMinutes,
+    initial: { rows: mapFbOrderHistoryRows(orders) },
   };
 }
 

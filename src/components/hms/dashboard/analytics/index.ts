@@ -1,5 +1,4 @@
-export { buildDashboardAnalyticsModel } from "./mock-data";
-export type { DashboardAnalyticsModel } from "./mock-data";
+export type { DashboardAnalyticsModel } from "./dashboard-analytics-types";
 export { default as FinancialPerformanceSection } from "./FinancialPerformanceSection";
 export {
   AttentionCenterCard,

@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { toastError, toastSuccess } from "@/lib/app-toast";
-import { PaystackChargeButton } from "@/components/hms/payments/PaystackChargeButton";
 import {
   Dialog,
   DialogContent,
@@ -55,8 +54,6 @@ export function FrontDeskReservationCheckInDialog({
   const [guestRemarks, setGuestRemarks] = useState("");
   const [managerPin, setManagerPin] = useState("");
   const [checkedInByUserId, setCheckedInByUserId] = useState("");
-  const [paystackEnabled, setPaystackEnabled] = useState(false);
-  const [authAmount, setAuthAmount] = useState("");
 
   useEffect(() => {
     if (!open || !row) return;
@@ -84,18 +81,10 @@ export function FrontDeskReservationCheckInDialog({
       .finally(() => setLoading(false));
   }, [open, row, slug, checkInStaffOptions, defaultCheckedInByUserId]);
 
-  useEffect(() => {
-    if (!open) return;
-    fetch(`/api/hotel/paystack?slug=${encodeURIComponent(slug)}`)
-      .then((r) => r.json())
-      .then((d) => setPaystackEnabled(Boolean(d.setup?.enabled && d.setup?.publicKey)))
-      .catch(() => setPaystackEnabled(false));
-  }, [open, slug]);
-
   const settlementLabel = useMemo(() => {
     const m = detail?.reservation.settlementMethod;
     if (m === "direct_bill") return "Direct bill";
-    if (m === "card") return "Card (Paystack)";
+    if (m === "card") return "Card";
     if (m === "pos") return "POS terminal";
     if (m === "partial_credit") return "Partial credit";
     if (m === "split") return "Split";
@@ -212,40 +201,6 @@ export function FrontDeskReservationCheckInDialog({
             <p>
               <span className="text-slate-500">Settlement:</span> {settlementLabel}
             </p>
-            {paystackEnabled &&
-            row &&
-            (detail.reservation.settlementMethod === "card" ||
-              detail.reservation.settlementMethod === "partial_credit") ? (
-              <div className="space-y-2 rounded-lg border border-blue-200 bg-blue-50/50 p-3">
-                <p className="text-xs text-slate-600">Authorize deposit or charge balance via Paystack.</p>
-                <input
-                  type="number"
-                  className="h-9 w-full rounded-md border border-slate-200 px-2 text-sm"
-                  placeholder="Amount"
-                  value={authAmount}
-                  onChange={(e) => setAuthAmount(e.target.value)}
-                />
-                <div className="flex flex-wrap gap-2">
-                  <PaystackChargeButton
-                    slug={slug}
-                    reservationId={row.id}
-                    amount={Number(authAmount) || detail.folio.balance || 0}
-                    purpose="preauth"
-                    label="Authorize card"
-                    size="sm"
-                    variant="outline"
-                    onSuccess={() => void reloadDetail()}
-                  />
-                  <PaystackChargeButton
-                    slug={slug}
-                    reservationId={row.id}
-                    amount={Number(authAmount) || detail.folio.balance || 0}
-                    size="sm"
-                    onSuccess={() => void reloadDetail()}
-                  />
-                </div>
-              </div>
-            ) : null}
             {capabilities.canPostFolioPayments ? (
               <Button asChild variant="outline" size="sm">
                 <Link href={`/hms/${slug}/frontdesk/folio?reservationId=${row?.id ?? ""}`} target="_blank">

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   BarElement,
   CategoryScale,
@@ -27,7 +28,7 @@ import type {
   FloorStatusItem,
   OccupancyTrend,
   RoomStatusItem,
-} from "./mock-data";
+} from "./dashboard-analytics-types";
 import type { MetricTileItem, StatusRowItem, SummaryTileItem } from "./shared";
 import { AnalyticsCard, MetricTile, StatusRow, SummaryTile } from "./shared";
 
@@ -42,19 +43,12 @@ ChartJS.register(
   Tooltip,
 );
 
-export function ReservationsFrontDeskCard({
-  items,
-  badge = "Preview",
-}: {
-  items: MetricTileItem[];
-  badge?: string | null;
-}) {
+export function ReservationsFrontDeskCard({ items }: { items: MetricTileItem[] }) {
   return (
     <AnalyticsCard
       icon={CalendarRange}
       title="Reservations & Front Desk"
-      badge={badge}
-      description="Daily movement from live reservations (UTC day boundaries)."
+      description="Daily movement from reservations (UTC day boundaries)."
     >
       <div className="grid gap-3 sm:grid-cols-2">
         {items.map((item) => (
@@ -67,11 +61,9 @@ export function ReservationsFrontDeskCard({
 
 export function OccupancyStatisticsCard({
   trend,
-  badge = "Preview",
-  description = "Approximate occupancy from reservation room-nights vs inventory (UTC months).",
+  description = "Occupancy from reservation room-nights vs inventory (UTC months).",
 }: {
   trend: OccupancyTrend;
-  badge?: string | null;
   description?: string;
 }) {
   const occupancyData = {
@@ -131,7 +123,6 @@ export function OccupancyStatisticsCard({
     <AnalyticsCard
       icon={BarChart3}
       title="Occupancy Statistics"
-      badge={badge}
       description={description}
     >
       <div className="h-[340px]">
@@ -141,26 +132,23 @@ export function OccupancyStatisticsCard({
   );
 }
 
-const ROOM_STATUS_LIVE_DESCRIPTION =
+const ROOM_STATUS_DESCRIPTION =
   "Inventory keys by housekeeping status. Occupied counts only keys with an in-house check-in; keys left occupied after stays are removed show as vacant clean.";
 
-const FLOOR_STATUS_LIVE_DESCRIPTION =
+const FLOOR_STATUS_DESCRIPTION =
   "In-house stays per floor (keys tied to an active check-in; floor from each key’s record).";
 
 export function RoomStatusCard({
   items,
-  badge = "Preview",
-  description = ROOM_STATUS_LIVE_DESCRIPTION,
+  description = ROOM_STATUS_DESCRIPTION,
 }: {
   items: RoomStatusItem[];
-  badge?: string | null;
   description?: string;
 }) {
   return (
     <AnalyticsCard
       icon={Activity}
       title="Room Status"
-      badge={badge}
       description={description}
     >
       <div className="grid gap-3 sm:grid-cols-2">
@@ -180,11 +168,9 @@ export function RoomStatusCard({
 
 export function FloorStatusCard({
   items,
-  badge = "Preview",
-  description = FLOOR_STATUS_LIVE_DESCRIPTION,
+  description = FLOOR_STATUS_DESCRIPTION,
 }: {
   items: FloorStatusItem[];
-  badge?: string | null;
   description?: string;
 }) {
   const floorStatusData = {
@@ -242,7 +228,6 @@ export function FloorStatusCard({
     <AnalyticsCard
       icon={Stars}
       title="Floor Status"
-      badge={badge}
       description={description}
     >
       <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
@@ -266,18 +251,15 @@ export function FloorStatusCard({
 export function FoodBeverageCard({
   items,
   outletBreakdownItems,
-  badge = "Preview",
 }: {
   items: MetricTileItem[];
   outletBreakdownItems: StatusRowItem[];
-  badge?: string | null;
 }) {
   return (
     <AnalyticsCard
       icon={UtensilsCrossed}
       title="Food & Beverage"
-      badge={badge}
-      description="Quick commercial view of restaurant, bar, and room-service activity."
+      description="Restaurant, bar, and room-service activity for today."
     >
       <div className="grid gap-3 sm:grid-cols-2">
         {items.map((item) => (
@@ -297,19 +279,35 @@ export function FoodBeverageCard({
 export function KitchenCard({
   items,
   alertItems,
-  badge = "Preview",
+  setupHref,
 }: {
   items: MetricTileItem[];
   alertItems: StatusRowItem[];
-  badge?: string | null;
+  /** Shown when kitchen timing has not been configured in back office */
+  setupHref?: string | null;
 }) {
   return (
     <AnalyticsCard
       icon={Soup}
       title="Kitchen"
-      badge={badge}
-      description="Fast service-execution view covering prep flow, delays, and item availability."
+      description="Prep flow, delays, and item availability for the current shift."
     >
+      {setupHref ? (
+        <Link
+          href={setupHref}
+          className="mb-5 block rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-4 text-sm text-amber-950 transition-colors hover:bg-amber-50"
+        >
+          <p className="font-semibold">Configure kitchen order timing</p>
+          <p className="mt-1 leading-6 text-amber-900/90">
+            Set how long tickets can wait before turning red. Until configured, the default is 10
+            minutes.
+          </p>
+          <span className="mt-2 inline-block text-sm font-semibold text-blue-700">
+            Open kitchen settings →
+          </span>
+        </Link>
+      ) : null}
+
       <div className="grid gap-3 sm:grid-cols-2">
         {items.map((item) => (
           <MetricTile key={item.label} {...item} />
@@ -328,18 +326,15 @@ export function KitchenCard({
 export function InventoryWatchCard({
   summary,
   lowStockItems,
-  badge = "Preview",
 }: {
   summary: SummaryTileItem[];
   lowStockItems: StatusRowItem[];
-  badge?: string | null;
 }) {
   return (
     <AnalyticsCard
       icon={Package}
       title="Inventory Watch"
-      badge={badge}
-      description="Operational stock visibility for housekeeping and consumables until live store data is connected."
+      description="Stock visibility for housekeeping and consumables."
     >
       <div className="grid gap-3 sm:grid-cols-3">
         {summary.map((item) => (
@@ -356,18 +351,11 @@ export function InventoryWatchCard({
   );
 }
 
-export function AttentionCenterCard({
-  alerts,
-  badge = "Preview",
-}: {
-  alerts: StatusRowItem[];
-  badge?: string | null;
-}) {
+export function AttentionCenterCard({ alerts }: { alerts: StatusRowItem[] }) {
   return (
     <AnalyticsCard
       icon={Activity}
       title="Attention Center"
-      badge={badge}
       description="Exceptions derived from room status and recent reservation outcomes."
     >
       <div className="grid gap-3">

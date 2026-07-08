@@ -19,9 +19,8 @@ import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import {
   type FinanceMetric,
   type FinancePeriod,
-  type FinancialBase,
-  buildFinancialTrendViews,
-} from "./mock-data";
+  type FinancialTrendViews,
+} from "./dashboard-analytics-types";
 import {
   AnalyticsCard,
   MetricTile,
@@ -44,23 +43,22 @@ type FinanceMetricConfig = {
 
 export default function FinancialPerformanceSection({
   currency,
-  financialBase,
-  badge = "Preview",
+  financialTrendViews,
+  occupancyRateToday,
 }: {
   currency: string;
-  financialBase: FinancialBase;
-  badge?: string | null;
+  financialTrendViews: FinancialTrendViews;
+  occupancyRateToday: number;
 }) {
   const [financeMetric, setFinanceMetric] = useState<FinanceMetric>("revenue");
   const [financePeriod, setFinancePeriod] = useState<FinancePeriod>("week");
 
-  const financialTrendViews = buildFinancialTrendViews(financialBase);
   const activeFinancialView = financialTrendViews[financePeriod];
   const activeFinancialSeries = activeFinancialView.metrics[financeMetric];
   const activeMetricConfig = getFinanceMetricConfig(financeMetric);
   const activeMetricCurrent =
     activeFinancialSeries[activeFinancialSeries.length - 1] ??
-    (financeMetric === "occupancy" ? financialBase.occupancyRate : 0);
+    (financeMetric === "occupancy" ? occupancyRateToday : 0);
   const activeMetricAverage = Math.round(
     sumValues(activeFinancialSeries) / Math.max(activeFinancialSeries.length, 1),
   );
@@ -170,8 +168,7 @@ export default function FinancialPerformanceSection({
     <AnalyticsCard
       icon={Wallet}
       title="Financial Performance"
-      badge={badge}
-      description="KPIs from live folio charges and payments; trend tabs still use illustrative curves scaled from today's revenue anchor."
+      description="Gross revenue from folio activity and PoS collections; occupancy and ADR from reservations."
     >
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-2">
@@ -290,7 +287,7 @@ function getFinanceMetricConfig(metric: FinanceMetric): FinanceMetricConfig {
       label: "Profit",
       shortLabel: "Profit",
       tabLabel: "Profit",
-      description: "Follow net operating performance after mock expense allocations.",
+      description: "Follow net operating performance. Expense tracking is not configured yet.",
       borderColor: "rgba(4, 120, 87, 0.95)",
       backgroundColor: "rgba(4, 120, 87, 0.16)",
       fill: true,

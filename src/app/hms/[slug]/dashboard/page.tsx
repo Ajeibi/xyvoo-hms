@@ -18,6 +18,7 @@ import HMSSetupModal from "@/components/hms/HMSSetupModal";
 import HMSTour from "@/components/hms/HMSTour";
 import HMSLayout from "@/components/hms/HMSLayout";
 import { getHotelTenantBySlug, getTenantRoomCount } from "@/lib/hms/data";
+import { getTenantFbSettings } from "@/lib/hms/fb-settings";
 import { maybeLogHotelDashboardDebug } from "@/lib/hms/hotel-debug-snapshot";
 import { getFloorPlanLevelCount, normalizeFloorPlan } from "@/lib/hms/floor-plan";
 import { getHotelDashboardMetrics } from "@/lib/hms/dashboard-metrics";
@@ -29,6 +30,7 @@ import {
 } from "@/lib/hms/room-pricing";
 import { getDashboardSetupSummary } from "@/lib/hms/setup";
 import { getDashboardTourStatus } from "@/lib/hms/tour";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export default async function HMSDashboardPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -41,6 +43,14 @@ export default async function HMSDashboardPage({ params }: { params: Promise<{ s
   const totalFloors = getFloorPlanLevelCount(floorPlan);
   const dashboardTourStatus = await getDashboardTourStatus(slug);
   const setupSummary = await getDashboardSetupSummary(slug);
+  const fbSettings =
+    tenant && setupSummary.isOwnerOrAdmin
+      ? await getTenantFbSettings(createServerSupabaseClient(), tenant.id)
+      : null;
+  const kitchenTimingSetupHref =
+    setupSummary.isOwnerOrAdmin && fbSettings && !fbSettings.kitchenOverdueMinutesConfigured
+      ? `/hms/${slug}/kitchen/settings`
+      : null;
   await maybeLogHotelDashboardDebug({
     slug,
     isOwnerOrAdmin: setupSummary.isOwnerOrAdmin,
@@ -60,27 +70,13 @@ export default async function HMSDashboardPage({ params }: { params: Promise<{ s
       ? Math.round((roomPricingSummary.lowestRate + roomPricingSummary.highestRate) / 2)
       : null;
 
-  const { model: analyticsModel, usedLiveHotelData, reservationRecordCount, inHouseGuestHeadcount } =
+  const { model: analyticsModel, reservationRecordCount, inHouseGuestHeadcount } =
     await getHotelDashboardMetrics({
       tenantId: tenant?.id ?? null,
       totalRoomsFromPricing: roomPricingSummary.totalRooms,
       averageRateFromPricing: averageRate,
       currency: pricingSetup.currency,
     });
-
-  const liveBadge = usedLiveHotelData ? "Live" : "Preview";
-  const roomStatusDescription = usedLiveHotelData
-    ? "Inventory keys by housekeeping status. Occupied counts only keys with an in-house check-in; keys left occupied after stays are removed show as vacant clean."
-    : "Preview: these figures load from hotel.room_units when the live hotel schema is available — zeros are placeholders only.";
-  const floorStatusDescription = usedLiveHotelData
-    ? "In-house stays per floor (keys tied to an active check-in; floor from each key’s record)."
-    : "Preview: per-floor occupancy uses live keys from hotel.room_units after the schema is wired.";
-  const overviewReservationDescription = usedLiveHotelData
-    ? "Total reservations on file for this property."
-    : "Demo booking volume until live reservation metrics are wired.";
-  const overviewGuestDescription = usedLiveHotelData
-    ? "Headcount on in-house stays (adults + children from active reservations)."
-    : "Demo in-house guest volume for the fuller dashboard rollout.";
 
   return (
     <HMSLayout slug={slug} requiredSection="dashboard">
@@ -114,13 +110,13 @@ export default async function HMSDashboardPage({ params }: { params: Promise<{ s
               icon: CalendarDays,
               label: "Reservations",
               value: String(reservationRecordCount),
-              description: overviewReservationDescription,
+              description: "Total reservations on file for this property.",
             },
             {
               icon: Users,
               label: "Guests",
               value: String(inHouseGuestHeadcount),
-              description: overviewGuestDescription,
+              description: "Headcount on in-house stays (adults + children from active reservations).",
             },
           ]}
         />
@@ -128,13 +124,13 @@ export default async function HMSDashboardPage({ params }: { params: Promise<{ s
         <div className="mt-6 space-y-4">
           <FinancialPerformanceSection
             currency={pricingSetup.currency}
-            financialBase={analyticsModel.financialBase}
-            badge={liveBadge}
+            financialTrendViews={analyticsModel.financialTrendViews}
+            occupancyRateToday={analyticsModel.financialBase.occupancyRate}
           />
 
           <div className="grid items-stretch gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-            <ReservationsFrontDeskCard items={analyticsModel.movementItems} badge={liveBadge} />
-            <OccupancyStatisticsCard trend={analyticsModel.occupancyTrend} badge={liveBadge} />
+            <ReservationsFrontDeskCard items={analyticsModel.movementItems} />
+            <OccupancyStatisticsCard trend={analyticsModel.occupancyTrend} />
           </div>
 
           <div className="space-y-4">
@@ -149,28 +145,19 @@ export default async function HMSDashboardPage({ params }: { params: Promise<{ s
           </div>
 
           <div className="grid items-stretch gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-            <RoomStatusCard
-              items={analyticsModel.roomStatusItems}
-              badge={liveBadge}
-              description={roomStatusDescription}
-            />
-            <FloorStatusCard
-              items={analyticsModel.floorStatusItems}
-              badge={liveBadge}
-              description={floorStatusDescription}
-            />
+            <RoomStatusCard items={analyticsModel.roomStatusItems} />
+            <FloorStatusCard items={analyticsModel.floorStatusItems} />
           </div>
 
           <div className="grid items-stretch gap-4 xl:grid-cols-[1.05fr_0.95fr]">
             <FoodBeverageCard
               items={analyticsModel.foodAndBeverageItems}
               outletBreakdownItems={analyticsModel.outletBreakdownItems}
-              badge="Preview"
             />
             <KitchenCard
               items={analyticsModel.kitchenItems}
               alertItems={analyticsModel.kitchenAlertItems}
-              badge="Preview"
+              setupHref={kitchenTimingSetupHref}
             />
           </div>
 
@@ -178,9 +165,8 @@ export default async function HMSDashboardPage({ params }: { params: Promise<{ s
             <InventoryWatchCard
               summary={analyticsModel.inventorySummary}
               lowStockItems={analyticsModel.lowStockItems}
-              badge="Preview"
             />
-            <AttentionCenterCard alerts={analyticsModel.operationalAlerts} badge={liveBadge} />
+            <AttentionCenterCard alerts={analyticsModel.operationalAlerts} />
           </div>
         </div>
 

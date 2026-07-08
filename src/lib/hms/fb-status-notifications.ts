@@ -2,12 +2,15 @@ import type { FbKitchenStatus, FbOrderStatus, FbOrderWithItems } from "@/lib/hms
 
 export type FbNotifyArea = "restaurant" | "kitchen";
 
+export type FbNotificationTone = "positive" | "default";
+
 export type FbStatusNotification = {
   id: string;
   orderId: string;
   orderNumber: string;
   message: string;
   at: string;
+  tone?: FbNotificationTone;
 };
 
 type ItemSnap = { name: string; kitchen_status: FbKitchenStatus };
@@ -18,7 +21,6 @@ type OrderSnap = {
   items: Record<string, ItemSnap>;
 };
 
-const NOTIFY_AREAS: FbNotifyArea[] = ["restaurant", "kitchen"];
 const orderSnapshots = new Map<string, Map<string, OrderSnap>>();
 const pendingListeners = new Map<string, Set<() => void>>();
 
@@ -32,28 +34,6 @@ function ackedKey(slug: string, area: FbNotifyArea) {
 
 function listenerKey(slug: string, area: FbNotifyArea) {
   return `${slug}:${area}`;
-}
-
-function formatOrderStatus(status: FbOrderStatus) {
-  const labels: Record<FbOrderStatus, string> = {
-    open: "open",
-    sent_to_kitchen: "sent to kitchen",
-    ready: "ready for service",
-    closed: "closed",
-    voided: "cancelled",
-  };
-  return labels[status];
-}
-
-function formatKitchenStatus(status: FbKitchenStatus) {
-  const labels: Record<FbKitchenStatus, string> = {
-    pending: "pending",
-    preparing: "preparing",
-    ready: "ready",
-    served: "served",
-    voided: "cancelled",
-  };
-  return labels[status];
 }
 
 function buildSnapshot(orders: FbOrderWithItems[]) {
@@ -112,32 +92,73 @@ function writeAckedSnapshot(slug: string, area: FbNotifyArea, snap: Map<string, 
   sessionStorage.setItem(ackedKey(slug, area), serializeSnapshot(snap));
 }
 
-function diffSnapshots(prev: Map<string, OrderSnap>, next: Map<string, OrderSnap>) {
+/** Kitchen → F&B: ready for pickup / service. */
+function diffRestaurantEvents(prev: Map<string, OrderSnap>, next: Map<string, OrderSnap>) {
+  const events: FbStatusNotification[] = [];
+  const at = new Date().toISOString();
+
+  for (const [orderId, order] of next) {
+    const before = prev.get(orderId);
+    if (!before) continue;
+
+    const orderBecameReady = before.status !== "ready" && order.status === "ready";
+    if (orderBecameReady) {
+      events.push({
+        id: `${orderId}:status:ready`,
+        orderId,
+        orderNumber: order.order_number,
+        message: `Order #${order.order_number} is ready for service`,
+        at,
+        tone: "positive",
+      });
+    }
+
+    for (const [itemId, item] of Object.entries(order.items)) {
+      const prevItem = before.items[itemId];
+      if (!prevItem || prevItem.kitchen_status === item.kitchen_status) continue;
+      if (item.kitchen_status !== "ready") continue;
+      if (orderBecameReady) continue;
+
+      events.push({
+        id: `${orderId}:item:${itemId}:ready`,
+        orderId,
+        orderNumber: order.order_number,
+        message: `#${order.order_number}: ${item.name} is ready`,
+        at,
+        tone: "positive",
+      });
+    }
+  }
+
+  return events;
+}
+
+/** F&B → Kitchen: new work, rush, cancellations. */
+function diffKitchenEvents(prev: Map<string, OrderSnap>, next: Map<string, OrderSnap>) {
   const events: FbStatusNotification[] = [];
   const at = new Date().toISOString();
 
   for (const [orderId, order] of next) {
     const before = prev.get(orderId);
     if (!before) {
-      events.push({
-        id: `${orderId}:created:${order.status}`,
-        orderId,
-        orderNumber: order.order_number,
-        message:
-          order.status === "sent_to_kitchen"
-            ? `New order #${order.order_number} sent to kitchen`
-            : `New order #${order.order_number} (${formatOrderStatus(order.status)})`,
-        at,
-      });
+      if (order.status === "sent_to_kitchen") {
+        events.push({
+          id: `${orderId}:created:sent_to_kitchen`,
+          orderId,
+          orderNumber: order.order_number,
+          message: `New order #${order.order_number} sent to kitchen`,
+          at,
+        });
+      }
       continue;
     }
 
-    if (before.status !== order.status) {
+    if (before.status !== order.status && order.status === "sent_to_kitchen") {
       events.push({
-        id: `${orderId}:status:${order.status}`,
+        id: `${orderId}:status:sent_to_kitchen`,
         orderId,
         orderNumber: order.order_number,
-        message: `#${order.order_number}: Order ${formatOrderStatus(order.status)}`,
+        message: `#${order.order_number}: Order sent to kitchen`,
         at,
       });
     }
@@ -160,14 +181,6 @@ function diffSnapshots(prev: Map<string, OrderSnap>, next: Map<string, OrderSnap
           orderId,
           orderNumber: order.order_number,
           message: `#${order.order_number}: ${item.name} added`,
-          at,
-        });
-      } else if (prevItem.kitchen_status !== item.kitchen_status) {
-        events.push({
-          id: `${orderId}:item:${itemId}:${item.kitchen_status}`,
-          orderId,
-          orderNumber: order.order_number,
-          message: `#${order.order_number}: ${item.name} is ${formatKitchenStatus(item.kitchen_status)}`,
           at,
         });
       }
@@ -243,20 +256,118 @@ function syncAckedOrderFromNext(
   acked.delete(orderId);
 }
 
+function isRestaurantSelfNoise(event: FbStatusNotification) {
+  if (event.id.endsWith(":served")) return true;
+  if (/:item:[^:]+:served$/.test(event.id)) return true;
+  if (/served to guest/i.test(event.message)) return true;
+  if (event.id.includes(":status:sent_to_kitchen") || event.id.includes(":created:sent_to_kitchen")) {
+    return true;
+  }
+  if (/:item:[^:]+:added$/.test(event.id) && !event.tone) return true;
+  if (event.id.includes(":removed:")) return true;
+  return false;
+}
+
+function isKitchenSelfNoise(event: FbStatusNotification) {
+  if (event.id.includes(":status:ready") || event.id.includes(":created:ready")) return true;
+  if (/:item:[^:]+:ready$/.test(event.id)) return true;
+  if (/:item:[^:]+:served$/.test(event.id)) return true;
+  if (event.id.endsWith(":served")) return true;
+  return /ready for service/i.test(event.message) || /\bis ready$/i.test(event.message);
+}
+
+function absorbKitchenReadyState(
+  slug: string,
+  acked: Map<string, OrderSnap>,
+  next: Map<string, OrderSnap>,
+) {
+  const updated = cloneSnapshot(acked);
+  for (const [orderId, order] of next) {
+    const before = updated.get(orderId);
+    if (!before) {
+      if (order.status === "ready") {
+        syncAckedOrderFromNext(updated, next, orderId);
+      }
+      continue;
+    }
+    if (before.status !== "ready" && order.status === "ready") {
+      syncAckedOrderFromNext(updated, next, orderId);
+      continue;
+    }
+    const itemBecameReady = Object.entries(order.items).some(([itemId, item]) => {
+      const prevItem = before.items[itemId];
+      return prevItem && prevItem.kitchen_status !== "ready" && item.kitchen_status === "ready";
+    });
+    if (itemBecameReady) {
+      syncAckedOrderFromNext(updated, next, orderId);
+    }
+  }
+  writeAckedSnapshot(slug, "kitchen", updated);
+}
+
+function absorbRestaurantSelfState(
+  slug: string,
+  acked: Map<string, OrderSnap>,
+  next: Map<string, OrderSnap>,
+) {
+  const updated = cloneSnapshot(acked);
+  for (const [orderId, order] of next) {
+    const active = Object.values(order.items).filter((i) => i.kitchen_status !== "voided");
+    const allServed = active.length > 0 && active.every((i) => i.kitchen_status === "served");
+    if (allServed) {
+      syncAckedOrderFromNext(updated, next, orderId);
+    }
+  }
+  writeAckedSnapshot(slug, "restaurant", updated);
+}
+
 /** Compare live orders to each area's last-acknowledged snapshot. */
 export function ingestFbOrderSnapshot(slug: string, orders: FbOrderWithItems[]) {
   const next = buildSnapshot(orders);
   orderSnapshots.set(slug, next);
 
-  for (const area of NOTIFY_AREAS) {
-    const acked = readAckedSnapshot(slug, area) ?? new Map<string, OrderSnap>();
-    const events = diffSnapshots(acked, next);
-    appendPendingForArea(slug, area, events);
-  }
+  const restaurantAcked = readAckedSnapshot(slug, "restaurant") ?? new Map<string, OrderSnap>();
+  const kitchenAcked = readAckedSnapshot(slug, "kitchen") ?? new Map<string, OrderSnap>();
+
+  appendPendingForArea(slug, "restaurant", diffRestaurantEvents(restaurantAcked, next));
+  appendPendingForArea(slug, "kitchen", diffKitchenEvents(kitchenAcked, next));
+
+  absorbRestaurantSelfState(slug, restaurantAcked, next);
+  absorbKitchenReadyState(slug, kitchenAcked, next);
+
+  writePending(
+    slug,
+    "restaurant",
+    readPending(slug, "restaurant").filter((e) => !isRestaurantSelfNoise(e)),
+  );
+  writePending(
+    slug,
+    "kitchen",
+    readPending(slug, "kitchen").filter((e) => !isKitchenSelfNoise(e)),
+  );
 }
 
 export function getFbPendingNotifications(slug: string, area: FbNotifyArea) {
   return readPending(slug, area);
+}
+
+export function isReadyServiceNotification(note: FbStatusNotification) {
+  if (note.id.includes(":status:ready") || note.id.includes(":created:ready")) return true;
+  if (/:item:[^:]+:ready$/.test(note.id)) return true;
+  return /ready for service/i.test(note.message) || /\bis ready$/i.test(note.message);
+}
+
+export function readyServiceOrderIds(notes: FbStatusNotification[]) {
+  const ids = new Set<string>();
+  for (const note of notes) {
+    if (isReadyServiceNotification(note)) ids.add(note.orderId);
+  }
+  return [...ids];
+}
+
+export function notificationTone(note: FbStatusNotification): FbNotificationTone {
+  if (note.tone === "positive" || isReadyServiceNotification(note)) return "positive";
+  return "default";
 }
 
 export function acknowledgeFbNotification(slug: string, area: FbNotifyArea, id: string) {

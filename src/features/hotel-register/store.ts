@@ -14,7 +14,7 @@ type State = {
   setHotelField: (field: keyof Hotel, value: string | boolean) => void; setAccountField: (field: keyof Account, value: string | boolean) => void;
   closeMissingFieldsModal: () => void; setOtpDigit: (index: number, value: string) => void; resetOtpDigits: () => void; resendOtp: () => Promise<void>;
   setBillingCycle: (v: BillingCycle) => void; setStep: (v: number) => void;
-  sendOtp: () => Promise<void>; verifyOtp: (code?: string) => Promise<void>; saveAccountDetails: () => Promise<void>; startTrial: () => Promise<void>; initiatePayment: () => Promise<void>;
+  sendOtp: () => Promise<void>; verifyOtp: (code?: string) => Promise<void>; saveAccountDetails: () => Promise<void>; startTrial: () => Promise<void>;
 };
 
 const initialHotel: Hotel = { hotel_name: "", contact_email: "", contact_phone: "", country: "Nigeria", city: "", address: "", room_count: "", hotel_type: "", agreed: false };
@@ -92,13 +92,5 @@ export const useHotelRegisterStore = create<State>((set, get) => ({
     set({ loading: false });
     if (!res.ok) return set({ error: data.error || "Failed to start trial" });
     set({ step: 5 });
-  },
-  initiatePayment: async () => {
-    set({ loading: true, error: "" });
-    const res = await fetch("/api/hotel/register/initiate-payment", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tenant_id: get().tenantId, plan: get().billingCycle, email: get().hotel.contact_email }) });
-    const data = await res.json();
-    set({ loading: false });
-    if (!res.ok) return set({ error: data.error || "Failed to initiate payment" });
-    if (data.authorization_url) window.location.href = data.authorization_url;
   },
 }));

@@ -9,7 +9,6 @@ import { PAYMENT_STATUS_LABEL } from "@/components/hms/frontdesk/board/payment-s
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toastError, toastSuccess } from "@/lib/app-toast";
-import { PaystackCaptureButton, PaystackChargeButton } from "@/components/hms/payments/PaystackChargeButton";
 
 type FolioPayload = {
   reservation: {
@@ -58,8 +57,6 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
   const [tab, setTab] = useState<"folio" | "cash-float">("folio");
   const [cashSession, setCashSession] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(false);
-  const [paystackEnabled, setPaystackEnabled] = useState(false);
-  const [cardPayAmount, setCardPayAmount] = useState("");
 
   const loadFolio = useCallback(
     async (id: string) => {
@@ -92,17 +89,7 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
   useEffect(() => {
     if (initialId) void loadFolio(initialId);
     void loadCashFloat();
-    fetch(`/api/hotel/paystack?slug=${encodeURIComponent(slug)}`)
-      .then((r) => r.json())
-      .then((d) => setPaystackEnabled(Boolean(d.setup?.enabled && d.setup?.publicKey)))
-      .catch(() => setPaystackEnabled(false));
   }, [initialId, loadFolio, loadCashFloat, slug]);
-
-  useEffect(() => {
-    if (payload?.folio.balance != null && payload.folio.balance > 0) {
-      setCardPayAmount(String(Math.max(0, payload.folio.balance).toFixed(2)));
-    }
-  }, [payload?.folio.balance]);
 
   const search = async () => {
     if (!query.trim()) return;
@@ -285,7 +272,6 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
                   lines={lines}
                   currency={currency}
                   slug={slug}
-                  paystackEnabled={paystackEnabled}
                   onVoid={() => void loadFolio(reservationId)}
                 />
               </section>
@@ -305,42 +291,12 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
                   <Button type="submit">Post charge</Button>
                 </form>
                 <div className="space-y-4">
-                  {paystackEnabled && reservationId ? (
-                    <div className="rounded-2xl border border-blue-200 bg-blue-50/40 p-5 space-y-3">
-                      <h3 className="font-semibold text-slate-900">Card payment (Paystack)</h3>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0.01"
-                        placeholder="Amount"
-                        value={cardPayAmount}
-                        onChange={(e) => setCardPayAmount(e.target.value)}
-                      />
-                      <div className="flex flex-wrap gap-2">
-                        <PaystackChargeButton
-                          slug={slug}
-                          reservationId={reservationId}
-                          amount={Number(cardPayAmount) || 0}
-                          onSuccess={() => void loadFolio(reservationId)}
-                        />
-                        <PaystackCaptureButton
-                          slug={slug}
-                          reservationId={reservationId}
-                          amount={Number(cardPayAmount) || 0}
-                          onSuccess={() => void loadFolio(reservationId)}
-                        />
-                      </div>
-                      <p className="text-xs text-slate-500">
-                        Charge opens Paystack for a new card payment. Capture uses an authorization from check-in.
-                      </p>
-                    </div>
-                  ) : null}
                   <form onSubmit={postPayment} className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3">
-                    <h3 className="font-semibold text-slate-900">Post payment (manual)</h3>
+                    <h3 className="font-semibold text-slate-900">Post payment</h3>
                     <Input name="amount" type="number" step="0.01" min="0.01" placeholder="Amount" required />
                     <select name="method" className="h-10 w-full rounded-md border border-slate-200 px-3 text-sm" required>
                       <option value="cash">Cash</option>
-                      {!paystackEnabled ? <option value="card">Card (manual reference)</option> : null}
+                      <option value="card">Card (manual reference)</option>
                       <option value="pos">POS terminal</option>
                       <option value="split">Split</option>
                       <option value="direct_bill">Direct bill</option>
@@ -366,13 +322,11 @@ function FolioLineTable({
   lines,
   currency,
   slug,
-  paystackEnabled,
   onVoid,
 }: {
   lines: FolioLineRow[];
   currency: string;
   slug: string;
-  paystackEnabled: boolean;
   onVoid: () => void;
 }) {
   const voidLine = async (lineId: string) => {
@@ -390,22 +344,6 @@ function FolioLineTable({
       return;
     }
     toastSuccess("Charge voided");
-    onVoid();
-  };
-
-  const refundLine = async (lineId: string, amount: number) => {
-    const pin = prompt("Manager PIN (if required):");
-    const res = await fetch("/api/hotel/paystack/refund", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ slug, folioLineId: lineId, amount, managerPin: pin || undefined }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      toastError("Refund failed", data.error ?? "Try again.");
-      return;
-    }
-    toastSuccess("Refund submitted");
     onVoid();
   };
 
@@ -440,15 +378,6 @@ function FolioLineTable({
                 {!l.voided_at && l.kind === "charge" ? (
                   <button type="button" className="text-xs text-red-600 hover:underline" onClick={() => void voidLine(l.id)}>
                     Void
-                  </button>
-                ) : null}
-                {paystackEnabled && !l.voided_at && l.kind === "payment" && l.metadata?.provider === "paystack" ? (
-                  <button
-                    type="button"
-                    className="ml-2 text-xs text-violet-700 hover:underline"
-                    onClick={() => void refundLine(l.id, Math.abs(l.amount))}
-                  >
-                    Refund
                   </button>
                 ) : null}
               </td>
