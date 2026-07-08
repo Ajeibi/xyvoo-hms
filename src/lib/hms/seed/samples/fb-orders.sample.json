@@ -1,0 +1,168 @@
+{
+  "_meta": {
+    "description": "Sample F&B order history for Pope JPII / firefly. Duplicate entries under orders[] to build bulk history. Most closed tickets should use settlement_method: pos; in-house guests use room_charge with reservation_ref or confirmation_code.",
+    "tenant_slug": "firefly",
+    "version": 1,
+    "allowed_values": {
+      "outlet": ["menu_1", "menu_2"],
+      "status": ["open", "sent_to_kitchen", "ready", "closed", "voided"],
+      "settlement_method": ["pos", "room_charge", "cash", "card"],
+      "kitchen_status": ["pending", "preparing", "ready", "served", "voided"]
+    },
+    "linking": {
+      "pos_walk_in": "No reservation_ref — table_code (restaurant) or tab_label (bar)",
+      "room_charge": "Set reservation_ref (e.g. STAY-101) or confirmation_code (e.g. PJP-260711) from guest-stays fixtures; guest must be checked_in"
+    },
+    "date_expressions": {
+      "now-4h": "4 hours before seed run"
+    },
+    "tables": "Restaurant tables T1–T8 (Menu 2 only)"
+  },
+
+  "orders": [
+    {
+      "ref": "ORD-001",
+      "outlet": "menu_2",
+      "status": "closed",
+      "settlement_method": "pos",
+      "table_code": "T3",
+      "placed_at": "now-8h",
+      "sent_to_kitchen_at": "now-8h",
+      "kitchen_ready_at": "now-7h",
+      "served_at": "now-6h",
+      "closed_at": "now-6h",
+      "items": [
+        { "menu_item": "Jollof Rice", "quantity": 2, "kitchen_status": "served" },
+        { "menu_item": "Chicken", "quantity": 2, "kitchen_status": "served" },
+        { "menu_item": "Mixed Vegetable Salad", "quantity": 1, "kitchen_status": "served" }
+      ]
+    },
+
+    {
+      "ref": "ORD-002",
+      "outlet": "menu_1",
+      "status": "closed",
+      "settlement_method": "pos",
+      "tab_label": "Lobby bar",
+      "placed_at": "now-6h",
+      "sent_to_kitchen_at": "now-6h",
+      "kitchen_ready_at": "now-5h",
+      "served_at": "now-5h",
+      "closed_at": "now-5h",
+      "items": [
+        { "menu_item": "Guinness Extra Smooth", "quantity": 2, "kitchen_status": "served" },
+        { "menu_item": "Heineken", "quantity": 1, "kitchen_status": "served" }
+      ]
+    },
+
+    {
+      "ref": "ORD-003",
+      "outlet": "menu_2",
+      "status": "closed",
+      "settlement_method": "room_charge",
+      "reservation_ref": "STAY-101",
+      "confirmation_code": "PJP-260711",
+      "table_code": "T5",
+      "notes": "Charge to room 117 — Tunde Bakare",
+      "placed_at": "now-5h",
+      "sent_to_kitchen_at": "now-5h",
+      "kitchen_ready_at": "now-4h",
+      "served_at": "now-4h",
+      "closed_at": "now-4h",
+      "items": [
+        { "menu_item": "Catfish", "quantity": 1, "kitchen_status": "served", "notes": "Pepper soup" },
+        { "menu_item": "Fried Rice", "quantity": 1, "kitchen_status": "served" },
+        { "menu_item": "Coke (50cl)", "quantity": 2, "kitchen_status": "served" }
+      ]
+    },
+
+    {
+      "ref": "ORD-004",
+      "outlet": "menu_2",
+      "status": "closed",
+      "settlement_method": "room_charge",
+      "reservation_ref": "STAY-107",
+      "confirmation_code": "PJP-260717",
+      "table_code": "T2",
+      "placed_at": "now-3h",
+      "sent_to_kitchen_at": "now-3h",
+      "kitchen_ready_at": "now-2h",
+      "served_at": "now-2h",
+      "closed_at": "now-2h",
+      "items": [
+        { "menu_item": "White Rice", "quantity": 1, "kitchen_status": "served" },
+        { "menu_item": "Okro / Ogbono / Egusi Soup", "quantity": 1, "kitchen_status": "served" },
+        { "menu_item": "Goat Meat", "quantity": 1, "kitchen_status": "served" }
+      ]
+    },
+
+    {
+      "ref": "ORD-005",
+      "outlet": "menu_1",
+      "status": "closed",
+      "settlement_method": "pos",
+      "tab_label": "Walk-in",
+      "placed_at": "now-2h",
+      "sent_to_kitchen_at": "now-2h",
+      "kitchen_ready_at": "now-1h",
+      "served_at": "now-1h",
+      "closed_at": "now-1h",
+      "items": [
+        { "menu_item": "Medium Stout", "quantity": 3, "kitchen_status": "served" },
+        { "menu_item": "Meat Pie", "quantity": 2, "kitchen_status": "served" }
+      ]
+    },
+
+    {
+      "ref": "ORD-006",
+      "outlet": "menu_2",
+      "status": "closed",
+      "settlement_method": "pos",
+      "table_code": "T1",
+      "placed_at": "now-26h",
+      "sent_to_kitchen_at": "now-26h",
+      "kitchen_ready_at": "now-25h",
+      "served_at": "now-25h",
+      "closed_at": "now-25h",
+      "items": [
+        { "menu_item": "Indomie", "quantity": 2, "kitchen_status": "served" },
+        { "menu_item": "Boiled Egg", "quantity": 2, "kitchen_status": "served" }
+      ]
+    },
+
+    {
+      "ref": "ORD-007",
+      "outlet": "menu_2",
+      "status": "closed",
+      "settlement_method": "room_charge",
+      "reservation_ref": "STAY-113",
+      "confirmation_code": "PJP-260723",
+      "table_code": "T4",
+      "placed_at": "now-12h",
+      "sent_to_kitchen_at": "now-12h",
+      "kitchen_ready_at": "now-11h",
+      "served_at": "now-11h",
+      "closed_at": "now-11h",
+      "items": [
+        { "menu_item": "Catfish", "quantity": 1, "kitchen_status": "served", "notes": "Pepper soup portion" },
+        { "menu_item": "Plantain Porridge", "quantity": 1, "kitchen_status": "served" }
+      ]
+    },
+
+    {
+      "ref": "ORD-008",
+      "outlet": "menu_2",
+      "status": "sent_to_kitchen",
+      "settlement_method": null,
+      "table_code": "T6",
+      "rush": true,
+      "notes": "Open ticket — not yet paid",
+      "placed_at": "now-1h",
+      "sent_to_kitchen_at": "now-1h",
+      "items": [
+        { "menu_item": "Jollof Rice", "quantity": 1, "kitchen_status": "preparing" },
+        { "menu_item": "Chicken", "quantity": 1, "kitchen_status": "pending" }
+      ]
+    }
+  ]
+}

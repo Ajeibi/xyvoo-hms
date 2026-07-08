@@ -1,0 +1,534 @@
+{
+  "_meta": {
+    "description": "20 dummy F&B order fixtures with status=ready for Pope JPII / firefly, generated for testing.",
+    "tenant_slug": "firefly",
+    "version": 1,
+    "status_filter": "ready"
+  },
+  "orders": [
+    {
+      "ref": "ORD-301",
+      "outlet": "menu_1",
+      "status": "ready",
+      "settlement_method": null,
+      "tab_label": "Poolside",
+      "notes": "Ready at pass — awaiting server pickup.",
+      "placed_at": "now-1h",
+      "sent_to_kitchen_at": "now-1h",
+      "kitchen_ready_at": "now",
+      "items": [
+        {
+          "menu_item": "Boiled Egg",
+          "quantity": 1,
+          "kitchen_status": "ready",
+          "notes": "Pepper soup portion"
+        },
+        {
+          "menu_item": "Black Bullet",
+          "quantity": 1,
+          "kitchen_status": "ready",
+          "notes": "Well done"
+        },
+        {
+          "menu_item": "Quaker Oats",
+          "quantity": 3,
+          "kitchen_status": "ready"
+        }
+      ]
+    },
+    {
+      "ref": "ORD-302",
+      "outlet": "menu_2",
+      "status": "ready",
+      "settlement_method": null,
+      "table_code": "T5",
+      "notes": "Charge to room 109 — Kwame Asante (ready to serve)",
+      "placed_at": "now-1h",
+      "sent_to_kitchen_at": "now-1h",
+      "kitchen_ready_at": "now",
+      "items": [
+        {
+          "menu_item": "Mixed Vegetable Salad",
+          "quantity": 3,
+          "kitchen_status": "ready"
+        },
+        {
+          "menu_item": "Basmati Rice",
+          "quantity": 1,
+          "kitchen_status": "ready"
+        },
+        {
+          "menu_item": "Beef",
+          "quantity": 1,
+          "kitchen_status": "ready"
+        }
+      ],
+      "reservation_ref": "STAY-105",
+      "confirmation_code": "PJP-260715"
+    },
+    {
+      "ref": "ORD-303",
+      "outlet": "menu_2",
+      "status": "ready",
+      "settlement_method": null,
+      "table_code": "T7",
+      "notes": "Ready at pass — awaiting server pickup.",
+      "placed_at": "now-1h",
+      "sent_to_kitchen_at": "now-1h",
+      "kitchen_ready_at": "now",
+      "items": [
+        {
+          "menu_item": "Croaker Fish",
+          "quantity": 2,
+          "kitchen_status": "ready"
+        },
+        {
+          "menu_item": "Yam Porridge",
+          "quantity": 2,
+          "kitchen_status": "ready"
+        },
+        {
+          "menu_item": "Semo / Eba / Wheat",
+          "quantity": 3,
+          "kitchen_status": "ready"
+        }
+      ]
+    },
+    {
+      "ref": "ORD-304",
+      "outlet": "menu_1",
+      "status": "ready",
+      "settlement_method": null,
+      "tab_label": "Terrace",
+      "notes": "Ready at pass — awaiting server pickup.",
+      "placed_at": "now-2h",
+      "sent_to_kitchen_at": "now-2h",
+      "kitchen_ready_at": "now-1h",
+      "items": [
+        {
+          "menu_item": "Chicken Pie",
+          "quantity": 2,
+          "kitchen_status": "ready"
+        }
+      ]
+    },
+    {
+      "ref": "ORD-305",
+      "outlet": "menu_2",
+      "status": "ready",
+      "settlement_method": null,
+      "table_code": "T6",
+      "notes": "Charge to room 118 — James O'Connor (ready to serve)",
+      "placed_at": "now-2h",
+      "sent_to_kitchen_at": "now-2h",
+      "kitchen_ready_at": "now-1h",
+      "items": [
+        {
+          "menu_item": "Bitterleaf / Ofe Owerri",
+          "quantity": 1,
+          "kitchen_status": "ready"
+        },
+        {
+          "menu_item": "Basmati Rice",
+          "quantity": 1,
+          "kitchen_status": "ready"
+        },
+        {
+          "menu_item": "Isi Ewu",
+          "quantity": 1,
+          "kitchen_status": "ready"
+        }
+      ],
+      "reservation_ref": "STAY-109",
+      "confirmation_code": "PJP-260719"
+    },
+    {
+      "ref": "ORD-306",
+      "outlet": "menu_2",
+      "status": "ready",
+      "settlement_method": null,
+      "table_code": "T2",
+      "notes": "Charge to room 316 — Chiamaka Nnadi (ready to serve)",
+      "placed_at": "now-3h",
+      "sent_to_kitchen_at": "now-3h",
+      "kitchen_ready_at": "now-2h",
+      "items": [
+        {
+          "menu_item": "Beef",
+          "quantity": 1,
+          "kitchen_status": "ready"
+        }
+      ],
+      "reservation_ref": "STAY-118",
+      "confirmation_code": "PJP-260728"
+    },
+    {
+      "ref": "ORD-307",
+      "outlet": "menu_2",
+      "status": "ready",
+      "settlement_method": null,
+      "table_code": "T2",
+      "notes": "Charge to room 117 — Tunde Bakare (ready to serve)",
+      "placed_at": "now-2h",
+      "sent_to_kitchen_at": "now-2h",
+      "kitchen_ready_at": "now-1h",
+      "items": [
+        {
+          "menu_item": "Goat Meat",
+          "quantity": 1,
+          "kitchen_status": "ready"
+        },
+        {
+          "menu_item": "Tomato / Egg Sauce",
+          "quantity": 3,
+          "kitchen_status": "ready"
+        }
+      ],
+      "reservation_ref": "STAY-101",
+      "confirmation_code": "PJP-260711"
+    },
+    {
+      "ref": "ORD-308",
+      "outlet": "menu_2",
+      "status": "ready",
+      "settlement_method": null,
+      "table_code": "T5",
+      "notes": "Ready at pass — awaiting server pickup.",
+      "placed_at": "now-2h",
+      "sent_to_kitchen_at": "now-2h",
+      "kitchen_ready_at": "now-1h",
+      "items": [
+        {
+          "menu_item": "Mixed Vegetable Salad",
+          "quantity": 1,
+          "kitchen_status": "ready"
+        },
+        {
+          "menu_item": "White Rice",
+          "quantity": 3,
+          "kitchen_status": "ready"
+        },
+        {
+          "menu_item": "Gizzard",
+          "quantity": 1,
+          "kitchen_status": "ready"
+        }
+      ]
+    },
+    {
+      "ref": "ORD-309",
+      "outlet": "menu_2",
+      "status": "ready",
+      "settlement_method": null,
+      "table_code": "T8",
+      "notes": "Charge to room 118 — James O'Connor (ready to serve)",
+      "placed_at": "now-2h",
+      "sent_to_kitchen_at": "now-2h",
+      "kitchen_ready_at": "now-1h",
+      "items": [
+        {
+          "menu_item": "Plain / Jollof Spaghetti",
+          "quantity": 2,
+          "kitchen_status": "ready"
+        },
+        {
+          "menu_item": "Beans Porridge",
+          "quantity": 3,
+          "kitchen_status": "ready"
+        }
+      ],
+      "reservation_ref": "STAY-109",
+      "confirmation_code": "PJP-260719"
+    },
+    {
+      "ref": "ORD-310",
+      "outlet": "menu_2",
+      "status": "ready",
+      "settlement_method": null,
+      "table_code": "T1",
+      "notes": "Ready at pass — awaiting server pickup.",
+      "placed_at": "now-1h",
+      "sent_to_kitchen_at": "now-1h",
+      "kitchen_ready_at": "now",
+      "items": [
+        {
+          "menu_item": "Chicken",
+          "quantity": 1,
+          "kitchen_status": "ready"
+        },
+        {
+          "menu_item": "Gizzard",
+          "quantity": 1,
+          "kitchen_status": "ready"
+        },
+        {
+          "menu_item": "Farmhouse Porridge",
+          "quantity": 2,
+          "kitchen_status": "ready",
+          "notes": "Pepper soup portion"
+        }
+      ]
+    },
+    {
+      "ref": "ORD-311",
+      "outlet": "menu_1",
+      "status": "ready",
+      "settlement_method": null,
+      "tab_label": "Poolside",
+      "notes": "Ready at pass — awaiting server pickup.",
+      "placed_at": "now-3h",
+      "sent_to_kitchen_at": "now-3h",
+      "kitchen_ready_at": "now-2h",
+      "items": [
+        {
+          "menu_item": "Boiled / Fried Plantain",
+          "quantity": 2,
+          "kitchen_status": "ready"
+        }
+      ]
+    },
+    {
+      "ref": "ORD-312",
+      "outlet": "menu_1",
+      "status": "ready",
+      "settlement_method": null,
+      "tab_label": "Lobby bar",
+      "notes": "Ready at pass — awaiting server pickup.",
+      "placed_at": "now-3h",
+      "sent_to_kitchen_at": "now-3h",
+      "kitchen_ready_at": "now-2h",
+      "items": [
+        {
+          "menu_item": "Indomie",
+          "quantity": 1,
+          "kitchen_status": "ready"
+        },
+        {
+          "menu_item": "Meat Pie",
+          "quantity": 1,
+          "kitchen_status": "ready"
+        },
+        {
+          "menu_item": "Burger",
+          "quantity": 1,
+          "kitchen_status": "ready"
+        }
+      ]
+    },
+    {
+      "ref": "ORD-313",
+      "outlet": "menu_2",
+      "status": "ready",
+      "settlement_method": null,
+      "table_code": "T6",
+      "notes": "Charge to room 207 — Amara Nwosu (ready to serve)",
+      "placed_at": "now-1h",
+      "sent_to_kitchen_at": "now-1h",
+      "kitchen_ready_at": "now",
+      "items": [
+        {
+          "menu_item": "Chicken Salad",
+          "quantity": 3,
+          "kitchen_status": "ready"
+        },
+        {
+          "menu_item": "Tomato / Egg Sauce",
+          "quantity": 2,
+          "kitchen_status": "ready"
+        }
+      ],
+      "reservation_ref": "STAY-106",
+      "confirmation_code": "PJP-260716"
+    },
+    {
+      "ref": "ORD-314",
+      "outlet": "menu_1",
+      "status": "ready",
+      "settlement_method": null,
+      "tab_label": "Poolside",
+      "notes": "Ready at pass — awaiting server pickup.",
+      "placed_at": "now-3h",
+      "sent_to_kitchen_at": "now-3h",
+      "kitchen_ready_at": "now-2h",
+      "items": [
+        {
+          "menu_item": "Meat Pie",
+          "quantity": 3,
+          "kitchen_status": "ready",
+          "notes": "Extra spicy"
+        },
+        {
+          "menu_item": "Sausage Roll",
+          "quantity": 1,
+          "kitchen_status": "ready"
+        }
+      ]
+    },
+    {
+      "ref": "ORD-315",
+      "outlet": "menu_2",
+      "status": "ready",
+      "settlement_method": null,
+      "table_code": "T7",
+      "notes": "Ready at pass — awaiting server pickup.",
+      "placed_at": "now-2h",
+      "sent_to_kitchen_at": "now-2h",
+      "kitchen_ready_at": "now-1h",
+      "items": [
+        {
+          "menu_item": "Fried Rice",
+          "quantity": 1,
+          "kitchen_status": "ready"
+        },
+        {
+          "menu_item": "Potato Casserole",
+          "quantity": 1,
+          "kitchen_status": "ready"
+        },
+        {
+          "menu_item": "Bitterleaf / Ofe Owerri",
+          "quantity": 1,
+          "kitchen_status": "ready"
+        },
+        {
+          "menu_item": "Okro / Ogbono / Egusi Soup",
+          "quantity": 3,
+          "kitchen_status": "ready"
+        }
+      ]
+    },
+    {
+      "ref": "ORD-316",
+      "outlet": "menu_2",
+      "status": "ready",
+      "settlement_method": null,
+      "table_code": "T7",
+      "notes": "Charge to room 207 — Amara Nwosu (ready to serve)",
+      "placed_at": "now-3h",
+      "sent_to_kitchen_at": "now-3h",
+      "kitchen_ready_at": "now-2h",
+      "items": [
+        {
+          "menu_item": "Ice Fish",
+          "quantity": 1,
+          "kitchen_status": "ready"
+        },
+        {
+          "menu_item": "Pounded Yam",
+          "quantity": 1,
+          "kitchen_status": "ready"
+        },
+        {
+          "menu_item": "Basmati Rice",
+          "quantity": 1,
+          "kitchen_status": "ready"
+        }
+      ],
+      "reservation_ref": "STAY-106",
+      "confirmation_code": "PJP-260716"
+    },
+    {
+      "ref": "ORD-317",
+      "outlet": "menu_2",
+      "status": "ready",
+      "settlement_method": null,
+      "table_code": "T2",
+      "notes": "Charge to room 415 — Musa Ibrahim (ready to serve)",
+      "placed_at": "now-2h",
+      "sent_to_kitchen_at": "now-2h",
+      "kitchen_ready_at": "now-1h",
+      "items": [
+        {
+          "menu_item": "Chicken Salad",
+          "quantity": 2,
+          "kitchen_status": "ready"
+        },
+        {
+          "menu_item": "Plain / Jollof Spaghetti",
+          "quantity": 3,
+          "kitchen_status": "ready",
+          "notes": "Well done"
+        },
+        {
+          "menu_item": "Mixed Vegetable Salad",
+          "quantity": 1,
+          "kitchen_status": "ready"
+        }
+      ],
+      "reservation_ref": "STAY-111",
+      "confirmation_code": "PJP-260721"
+    },
+    {
+      "ref": "ORD-318",
+      "outlet": "menu_2",
+      "status": "ready",
+      "settlement_method": null,
+      "table_code": "T8",
+      "notes": "Ready at pass — awaiting server pickup.",
+      "placed_at": "now-2h",
+      "sent_to_kitchen_at": "now-2h",
+      "kitchen_ready_at": "now-1h",
+      "items": [
+        {
+          "menu_item": "Yam Porridge",
+          "quantity": 3,
+          "kitchen_status": "ready"
+        },
+        {
+          "menu_item": "Ice Fish",
+          "quantity": 1,
+          "kitchen_status": "ready"
+        },
+        {
+          "menu_item": "Bitterleaf / Ofe Owerri",
+          "quantity": 1,
+          "kitchen_status": "ready",
+          "notes": "Well done"
+        }
+      ]
+    },
+    {
+      "ref": "ORD-319",
+      "outlet": "menu_2",
+      "status": "ready",
+      "settlement_method": null,
+      "table_code": "T4",
+      "notes": "Charge to room 307 — Ngozi Okafor (ready to serve)",
+      "placed_at": "now-3h",
+      "sent_to_kitchen_at": "now-3h",
+      "kitchen_ready_at": "now-2h",
+      "items": [
+        {
+          "menu_item": "White Rice",
+          "quantity": 1,
+          "kitchen_status": "ready"
+        }
+      ],
+      "reservation_ref": "STAY-112",
+      "confirmation_code": "PJP-260722"
+    },
+    {
+      "ref": "ORD-320",
+      "outlet": "menu_1",
+      "status": "ready",
+      "settlement_method": null,
+      "tab_label": "Walk-in",
+      "notes": "Ready at pass — awaiting server pickup.",
+      "placed_at": "now-2h",
+      "sent_to_kitchen_at": "now-2h",
+      "kitchen_ready_at": "now-1h",
+      "items": [
+        {
+          "menu_item": "Indomie",
+          "quantity": 1,
+          "kitchen_status": "ready"
+        },
+        {
+          "menu_item": "Smirnoff Ice",
+          "quantity": 3,
+          "kitchen_status": "ready"
+        }
+      ]
+    }
+  ]
+}

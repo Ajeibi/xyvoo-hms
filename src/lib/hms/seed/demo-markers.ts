@@ -1,0 +1,57 @@
+/** Prefixes used to identify and safely wipe demo rows. */
+
+export const DEMO_GUEST_ID_PREFIX = "DEMO-GUEST-";
+export const DEMO_CONFIRMATION_PREFIX = "XYV-DEMO-";
+export const DEMO_ORDER_PREFIX = "FB-DEMO-";
+export const DEMO_FOLIO_PREFIX = "DEMO-F-";
+export const DEMO_REGISTRATION_PREFIX = "DEMO-R-";
+export const DEMO_GROUP_NAME = "XYVOO Demo Wedding Block";
+
+/** Fixed UUID namespace for idempotent demo upserts (tier d1 = demo). */
+export const DEMO_IDS = {
+  guests: [
+    "b00000d1-0000-4000-8000-000000000001",
+    "b00000d1-0000-4000-8000-000000000002",
+    "b00000d1-0000-4000-8000-000000000003",
+    "b00000d1-0000-4000-8000-000000000004",
+    "b00000d1-0000-4000-8000-000000000005",
+    "b00000d1-0000-4000-8000-000000000006",
+    "b00000d1-0000-4000-8000-000000000007",
+    "b00000d1-0000-4000-8000-000000000008",
+  ],
+  groupBooking: "a00000d1-0000-4000-8000-000000000001",
+  reservations: [
+    "c00000d1-0000-4000-8000-000000000001",
+    "c00000d1-0000-4000-8000-000000000002",
+    "c00000d1-0000-4000-8000-000000000003",
+    "c00000d1-0000-4000-8000-000000000004",
+    "c00000d1-0000-4000-8000-000000000005",
+  ],
+  outletRestaurant: "f00000d1-0000-4000-8000-000000000001",
+  outletBar: "f00000d1-0000-4000-8000-000000000002",
+  stationGrill: "f00000d1-0000-4000-8000-000000000011",
+  stationCold: "f00000d1-0000-4000-8000-000000000012",
+  stationBar: "f00000d1-0000-4000-8000-000000000013",
+  categories: {
+    starters: "f00000d1-0000-4000-8000-000000000021",
+    mains: "f00000d1-0000-4000-8000-000000000022",
+    desserts: "f00000d1-0000-4000-8000-000000000023",
+    bar: "f00000d1-0000-4000-8000-000000000024",
+  },
+  tables: [
+    "f00000d1-0000-4000-8000-000000000031",
+    "f00000d1-0000-4000-8000-000000000032",
+    "f00000d1-0000-4000-8000-000000000033",
+    "f00000d1-0000-4000-8000-000000000034",
+    "f00000d1-0000-4000-8000-000000000035",
+    "f00000d1-0000-4000-8000-000000000036",
+  ],
+} as const;
+
+export function isDemoOrderNumber(orderNumber: string) {
+  return orderNumber.startsWith(DEMO_ORDER_PREFIX);
+}
+
+export function isDemoConfirmationCode(code: string) {
+  return code.startsWith(DEMO_CONFIRMATION_PREFIX);
+}

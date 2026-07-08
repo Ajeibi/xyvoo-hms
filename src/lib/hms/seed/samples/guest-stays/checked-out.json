@@ -1,0 +1,1443 @@
+{
+  "_meta": {
+    "description": "20 dummy checked_out stay fixtures for Pope JPII / firefly, generated for testing.",
+    "tenant_slug": "firefly",
+    "version": 1,
+    "status_filter": "checked_out",
+    "firefly_room_codes": "50–63 (floor 1), 64–67 (floor 1), 100–117 (floor 2), 150–167 (floor 3), 200–216 (floor 4). Use only these keys."
+  },
+  "stays": [
+    {
+      "ref": "STAY-301",
+      "status": "checked_out",
+      "room_code": "52",
+      "arrival": "now-68h",
+      "departure": "now-20h",
+      "nights": 2,
+      "adults": 1,
+      "children": [],
+      "purpose_of_visit": "leisure",
+      "primary_guest": {
+        "title": "Mr",
+        "first_name": "Emeka",
+        "last_name": "Nnamdi",
+        "nationality": "NG",
+        "id_type": "national_id",
+        "id_number": "NG-629253",
+        "id_expiry_date": "2027-02-09",
+        "date_of_birth": "1970-03-13",
+        "gender": "male",
+        "phone": "+2348140497700",
+        "email": "emeka.nnamdi1@example.com",
+        "preferred_channel": "whatsapp",
+        "tags": [],
+        "whatsapp": "+2348140497700"
+      },
+      "booking": {
+        "confirmation_code": "PJP-260901",
+        "folio_number": "F-PJP-260901",
+        "registration_number": "R-PJP-260901",
+        "rate_type": "rack",
+        "rate_per_night": 70000,
+        "total_room_charges": 140000,
+        "settlement_method": "cash",
+        "market_segment": "group",
+        "source": "referral",
+        "guest_remarks": "Stay completed — settled at checkout.",
+        "digital_key_issued": true,
+        "registration_card_signed": true
+      },
+      "folio": [
+        {
+          "kind": "charge",
+          "amount": 140000,
+          "description": "Room charges — 2 nights",
+          "department": "rooms",
+          "posted_at": "now-68h"
+        },
+        {
+          "kind": "payment",
+          "amount": 140000,
+          "description": "CASH settlement at checkout",
+          "method": "cash",
+          "posted_at": "now-18h"
+        }
+      ]
+    },
+    {
+      "ref": "STAY-302",
+      "status": "checked_out",
+      "room_code": "205",
+      "arrival": "now-168h",
+      "departure": "now-48h",
+      "nights": 5,
+      "adults": 1,
+      "children": [],
+      "purpose_of_visit": "leisure",
+      "primary_guest": {
+        "title": "Miss",
+        "first_name": "Halima",
+        "last_name": "Yusuf",
+        "nationality": "NG",
+        "id_type": "national_id",
+        "id_number": "NG-397980",
+        "id_expiry_date": "2032-10-21",
+        "date_of_birth": "1974-01-27",
+        "gender": "female",
+        "phone": "+2348150408438",
+        "email": "halima.yusuf2@example.com",
+        "preferred_channel": "whatsapp",
+        "tags": [],
+        "whatsapp": "+2348150408438"
+      },
+      "booking": {
+        "confirmation_code": "PJP-260902",
+        "folio_number": "F-PJP-260902",
+        "registration_number": "R-PJP-260902",
+        "rate_type": "promotional",
+        "rate_per_night": 52000,
+        "total_room_charges": 260000,
+        "settlement_method": "direct_bill",
+        "market_segment": "wholesale",
+        "source": "website",
+        "guest_remarks": "Stay completed — settled at checkout.",
+        "digital_key_issued": true,
+        "registration_card_signed": true
+      },
+      "folio": [
+        {
+          "kind": "charge",
+          "amount": 260000,
+          "description": "Room charges — 5 nights",
+          "department": "rooms",
+          "posted_at": "now-168h"
+        },
+        {
+          "kind": "payment",
+          "amount": 260000,
+          "description": "DIRECT_BILL settlement at checkout",
+          "method": "cash",
+          "posted_at": "now-46h"
+        }
+      ]
+    },
+    {
+      "ref": "STAY-303",
+      "status": "checked_out",
+      "room_code": "101",
+      "arrival": "now-216h",
+      "departure": "now-48h",
+      "nights": 7,
+      "adults": 1,
+      "children": [],
+      "purpose_of_visit": "transit",
+      "primary_guest": {
+        "title": "Dr",
+        "first_name": "Oluwaseun",
+        "last_name": "Fashola",
+        "nationality": "NG",
+        "id_type": "national_id",
+        "id_number": "NG-573312",
+        "id_expiry_date": "2031-01-21",
+        "date_of_birth": "1966-11-18",
+        "gender": "male",
+        "phone": "+2348160668069",
+        "email": "oluwaseun.fashola3@example.com",
+        "preferred_channel": "whatsapp",
+        "tags": [],
+        "whatsapp": "+2348160668069"
+      },
+      "booking": {
+        "confirmation_code": "PJP-260903",
+        "folio_number": "F-PJP-260903",
+        "registration_number": "R-PJP-260903",
+        "rate_type": "corporate",
+        "rate_per_night": 75000,
+        "total_room_charges": 525000,
+        "settlement_method": "pos",
+        "market_segment": "transient",
+        "source": "ota",
+        "guest_remarks": "Stay completed — settled at checkout.",
+        "digital_key_issued": true,
+        "registration_card_signed": true
+      },
+      "folio": [
+        {
+          "kind": "charge",
+          "amount": 525000,
+          "description": "Room charges — 7 nights",
+          "department": "rooms",
+          "posted_at": "now-216h"
+        },
+        {
+          "kind": "payment",
+          "amount": 525000,
+          "description": "POS settlement at checkout",
+          "method": "pos",
+          "posted_at": "now-46h"
+        }
+      ]
+    },
+    {
+      "ref": "STAY-304",
+      "status": "checked_out",
+      "room_code": "53",
+      "arrival": "now-156h",
+      "departure": "now-36h",
+      "nights": 5,
+      "adults": 1,
+      "children": [],
+      "purpose_of_visit": "business",
+      "primary_guest": {
+        "title": "Mrs",
+        "first_name": "Patricia",
+        "last_name": "Umeh",
+        "nationality": "NG",
+        "id_type": "drivers_license",
+        "id_number": "NG-378457",
+        "id_expiry_date": "2028-12-25",
+        "date_of_birth": "1978-04-24",
+        "gender": "female",
+        "phone": "+2348170781953",
+        "email": "patricia.umeh4@example.com",
+        "preferred_channel": "sms",
+        "tags": [
+          "ota"
+        ]
+      },
+      "booking": {
+        "confirmation_code": "PJP-260904",
+        "folio_number": "F-PJP-260904",
+        "registration_number": "R-PJP-260904",
+        "rate_type": "promotional",
+        "rate_per_night": 75000,
+        "total_room_charges": 375000,
+        "settlement_method": "split",
+        "market_segment": "transient",
+        "source": "ota",
+        "guest_remarks": "Stay completed — settled at checkout.",
+        "digital_key_issued": true,
+        "registration_card_signed": true
+      },
+      "folio": [
+        {
+          "kind": "charge",
+          "amount": 375000,
+          "description": "Room charges — 5 nights",
+          "department": "rooms",
+          "posted_at": "now-156h"
+        },
+        {
+          "kind": "payment",
+          "amount": 375000,
+          "description": "SPLIT settlement at checkout",
+          "method": "cash",
+          "posted_at": "now-34h"
+        }
+      ]
+    },
+    {
+      "ref": "STAY-305",
+      "status": "checked_out",
+      "room_code": "102",
+      "arrival": "now-126h",
+      "departure": "now-6h",
+      "nights": 5,
+      "adults": 1,
+      "children": [
+        {
+          "age": 6
+        }
+      ],
+      "purpose_of_visit": "leisure",
+      "primary_guest": {
+        "title": "Engr",
+        "first_name": "Ibrahim",
+        "last_name": "Garba",
+        "nationality": "NG",
+        "id_type": "national_id",
+        "id_number": "NG-605854",
+        "id_expiry_date": "2027-08-09",
+        "date_of_birth": "1971-12-07",
+        "gender": "male",
+        "phone": "+2348180266276",
+        "email": "ibrahim.garba5@example.com",
+        "preferred_channel": "whatsapp",
+        "tags": [
+          "ota"
+        ],
+        "whatsapp": "+2348180266276"
+      },
+      "booking": {
+        "confirmation_code": "PJP-260905",
+        "folio_number": "F-PJP-260905",
+        "registration_number": "R-PJP-260905",
+        "rate_type": "promotional",
+        "rate_per_night": 62000,
+        "total_room_charges": 310000,
+        "settlement_method": "partial_credit",
+        "market_segment": "wholesale",
+        "source": "referral",
+        "guest_remarks": "Stay completed — settled at checkout.",
+        "digital_key_issued": true,
+        "registration_card_signed": true
+      },
+      "folio": [
+        {
+          "kind": "charge",
+          "amount": 310000,
+          "description": "Room charges — 5 nights",
+          "department": "rooms",
+          "posted_at": "now-126h"
+        },
+        {
+          "kind": "charge",
+          "amount": 15000,
+          "description": "Airport pickup",
+          "department": "other",
+          "posted_at": "now-8h"
+        },
+        {
+          "kind": "payment",
+          "amount": 325000,
+          "description": "PARTIAL_CREDIT settlement at checkout",
+          "method": "cash",
+          "posted_at": "now-4h"
+        }
+      ],
+      "companions": [
+        {
+          "relationship": "child",
+          "guest": {
+            "title": null,
+            "first_name": "Ada",
+            "last_name": "Garba",
+            "nationality": "NG",
+            "id_type": "national_id",
+            "id_number": "CHILD-3050",
+            "id_expiry_date": "9999-12-31",
+            "date_of_birth": "2020-07-07",
+            "gender": "female",
+            "phone": "+2348180266276",
+            "email": "ibrahim.garba5@example.com",
+            "preferred_channel": "whatsapp",
+            "tags": []
+          }
+        }
+      ]
+    },
+    {
+      "ref": "STAY-306",
+      "status": "checked_out",
+      "room_code": "103",
+      "arrival": "now-84h",
+      "departure": "now-36h",
+      "nights": 2,
+      "adults": 2,
+      "children": [],
+      "purpose_of_visit": "leisure",
+      "primary_guest": {
+        "title": "Chief",
+        "first_name": "Comfort",
+        "last_name": "Adeleke",
+        "nationality": "NG",
+        "id_type": "national_id",
+        "id_number": "NG-571283",
+        "id_expiry_date": "2029-07-07",
+        "date_of_birth": "1978-02-19",
+        "gender": "female",
+        "phone": "+2348190018355",
+        "email": "comfort.adeleke6@example.com",
+        "preferred_channel": "whatsapp",
+        "tags": [],
+        "whatsapp": "+2348190018355"
+      },
+      "booking": {
+        "confirmation_code": "PJP-260906",
+        "folio_number": "F-PJP-260906",
+        "registration_number": "R-PJP-260906",
+        "rate_type": "rack",
+        "rate_per_night": 52000,
+        "total_room_charges": 104000,
+        "settlement_method": "partial_credit",
+        "market_segment": "wholesale",
+        "source": "referral",
+        "guest_remarks": "Stay completed — settled at checkout.",
+        "digital_key_issued": true,
+        "registration_card_signed": true
+      },
+      "folio": [
+        {
+          "kind": "charge",
+          "amount": 104000,
+          "description": "Room charges — 2 nights",
+          "department": "rooms",
+          "posted_at": "now-84h"
+        },
+        {
+          "kind": "payment",
+          "amount": 104000,
+          "description": "PARTIAL_CREDIT settlement at checkout",
+          "method": "cash",
+          "posted_at": "now-34h"
+        }
+      ],
+      "companions": [
+        {
+          "relationship": "adult",
+          "guest": {
+            "title": "Mr",
+            "first_name": "Kwame",
+            "last_name": "Adeleke",
+            "nationality": "NG",
+            "id_type": "national_id",
+            "id_number": "NG-SEED-306-A1",
+            "id_expiry_date": "9999-12-31",
+            "date_of_birth": "2001-07-23",
+            "gender": "male",
+            "phone": "+2348190018355",
+            "email": "comfort.adeleke6+a1@example.com",
+            "whatsapp": "+2348190018355",
+            "preferred_channel": "whatsapp",
+            "tags": []
+          }
+        }
+      ]
+    },
+    {
+      "ref": "STAY-307",
+      "status": "checked_out",
+      "room_code": "215",
+      "arrival": "now-216h",
+      "departure": "now-48h",
+      "nights": 7,
+      "adults": 2,
+      "children": [],
+      "purpose_of_visit": "leisure",
+      "primary_guest": {
+        "title": "Mr",
+        "first_name": "Michael",
+        "last_name": "Thompson",
+        "nationality": "GB",
+        "id_type": "passport",
+        "id_number": "GB-609755",
+        "id_expiry_date": "2030-01-06",
+        "date_of_birth": "1965-08-22",
+        "gender": "male",
+        "phone": "+447700737503",
+        "email": "michael.thompson7@example.com",
+        "preferred_channel": "whatsapp",
+        "tags": [],
+        "whatsapp": "+447700737503"
+      },
+      "booking": {
+        "confirmation_code": "PJP-260907",
+        "folio_number": "F-PJP-260907",
+        "registration_number": "R-PJP-260907",
+        "rate_type": "promotional",
+        "rate_per_night": 70000,
+        "total_room_charges": 490000,
+        "settlement_method": "pos",
+        "market_segment": "corporate",
+        "source": "ota",
+        "guest_remarks": "Stay completed — settled at checkout.",
+        "digital_key_issued": true,
+        "registration_card_signed": true
+      },
+      "folio": [
+        {
+          "kind": "charge",
+          "amount": 490000,
+          "description": "Room charges — 7 nights",
+          "department": "rooms",
+          "posted_at": "now-216h"
+        },
+        {
+          "kind": "charge",
+          "amount": 3500,
+          "description": "Laundry service",
+          "department": "other",
+          "posted_at": "now-50h"
+        },
+        {
+          "kind": "payment",
+          "amount": 493500,
+          "description": "POS settlement at checkout",
+          "method": "pos",
+          "posted_at": "now-46h"
+        }
+      ],
+      "companions": [
+        {
+          "relationship": "adult",
+          "guest": {
+            "title": "Mr",
+            "first_name": "Amina",
+            "last_name": "Thompson",
+            "nationality": "GB",
+            "id_type": "national_id",
+            "id_number": "NG-SEED-307-A1",
+            "id_expiry_date": "9999-12-31",
+            "date_of_birth": "2002-08-26",
+            "gender": "male",
+            "phone": "+447700737503",
+            "email": "michael.thompson7+a1@example.com",
+            "whatsapp": "+447700737503",
+            "preferred_channel": "whatsapp",
+            "tags": []
+          }
+        }
+      ]
+    },
+    {
+      "ref": "STAY-308",
+      "status": "checked_out",
+      "room_code": "112",
+      "arrival": "now-44h",
+      "departure": "now-20h",
+      "nights": 1,
+      "adults": 2,
+      "children": [],
+      "purpose_of_visit": "transit",
+      "primary_guest": {
+        "title": "Chief",
+        "first_name": "Sofia",
+        "last_name": "Rossi",
+        "nationality": "IT",
+        "id_type": "passport",
+        "id_number": "IT-403911",
+        "id_expiry_date": "2029-06-03",
+        "date_of_birth": "1990-07-28",
+        "gender": "female",
+        "phone": "+393401125873",
+        "email": "sofia.rossi8@example.com",
+        "preferred_channel": "phone",
+        "tags": []
+      },
+      "booking": {
+        "confirmation_code": "PJP-260908",
+        "folio_number": "F-PJP-260908",
+        "registration_number": "R-PJP-260908",
+        "rate_type": "rack",
+        "rate_per_night": 65000,
+        "total_room_charges": 65000,
+        "settlement_method": "split",
+        "market_segment": "group",
+        "source": "walk_in",
+        "guest_remarks": "Stay completed — settled at checkout.",
+        "digital_key_issued": true,
+        "registration_card_signed": true
+      },
+      "folio": [
+        {
+          "kind": "charge",
+          "amount": 65000,
+          "description": "Room charges — 1 night",
+          "department": "rooms",
+          "posted_at": "now-44h"
+        },
+        {
+          "kind": "charge",
+          "amount": 6500,
+          "description": "Restaurant — Jollof Rice & Chicken",
+          "department": "fb",
+          "posted_at": "now-22h"
+        },
+        {
+          "kind": "payment",
+          "amount": 71500,
+          "description": "SPLIT settlement at checkout",
+          "method": "cash",
+          "posted_at": "now-18h"
+        }
+      ],
+      "companions": [
+        {
+          "relationship": "adult",
+          "guest": {
+            "title": "Mr",
+            "first_name": "Peter",
+            "last_name": "Rossi",
+            "nationality": "IT",
+            "id_type": "national_id",
+            "id_number": "NG-SEED-308-A1",
+            "id_expiry_date": "9999-12-31",
+            "date_of_birth": "1975-09-01",
+            "gender": "male",
+            "phone": "+393401125873",
+            "email": "sofia.rossi8+a1@example.com",
+            "whatsapp": null,
+            "preferred_channel": "phone",
+            "tags": []
+          }
+        }
+      ]
+    },
+    {
+      "ref": "STAY-309",
+      "status": "checked_out",
+      "room_code": "113",
+      "arrival": "now-162h",
+      "departure": "now-18h",
+      "nights": 6,
+      "adults": 1,
+      "children": [
+        {
+          "age": 8
+        }
+      ],
+      "purpose_of_visit": "leisure",
+      "primary_guest": {
+        "title": "Chief",
+        "first_name": "Emmanuel",
+        "last_name": "Okeke",
+        "nationality": "NG",
+        "id_type": "national_id",
+        "id_number": "NG-548525",
+        "id_expiry_date": "2027-11-13",
+        "date_of_birth": "2000-09-07",
+        "gender": "male",
+        "phone": "+2348200535784",
+        "email": "emmanuel.okeke9@example.com",
+        "preferred_channel": "whatsapp",
+        "tags": [
+          "repeat"
+        ],
+        "whatsapp": "+2348200535784"
+      },
+      "booking": {
+        "confirmation_code": "PJP-260909",
+        "folio_number": "F-PJP-260909",
+        "registration_number": "R-PJP-260909",
+        "rate_type": "rack",
+        "rate_per_night": 45000,
+        "total_room_charges": 270000,
+        "settlement_method": "partial_credit",
+        "market_segment": "government",
+        "source": "ota",
+        "guest_remarks": "Stay completed — settled at checkout.",
+        "digital_key_issued": true,
+        "registration_card_signed": true
+      },
+      "folio": [
+        {
+          "kind": "charge",
+          "amount": 270000,
+          "description": "Room charges — 6 nights",
+          "department": "rooms",
+          "posted_at": "now-162h"
+        },
+        {
+          "kind": "payment",
+          "amount": 270000,
+          "description": "PARTIAL_CREDIT settlement at checkout",
+          "method": "cash",
+          "posted_at": "now-16h"
+        }
+      ],
+      "companions": [
+        {
+          "relationship": "child",
+          "guest": {
+            "title": null,
+            "first_name": "Ada",
+            "last_name": "Okeke",
+            "nationality": "NG",
+            "id_type": "national_id",
+            "id_number": "CHILD-3090",
+            "id_expiry_date": "9999-12-31",
+            "date_of_birth": "2018-07-07",
+            "gender": "female",
+            "phone": "+2348200535784",
+            "email": "emmanuel.okeke9@example.com",
+            "preferred_channel": "whatsapp",
+            "tags": []
+          }
+        }
+      ]
+    },
+    {
+      "ref": "STAY-310",
+      "status": "checked_out",
+      "room_code": "116",
+      "arrival": "now-114h",
+      "departure": "now-18h",
+      "nights": 4,
+      "adults": 1,
+      "children": [],
+      "purpose_of_visit": "transit",
+      "primary_guest": {
+        "title": "Miss",
+        "first_name": "Precious",
+        "last_name": "Iyamu",
+        "nationality": "NG",
+        "id_type": "national_id",
+        "id_number": "NG-412236",
+        "id_expiry_date": "2029-12-24",
+        "date_of_birth": "1981-07-21",
+        "gender": "female",
+        "phone": "+2348210133496",
+        "email": "precious.iyamu10@example.com",
+        "preferred_channel": "phone",
+        "tags": []
+      },
+      "booking": {
+        "confirmation_code": "PJP-260910",
+        "folio_number": "F-PJP-260910",
+        "registration_number": "R-PJP-260910",
+        "rate_type": "corporate",
+        "rate_per_night": 62000,
+        "total_room_charges": 248000,
+        "settlement_method": "split",
+        "market_segment": "wholesale",
+        "source": "travel_agent",
+        "guest_remarks": "Stay completed — settled at checkout.",
+        "digital_key_issued": true,
+        "registration_card_signed": true
+      },
+      "folio": [
+        {
+          "kind": "charge",
+          "amount": 248000,
+          "description": "Room charges — 4 nights",
+          "department": "rooms",
+          "posted_at": "now-114h"
+        },
+        {
+          "kind": "charge",
+          "amount": 4000,
+          "description": "Bar — Assorted drinks",
+          "department": "fb",
+          "posted_at": "now-20h"
+        },
+        {
+          "kind": "payment",
+          "amount": 252000,
+          "description": "SPLIT settlement at checkout",
+          "method": "cash",
+          "posted_at": "now-16h"
+        }
+      ]
+    },
+    {
+      "ref": "STAY-311",
+      "status": "checked_out",
+      "room_code": "151",
+      "arrival": "now-34h",
+      "departure": "now-10h",
+      "nights": 1,
+      "adults": 1,
+      "children": [],
+      "purpose_of_visit": "business",
+      "primary_guest": {
+        "title": "Chief",
+        "first_name": "Daniel",
+        "last_name": "Kim",
+        "nationality": "KR",
+        "id_type": "passport",
+        "id_number": "KR-896129",
+        "id_expiry_date": "2030-07-05",
+        "date_of_birth": "2000-04-08",
+        "gender": "male",
+        "phone": "+821012577123",
+        "email": "daniel.kim11@example.com",
+        "preferred_channel": "phone",
+        "tags": []
+      },
+      "booking": {
+        "confirmation_code": "PJP-260911",
+        "folio_number": "F-PJP-260911",
+        "registration_number": "R-PJP-260911",
+        "rate_type": "rack",
+        "rate_per_night": 52000,
+        "total_room_charges": 52000,
+        "settlement_method": "pos",
+        "market_segment": "wholesale",
+        "source": "walk_in",
+        "guest_remarks": "Stay completed — settled at checkout.",
+        "digital_key_issued": true,
+        "registration_card_signed": true
+      },
+      "folio": [
+        {
+          "kind": "charge",
+          "amount": 52000,
+          "description": "Room charges — 1 night",
+          "department": "rooms",
+          "posted_at": "now-34h"
+        },
+        {
+          "kind": "charge",
+          "amount": 3500,
+          "description": "Laundry service",
+          "department": "other",
+          "posted_at": "now-12h"
+        },
+        {
+          "kind": "payment",
+          "amount": 55500,
+          "description": "POS settlement at checkout",
+          "method": "pos",
+          "posted_at": "now-8h"
+        }
+      ]
+    },
+    {
+      "ref": "STAY-312",
+      "status": "checked_out",
+      "room_code": "112",
+      "arrival": "now-96h",
+      "departure": "now-48h",
+      "nights": 2,
+      "adults": 1,
+      "children": [],
+      "purpose_of_visit": "business",
+      "primary_guest": {
+        "title": "Chief",
+        "first_name": "Chidinma",
+        "last_name": "Okonkwo",
+        "nationality": "NG",
+        "id_type": "national_id",
+        "id_number": "NG-383367",
+        "id_expiry_date": "2029-01-16",
+        "date_of_birth": "1982-10-12",
+        "gender": "female",
+        "phone": "+2348220401435",
+        "email": "chidinma.okonkwo12@example.com",
+        "preferred_channel": "sms",
+        "tags": []
+      },
+      "booking": {
+        "confirmation_code": "PJP-260912",
+        "folio_number": "F-PJP-260912",
+        "registration_number": "R-PJP-260912",
+        "rate_type": "corporate",
+        "rate_per_night": 58000,
+        "total_room_charges": 116000,
+        "settlement_method": "cash",
+        "market_segment": "group",
+        "source": "phone",
+        "guest_remarks": "Stay completed — settled at checkout.",
+        "digital_key_issued": true,
+        "registration_card_signed": true
+      },
+      "folio": [
+        {
+          "kind": "charge",
+          "amount": 116000,
+          "description": "Room charges — 2 nights",
+          "department": "rooms",
+          "posted_at": "now-96h"
+        },
+        {
+          "kind": "charge",
+          "amount": 12000,
+          "description": "Spa treatment",
+          "department": "other",
+          "posted_at": "now-50h"
+        },
+        {
+          "kind": "payment",
+          "amount": 128000,
+          "description": "CASH settlement at checkout",
+          "method": "cash",
+          "posted_at": "now-46h"
+        }
+      ]
+    },
+    {
+      "ref": "STAY-313",
+      "status": "checked_out",
+      "room_code": "152",
+      "arrival": "now-96h",
+      "departure": "now-24h",
+      "nights": 3,
+      "adults": 1,
+      "children": [
+        {
+          "age": 10
+        }
+      ],
+      "purpose_of_visit": "business",
+      "primary_guest": {
+        "title": "Chief",
+        "first_name": "Victor",
+        "last_name": "Adeyanju",
+        "nationality": "NG",
+        "id_type": "national_id",
+        "id_number": "NG-965693",
+        "id_expiry_date": "2031-08-15",
+        "date_of_birth": "1980-02-08",
+        "gender": "male",
+        "phone": "+2348230615700",
+        "email": "victor.adeyanju13@example.com",
+        "preferred_channel": "sms",
+        "tags": [
+          "repeat"
+        ]
+      },
+      "booking": {
+        "confirmation_code": "PJP-260913",
+        "folio_number": "F-PJP-260913",
+        "registration_number": "R-PJP-260913",
+        "rate_type": "corporate",
+        "rate_per_night": 52000,
+        "total_room_charges": 156000,
+        "settlement_method": "direct_bill",
+        "market_segment": "transient",
+        "source": "travel_agent",
+        "guest_remarks": "Stay completed — settled at checkout.",
+        "digital_key_issued": true,
+        "registration_card_signed": true
+      },
+      "folio": [
+        {
+          "kind": "charge",
+          "amount": 156000,
+          "description": "Room charges — 3 nights",
+          "department": "rooms",
+          "posted_at": "now-96h"
+        },
+        {
+          "kind": "payment",
+          "amount": 156000,
+          "description": "DIRECT_BILL settlement at checkout",
+          "method": "cash",
+          "posted_at": "now-22h"
+        }
+      ],
+      "companions": [
+        {
+          "relationship": "child",
+          "guest": {
+            "title": null,
+            "first_name": "Ada",
+            "last_name": "Adeyanju",
+            "nationality": "NG",
+            "id_type": "national_id",
+            "id_number": "CHILD-3130",
+            "id_expiry_date": "9999-12-31",
+            "date_of_birth": "2016-07-07",
+            "gender": "female",
+            "phone": "+2348230615700",
+            "email": "victor.adeyanju13@example.com",
+            "preferred_channel": "sms",
+            "tags": []
+          }
+        }
+      ]
+    },
+    {
+      "ref": "STAY-314",
+      "status": "checked_out",
+      "room_code": "158",
+      "arrival": "now-128h",
+      "departure": "now-8h",
+      "nights": 5,
+      "adults": 1,
+      "children": [
+        {
+          "age": 6
+        }
+      ],
+      "purpose_of_visit": "leisure",
+      "primary_guest": {
+        "title": "Ms",
+        "first_name": "Zainab",
+        "last_name": "Aliyu",
+        "nationality": "NG",
+        "id_type": "national_id",
+        "id_number": "NG-234182",
+        "id_expiry_date": "2032-05-17",
+        "date_of_birth": "1992-12-25",
+        "gender": "female",
+        "phone": "+2348240597041",
+        "email": "zainab.aliyu14@example.com",
+        "preferred_channel": "email",
+        "tags": []
+      },
+      "booking": {
+        "confirmation_code": "PJP-260914",
+        "folio_number": "F-PJP-260914",
+        "registration_number": "R-PJP-260914",
+        "rate_type": "rack",
+        "rate_per_night": 48000,
+        "total_room_charges": 240000,
+        "settlement_method": "cash",
+        "market_segment": "group",
+        "source": "website",
+        "guest_remarks": "Stay completed — settled at checkout.",
+        "digital_key_issued": true,
+        "registration_card_signed": true
+      },
+      "folio": [
+        {
+          "kind": "charge",
+          "amount": 240000,
+          "description": "Room charges — 5 nights",
+          "department": "rooms",
+          "posted_at": "now-128h"
+        },
+        {
+          "kind": "payment",
+          "amount": 240000,
+          "description": "CASH settlement at checkout",
+          "method": "cash",
+          "posted_at": "now-6h"
+        }
+      ],
+      "companions": [
+        {
+          "relationship": "child",
+          "guest": {
+            "title": null,
+            "first_name": "Ada",
+            "last_name": "Aliyu",
+            "nationality": "NG",
+            "id_type": "national_id",
+            "id_number": "CHILD-3140",
+            "id_expiry_date": "9999-12-31",
+            "date_of_birth": "2020-07-07",
+            "gender": "female",
+            "phone": "+2348240597041",
+            "email": "zainab.aliyu14@example.com",
+            "preferred_channel": "email",
+            "tags": []
+          }
+        }
+      ]
+    },
+    {
+      "ref": "STAY-315",
+      "status": "checked_out",
+      "room_code": "216",
+      "arrival": "now-96h",
+      "departure": "now-24h",
+      "nights": 3,
+      "adults": 1,
+      "children": [],
+      "purpose_of_visit": "transit",
+      "primary_guest": {
+        "title": "Mr",
+        "first_name": "Robert",
+        "last_name": "Mueller",
+        "nationality": "DE",
+        "id_type": "passport",
+        "id_number": "DE-431724",
+        "id_expiry_date": "2032-04-16",
+        "date_of_birth": "1998-04-18",
+        "gender": "male",
+        "phone": "+491701010970",
+        "email": "robert.mueller15@example.com",
+        "preferred_channel": "whatsapp",
+        "tags": [],
+        "whatsapp": "+491701010970"
+      },
+      "booking": {
+        "confirmation_code": "PJP-260915",
+        "folio_number": "F-PJP-260915",
+        "registration_number": "R-PJP-260915",
+        "rate_type": "corporate",
+        "rate_per_night": 45000,
+        "total_room_charges": 135000,
+        "settlement_method": "split",
+        "market_segment": "group",
+        "source": "walk_in",
+        "guest_remarks": "Stay completed — settled at checkout.",
+        "digital_key_issued": true,
+        "registration_card_signed": true
+      },
+      "folio": [
+        {
+          "kind": "charge",
+          "amount": 135000,
+          "description": "Room charges — 3 nights",
+          "department": "rooms",
+          "posted_at": "now-96h"
+        },
+        {
+          "kind": "charge",
+          "amount": 15000,
+          "description": "Airport pickup",
+          "department": "other",
+          "posted_at": "now-26h"
+        },
+        {
+          "kind": "payment",
+          "amount": 150000,
+          "description": "SPLIT settlement at checkout",
+          "method": "cash",
+          "posted_at": "now-22h"
+        }
+      ]
+    },
+    {
+      "ref": "STAY-316",
+      "status": "checked_out",
+      "room_code": "102",
+      "arrival": "now-48h",
+      "departure": "now-24h",
+      "nights": 1,
+      "adults": 1,
+      "children": [],
+      "purpose_of_visit": "leisure",
+      "primary_guest": {
+        "title": "Dr",
+        "first_name": "Joy",
+        "last_name": "Etim",
+        "nationality": "NG",
+        "id_type": "national_id",
+        "id_number": "NG-540985",
+        "id_expiry_date": "2029-11-13",
+        "date_of_birth": "1977-01-26",
+        "gender": "female",
+        "phone": "+2348250237803",
+        "email": "joy.etim16@example.com",
+        "preferred_channel": "sms",
+        "tags": [
+          "repeat"
+        ]
+      },
+      "booking": {
+        "confirmation_code": "PJP-260916",
+        "folio_number": "F-PJP-260916",
+        "registration_number": "R-PJP-260916",
+        "rate_type": "walk_in_bar",
+        "rate_per_night": 48000,
+        "total_room_charges": 48000,
+        "settlement_method": "card",
+        "market_segment": "government",
+        "source": "phone",
+        "guest_remarks": "Stay completed — settled at checkout.",
+        "digital_key_issued": true,
+        "registration_card_signed": true
+      },
+      "folio": [
+        {
+          "kind": "charge",
+          "amount": 48000,
+          "description": "Room charges — 1 night",
+          "department": "rooms",
+          "posted_at": "now-48h"
+        },
+        {
+          "kind": "charge",
+          "amount": 4000,
+          "description": "Bar — Assorted drinks",
+          "department": "fb",
+          "posted_at": "now-26h"
+        },
+        {
+          "kind": "payment",
+          "amount": 52000,
+          "description": "CARD settlement at checkout",
+          "method": "card",
+          "posted_at": "now-22h"
+        }
+      ]
+    },
+    {
+      "ref": "STAY-317",
+      "status": "checked_out",
+      "room_code": "159",
+      "arrival": "now-78h",
+      "departure": "now-30h",
+      "nights": 2,
+      "adults": 2,
+      "children": [],
+      "purpose_of_visit": "leisure",
+      "primary_guest": {
+        "title": "Engr",
+        "first_name": "Ola",
+        "last_name": "Ogundele",
+        "nationality": "NG",
+        "id_type": "national_id",
+        "id_number": "NG-608614",
+        "id_expiry_date": "2030-11-02",
+        "date_of_birth": "1974-07-02",
+        "gender": "male",
+        "phone": "+2348260114304",
+        "email": "ola.ogundele17@example.com",
+        "preferred_channel": "sms",
+        "tags": []
+      },
+      "booking": {
+        "confirmation_code": "PJP-260917",
+        "folio_number": "F-PJP-260917",
+        "registration_number": "R-PJP-260917",
+        "rate_type": "corporate",
+        "rate_per_night": 45000,
+        "total_room_charges": 90000,
+        "settlement_method": "direct_bill",
+        "market_segment": "corporate",
+        "source": "ota",
+        "guest_remarks": "Stay completed — settled at checkout.",
+        "digital_key_issued": true,
+        "registration_card_signed": true
+      },
+      "folio": [
+        {
+          "kind": "charge",
+          "amount": 90000,
+          "description": "Room charges — 2 nights",
+          "department": "rooms",
+          "posted_at": "now-78h"
+        },
+        {
+          "kind": "charge",
+          "amount": 6500,
+          "description": "Restaurant — Jollof Rice & Chicken",
+          "department": "fb",
+          "posted_at": "now-32h"
+        },
+        {
+          "kind": "payment",
+          "amount": 96500,
+          "description": "DIRECT_BILL settlement at checkout",
+          "method": "cash",
+          "posted_at": "now-28h"
+        }
+      ],
+      "companions": [
+        {
+          "relationship": "adult",
+          "guest": {
+            "title": "Mr",
+            "first_name": "Emeka",
+            "last_name": "Ogundele",
+            "nationality": "NG",
+            "id_type": "national_id",
+            "id_number": "NG-SEED-317-A1",
+            "id_expiry_date": "9999-12-31",
+            "date_of_birth": "1984-06-28",
+            "gender": "male",
+            "phone": "+2348260114304",
+            "email": "ola.ogundele17+a1@example.com",
+            "whatsapp": null,
+            "preferred_channel": "sms",
+            "tags": []
+          }
+        }
+      ]
+    },
+    {
+      "ref": "STAY-318",
+      "status": "checked_out",
+      "room_code": "207",
+      "arrival": "now-120h",
+      "departure": "now-24h",
+      "nights": 4,
+      "adults": 2,
+      "children": [],
+      "purpose_of_visit": "business",
+      "primary_guest": {
+        "title": "Mrs",
+        "first_name": "Nkechi",
+        "last_name": "Anyanwu",
+        "nationality": "NG",
+        "id_type": "drivers_license",
+        "id_number": "NG-650290",
+        "id_expiry_date": "2032-08-02",
+        "date_of_birth": "1984-11-24",
+        "gender": "female",
+        "phone": "+2348270976849",
+        "email": "nkechi.anyanwu18@example.com",
+        "preferred_channel": "phone",
+        "tags": [
+          "ota"
+        ]
+      },
+      "booking": {
+        "confirmation_code": "PJP-260918",
+        "folio_number": "F-PJP-260918",
+        "registration_number": "R-PJP-260918",
+        "rate_type": "promotional",
+        "rate_per_night": 65000,
+        "total_room_charges": 260000,
+        "settlement_method": "pos",
+        "market_segment": "government",
+        "source": "phone",
+        "guest_remarks": "Stay completed — settled at checkout.",
+        "digital_key_issued": true,
+        "registration_card_signed": true
+      },
+      "folio": [
+        {
+          "kind": "charge",
+          "amount": 260000,
+          "description": "Room charges — 4 nights",
+          "department": "rooms",
+          "posted_at": "now-120h"
+        },
+        {
+          "kind": "charge",
+          "amount": 6500,
+          "description": "Restaurant — Jollof Rice & Chicken",
+          "department": "fb",
+          "posted_at": "now-26h"
+        },
+        {
+          "kind": "payment",
+          "amount": 266500,
+          "description": "POS settlement at checkout",
+          "method": "pos",
+          "posted_at": "now-22h"
+        }
+      ],
+      "companions": [
+        {
+          "relationship": "adult",
+          "guest": {
+            "title": "Mr",
+            "first_name": "Fatima",
+            "last_name": "Anyanwu",
+            "nationality": "NG",
+            "id_type": "national_id",
+            "id_number": "NG-SEED-318-A1",
+            "id_expiry_date": "9999-12-31",
+            "date_of_birth": "1985-07-03",
+            "gender": "male",
+            "phone": "+2348270976849",
+            "email": "nkechi.anyanwu18+a1@example.com",
+            "whatsapp": null,
+            "preferred_channel": "phone",
+            "tags": []
+          }
+        }
+      ]
+    },
+    {
+      "ref": "STAY-319",
+      "status": "checked_out",
+      "room_code": "113",
+      "arrival": "now-80h",
+      "departure": "now-8h",
+      "nights": 3,
+      "adults": 1,
+      "children": [],
+      "purpose_of_visit": "leisure",
+      "primary_guest": {
+        "title": "Mr",
+        "first_name": "Simon",
+        "last_name": "Petrov",
+        "nationality": "BG",
+        "id_type": "passport",
+        "id_number": "BG-423694",
+        "id_expiry_date": "2030-02-02",
+        "date_of_birth": "1995-04-12",
+        "gender": "male",
+        "phone": "+359880588387",
+        "email": "simon.petrov19@example.com",
+        "preferred_channel": "phone",
+        "tags": []
+      },
+      "booking": {
+        "confirmation_code": "PJP-260919",
+        "folio_number": "F-PJP-260919",
+        "registration_number": "R-PJP-260919",
+        "rate_type": "promotional",
+        "rate_per_night": 58000,
+        "total_room_charges": 174000,
+        "settlement_method": "pos",
+        "market_segment": "group",
+        "source": "travel_agent",
+        "guest_remarks": "Stay completed — settled at checkout.",
+        "digital_key_issued": true,
+        "registration_card_signed": true
+      },
+      "folio": [
+        {
+          "kind": "charge",
+          "amount": 174000,
+          "description": "Room charges — 3 nights",
+          "department": "rooms",
+          "posted_at": "now-80h"
+        },
+        {
+          "kind": "payment",
+          "amount": 174000,
+          "description": "POS settlement at checkout",
+          "method": "pos",
+          "posted_at": "now-6h"
+        }
+      ]
+    },
+    {
+      "ref": "STAY-320",
+      "status": "checked_out",
+      "room_code": "161",
+      "arrival": "now-72h",
+      "departure": "now-24h",
+      "nights": 2,
+      "adults": 2,
+      "children": [],
+      "purpose_of_visit": "transit",
+      "primary_guest": {
+        "title": "Chief",
+        "first_name": "Adaobi",
+        "last_name": "Muoneke",
+        "nationality": "NG",
+        "id_type": "national_id",
+        "id_number": "NG-735034",
+        "id_expiry_date": "2029-06-09",
+        "date_of_birth": "1986-10-02",
+        "gender": "female",
+        "phone": "+2348280065620",
+        "email": "adaobi.muoneke20@example.com",
+        "preferred_channel": "email",
+        "tags": []
+      },
+      "booking": {
+        "confirmation_code": "PJP-260920",
+        "folio_number": "F-PJP-260920",
+        "registration_number": "R-PJP-260920",
+        "rate_type": "walk_in_bar",
+        "rate_per_night": 65000,
+        "total_room_charges": 130000,
+        "settlement_method": "pos",
+        "market_segment": "group",
+        "source": "walk_in",
+        "guest_remarks": "Stay completed — settled at checkout.",
+        "digital_key_issued": true,
+        "registration_card_signed": true
+      },
+      "folio": [
+        {
+          "kind": "charge",
+          "amount": 130000,
+          "description": "Room charges — 2 nights",
+          "department": "rooms",
+          "posted_at": "now-72h"
+        },
+        {
+          "kind": "payment",
+          "amount": 130000,
+          "description": "POS settlement at checkout",
+          "method": "pos",
+          "posted_at": "now-22h"
+        }
+      ],
+      "companions": [
+        {
+          "relationship": "adult",
+          "guest": {
+            "title": "Mr",
+            "first_name": "Grace",
+            "last_name": "Muoneke",
+            "nationality": "NG",
+            "id_type": "national_id",
+            "id_number": "NG-SEED-320-A1",
+            "id_expiry_date": "9999-12-31",
+            "date_of_birth": "1987-09-09",
+            "gender": "male",
+            "phone": "+2348280065620",
+            "email": "adaobi.muoneke20+a1@example.com",
+            "whatsapp": null,
+            "preferred_channel": "email",
+            "tags": []
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,473 @@
+{
+  "_meta": {
+    "description": "20 dummy F&B order fixtures with status=open for Pope JPII / firefly, generated for testing.",
+    "tenant_slug": "firefly",
+    "version": 1,
+    "status_filter": "open"
+  },
+  "orders": [
+    {
+      "ref": "ORD-101",
+      "outlet": "menu_2",
+      "status": "open",
+      "settlement_method": null,
+      "table_code": "T5",
+      "notes": "Charge to room 205 — Amina Bello (pending confirmation)",
+      "placed_at": "now-1h",
+      "items": [
+        {
+          "menu_item": "Grilled Chicken",
+          "quantity": 1,
+          "kitchen_status": "pending"
+        },
+        {
+          "menu_item": "Beef Kebeb",
+          "quantity": 1,
+          "kitchen_status": "pending"
+        }
+      ],
+      "reservation_ref": "STAY-114",
+      "confirmation_code": "PJP-260724"
+    },
+    {
+      "ref": "ORD-102",
+      "outlet": "menu_2",
+      "status": "open",
+      "settlement_method": null,
+      "table_code": "T7",
+      "notes": "Charge to room 308 — Ahmed Hassan (pending confirmation)",
+      "placed_at": "now",
+      "items": [
+        {
+          "menu_item": "Okro / Ogbono / Egusi Soup",
+          "quantity": 2,
+          "kitchen_status": "pending"
+        },
+        {
+          "menu_item": "White Rice",
+          "quantity": 3,
+          "kitchen_status": "pending"
+        }
+      ],
+      "reservation_ref": "STAY-119",
+      "confirmation_code": "PJP-260729"
+    },
+    {
+      "ref": "ORD-103",
+      "outlet": "menu_2",
+      "status": "open",
+      "settlement_method": null,
+      "table_code": "T1",
+      "notes": "Order just placed — not yet sent to kitchen.",
+      "placed_at": "now-1h",
+      "items": [
+        {
+          "menu_item": "Beef",
+          "quantity": 3,
+          "kitchen_status": "pending"
+        },
+        {
+          "menu_item": "Boiled Beans",
+          "quantity": 1,
+          "kitchen_status": "pending"
+        },
+        {
+          "menu_item": "Fried Rice",
+          "quantity": 1,
+          "kitchen_status": "pending"
+        },
+        {
+          "menu_item": "Croaker Fish",
+          "quantity": 3,
+          "kitchen_status": "pending"
+        }
+      ]
+    },
+    {
+      "ref": "ORD-104",
+      "outlet": "menu_1",
+      "status": "open",
+      "settlement_method": null,
+      "tab_label": "Walk-in",
+      "notes": "Order just placed — not yet sent to kitchen.",
+      "placed_at": "now",
+      "items": [
+        {
+          "menu_item": "Power Horse",
+          "quantity": 3,
+          "kitchen_status": "pending"
+        },
+        {
+          "menu_item": "Tiger",
+          "quantity": 3,
+          "kitchen_status": "pending"
+        },
+        {
+          "menu_item": "Smirnoff Ice",
+          "quantity": 3,
+          "kitchen_status": "pending"
+        },
+        {
+          "menu_item": "Black Bullet",
+          "quantity": 1,
+          "kitchen_status": "pending",
+          "notes": "Pepper soup portion"
+        }
+      ]
+    },
+    {
+      "ref": "ORD-105",
+      "outlet": "menu_2",
+      "status": "open",
+      "settlement_method": null,
+      "table_code": "T4",
+      "notes": "Order just placed — not yet sent to kitchen.",
+      "placed_at": "now-1h",
+      "items": [
+        {
+          "menu_item": "Mixed Vegetable Salad",
+          "quantity": 2,
+          "kitchen_status": "pending"
+        },
+        {
+          "menu_item": "Plain / Jollof Spaghetti",
+          "quantity": 3,
+          "kitchen_status": "pending"
+        }
+      ]
+    },
+    {
+      "ref": "ORD-106",
+      "outlet": "menu_2",
+      "status": "open",
+      "settlement_method": null,
+      "table_code": "T5",
+      "notes": "Order just placed — not yet sent to kitchen.",
+      "placed_at": "now",
+      "items": [
+        {
+          "menu_item": "Catfish",
+          "quantity": 3,
+          "kitchen_status": "pending"
+        }
+      ]
+    },
+    {
+      "ref": "ORD-107",
+      "outlet": "menu_1",
+      "status": "open",
+      "settlement_method": null,
+      "tab_label": "Terrace",
+      "notes": "Order just placed — not yet sent to kitchen.",
+      "placed_at": "now",
+      "items": [
+        {
+          "menu_item": "Pancake",
+          "quantity": 2,
+          "kitchen_status": "pending"
+        },
+        {
+          "menu_item": "Indomie",
+          "quantity": 3,
+          "kitchen_status": "pending",
+          "notes": "No pepper"
+        }
+      ]
+    },
+    {
+      "ref": "ORD-108",
+      "outlet": "menu_2",
+      "status": "open",
+      "settlement_method": null,
+      "table_code": "T6",
+      "notes": "Order just placed — not yet sent to kitchen.",
+      "placed_at": "now-2h",
+      "items": [
+        {
+          "menu_item": "Tomato / Egg Sauce",
+          "quantity": 1,
+          "kitchen_status": "pending"
+        },
+        {
+          "menu_item": "Goat Meat",
+          "quantity": 1,
+          "kitchen_status": "pending"
+        },
+        {
+          "menu_item": "Catfish",
+          "quantity": 2,
+          "kitchen_status": "pending"
+        }
+      ]
+    },
+    {
+      "ref": "ORD-109",
+      "outlet": "menu_2",
+      "status": "open",
+      "settlement_method": null,
+      "table_code": "T4",
+      "notes": "Charge to room 214 — Samuel Owolabi (pending confirmation)",
+      "placed_at": "now-1h",
+      "items": [
+        {
+          "menu_item": "Jollof Rice",
+          "quantity": 2,
+          "kitchen_status": "pending"
+        },
+        {
+          "menu_item": "Yam Porridge",
+          "quantity": 3,
+          "kitchen_status": "pending"
+        }
+      ],
+      "reservation_ref": "STAY-117",
+      "confirmation_code": "PJP-260727"
+    },
+    {
+      "ref": "ORD-110",
+      "outlet": "menu_1",
+      "status": "open",
+      "settlement_method": null,
+      "tab_label": "Reception bar",
+      "notes": "Order just placed — not yet sent to kitchen.",
+      "placed_at": "now",
+      "items": [
+        {
+          "menu_item": "Fish Roll",
+          "quantity": 1,
+          "kitchen_status": "pending"
+        },
+        {
+          "menu_item": "Coffee / Tea / Chocolate",
+          "quantity": 3,
+          "kitchen_status": "pending"
+        },
+        {
+          "menu_item": "Trophy",
+          "quantity": 2,
+          "kitchen_status": "pending"
+        },
+        {
+          "menu_item": "Sprite (Big)",
+          "quantity": 2,
+          "kitchen_status": "pending",
+          "notes": "Well done"
+        }
+      ]
+    },
+    {
+      "ref": "ORD-111",
+      "outlet": "menu_1",
+      "status": "open",
+      "settlement_method": null,
+      "tab_label": "Walk-in",
+      "notes": "Order just placed — not yet sent to kitchen.",
+      "placed_at": "now-1h",
+      "items": [
+        {
+          "menu_item": "Coke (50cl)",
+          "quantity": 1,
+          "kitchen_status": "pending"
+        }
+      ]
+    },
+    {
+      "ref": "ORD-112",
+      "outlet": "menu_2",
+      "status": "open",
+      "settlement_method": null,
+      "table_code": "T1",
+      "notes": "Order just placed — not yet sent to kitchen.",
+      "placed_at": "now",
+      "items": [
+        {
+          "menu_item": "Croaker Fish",
+          "quantity": 2,
+          "kitchen_status": "pending"
+        },
+        {
+          "menu_item": "Boiled Beans",
+          "quantity": 2,
+          "kitchen_status": "pending"
+        },
+        {
+          "menu_item": "Greek Salad",
+          "quantity": 3,
+          "kitchen_status": "pending"
+        }
+      ]
+    },
+    {
+      "ref": "ORD-113",
+      "outlet": "menu_2",
+      "status": "open",
+      "settlement_method": null,
+      "table_code": "T7",
+      "notes": "Charge to room 117 — Tunde Bakare (pending confirmation)",
+      "placed_at": "now",
+      "items": [
+        {
+          "menu_item": "Vegetable Sauce",
+          "quantity": 3,
+          "kitchen_status": "pending"
+        }
+      ],
+      "reservation_ref": "STAY-101",
+      "confirmation_code": "PJP-260711"
+    },
+    {
+      "ref": "ORD-114",
+      "outlet": "menu_2",
+      "status": "open",
+      "settlement_method": null,
+      "table_code": "T7",
+      "notes": "Charge to room 308 — Ahmed Hassan (pending confirmation)",
+      "placed_at": "now-1h",
+      "items": [
+        {
+          "menu_item": "Ice Fish",
+          "quantity": 1,
+          "kitchen_status": "pending"
+        },
+        {
+          "menu_item": "Croaker Fish",
+          "quantity": 3,
+          "kitchen_status": "pending"
+        },
+        {
+          "menu_item": "Goat Meat",
+          "quantity": 1,
+          "kitchen_status": "pending",
+          "notes": "Extra spicy"
+        },
+        {
+          "menu_item": "Semo / Eba / Wheat",
+          "quantity": 3,
+          "kitchen_status": "pending"
+        }
+      ],
+      "reservation_ref": "STAY-119",
+      "confirmation_code": "PJP-260729"
+    },
+    {
+      "ref": "ORD-115",
+      "outlet": "menu_2",
+      "status": "open",
+      "settlement_method": null,
+      "table_code": "T7",
+      "notes": "Charge to room 415 — Musa Ibrahim (pending confirmation)",
+      "placed_at": "now-1h",
+      "items": [
+        {
+          "menu_item": "Catfish",
+          "quantity": 1,
+          "kitchen_status": "pending"
+        },
+        {
+          "menu_item": "Dry Fish",
+          "quantity": 1,
+          "kitchen_status": "pending"
+        }
+      ],
+      "reservation_ref": "STAY-111",
+      "confirmation_code": "PJP-260721"
+    },
+    {
+      "ref": "ORD-116",
+      "outlet": "menu_1",
+      "status": "open",
+      "settlement_method": null,
+      "tab_label": "Reception bar",
+      "notes": "Order just placed — not yet sent to kitchen.",
+      "placed_at": "now-2h",
+      "items": [
+        {
+          "menu_item": "Guinness Extra Smooth",
+          "quantity": 2,
+          "kitchen_status": "pending"
+        }
+      ]
+    },
+    {
+      "ref": "ORD-117",
+      "outlet": "menu_2",
+      "status": "open",
+      "settlement_method": null,
+      "table_code": "T3",
+      "notes": "Charge to room 308 — Ahmed Hassan (pending confirmation)",
+      "placed_at": "now",
+      "items": [
+        {
+          "menu_item": "Farmhouse Porridge",
+          "quantity": 2,
+          "kitchen_status": "pending"
+        },
+        {
+          "menu_item": "White Rice",
+          "quantity": 3,
+          "kitchen_status": "pending"
+        },
+        {
+          "menu_item": "Tomato / Egg Sauce",
+          "quantity": 2,
+          "kitchen_status": "pending"
+        }
+      ],
+      "reservation_ref": "STAY-119",
+      "confirmation_code": "PJP-260729"
+    },
+    {
+      "ref": "ORD-118",
+      "outlet": "menu_2",
+      "status": "open",
+      "settlement_method": null,
+      "table_code": "T2",
+      "notes": "Order just placed — not yet sent to kitchen.",
+      "placed_at": "now-2h",
+      "items": [
+        {
+          "menu_item": "Beef Kebeb",
+          "quantity": 3,
+          "kitchen_status": "pending"
+        }
+      ]
+    },
+    {
+      "ref": "ORD-119",
+      "outlet": "menu_2",
+      "status": "open",
+      "settlement_method": null,
+      "table_code": "T5",
+      "notes": "Order just placed — not yet sent to kitchen.",
+      "placed_at": "now-2h",
+      "items": [
+        {
+          "menu_item": "Mixed White Rice & Beans",
+          "quantity": 1,
+          "kitchen_status": "pending"
+        },
+        {
+          "menu_item": "Farmhouse Porridge",
+          "quantity": 2,
+          "kitchen_status": "pending"
+        }
+      ]
+    },
+    {
+      "ref": "ORD-120",
+      "outlet": "menu_1",
+      "status": "open",
+      "settlement_method": null,
+      "tab_label": "Lobby bar",
+      "notes": "Order just placed — not yet sent to kitchen.",
+      "placed_at": "now-1h",
+      "items": [
+        {
+          "menu_item": "Scramble Egg",
+          "quantity": 3,
+          "kitchen_status": "pending"
+        }
+      ]
+    }
+  ]
+}

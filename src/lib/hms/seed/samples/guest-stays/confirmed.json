@@ -1,0 +1,1208 @@
+{
+  "_meta": {
+    "description": "20 dummy confirmed stay fixtures for Pope JPII / firefly, generated for testing.",
+    "tenant_slug": "firefly",
+    "version": 1,
+    "status_filter": "confirmed"
+  },
+  "stays": [
+    {
+      "ref": "STAY-201",
+      "status": "confirmed",
+      "room_code": null,
+      "arrival": "now+60h",
+      "departure": "now+107h",
+      "nights": 2,
+      "adults": 2,
+      "children": [],
+      "purpose_of_visit": "business",
+      "primary_guest": {
+        "title": "Chief",
+        "first_name": "Tunde",
+        "last_name": "Bakare",
+        "nationality": "NG",
+        "id_type": "national_id",
+        "id_number": "NG-176756",
+        "id_expiry_date": "2027-09-14",
+        "date_of_birth": "1975-06-05",
+        "gender": "male",
+        "phone": "+2348010917649",
+        "email": "tunde.bakare1@example.com",
+        "preferred_channel": "whatsapp",
+        "tags": [],
+        "whatsapp": "+2348010917649"
+      },
+      "booking": {
+        "confirmation_code": "PJP-260801",
+        "folio_number": "F-PJP-260801",
+        "registration_number": "R-PJP-260801",
+        "rate_type": "promotional",
+        "rate_per_night": 58000,
+        "total_room_charges": 116000,
+        "settlement_method": "cash",
+        "market_segment": "transient",
+        "source": "website",
+        "guest_remarks": "First-time guest — will need orientation on arrival.",
+        "digital_key_issued": false,
+        "registration_card_signed": false
+      },
+      "companions": [
+        {
+          "relationship": "adult",
+          "guest": {
+            "title": "Mr",
+            "first_name": "Kwame",
+            "last_name": "Bakare",
+            "nationality": "NG",
+            "id_type": "national_id",
+            "id_number": "NG-SEED-201-A1",
+            "id_expiry_date": "9999-12-31",
+            "date_of_birth": "1980-10-16",
+            "gender": "male",
+            "phone": "+2348010917649",
+            "email": "tunde.bakare1+a1@example.com",
+            "whatsapp": "+2348010917649",
+            "preferred_channel": "whatsapp",
+            "tags": []
+          }
+        }
+      ]
+    },
+    {
+      "ref": "STAY-202",
+      "status": "confirmed",
+      "room_code": null,
+      "arrival": "now+60h",
+      "departure": "now+134h",
+      "nights": 3,
+      "adults": 2,
+      "children": [],
+      "purpose_of_visit": "business",
+      "primary_guest": {
+        "title": "Mrs",
+        "first_name": "Ifeoma",
+        "last_name": "Chukwu",
+        "nationality": "NG",
+        "id_type": "national_id",
+        "id_number": "NG-796414",
+        "id_expiry_date": "2027-01-24",
+        "date_of_birth": "1984-11-19",
+        "gender": "female",
+        "phone": "+2348020880771",
+        "email": "ifeoma.chukwu2@example.com",
+        "preferred_channel": "email",
+        "tags": []
+      },
+      "booking": {
+        "confirmation_code": "PJP-260802",
+        "folio_number": "F-PJP-260802",
+        "registration_number": "R-PJP-260802",
+        "rate_type": "promotional",
+        "rate_per_night": 52000,
+        "total_room_charges": 156000,
+        "settlement_method": "partial_credit",
+        "market_segment": "government",
+        "source": "travel_agent",
+        "guest_remarks": "First-time guest — will need orientation on arrival.",
+        "digital_key_issued": false,
+        "registration_card_signed": false,
+        "preauth_amount": 31000
+      },
+      "companions": [
+        {
+          "relationship": "adult",
+          "guest": {
+            "title": "Mr",
+            "first_name": "Amina",
+            "last_name": "Chukwu",
+            "nationality": "NG",
+            "id_type": "national_id",
+            "id_number": "NG-SEED-202-A1",
+            "id_expiry_date": "9999-12-31",
+            "date_of_birth": "1981-11-19",
+            "gender": "male",
+            "phone": "+2348020880771",
+            "email": "ifeoma.chukwu2+a1@example.com",
+            "whatsapp": null,
+            "preferred_channel": "email",
+            "tags": []
+          }
+        }
+      ]
+    },
+    {
+      "ref": "STAY-203",
+      "status": "confirmed",
+      "room_code": null,
+      "arrival": "now+12h",
+      "departure": "now+59h",
+      "nights": 2,
+      "adults": 2,
+      "children": [],
+      "purpose_of_visit": "business",
+      "primary_guest": {
+        "title": "Dr",
+        "first_name": "Yusuf",
+        "last_name": "Abdullahi",
+        "nationality": "NG",
+        "id_type": "national_id",
+        "id_number": "NG-620625",
+        "id_expiry_date": "2027-03-15",
+        "date_of_birth": "1990-09-09",
+        "gender": "male",
+        "phone": "+2348030774231",
+        "email": "yusuf.abdullahi3@example.com",
+        "preferred_channel": "phone",
+        "tags": []
+      },
+      "booking": {
+        "confirmation_code": "PJP-260803",
+        "folio_number": "F-PJP-260803",
+        "registration_number": "R-PJP-260803",
+        "rate_type": "corporate",
+        "rate_per_night": 70000,
+        "total_room_charges": 140000,
+        "settlement_method": "split",
+        "market_segment": "wholesale",
+        "source": "referral",
+        "guest_remarks": "Returning guest — same room type as last visit if available.",
+        "digital_key_issued": false,
+        "registration_card_signed": false
+      },
+      "companions": [
+        {
+          "relationship": "adult",
+          "guest": {
+            "title": "Mr",
+            "first_name": "Peter",
+            "last_name": "Abdullahi",
+            "nationality": "NG",
+            "id_type": "national_id",
+            "id_number": "NG-SEED-203-A1",
+            "id_expiry_date": "9999-12-31",
+            "date_of_birth": "1982-12-22",
+            "gender": "male",
+            "phone": "+2348030774231",
+            "email": "yusuf.abdullahi3+a1@example.com",
+            "whatsapp": null,
+            "preferred_channel": "phone",
+            "tags": []
+          }
+        }
+      ]
+    },
+    {
+      "ref": "STAY-204",
+      "status": "confirmed",
+      "room_code": null,
+      "arrival": "now+48h",
+      "departure": "now+144h",
+      "nights": 4,
+      "adults": 1,
+      "children": [
+        {
+          "age": 6
+        }
+      ],
+      "purpose_of_visit": "transit",
+      "primary_guest": {
+        "title": "Ms",
+        "first_name": "Blessing",
+        "last_name": "Eze",
+        "nationality": "NG",
+        "id_type": "national_id",
+        "id_number": "NG-291200",
+        "id_expiry_date": "2029-05-01",
+        "date_of_birth": "1974-07-18",
+        "gender": "female",
+        "phone": "+2348040690505",
+        "email": "blessing.eze4@example.com",
+        "preferred_channel": "phone",
+        "tags": [
+          "repeat"
+        ]
+      },
+      "booking": {
+        "confirmation_code": "PJP-260804",
+        "folio_number": "F-PJP-260804",
+        "registration_number": "R-PJP-260804",
+        "rate_type": "walk_in_bar",
+        "rate_per_night": 62000,
+        "total_room_charges": 248000,
+        "settlement_method": "direct_bill",
+        "market_segment": "group",
+        "source": "phone",
+        "guest_remarks": "Upcoming arrival — no special requests.",
+        "digital_key_issued": false,
+        "registration_card_signed": false,
+        "bill_to_account": "NORDIC-AID-NGO"
+      },
+      "companions": [
+        {
+          "relationship": "child",
+          "guest": {
+            "title": null,
+            "first_name": "Ada",
+            "last_name": "Eze",
+            "nationality": "NG",
+            "id_type": "national_id",
+            "id_number": "CHILD-2040",
+            "id_expiry_date": "9999-12-31",
+            "date_of_birth": "2020-07-07",
+            "gender": "female",
+            "phone": "+2348040690505",
+            "email": "blessing.eze4@example.com",
+            "preferred_channel": "phone",
+            "tags": []
+          }
+        }
+      ]
+    },
+    {
+      "ref": "STAY-205",
+      "status": "confirmed",
+      "room_code": null,
+      "arrival": "now+72h",
+      "departure": "now+194h",
+      "nights": 5,
+      "adults": 2,
+      "children": [],
+      "purpose_of_visit": "transit",
+      "primary_guest": {
+        "title": "Mr",
+        "first_name": "Kwame",
+        "last_name": "Asante",
+        "nationality": "GH",
+        "id_type": "passport",
+        "id_number": "GH-318904",
+        "id_expiry_date": "2030-03-04",
+        "date_of_birth": "1986-10-02",
+        "gender": "male",
+        "phone": "+233241504914",
+        "email": "kwame.asante5@example.com",
+        "preferred_channel": "sms",
+        "tags": [
+          "repeat",
+          "corporate"
+        ]
+      },
+      "booking": {
+        "confirmation_code": "PJP-260805",
+        "folio_number": "F-PJP-260805",
+        "registration_number": "R-PJP-260805",
+        "rate_type": "rack",
+        "rate_per_night": 45000,
+        "total_room_charges": 225000,
+        "settlement_method": "direct_bill",
+        "market_segment": "corporate",
+        "source": "website",
+        "guest_remarks": "Upcoming arrival — no special requests.",
+        "digital_key_issued": false,
+        "registration_card_signed": false,
+        "bill_to_account": "NORDIC-AID-NGO"
+      },
+      "companions": [
+        {
+          "relationship": "adult",
+          "guest": {
+            "title": "Mr",
+            "first_name": "Helen",
+            "last_name": "Asante",
+            "nationality": "GH",
+            "id_type": "national_id",
+            "id_number": "NG-SEED-205-A1",
+            "id_expiry_date": "9999-12-31",
+            "date_of_birth": "1984-02-28",
+            "gender": "male",
+            "phone": "+233241504914",
+            "email": "kwame.asante5+a1@example.com",
+            "whatsapp": null,
+            "preferred_channel": "sms",
+            "tags": []
+          }
+        }
+      ]
+    },
+    {
+      "ref": "STAY-206",
+      "status": "confirmed",
+      "room_code": null,
+      "arrival": "now+2h",
+      "departure": "now+26h",
+      "nights": 1,
+      "adults": 2,
+      "children": [],
+      "purpose_of_visit": "transit",
+      "primary_guest": {
+        "title": "Dr",
+        "first_name": "Amara",
+        "last_name": "Nwosu",
+        "nationality": "NG",
+        "id_type": "drivers_license",
+        "id_number": "NG-611776",
+        "id_expiry_date": "2030-08-16",
+        "date_of_birth": "1984-02-05",
+        "gender": "female",
+        "phone": "+2348050364265",
+        "email": "amara.nwosu6@example.com",
+        "preferred_channel": "whatsapp",
+        "tags": [
+          "corporate"
+        ],
+        "whatsapp": "+2348050364265"
+      },
+      "booking": {
+        "confirmation_code": "PJP-260806",
+        "folio_number": "F-PJP-260806",
+        "registration_number": "R-PJP-260806",
+        "rate_type": "rack",
+        "rate_per_night": 65000,
+        "total_room_charges": 65000,
+        "settlement_method": "pos",
+        "market_segment": "group",
+        "source": "ota",
+        "guest_remarks": "Requested late check-in.",
+        "digital_key_issued": false,
+        "registration_card_signed": false
+      },
+      "companions": [
+        {
+          "relationship": "adult",
+          "guest": {
+            "title": "Mr",
+            "first_name": "David",
+            "last_name": "Nwosu",
+            "nationality": "NG",
+            "id_type": "national_id",
+            "id_number": "NG-SEED-206-A1",
+            "id_expiry_date": "9999-12-31",
+            "date_of_birth": "1985-03-03",
+            "gender": "male",
+            "phone": "+2348050364265",
+            "email": "amara.nwosu6+a1@example.com",
+            "whatsapp": "+2348050364265",
+            "preferred_channel": "whatsapp",
+            "tags": []
+          }
+        }
+      ]
+    },
+    {
+      "ref": "STAY-207",
+      "status": "confirmed",
+      "room_code": null,
+      "arrival": "now+2h",
+      "departure": "now+51h",
+      "nights": 2,
+      "adults": 1,
+      "children": [],
+      "purpose_of_visit": "leisure",
+      "primary_guest": {
+        "title": "Mr",
+        "first_name": "David",
+        "last_name": "Mwangi",
+        "nationality": "KE",
+        "id_type": "passport",
+        "id_number": "KE-830015",
+        "id_expiry_date": "2029-09-12",
+        "date_of_birth": "1975-06-25",
+        "gender": "male",
+        "phone": "+254712794971",
+        "email": "david.mwangi7@example.com",
+        "preferred_channel": "whatsapp",
+        "tags": [],
+        "whatsapp": "+254712794971"
+      },
+      "booking": {
+        "confirmation_code": "PJP-260807",
+        "folio_number": "F-PJP-260807",
+        "registration_number": "R-PJP-260807",
+        "rate_type": "corporate",
+        "rate_per_night": 62000,
+        "total_room_charges": 124000,
+        "settlement_method": "direct_bill",
+        "market_segment": "wholesale",
+        "source": "referral",
+        "guest_remarks": "Requested late check-in.",
+        "digital_key_issued": false,
+        "registration_card_signed": false,
+        "bill_to_account": "CORP-ACME-LTD"
+      }
+    },
+    {
+      "ref": "STAY-208",
+      "status": "confirmed",
+      "room_code": null,
+      "arrival": "now+72h",
+      "departure": "now+122h",
+      "nights": 2,
+      "adults": 1,
+      "children": [
+        {
+          "age": 10
+        }
+      ],
+      "purpose_of_visit": "business",
+      "primary_guest": {
+        "title": "Dr",
+        "first_name": "Fatima",
+        "last_name": "Sule",
+        "nationality": "NG",
+        "id_type": "national_id",
+        "id_number": "NG-595179",
+        "id_expiry_date": "2029-04-23",
+        "date_of_birth": "1987-08-26",
+        "gender": "female",
+        "phone": "+2348060766514",
+        "email": "fatima.sule8@example.com",
+        "preferred_channel": "email",
+        "tags": []
+      },
+      "booking": {
+        "confirmation_code": "PJP-260808",
+        "folio_number": "F-PJP-260808",
+        "registration_number": "R-PJP-260808",
+        "rate_type": "walk_in_bar",
+        "rate_per_night": 52000,
+        "total_room_charges": 104000,
+        "settlement_method": "cash",
+        "market_segment": "corporate",
+        "source": "walk_in",
+        "guest_remarks": "Requested late check-in.",
+        "digital_key_issued": false,
+        "registration_card_signed": false
+      },
+      "companions": [
+        {
+          "relationship": "child",
+          "guest": {
+            "title": null,
+            "first_name": "Ada",
+            "last_name": "Sule",
+            "nationality": "NG",
+            "id_type": "national_id",
+            "id_number": "CHILD-2080",
+            "id_expiry_date": "9999-12-31",
+            "date_of_birth": "2016-07-07",
+            "gender": "female",
+            "phone": "+2348060766514",
+            "email": "fatima.sule8@example.com",
+            "preferred_channel": "email",
+            "tags": []
+          }
+        }
+      ]
+    },
+    {
+      "ref": "STAY-209",
+      "status": "confirmed",
+      "room_code": null,
+      "arrival": "now+8h",
+      "departure": "now+80h",
+      "nights": 3,
+      "adults": 2,
+      "children": [],
+      "purpose_of_visit": "transit",
+      "primary_guest": {
+        "title": "Barr",
+        "first_name": "James",
+        "last_name": "O'Connor",
+        "nationality": "IE",
+        "id_type": "passport",
+        "id_number": "IE-938487",
+        "id_expiry_date": "2032-02-27",
+        "date_of_birth": "1972-07-26",
+        "gender": "male",
+        "phone": "+353871881261",
+        "email": "james.oconnor9@example.com",
+        "preferred_channel": "email",
+        "tags": []
+      },
+      "booking": {
+        "confirmation_code": "PJP-260809",
+        "folio_number": "F-PJP-260809",
+        "registration_number": "R-PJP-260809",
+        "rate_type": "corporate",
+        "rate_per_night": 58000,
+        "total_room_charges": 174000,
+        "settlement_method": "card",
+        "market_segment": "government",
+        "source": "travel_agent",
+        "guest_remarks": "First-time guest — will need orientation on arrival.",
+        "digital_key_issued": false,
+        "registration_card_signed": false,
+        "preauth_amount": 35000
+      },
+      "companions": [
+        {
+          "relationship": "adult",
+          "guest": {
+            "title": "Mr",
+            "first_name": "Catherine",
+            "last_name": "O'Connor",
+            "nationality": "IE",
+            "id_type": "national_id",
+            "id_number": "NG-SEED-209-A1",
+            "id_expiry_date": "9999-12-31",
+            "date_of_birth": "1988-06-12",
+            "gender": "male",
+            "phone": "+353871881261",
+            "email": "james.oconnor9+a1@example.com",
+            "whatsapp": null,
+            "preferred_channel": "email",
+            "tags": []
+          }
+        }
+      ]
+    },
+    {
+      "ref": "STAY-210",
+      "status": "confirmed",
+      "room_code": null,
+      "arrival": "now+18h",
+      "departure": "now+116h",
+      "nights": 4,
+      "adults": 1,
+      "children": [],
+      "purpose_of_visit": "transit",
+      "primary_guest": {
+        "title": "Ms",
+        "first_name": "Grace",
+        "last_name": "Adeyemi",
+        "nationality": "NG",
+        "id_type": "national_id",
+        "id_number": "NG-945678",
+        "id_expiry_date": "2032-03-20",
+        "date_of_birth": "1995-11-12",
+        "gender": "female",
+        "phone": "+2348070133210",
+        "email": "grace.adeyemi10@example.com",
+        "preferred_channel": "email",
+        "tags": [
+          "repeat"
+        ]
+      },
+      "booking": {
+        "confirmation_code": "PJP-260810",
+        "folio_number": "F-PJP-260810",
+        "registration_number": "R-PJP-260810",
+        "rate_type": "corporate",
+        "rate_per_night": 62000,
+        "total_room_charges": 248000,
+        "settlement_method": "direct_bill",
+        "market_segment": "corporate",
+        "source": "walk_in",
+        "guest_remarks": "Upcoming arrival — no special requests.",
+        "digital_key_issued": false,
+        "registration_card_signed": false,
+        "bill_to_account": "CORP-ACME-LTD"
+      }
+    },
+    {
+      "ref": "STAY-211",
+      "status": "confirmed",
+      "room_code": null,
+      "arrival": "now+4h",
+      "departure": "now+124h",
+      "nights": 5,
+      "adults": 2,
+      "children": [],
+      "purpose_of_visit": "leisure",
+      "primary_guest": {
+        "title": "Dr",
+        "first_name": "Musa",
+        "last_name": "Ibrahim",
+        "nationality": "NG",
+        "id_type": "national_id",
+        "id_number": "NG-625506",
+        "id_expiry_date": "2028-10-11",
+        "date_of_birth": "1981-09-14",
+        "gender": "male",
+        "phone": "+2348080866287",
+        "email": "musa.ibrahim11@example.com",
+        "preferred_channel": "phone",
+        "tags": [
+          "repeat"
+        ]
+      },
+      "booking": {
+        "confirmation_code": "PJP-260811",
+        "folio_number": "F-PJP-260811",
+        "registration_number": "R-PJP-260811",
+        "rate_type": "corporate",
+        "rate_per_night": 45000,
+        "total_room_charges": 225000,
+        "settlement_method": "partial_credit",
+        "market_segment": "group",
+        "source": "ota",
+        "guest_remarks": "Returning guest — same room type as last visit if available.",
+        "digital_key_issued": false,
+        "registration_card_signed": false,
+        "preauth_amount": 112000
+      },
+      "companions": [
+        {
+          "relationship": "adult",
+          "guest": {
+            "title": "Mr",
+            "first_name": "Ngozi",
+            "last_name": "Ibrahim",
+            "nationality": "NG",
+            "id_type": "national_id",
+            "id_number": "NG-SEED-211-A1",
+            "id_expiry_date": "9999-12-31",
+            "date_of_birth": "1990-08-18",
+            "gender": "male",
+            "phone": "+2348080866287",
+            "email": "musa.ibrahim11+a1@example.com",
+            "whatsapp": null,
+            "preferred_channel": "phone",
+            "tags": []
+          }
+        }
+      ]
+    },
+    {
+      "ref": "STAY-212",
+      "status": "confirmed",
+      "room_code": null,
+      "arrival": "now+30h",
+      "departure": "now+77h",
+      "nights": 2,
+      "adults": 2,
+      "children": [],
+      "purpose_of_visit": "leisure",
+      "primary_guest": {
+        "title": "Miss",
+        "first_name": "Ngozi",
+        "last_name": "Okafor",
+        "nationality": "NG",
+        "id_type": "drivers_license",
+        "id_number": "NG-860420",
+        "id_expiry_date": "2027-09-02",
+        "date_of_birth": "1985-11-17",
+        "gender": "female",
+        "phone": "+2348090004124",
+        "email": "ngozi.okafor12@example.com",
+        "preferred_channel": "phone",
+        "tags": [
+          "repeat"
+        ]
+      },
+      "booking": {
+        "confirmation_code": "PJP-260812",
+        "folio_number": "F-PJP-260812",
+        "registration_number": "R-PJP-260812",
+        "rate_type": "promotional",
+        "rate_per_night": 70000,
+        "total_room_charges": 140000,
+        "settlement_method": "cash",
+        "market_segment": "wholesale",
+        "source": "walk_in",
+        "guest_remarks": "Requested late check-in.",
+        "digital_key_issued": false,
+        "registration_card_signed": false
+      },
+      "companions": [
+        {
+          "relationship": "adult",
+          "guest": {
+            "title": "Mr",
+            "first_name": "Emeka",
+            "last_name": "Okafor",
+            "nationality": "NG",
+            "id_type": "national_id",
+            "id_number": "NG-SEED-212-A1",
+            "id_expiry_date": "9999-12-31",
+            "date_of_birth": "1991-09-21",
+            "gender": "male",
+            "phone": "+2348090004124",
+            "email": "ngozi.okafor12+a1@example.com",
+            "whatsapp": null,
+            "preferred_channel": "phone",
+            "tags": []
+          }
+        }
+      ]
+    },
+    {
+      "ref": "STAY-213",
+      "status": "confirmed",
+      "room_code": null,
+      "arrival": "now+10h",
+      "departure": "now+33h",
+      "nights": 1,
+      "adults": 2,
+      "children": [],
+      "purpose_of_visit": "leisure",
+      "primary_guest": {
+        "title": "Mr",
+        "first_name": "Peter",
+        "last_name": "Novak",
+        "nationality": "CZ",
+        "id_type": "passport",
+        "id_number": "CZ-630110",
+        "id_expiry_date": "2031-09-07",
+        "date_of_birth": "1982-08-17",
+        "gender": "male",
+        "phone": "+420601796911",
+        "email": "peter.novak13@example.com",
+        "preferred_channel": "email",
+        "tags": []
+      },
+      "booking": {
+        "confirmation_code": "PJP-260813",
+        "folio_number": "F-PJP-260813",
+        "registration_number": "R-PJP-260813",
+        "rate_type": "promotional",
+        "rate_per_night": 62000,
+        "total_room_charges": 62000,
+        "settlement_method": "card",
+        "market_segment": "wholesale",
+        "source": "referral",
+        "guest_remarks": "Requested late check-in.",
+        "digital_key_issued": false,
+        "registration_card_signed": false,
+        "preauth_amount": 19000
+      },
+      "companions": [
+        {
+          "relationship": "adult",
+          "guest": {
+            "title": "Mr",
+            "first_name": "Fatima",
+            "last_name": "Novak",
+            "nationality": "CZ",
+            "id_type": "national_id",
+            "id_number": "NG-SEED-213-A1",
+            "id_expiry_date": "9999-12-31",
+            "date_of_birth": "1992-10-24",
+            "gender": "male",
+            "phone": "+420601796911",
+            "email": "peter.novak13+a1@example.com",
+            "whatsapp": null,
+            "preferred_channel": "email",
+            "tags": []
+          }
+        }
+      ]
+    },
+    {
+      "ref": "STAY-214",
+      "status": "confirmed",
+      "room_code": null,
+      "arrival": "now+18h",
+      "departure": "now+44h",
+      "nights": 1,
+      "adults": 2,
+      "children": [],
+      "purpose_of_visit": "transit",
+      "primary_guest": {
+        "title": "Ms",
+        "first_name": "Amina",
+        "last_name": "Bello",
+        "nationality": "NG",
+        "id_type": "national_id",
+        "id_number": "NG-228293",
+        "id_expiry_date": "2028-12-21",
+        "date_of_birth": "1988-03-09",
+        "gender": "female",
+        "phone": "+2348100449146",
+        "email": "amina.bello14@example.com",
+        "preferred_channel": "email",
+        "tags": []
+      },
+      "booking": {
+        "confirmation_code": "PJP-260814",
+        "folio_number": "F-PJP-260814",
+        "registration_number": "R-PJP-260814",
+        "rate_type": "corporate",
+        "rate_per_night": 58000,
+        "total_room_charges": 58000,
+        "settlement_method": "card",
+        "market_segment": "transient",
+        "source": "ota",
+        "guest_remarks": "Returning guest — same room type as last visit if available.",
+        "digital_key_issued": false,
+        "registration_card_signed": false,
+        "preauth_amount": 12000
+      },
+      "companions": [
+        {
+          "relationship": "adult",
+          "guest": {
+            "title": "Mr",
+            "first_name": "Ibrahim",
+            "last_name": "Bello",
+            "nationality": "NG",
+            "id_type": "national_id",
+            "id_number": "NG-SEED-214-A1",
+            "id_expiry_date": "9999-12-31",
+            "date_of_birth": "1993-11-27",
+            "gender": "male",
+            "phone": "+2348100449146",
+            "email": "amina.bello14+a1@example.com",
+            "whatsapp": null,
+            "preferred_channel": "email",
+            "tags": []
+          }
+        }
+      ]
+    },
+    {
+      "ref": "STAY-215",
+      "status": "confirmed",
+      "room_code": null,
+      "arrival": "now+8h",
+      "departure": "now+58h",
+      "nights": 2,
+      "adults": 2,
+      "children": [],
+      "purpose_of_visit": "leisure",
+      "primary_guest": {
+        "title": "Chief",
+        "first_name": "Chukwuemeka",
+        "last_name": "Obi",
+        "nationality": "NG",
+        "id_type": "national_id",
+        "id_number": "NG-120429",
+        "id_expiry_date": "2029-09-15",
+        "date_of_birth": "1993-12-01",
+        "gender": "male",
+        "phone": "+2348110205254",
+        "email": "chukwuemeka.obi15@example.com",
+        "preferred_channel": "whatsapp",
+        "tags": [],
+        "whatsapp": "+2348110205254"
+      },
+      "booking": {
+        "confirmation_code": "PJP-260815",
+        "folio_number": "F-PJP-260815",
+        "registration_number": "R-PJP-260815",
+        "rate_type": "promotional",
+        "rate_per_night": 52000,
+        "total_room_charges": 104000,
+        "settlement_method": "direct_bill",
+        "market_segment": "wholesale",
+        "source": "referral",
+        "guest_remarks": "Upcoming arrival — no special requests.",
+        "digital_key_issued": false,
+        "registration_card_signed": false,
+        "bill_to_account": "LAGOS-ARCH-RETREAT"
+      },
+      "companions": [
+        {
+          "relationship": "adult",
+          "guest": {
+            "title": "Mr",
+            "first_name": "Grace",
+            "last_name": "Obi",
+            "nationality": "NG",
+            "id_type": "national_id",
+            "id_number": "NG-SEED-215-A1",
+            "id_expiry_date": "9999-12-31",
+            "date_of_birth": "1994-12-02",
+            "gender": "male",
+            "phone": "+2348110205254",
+            "email": "chukwuemeka.obi15+a1@example.com",
+            "whatsapp": "+2348110205254",
+            "preferred_channel": "whatsapp",
+            "tags": []
+          }
+        }
+      ]
+    },
+    {
+      "ref": "STAY-216",
+      "status": "confirmed",
+      "room_code": null,
+      "arrival": "now+4h",
+      "departure": "now+29h",
+      "nights": 1,
+      "adults": 2,
+      "children": [],
+      "purpose_of_visit": "transit",
+      "primary_guest": {
+        "title": "Dr",
+        "first_name": "Linda",
+        "last_name": "Ferreira",
+        "nationality": "PT",
+        "id_type": "passport",
+        "id_number": "PT-808809",
+        "id_expiry_date": "2029-07-05",
+        "date_of_birth": "1999-09-19",
+        "gender": "female",
+        "phone": "+351912792490",
+        "email": "linda.ferreira16@example.com",
+        "preferred_channel": "phone",
+        "tags": []
+      },
+      "booking": {
+        "confirmation_code": "PJP-260816",
+        "folio_number": "F-PJP-260816",
+        "registration_number": "R-PJP-260816",
+        "rate_type": "promotional",
+        "rate_per_night": 65000,
+        "total_room_charges": 65000,
+        "settlement_method": "pos",
+        "market_segment": "transient",
+        "source": "referral",
+        "guest_remarks": "Upcoming arrival — no special requests.",
+        "digital_key_issued": false,
+        "registration_card_signed": false
+      },
+      "companions": [
+        {
+          "relationship": "adult",
+          "guest": {
+            "title": "Mr",
+            "first_name": "Kwame",
+            "last_name": "Ferreira",
+            "nationality": "PT",
+            "id_type": "national_id",
+            "id_number": "NG-SEED-216-A1",
+            "id_expiry_date": "9999-12-31",
+            "date_of_birth": "1995-01-05",
+            "gender": "male",
+            "phone": "+351912792490",
+            "email": "linda.ferreira16+a1@example.com",
+            "whatsapp": null,
+            "preferred_channel": "phone",
+            "tags": []
+          }
+        }
+      ]
+    },
+    {
+      "ref": "STAY-217",
+      "status": "confirmed",
+      "room_code": null,
+      "arrival": "now+6h",
+      "departure": "now+101h",
+      "nights": 4,
+      "adults": 2,
+      "children": [],
+      "purpose_of_visit": "leisure",
+      "primary_guest": {
+        "title": "Mr",
+        "first_name": "Samuel",
+        "last_name": "Owolabi",
+        "nationality": "NG",
+        "id_type": "national_id",
+        "id_number": "NG-169858",
+        "id_expiry_date": "2029-02-15",
+        "date_of_birth": "1965-06-18",
+        "gender": "male",
+        "phone": "+2348120840569",
+        "email": "samuel.owolabi17@example.com",
+        "preferred_channel": "whatsapp",
+        "tags": [
+          "repeat"
+        ],
+        "whatsapp": "+2348120840569"
+      },
+      "booking": {
+        "confirmation_code": "PJP-260817",
+        "folio_number": "F-PJP-260817",
+        "registration_number": "R-PJP-260817",
+        "rate_type": "promotional",
+        "rate_per_night": 52000,
+        "total_room_charges": 208000,
+        "settlement_method": "direct_bill",
+        "market_segment": "corporate",
+        "source": "walk_in",
+        "guest_remarks": "Requested late check-in.",
+        "digital_key_issued": false,
+        "registration_card_signed": false,
+        "bill_to_account": "LAGOS-ARCH-RETREAT"
+      },
+      "companions": [
+        {
+          "relationship": "adult",
+          "guest": {
+            "title": "Mr",
+            "first_name": "Amina",
+            "last_name": "Owolabi",
+            "nationality": "NG",
+            "id_type": "national_id",
+            "id_number": "NG-SEED-217-A1",
+            "id_expiry_date": "9999-12-31",
+            "date_of_birth": "1996-02-08",
+            "gender": "male",
+            "phone": "+2348120840569",
+            "email": "samuel.owolabi17+a1@example.com",
+            "whatsapp": "+2348120840569",
+            "preferred_channel": "whatsapp",
+            "tags": []
+          }
+        }
+      ]
+    },
+    {
+      "ref": "STAY-218",
+      "status": "confirmed",
+      "room_code": null,
+      "arrival": "now+10h",
+      "departure": "now+34h",
+      "nights": 1,
+      "adults": 1,
+      "children": [],
+      "purpose_of_visit": "business",
+      "primary_guest": {
+        "title": "Dr",
+        "first_name": "Chiamaka",
+        "last_name": "Nnadi",
+        "nationality": "NG",
+        "id_type": "national_id",
+        "id_number": "NG-286541",
+        "id_expiry_date": "2029-06-26",
+        "date_of_birth": "1966-05-02",
+        "gender": "female",
+        "phone": "+2348130556884",
+        "email": "chiamaka.nnadi18@example.com",
+        "preferred_channel": "phone",
+        "tags": []
+      },
+      "booking": {
+        "confirmation_code": "PJP-260818",
+        "folio_number": "F-PJP-260818",
+        "registration_number": "R-PJP-260818",
+        "rate_type": "rack",
+        "rate_per_night": 45000,
+        "total_room_charges": 45000,
+        "settlement_method": "partial_credit",
+        "market_segment": "wholesale",
+        "source": "website",
+        "guest_remarks": "Requested late check-in.",
+        "digital_key_issued": false,
+        "registration_card_signed": false,
+        "preauth_amount": 22000
+      }
+    },
+    {
+      "ref": "STAY-219",
+      "status": "confirmed",
+      "room_code": null,
+      "arrival": "now+8h",
+      "departure": "now+103h",
+      "nights": 4,
+      "adults": 2,
+      "children": [],
+      "purpose_of_visit": "leisure",
+      "primary_guest": {
+        "title": "Barr",
+        "first_name": "Ahmed",
+        "last_name": "Hassan",
+        "nationality": "EG",
+        "id_type": "passport",
+        "id_number": "EG-325633",
+        "id_expiry_date": "2028-06-07",
+        "date_of_birth": "1973-07-12",
+        "gender": "male",
+        "phone": "+201002875157",
+        "email": "ahmed.hassan19@example.com",
+        "preferred_channel": "sms",
+        "tags": []
+      },
+      "booking": {
+        "confirmation_code": "PJP-260819",
+        "folio_number": "F-PJP-260819",
+        "registration_number": "R-PJP-260819",
+        "rate_type": "rack",
+        "rate_per_night": 70000,
+        "total_room_charges": 280000,
+        "settlement_method": "card",
+        "market_segment": "transient",
+        "source": "walk_in",
+        "guest_remarks": "First-time guest — will need orientation on arrival.",
+        "digital_key_issued": false,
+        "registration_card_signed": false,
+        "preauth_amount": 84000
+      },
+      "companions": [
+        {
+          "relationship": "adult",
+          "guest": {
+            "title": "Mr",
+            "first_name": "Zara",
+            "last_name": "Hassan",
+            "nationality": "EG",
+            "id_type": "national_id",
+            "id_number": "NG-SEED-219-A1",
+            "id_expiry_date": "9999-12-31",
+            "date_of_birth": "1998-04-14",
+            "gender": "male",
+            "phone": "+201002875157",
+            "email": "ahmed.hassan19+a1@example.com",
+            "whatsapp": null,
+            "preferred_channel": "sms",
+            "tags": []
+          }
+        }
+      ]
+    },
+    {
+      "ref": "STAY-220",
+      "status": "confirmed",
+      "room_code": null,
+      "arrival": "now+2h",
+      "departure": "now+28h",
+      "nights": 1,
+      "adults": 2,
+      "children": [],
+      "purpose_of_visit": "leisure",
+      "primary_guest": {
+        "title": "Dr",
+        "first_name": "Rebecca",
+        "last_name": "Johnson",
+        "nationality": "US",
+        "id_type": "passport",
+        "id_number": "US-294355",
+        "id_expiry_date": "2028-05-15",
+        "date_of_birth": "1965-05-12",
+        "gender": "female",
+        "phone": "+14155627865",
+        "email": "rebecca.johnson20@example.com",
+        "preferred_channel": "phone",
+        "tags": [
+          "corporate"
+        ]
+      },
+      "booking": {
+        "confirmation_code": "PJP-260820",
+        "folio_number": "F-PJP-260820",
+        "registration_number": "R-PJP-260820",
+        "rate_type": "walk_in_bar",
+        "rate_per_night": 62000,
+        "total_room_charges": 62000,
+        "settlement_method": "pos",
+        "market_segment": "corporate",
+        "source": "walk_in",
+        "guest_remarks": "First-time guest — will need orientation on arrival.",
+        "digital_key_issued": false,
+        "registration_card_signed": false
+      },
+      "companions": [
+        {
+          "relationship": "adult",
+          "guest": {
+            "title": "Mr",
+            "first_name": "Helen",
+            "last_name": "Johnson",
+            "nationality": "US",
+            "id_type": "national_id",
+            "id_number": "NG-SEED-220-A1",
+            "id_expiry_date": "9999-12-31",
+            "date_of_birth": "1999-05-17",
+            "gender": "male",
+            "phone": "+14155627865",
+            "email": "rebecca.johnson20+a1@example.com",
+            "whatsapp": null,
+            "preferred_channel": "phone",
+            "tags": []
+          }
+        }
+      ]
+    }
+  ]
+}

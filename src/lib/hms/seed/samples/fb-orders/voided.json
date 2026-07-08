@@ -1,0 +1,471 @@
+{
+  "_meta": {
+    "description": "20 dummy F&B order fixtures with status=voided for Pope JPII / firefly, generated for testing.",
+    "tenant_slug": "firefly",
+    "version": 1,
+    "status_filter": "voided"
+  },
+  "orders": [
+    {
+      "ref": "ORD-501",
+      "outlet": "menu_2",
+      "status": "voided",
+      "settlement_method": null,
+      "table_code": "T4",
+      "notes": "Guest changed order before kitchen started prep.",
+      "placed_at": "now-4h",
+      "items": [
+        {
+          "menu_item": "Potato Casserole",
+          "quantity": 1,
+          "kitchen_status": "voided",
+          "notes": "No pepper"
+        }
+      ]
+    },
+    {
+      "ref": "ORD-502",
+      "outlet": "menu_2",
+      "status": "voided",
+      "settlement_method": null,
+      "table_code": "T4",
+      "notes": "Charge to room 106 — Peter Novak (voided) — Kitchen out of stock — item unavailable, order voided.",
+      "placed_at": "now-6h",
+      "items": [
+        {
+          "menu_item": "Plain / Jollof Spaghetti",
+          "quantity": 3,
+          "kitchen_status": "voided"
+        },
+        {
+          "menu_item": "Chicken",
+          "quantity": 1,
+          "kitchen_status": "voided"
+        }
+      ],
+      "reservation_ref": "STAY-113",
+      "confirmation_code": "PJP-260723"
+    },
+    {
+      "ref": "ORD-503",
+      "outlet": "menu_2",
+      "status": "voided",
+      "settlement_method": null,
+      "table_code": "T7",
+      "notes": "Wrong table/tab assigned — reopened under correct one.",
+      "placed_at": "now-3h",
+      "items": [
+        {
+          "menu_item": "Grilled Chicken",
+          "quantity": 1,
+          "kitchen_status": "voided",
+          "notes": "No pepper"
+        },
+        {
+          "menu_item": "Potato Casserole",
+          "quantity": 1,
+          "kitchen_status": "voided"
+        }
+      ]
+    },
+    {
+      "ref": "ORD-504",
+      "outlet": "menu_2",
+      "status": "voided",
+      "settlement_method": null,
+      "table_code": "T6",
+      "notes": "Kitchen out of stock — item unavailable, order voided.",
+      "placed_at": "now-8h",
+      "sent_to_kitchen_at": "now-8h",
+      "items": [
+        {
+          "menu_item": "Chicken",
+          "quantity": 2,
+          "kitchen_status": "voided"
+        },
+        {
+          "menu_item": "Potato Casserole",
+          "quantity": 2,
+          "kitchen_status": "voided"
+        },
+        {
+          "menu_item": "Basmati Rice",
+          "quantity": 1,
+          "kitchen_status": "voided",
+          "notes": "Less oil"
+        }
+      ]
+    },
+    {
+      "ref": "ORD-505",
+      "outlet": "menu_2",
+      "status": "voided",
+      "settlement_method": null,
+      "table_code": "T3",
+      "notes": "Order served then voided — guest walked out before order was served.",
+      "placed_at": "now-4h",
+      "sent_to_kitchen_at": "now-4h",
+      "kitchen_ready_at": "now-3h",
+      "served_at": "now-3h",
+      "items": [
+        {
+          "menu_item": "Okro / Ogbono / Egusi Soup",
+          "quantity": 2,
+          "kitchen_status": "voided"
+        },
+        {
+          "menu_item": "Fried Rice",
+          "quantity": 3,
+          "kitchen_status": "voided"
+        },
+        {
+          "menu_item": "Chicken",
+          "quantity": 3,
+          "kitchen_status": "voided"
+        }
+      ]
+    },
+    {
+      "ref": "ORD-506",
+      "outlet": "menu_2",
+      "status": "voided",
+      "settlement_method": null,
+      "table_code": "T2",
+      "notes": "Order served then voided — wrong table/tab assigned — reopened under correct one.",
+      "placed_at": "now-4h",
+      "sent_to_kitchen_at": "now-4h",
+      "kitchen_ready_at": "now-3h",
+      "served_at": "now-3h",
+      "items": [
+        {
+          "menu_item": "Beans Porridge",
+          "quantity": 1,
+          "kitchen_status": "voided"
+        },
+        {
+          "menu_item": "Tomato / Egg Sauce",
+          "quantity": 2,
+          "kitchen_status": "voided"
+        },
+        {
+          "menu_item": "Bitterleaf / Ofe Owerri",
+          "quantity": 3,
+          "kitchen_status": "voided"
+        }
+      ]
+    },
+    {
+      "ref": "ORD-507",
+      "outlet": "menu_2",
+      "status": "voided",
+      "settlement_method": null,
+      "table_code": "T1",
+      "notes": "Charge to room 214 — Samuel Owolabi (voided) — Guest changed order before kitchen started prep.",
+      "placed_at": "now-4h",
+      "sent_to_kitchen_at": "now-4h",
+      "items": [
+        {
+          "menu_item": "Croaker Fish",
+          "quantity": 1,
+          "kitchen_status": "voided"
+        }
+      ],
+      "reservation_ref": "STAY-117",
+      "confirmation_code": "PJP-260727"
+    },
+    {
+      "ref": "ORD-508",
+      "outlet": "menu_2",
+      "status": "voided",
+      "settlement_method": null,
+      "table_code": "T4",
+      "notes": "Charge to room 308 — Ahmed Hassan (voided) — Order served then voided — duplicate ticket entered in error by server.",
+      "placed_at": "now-4h",
+      "sent_to_kitchen_at": "now-4h",
+      "kitchen_ready_at": "now-3h",
+      "served_at": "now-3h",
+      "items": [
+        {
+          "menu_item": "Afang / Vegetable / White Soup",
+          "quantity": 2,
+          "kitchen_status": "voided",
+          "notes": "No pepper"
+        },
+        {
+          "menu_item": "Boiled Beans",
+          "quantity": 1,
+          "kitchen_status": "voided"
+        },
+        {
+          "menu_item": "Grilled Chicken",
+          "quantity": 2,
+          "kitchen_status": "voided"
+        }
+      ],
+      "reservation_ref": "STAY-119",
+      "confirmation_code": "PJP-260729"
+    },
+    {
+      "ref": "ORD-509",
+      "outlet": "menu_2",
+      "status": "voided",
+      "settlement_method": null,
+      "table_code": "T6",
+      "notes": "Charge to room 106 — Peter Novak (voided) — Order served then voided — kitchen out of stock — item unavailable, order voided.",
+      "placed_at": "now-2h",
+      "sent_to_kitchen_at": "now-2h",
+      "kitchen_ready_at": "now-1h",
+      "served_at": "now-1h",
+      "items": [
+        {
+          "menu_item": "Beans Porridge",
+          "quantity": 3,
+          "kitchen_status": "voided",
+          "notes": "Well done"
+        }
+      ],
+      "reservation_ref": "STAY-113",
+      "confirmation_code": "PJP-260723"
+    },
+    {
+      "ref": "ORD-510",
+      "outlet": "menu_2",
+      "status": "voided",
+      "settlement_method": null,
+      "table_code": "T4",
+      "notes": "Order served then voided — guest walked out before order was served.",
+      "placed_at": "now-8h",
+      "sent_to_kitchen_at": "now-8h",
+      "kitchen_ready_at": "now-7h",
+      "served_at": "now-7h",
+      "items": [
+        {
+          "menu_item": "Beans Porridge",
+          "quantity": 3,
+          "kitchen_status": "voided",
+          "notes": "Less oil"
+        },
+        {
+          "menu_item": "Croaker Fish",
+          "quantity": 1,
+          "kitchen_status": "voided"
+        }
+      ]
+    },
+    {
+      "ref": "ORD-511",
+      "outlet": "menu_2",
+      "status": "voided",
+      "settlement_method": null,
+      "table_code": "T8",
+      "notes": "Charge to room 205 — Amina Bello (voided) — Order served then voided — kitchen out of stock — item unavailable, order voided.",
+      "placed_at": "now-12h",
+      "sent_to_kitchen_at": "now-12h",
+      "kitchen_ready_at": "now-11h",
+      "served_at": "now-11h",
+      "items": [
+        {
+          "menu_item": "Greek Salad",
+          "quantity": 2,
+          "kitchen_status": "voided"
+        }
+      ],
+      "reservation_ref": "STAY-114",
+      "confirmation_code": "PJP-260724"
+    },
+    {
+      "ref": "ORD-512",
+      "outlet": "menu_2",
+      "status": "voided",
+      "settlement_method": null,
+      "table_code": "T1",
+      "notes": "Charge to room 214 — Samuel Owolabi (voided) — Guest walked out before order was served.",
+      "placed_at": "now-3h",
+      "sent_to_kitchen_at": "now-3h",
+      "items": [
+        {
+          "menu_item": "Beef Kebeb",
+          "quantity": 2,
+          "kitchen_status": "voided"
+        }
+      ],
+      "reservation_ref": "STAY-117",
+      "confirmation_code": "PJP-260727"
+    },
+    {
+      "ref": "ORD-513",
+      "outlet": "menu_2",
+      "status": "voided",
+      "settlement_method": null,
+      "table_code": "T1",
+      "notes": "Duplicate ticket entered in error by server.",
+      "placed_at": "now-3h",
+      "items": [
+        {
+          "menu_item": "Grilled Chicken",
+          "quantity": 1,
+          "kitchen_status": "voided"
+        },
+        {
+          "menu_item": "Dry Fish",
+          "quantity": 2,
+          "kitchen_status": "voided"
+        }
+      ]
+    },
+    {
+      "ref": "ORD-514",
+      "outlet": "menu_2",
+      "status": "voided",
+      "settlement_method": null,
+      "table_code": "T6",
+      "notes": "Kitchen out of stock — item unavailable, order voided.",
+      "placed_at": "now-8h",
+      "sent_to_kitchen_at": "now-8h",
+      "items": [
+        {
+          "menu_item": "Beef Kebeb",
+          "quantity": 1,
+          "kitchen_status": "voided"
+        }
+      ]
+    },
+    {
+      "ref": "ORD-515",
+      "outlet": "menu_2",
+      "status": "voided",
+      "settlement_method": null,
+      "table_code": "T2",
+      "notes": "Wrong table/tab assigned — reopened under correct one.",
+      "placed_at": "now-4h",
+      "items": [
+        {
+          "menu_item": "Yam Porridge",
+          "quantity": 1,
+          "kitchen_status": "voided"
+        }
+      ]
+    },
+    {
+      "ref": "ORD-516",
+      "outlet": "menu_2",
+      "status": "voided",
+      "settlement_method": null,
+      "table_code": "T7",
+      "notes": "Kitchen out of stock — item unavailable, order voided.",
+      "placed_at": "now-3h",
+      "items": [
+        {
+          "menu_item": "Pounded Yam",
+          "quantity": 2,
+          "kitchen_status": "voided"
+        }
+      ]
+    },
+    {
+      "ref": "ORD-517",
+      "outlet": "menu_2",
+      "status": "voided",
+      "settlement_method": null,
+      "table_code": "T6",
+      "notes": "Order served then voided — kitchen out of stock — item unavailable, order voided.",
+      "placed_at": "now-3h",
+      "sent_to_kitchen_at": "now-3h",
+      "kitchen_ready_at": "now-2h",
+      "served_at": "now-2h",
+      "items": [
+        {
+          "menu_item": "Farmhouse Porridge",
+          "quantity": 3,
+          "kitchen_status": "voided"
+        },
+        {
+          "menu_item": "Fried Rice",
+          "quantity": 2,
+          "kitchen_status": "voided"
+        },
+        {
+          "menu_item": "Dry Fish",
+          "quantity": 1,
+          "kitchen_status": "voided"
+        }
+      ]
+    },
+    {
+      "ref": "ORD-518",
+      "outlet": "menu_1",
+      "status": "voided",
+      "settlement_method": null,
+      "tab_label": "Lobby bar",
+      "notes": "Wrong table/tab assigned — reopened under correct one.",
+      "placed_at": "now-2h",
+      "items": [
+        {
+          "menu_item": "Scramble Egg",
+          "quantity": 3,
+          "kitchen_status": "voided"
+        },
+        {
+          "menu_item": "Burger",
+          "quantity": 1,
+          "kitchen_status": "voided"
+        },
+        {
+          "menu_item": "Tiger",
+          "quantity": 1,
+          "kitchen_status": "voided"
+        }
+      ]
+    },
+    {
+      "ref": "ORD-519",
+      "outlet": "menu_2",
+      "status": "voided",
+      "settlement_method": null,
+      "table_code": "T7",
+      "notes": "Charge to room 210 — Linda Ferreira (voided) — Wrong table/tab assigned — reopened under correct one.",
+      "placed_at": "now-6h",
+      "items": [
+        {
+          "menu_item": "Grilled Chicken",
+          "quantity": 3,
+          "kitchen_status": "voided"
+        }
+      ],
+      "reservation_ref": "STAY-116",
+      "confirmation_code": "PJP-260726"
+    },
+    {
+      "ref": "ORD-520",
+      "outlet": "menu_2",
+      "status": "voided",
+      "settlement_method": null,
+      "table_code": "T1",
+      "notes": "Charge to room 117 — Tunde Bakare (voided) — Order served then voided — guest walked out before order was served.",
+      "placed_at": "now-6h",
+      "sent_to_kitchen_at": "now-6h",
+      "kitchen_ready_at": "now-5h",
+      "served_at": "now-5h",
+      "items": [
+        {
+          "menu_item": "Yam Porridge",
+          "quantity": 2,
+          "kitchen_status": "voided"
+        },
+        {
+          "menu_item": "Ice Fish",
+          "quantity": 3,
+          "kitchen_status": "voided"
+        },
+        {
+          "menu_item": "Afang / Vegetable / White Soup",
+          "quantity": 3,
+          "kitchen_status": "voided",
+          "notes": "No pepper"
+        }
+      ],
+      "reservation_ref": "STAY-101",
+      "confirmation_code": "PJP-260711"
+    }
+  ]
+}

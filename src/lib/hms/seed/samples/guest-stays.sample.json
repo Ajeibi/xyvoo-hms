@@ -1,0 +1,451 @@
+{
+  "_meta": {
+    "description": "Sample guest + room stay fixtures for Pope JPII / firefly. Duplicate entries under stays[] to build bulk data. A future seed loader will resolve room_code → room_unit_id and relative dates → ISO timestamps.",
+    "tenant_slug": "firefly",
+    "version": 1,
+    "allowed_values": {
+      "status": ["confirmed", "checked_in", "checked_out", "cancelled", "no_show"],
+      "purpose_of_visit": ["leisure", "business", "transit"],
+      "settlement_method": ["cash", "card", "pos", "split", "direct_bill", "partial_credit"],
+      "rate_type": ["rack", "corporate", "walk_in_bar", "promotional"],
+      "market_segment": ["transient", "corporate", "group", "government", "wholesale"],
+      "source": ["walk_in", "phone", "referral", "ota", "website", "travel_agent"],
+      "id_type": ["passport", "national_id", "drivers_license"],
+      "preferred_channel": ["email", "phone", "whatsapp", "sms"]
+    },
+    "date_expressions": {
+      "today+13h": "Today UTC at 13:00",
+      "today-2d": "Two calendar days before today UTC midnight",
+      "now-26h": "26 hours before seed run time",
+      "now+3d+10h": "3 days 10 hours after seed run time",
+      "YYYY-MM-DD": "Fixed calendar date (DOB, id expiry)"
+    },
+    "firefly_room_codes": "50–63 (floor 1), 64–67 (floor 1), 100–117 (floor 2), 150–167 (floor 3), 200–216 (floor 4). Use only these keys."
+  },
+
+  "group_bookings": [
+    {
+      "ref": "GRP-DIOCESE-2026",
+      "group_name": "Lagos Archdiocese Retreat",
+      "coordinator_name": "Rev. Fr. Emmanuel Okonkwo",
+      "coordinator_phone": "+2348034567890",
+      "room_count": 4,
+      "shared_billing": true,
+      "bill_to_account": "LAGOS-ARCH-RETREAT",
+      "arrival": "now+6h",
+      "departure": "now+3d+11h",
+      "notes": "Block of 4 standard rooms — shared master folio."
+    }
+  ],
+
+  "stays": [
+    {
+      "ref": "STAY-001",
+      "status": "checked_in",
+      "room_code": "106",
+      "arrival": "now-26h",
+      "departure": "now+2d+11h",
+      "nights": 3,
+      "adults": 2,
+      "children": [{ "age": 8 }],
+      "purpose_of_visit": "leisure",
+      "primary_guest": {
+        "title": "Mrs",
+        "first_name": "Adaeze",
+        "last_name": "Okoro",
+        "nationality": "NG",
+        "id_type": "national_id",
+        "id_number": "NG-AD-882014",
+        "id_expiry_date": "2029-06-15",
+        "date_of_birth": "1988-03-22",
+        "gender": "female",
+        "phone": "+2349012345601",
+        "email": "adaeze.okoro@example.com",
+        "whatsapp": "+2349012345601",
+        "preferred_channel": "whatsapp",
+        "tags": ["repeat", "vip"]
+      },
+      "companions": [
+        {
+          "relationship": "spouse",
+          "guest": {
+            "title": "Mr",
+            "first_name": "Chinedu",
+            "last_name": "Okoro",
+            "nationality": "NG",
+            "id_type": "national_id",
+            "id_number": "NG-CH-771203",
+            "id_expiry_date": "2028-11-01",
+            "date_of_birth": "1985-07-10",
+            "gender": "male",
+            "phone": "+2349012345602",
+            "email": "chinedu.okoro@example.com",
+            "preferred_channel": "phone",
+            "tags": ["repeat"]
+          }
+        },
+        {
+          "relationship": "child",
+          "guest": {
+            "title": null,
+            "first_name": "Ada",
+            "last_name": "Okoro",
+            "nationality": "NG",
+            "id_type": "national_id",
+            "id_number": "CHILD-0001",
+            "id_expiry_date": "9999-12-31",
+            "date_of_birth": "2018-07-07",
+            "gender": "female",
+            "phone": "+2349012345601",
+            "email": "adaeze.okoro@example.com",
+            "preferred_channel": "whatsapp",
+            "tags": []
+          }
+        }
+      ],
+      "booking": {
+        "confirmation_code": "PJP-260701",
+        "folio_number": "F-PJP-260701",
+        "registration_number": "R-PJP-260701",
+        "rate_type": "rack",
+        "season_code": "peak",
+        "rate_per_night": 65000,
+        "total_room_charges": 195000,
+        "settlement_method": "card",
+        "preauth_amount": 150000,
+        "market_segment": "transient",
+        "source": "website",
+        "guest_remarks": "Anniversary stay — late check-in requested.",
+        "room_preferences": "High floor, away from lift",
+        "special_occasion": "Anniversary",
+        "digital_key_issued": true,
+        "registration_card_signed": true
+      },
+      "folio": [
+        {
+          "kind": "charge",
+          "amount": 195000,
+          "description": "Room charges — 3 nights",
+          "department": "rooms",
+          "posted_at": "now-24h"
+        },
+        {
+          "kind": "payment",
+          "amount": 150000,
+          "description": "Card pre-authorisation",
+          "method": "card",
+          "posted_at": "now-25h"
+        }
+      ]
+    },
+
+    {
+      "ref": "STAY-002",
+      "status": "confirmed",
+      "room_code": null,
+      "arrival": "now+6h",
+      "departure": "now+2d+10h",
+      "nights": 2,
+      "adults": 1,
+      "children": [],
+      "purpose_of_visit": "business",
+      "group_ref": "GRP-DIOCESE-2026",
+      "primary_guest": {
+        "title": "Dr",
+        "first_name": "Catherine",
+        "last_name": "Mensah",
+        "nationality": "GH",
+        "id_type": "passport",
+        "id_number": "G12345678",
+        "id_expiry_date": "2027-04-20",
+        "date_of_birth": "1979-11-05",
+        "gender": "female",
+        "phone": "+233244123456",
+        "email": "c.mensah@example.com",
+        "preferred_channel": "email",
+        "tags": ["corporate"]
+      },
+      "booking": {
+        "confirmation_code": "PJP-260702",
+        "folio_number": "F-PJP-260702",
+        "registration_number": "R-PJP-260702",
+        "rate_type": "corporate",
+        "rate_per_night": 58000,
+        "total_room_charges": 116000,
+        "settlement_method": "direct_bill",
+        "bill_to_account": "LAGOS-ARCH-RETREAT",
+        "market_segment": "group",
+        "source": "phone",
+        "guest_remarks": "Retreat participant — quiet room.",
+        "room_preferences": "Quiet room, lower floor",
+        "digital_key_issued": false,
+        "registration_card_signed": false
+      }
+    },
+
+    {
+      "ref": "STAY-003",
+      "status": "checked_out",
+      "room_code": "201",
+      "arrival": "now-4d",
+      "departure": "now-20h",
+      "nights": 4,
+      "adults": 2,
+      "children": [],
+      "purpose_of_visit": "leisure",
+      "primary_guest": {
+        "title": "Mr",
+        "first_name": "Bruno",
+        "last_name": "Silva",
+        "nationality": "BR",
+        "id_type": "passport",
+        "id_number": "BR99887766",
+        "id_expiry_date": "2030-01-12",
+        "date_of_birth": "1992-08-18",
+        "gender": "male",
+        "phone": "+5511987654321",
+        "email": "bruno.silva@example.com",
+        "preferred_channel": "email",
+        "tags": ["ota"]
+      },
+      "companions": [
+        {
+          "relationship": "adult",
+          "guest": {
+            "title": "Mrs",
+            "first_name": "Laura",
+            "last_name": "Silva",
+            "nationality": "BR",
+            "id_type": "passport",
+            "id_number": "BR88776655",
+            "id_expiry_date": "2030-06-01",
+            "date_of_birth": "1994-03-18",
+            "gender": "female",
+            "phone": "+5511987654321",
+            "email": "laura.silva@example.com",
+            "preferred_channel": "email",
+            "tags": []
+          }
+        }
+      ],
+      "booking": {
+        "confirmation_code": "PJP-260703",
+        "folio_number": "F-PJP-260703",
+        "registration_number": "R-PJP-260703",
+        "rate_type": "promotional",
+        "rate_per_night": 48000,
+        "total_room_charges": 192000,
+        "settlement_method": "pos",
+        "preauth_amount": 50000,
+        "market_segment": "transient",
+        "source": "ota",
+        "travel_agent_name": "Booking Demo Ltd",
+        "guest_remarks": "OTA booking — settled at checkout.",
+        "digital_key_issued": true,
+        "registration_card_signed": true
+      },
+      "folio": [
+        {
+          "kind": "charge",
+          "amount": 192000,
+          "description": "Room charges — 4 nights",
+          "department": "rooms",
+          "posted_at": "now-4d"
+        },
+        {
+          "kind": "charge",
+          "amount": 8500,
+          "description": "Restaurant — Jollof Rice x2",
+          "department": "fb",
+          "posted_at": "now-2d"
+        },
+        {
+          "kind": "payment",
+          "amount": 200500,
+          "description": "POS settlement at checkout",
+          "method": "pos",
+          "posted_at": "now-18h"
+        }
+      ]
+    },
+
+    {
+      "ref": "STAY-004",
+      "status": "confirmed",
+      "room_code": null,
+      "arrival": "today+13h",
+      "departure": "today+4d+11h",
+      "nights": 4,
+      "adults": 2,
+      "children": [{ "age": 5 }],
+      "purpose_of_visit": "leisure",
+      "primary_guest": {
+        "title": "Ms",
+        "first_name": "Esperanza",
+        "last_name": "Lopez",
+        "nationality": "ES",
+        "id_type": "passport",
+        "id_number": "ESP445566",
+        "id_expiry_date": "2028-09-30",
+        "date_of_birth": "1990-02-14",
+        "gender": "female",
+        "phone": "+34600111222",
+        "email": "esperanza.lopez@example.com",
+        "preferred_channel": "sms",
+        "tags": ["family"]
+      },
+      "booking": {
+        "confirmation_code": "PJP-260704",
+        "folio_number": "F-PJP-260704",
+        "registration_number": "R-PJP-260704",
+        "rate_type": "rack",
+        "rate_per_night": 65000,
+        "total_room_charges": 260000,
+        "settlement_method": "cash",
+        "market_segment": "transient",
+        "source": "website",
+        "guest_remarks": "Arriving afternoon — crib requested.",
+        "room_preferences": "Ground floor if possible",
+        "dietary_notes": "No shellfish",
+        "digital_key_issued": false,
+        "registration_card_signed": false
+      }
+    },
+
+    {
+      "ref": "STAY-005",
+      "status": "cancelled",
+      "room_code": null,
+      "arrival": "now+1d",
+      "departure": "now+3d",
+      "nights": 2,
+      "adults": 1,
+      "children": [],
+      "purpose_of_visit": "transit",
+      "primary_guest": {
+        "title": "Mr",
+        "first_name": "Faisal",
+        "last_name": "Rahman",
+        "nationality": "BD",
+        "id_type": "passport",
+        "id_number": "BD778899",
+        "id_expiry_date": "2026-12-01",
+        "date_of_birth": "1987-06-30",
+        "gender": "male",
+        "phone": "+8801712345678",
+        "email": "faisal.rahman@example.com",
+        "preferred_channel": "email",
+        "tags": []
+      },
+      "booking": {
+        "confirmation_code": "PJP-260705",
+        "folio_number": "F-PJP-260705",
+        "registration_number": "R-PJP-260705",
+        "rate_type": "rack",
+        "rate_per_night": 65000,
+        "total_room_charges": 130000,
+        "settlement_method": "cash",
+        "market_segment": "government",
+        "source": "walk_in",
+        "guest_remarks": "Cancelled — flight rescheduled."
+      }
+    },
+
+    {
+      "ref": "STAY-006",
+      "status": "no_show",
+      "room_code": null,
+      "arrival": "now-12h",
+      "departure": "now+12h",
+      "nights": 1,
+      "adults": 2,
+      "children": [{ "age": 12 }],
+      "purpose_of_visit": "leisure",
+      "primary_guest": {
+        "title": "Mrs",
+        "first_name": "Gifty",
+        "last_name": "Owusu",
+        "nationality": "GH",
+        "id_type": "passport",
+        "id_number": "G98765432",
+        "id_expiry_date": "2029-03-08",
+        "date_of_birth": "1995-01-25",
+        "gender": "female",
+        "phone": "+233209876543",
+        "email": "gifty.owusu@example.com",
+        "whatsapp": "+233209876543",
+        "preferred_channel": "whatsapp",
+        "tags": ["vip"]
+      },
+      "booking": {
+        "confirmation_code": "PJP-260706",
+        "folio_number": "F-PJP-260706",
+        "registration_number": "R-PJP-260706",
+        "rate_type": "rack",
+        "rate_per_night": 65000,
+        "total_room_charges": 65000,
+        "settlement_method": "partial_credit",
+        "preauth_amount": 25000,
+        "market_segment": "wholesale",
+        "source": "travel_agent",
+        "travel_agent_name": "Accra Wholesale Travel",
+        "vip_flag": true,
+        "vip_notes": "Birthday package — did not arrive.",
+        "special_occasion": "Birthday",
+        "guest_remarks": "No-show — agent notified."
+      }
+    },
+
+    {
+      "ref": "STAY-007",
+      "status": "checked_in",
+      "room_code": "150",
+      "arrival": "now-8h",
+      "departure": "now+5d+10h",
+      "nights": 5,
+      "adults": 2,
+      "children": [],
+      "purpose_of_visit": "business",
+      "primary_guest": {
+        "title": "Mr",
+        "first_name": "Henrik",
+        "last_name": "Larsson",
+        "nationality": "SE",
+        "id_type": "passport",
+        "id_number": "SE11223344",
+        "id_expiry_date": "2031-05-19",
+        "date_of_birth": "1983-09-03",
+        "gender": "male",
+        "phone": "+46701234567",
+        "email": "henrik.larsson@example.com",
+        "preferred_channel": "email",
+        "tags": ["corporate", "long_stay"]
+      },
+      "booking": {
+        "confirmation_code": "PJP-260707",
+        "folio_number": "F-PJP-260707",
+        "registration_number": "R-PJP-260707",
+        "rate_type": "corporate",
+        "rate_per_night": 72000,
+        "total_room_charges": 360000,
+        "settlement_method": "direct_bill",
+        "bill_to_account": "NORDIC-AID-NGO",
+        "market_segment": "corporate",
+        "source": "referral",
+        "guest_remarks": "NGO consultant — needs desk setup.",
+        "room_preferences": "Suite wing, twin beds",
+        "digital_key_issued": true,
+        "registration_card_signed": true
+      },
+      "folio": [
+        {
+          "kind": "charge",
+          "amount": 360000,
+          "description": "Room charges — 5 nights (corporate rate)",
+          "department": "rooms",
+          "posted_at": "now-6h"
+        }
+      ]
+    }
+  ]
+}
