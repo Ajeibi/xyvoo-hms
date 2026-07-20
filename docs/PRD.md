@@ -172,7 +172,7 @@ Give independent hotels (boutique chains, guesthouses, mid-size properties) soft
 | F&B Staff | Food & Beverage | Yes |
 | Kitchen | F&B (KDS view only) | Yes |
 | Maintenance | Maintenance | Yes |
-| Procurement | Procurement, Inventory | Yes |
+| Procurement | Procurement (vendors, purchase orders, receiving, budgets, reports) — read-only visibility into Inventory reorder data, no Inventory write access | Yes |
 | Store / Inventory | Inventory | Yes |
 | Accounts | Accounts & Finance, Analytics (partial) | Yes |
 | HR Manager | HR & Scheduling | Yes |

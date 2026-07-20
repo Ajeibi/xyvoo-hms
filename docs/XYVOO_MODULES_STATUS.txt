@@ -418,11 +418,17 @@ A12. PROCUREMENT
 ------------------------------------------------------------------------------
 
 Module: Procurement (/procurement)
-Status: [SCAFFOLD]
+Status: [PARTIAL — real data model, workflow, and UI; RFQ/e-tendering, branded PO PDF/email, and mobile approval deep links deferred]
 What works:
-  - Static department dashboard with placeholder KPI numbers
+  - Vendor register (categories, contacts, certifications, status incl. blacklisting), agreed price catalog, performance scorecard
+  - Requisition inbox sourced from Inventory's approved requisitions + reorder-suggestions seam — Procurement cannot originate a requisition itself (enforced server-side)
+  - Purchase order creation (from requisitions or manual with a required reason), configurable multi-tier approval thresholds, approve/reject/cancel/mark-ordered
+  - Goods receiving against a PO with a per-item-type quality checklist, discrepancy flagging (short/damaged/wrong item/failed inspection), and inventory stock-ledger sync — rejected qty never posts to stock
+  - Simple invoice 3-way match (PO vs GRN vs invoice amount, tolerance-based), department budgets vs. actual spend, spend/vendor-performance reports
 What does not:
-  - Vendors, purchase orders, approvals, goods receiving
+  - Formal RFQ/multi-quote tendering (lightweight quote-attach only)
+  - Branded PO PDF generation / email-to-vendor, mobile approval deep links
+  - Real Finance/Accounts approval tier (resolves to Admin/GM until Accounts is built)
 
 
 ------------------------------------------------------------------------------
@@ -750,9 +756,10 @@ HMS — STRONGEST (USE THESE TODAY)
 
 HMS — SHELL ONLY (PAGES EXIST, NOT A REAL MODULE YET)
 -----------------------------------------------------
-  Accounts, Inventory, Procurement, Maintenance, HR, Revenue
+  Accounts, Maintenance, HR, Revenue
   Reservations (standalone), Front desk night/reports/requests shells
   39 front desk PRD "WIP" capability cards
+  (Inventory and Procurement have moved past shell — see A11/A12 above)
 
 HMS — MARKETING AHEAD OF CODE
 -----------------------------
@@ -781,9 +788,8 @@ PART D — MODULE COUNT AT A GLANCE
 
 HMS departments (target = 13):
   BUILT or strong PARTIAL:  Front Desk, F&B, Kitchen, Settings, Notifications
-  PARTIAL:                  Housekeeping, Guests, Dashboard, Rooms
-  SCAFFOLD/PLANNED:         Reservations, Accounts, Inventory, Procurement,
-                            Maintenance, HR, Revenue
+  PARTIAL:                  Housekeeping, Guests, Dashboard, Rooms, Inventory, Procurement
+  SCAFFOLD/PLANNED:         Reservations, Accounts, Maintenance, HR, Revenue
 
 Store (xyvoo):
   BUILT (app):              Most dashboard routes + full /store shopper flow
