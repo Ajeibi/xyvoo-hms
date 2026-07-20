@@ -5,8 +5,7 @@ export type { RoleSection };
 export const ROLE_SECTIONS: RoleSection[] = [
   { role: "Admin / GM", sections: "All", canCreateLogin: true },
   { role: "Front Desk", sections: "Front Desk dashboard, workflow, and department settings", canCreateLogin: true },
-  { role: "Reservations", sections: "Reservations dashboard, bookings, and department settings", canCreateLogin: true },
-  { role: "Housekeeping", sections: "Housekeeping", canCreateLogin: true },
+  { role: "Housekeeping", sections: "Housekeeping — my tasks and lost & found", canCreateLogin: true },
   { role: "F&B Staff", sections: "Food & Beverage dashboard and outlet settings", canCreateLogin: true },
   { role: "Kitchen", sections: "Kitchen dashboard and kitchen-specific settings", canCreateLogin: true },
   { role: "Maintenance", sections: "Maintenance", canCreateLogin: true },
@@ -14,7 +13,6 @@ export const ROLE_SECTIONS: RoleSection[] = [
   { role: "Store / Inventory", sections: "Inventory dashboard and stock settings", canCreateLogin: true },
   { role: "Accounts", sections: "Accounts dashboard and department settings", canCreateLogin: true },
   { role: "HR Manager", sections: "HR dashboard and team settings", canCreateLogin: true },
-  { role: "Revenue Manager", sections: "Revenue dashboard and pricing controls", canCreateLogin: true },
   { role: "Owner", sections: "All", canCreateLogin: false },
 ];
 

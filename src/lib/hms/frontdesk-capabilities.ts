@@ -9,7 +9,6 @@ export type FrontDeskAccent =
   | "guest"
   | "incidents"
   | "financial"
-  | "night"
   | "admin";
 
 /** Left-border accent (PRD categories), tuned for light cards like HMS dashboard. */
@@ -19,7 +18,6 @@ export const FRONT_DESK_ACCENT_BORDER_CLASS: Record<FrontDeskAccent, string> = {
   guest: "border-l-amber-500",
   incidents: "border-l-orange-500",
   financial: "border-l-emerald-500",
-  night: "border-l-violet-500",
   admin: "border-l-slate-400",
 };
 
@@ -30,7 +28,6 @@ export const FRONT_DESK_ACCENT_WELL_CLASS: Record<FrontDeskAccent, string> = {
   guest: "bg-amber-50 text-amber-600",
   incidents: "bg-orange-50 text-orange-600",
   financial: "bg-emerald-50 text-emerald-600",
-  night: "bg-violet-50 text-violet-600",
   admin: "bg-slate-100 text-slate-600",
 };
 
@@ -42,9 +39,7 @@ export type FrontDeskNavArea =
   | "guestServices"
   | "requests"
   | "folio"
-  | "checkout"
-  | "night"
-  | "reports";
+  | "checkout";
 
 export type FrontDeskCapability = {
   key: string;
@@ -74,8 +69,8 @@ export const FRONT_DESK_PAGE_BLOCKS: FrontDeskPageBlock[] = [
   {
     type: "section",
     id: "dashboard-kpis",
-    title: "Dashboard — always visible",
-    eyebrow: "Section 1",
+    title: "Dashboard KPIs",
+    eyebrow: "Summary",
     area: "overview",
     cards: [
       {
@@ -338,57 +333,6 @@ export const FRONT_DESK_PAGE_BLOCKS: FrontDeskPageBlock[] = [
   },
   {
     type: "section",
-    id: "requests-incidents",
-    title: "Requests, complaints & incidents",
-    eyebrow: "Section 5",
-    area: "requests",
-    cards: [
-      {
-        key: "log-service-request",
-        title: "Log service request",
-        subtitle: "Auto-routed to department",
-        accent: "incidents",
-      },
-      {
-        key: "track-sla-status",
-        title: "Track SLA status",
-        subtitle: "Pending / In progress / Breach",
-        accent: "incidents",
-      },
-      {
-        key: "escalate-to-manager",
-        title: "Escalate to manager",
-        subtitle: "Triggered on SLA breach",
-        accent: "incidents",
-      },
-      {
-        key: "log-complaint",
-        title: "Log complaint",
-        subtitle: "Folio-linked, category + priority",
-        accent: "incidents",
-      },
-      {
-        key: "log-incident",
-        title: "Log incident",
-        subtitle: "Formal record, permanent",
-        accent: "incidents",
-      },
-      {
-        key: "notify-guest-on-resolve",
-        title: "Notify guest on resolve",
-        subtitle: "Auto via WhatsApp",
-        accent: "incidents",
-      },
-      {
-        key: "waitlist-management",
-        title: "Waitlist management",
-        subtitle: "Alert on room availability",
-        accent: "incidents",
-      },
-    ],
-  },
-  {
-    type: "section",
     id: "financial-folio",
     title: "Financial & folio",
     eyebrow: "Section 6",
@@ -526,114 +470,6 @@ export const FRONT_DESK_PAGE_BLOCKS: FrontDeskPageBlock[] = [
       },
     ],
   },
-  {
-    type: "section",
-    id: "night-shift",
-    title: "Night shift",
-    eyebrow: "Section 8",
-    area: "night",
-    cards: [
-      {
-        key: "night-audit",
-        title: "Night audit",
-        subtitle: "Room rate posting, balance",
-        accent: "night",
-      },
-      {
-        key: "no-show-processing",
-        title: "No-show processing",
-        subtitle: "Fee charge, room release",
-        accent: "night",
-      },
-      {
-        key: "late-arrival-tracking",
-        title: "Late arrival tracking",
-        subtitle: "Hold until configured time",
-        accent: "night",
-      },
-      {
-        key: "shift-handover-note",
-        title: "Shift handover note",
-        subtitle: "Structured, system-linked",
-        accent: "night",
-      },
-      {
-        key: "distress-check",
-        title: "Distress check",
-        subtitle: "Wellness flag on solo guests",
-        accent: "night",
-      },
-    ],
-  },
-  {
-    type: "section",
-    id: "admin-reporting",
-    title: "Admin, compliance & reporting",
-    eyebrow: "Section 9",
-    area: "reports",
-    cards: [
-      {
-        key: "arrivals-list-report",
-        title: "Arrivals list",
-        subtitle: "Sortable, filterable, printable",
-        accent: "admin",
-      },
-      {
-        key: "departures-list-report",
-        title: "Departures list",
-        subtitle: "Folio totals + payment status",
-        accent: "admin",
-      },
-      {
-        key: "in-house-list-report",
-        title: "In-house list",
-        subtitle: "Live, emergency-ready",
-        accent: "admin",
-      },
-      {
-        key: "room-status-summary",
-        title: "Room status summary",
-        subtitle: "Counts by status",
-        accent: "admin",
-      },
-      {
-        key: "open-requests-report",
-        title: "Open requests report",
-        subtitle: "SLA health at a glance",
-        accent: "admin",
-      },
-      {
-        key: "shift-report",
-        title: "Shift report",
-        subtitle: "Everything in current shift",
-        accent: "admin",
-      },
-      {
-        key: "overbooking-dashboard",
-        title: "Overbooking dashboard",
-        subtitle: "Sold vs available + walk candidates",
-        accent: "admin",
-      },
-      {
-        key: "immigration-export",
-        title: "Immigration export",
-        subtitle: "Foreign national registration",
-        accent: "admin",
-      },
-      {
-        key: "evacuation-roll-call",
-        title: "Evacuation roll-call",
-        subtitle: "Live in-house, mark accounted",
-        accent: "admin",
-      },
-      {
-        key: "night-audit-report",
-        title: "Night audit report",
-        subtitle: "End-of-day reconciliation",
-        accent: "admin",
-      },
-    ],
-  },
 ];
 
 export const FRONT_DESK_AREA_HERO: Record<
@@ -670,14 +506,6 @@ export const FRONT_DESK_AREA_HERO: Record<
   checkout: {
     title: "Check-out",
     description: "Final review, settlement, keys, extensions, express checkout, and feedback capture.",
-  },
-  night: {
-    title: "Night shift",
-    description: "Night audit, no-shows, late arrivals, handover notes, and wellness checks.",
-  },
-  reports: {
-    title: "Admin & reporting",
-    description: "Operational lists, SLA health, compliance exports, roll-call, and night audit reports.",
   },
 };
 

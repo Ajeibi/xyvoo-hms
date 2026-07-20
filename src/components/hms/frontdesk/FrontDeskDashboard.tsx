@@ -11,9 +11,7 @@ import { FrontDeskWorkflowDivider } from "./FrontDeskWorkflowDivider";
 
 function capabilityHref(slug: string, key: string): string {
   const overrides: Record<string, string> = {
-    "shift-handover-note": `/hms/${slug}/frontdesk#fd-shift-notes`,
     "room-status-board": `/hms/${slug}/frontdesk/rooms`,
-    "room-status-summary": `/hms/${slug}/frontdesk/rooms`,
     "change-room-assignment": `/hms/${slug}/frontdesk/rooms?action=change-assignment`,
     "block-room": `/hms/${slug}/frontdesk/rooms?action=block`,
     "remote-unlock": `/hms/${slug}/frontdesk/rooms?action=unlock`,
@@ -50,7 +48,6 @@ function capabilityHref(slug: string, key: string): string {
     "payment-capture": `/hms/${slug}/frontdesk/folio`,
     "open-folio": `/hms/${slug}/frontdesk/folio`,
     "walk-in-booking": `/hms/${slug}/frontdesk/check-in`,
-    "no-show-processing": `/hms/${slug}/frontdesk/arrivals`,
     "special-requests-confirm": `/hms/${slug}/frontdesk/arrivals`,
   };
   return overrides[key] ?? `/hms/${slug}/frontdesk/wip/${key}`;

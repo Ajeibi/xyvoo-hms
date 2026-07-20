@@ -6,7 +6,6 @@ import {
   ChevronRight,
   CreditCard,
   FileSpreadsheet,
-  Moon,
   UserPlus,
   Users,
 } from "lucide-react";
@@ -23,7 +22,6 @@ const ACCENT_ICON: Record<FrontDeskAccent, ComponentType<{ className?: string }>
   guest: Users,
   incidents: AlertTriangle,
   financial: CreditCard,
-  night: Moon,
   admin: FileSpreadsheet,
 };
 

@@ -11,26 +11,32 @@ import {
 } from "@/lib/hms/open-checkout-bus";
 import {
   ArrowLeft,
+  ArrowLeftRight,
   BedDouble,
   Bell,
   CalendarDays,
   ChartNoAxesColumn,
   ChevronDown,
+  ClipboardCheck,
   ClipboardList,
   DoorOpen,
   LayoutDashboard,
   LogOut,
   Menu,
   Moon,
+  Package,
   Search,
   Settings,
   Soup,
   Sparkles,
+  Trash2,
+  Truck,
   UserPlus,
   Users,
   Wallet,
 } from "lucide-react";
 import type { HmsNavIconKey, HmsNavItem } from "@/lib/hms/department-access";
+import { getFrontDeskNavItems } from "@/lib/hms/department-access";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,6 +45,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { HmsNotificationsBell } from "@/components/hms/header/HmsNotificationsBell";
 import { HmsQuickActionsMenu } from "@/components/hms/header/HmsQuickActionsMenu";
 
@@ -52,6 +59,7 @@ type HMSLayoutShellProps = {
   roleLabel: string;
   homePath: string;
   settingsPath: string;
+  canAccessAllDepartments: boolean;
   navItems: HmsNavItem[];
 };
 
@@ -74,6 +82,11 @@ const ICON_MAP: Record<HmsNavIconKey, React.ComponentType<{ className?: string }
   bell: Bell,
   moon: Moon,
   doorOpen: DoorOpen,
+  package: Package,
+  truck: Truck,
+  arrowLeftRight: ArrowLeftRight,
+  clipboardCheck: ClipboardCheck,
+  trash2: Trash2,
 };
 
 export default function HMSLayoutShell({
@@ -86,6 +99,7 @@ export default function HMSLayoutShell({
   roleLabel,
   homePath,
   settingsPath,
+  canAccessAllDepartments,
   navItems,
 }: HMSLayoutShellProps) {
   const pathname = usePathname();
@@ -102,8 +116,11 @@ export default function HMSLayoutShell({
       .filter((item) => pathname === item.path || pathname.startsWith(`${item.path}/`))
       .sort((left, right) => right.path.length - left.path.length)[0]?.key ?? null;
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [frontDeskNavOpen, setFrontDeskNavOpen] = useState(false);
   const logoutFormId = `hms-account-logout-${slug}`;
   const mainRef = useRef<HTMLElement | null>(null);
+  const showFrontDeskNavShortcut = canAccessAllDepartments && showFrontDeskCta;
+  const frontDeskNavItems = showFrontDeskNavShortcut ? getFrontDeskNavItems(slug) : [];
 
   useEffect(() => {
     const onOpenCheckout = (e: Event) => {
@@ -245,7 +262,7 @@ export default function HMSLayoutShell({
           </div>
         </div>
 
-        <nav className={`flex-1 space-y-0.5 py-3 ${sidebarOpen ? "px-3" : "px-2"}`}>
+        <nav className={`min-h-0 flex-1 space-y-0.5 overflow-y-auto py-3 ${sidebarOpen ? "px-3" : "px-2"}`}>
           {navItems.map(({ key, icon, label, path, tourTarget }) => {
             const Icon = ICON_MAP[icon];
             const active = activeNavKey === key;
@@ -377,16 +394,20 @@ export default function HMSLayoutShell({
                     </p>
                     <p className="text-xs font-normal text-slate-500">{roleLabel}</p>
                   </DropdownMenuLabel>
-                  <DropdownMenuSeparator className="bg-slate-100" />
-                  <DropdownMenuItem asChild className="cursor-pointer rounded-xl px-0 py-0 focus:bg-slate-50">
-                    <Link
-                      href={settingsPath}
-                      className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-slate-700 outline-none hover:bg-slate-50 hover:text-slate-900"
-                    >
-                      <Settings className="h-4 w-4" />
-                      Open settings
-                    </Link>
-                  </DropdownMenuItem>
+                  {canAccessAllDepartments ? (
+                    <>
+                      <DropdownMenuSeparator className="bg-slate-100" />
+                      <DropdownMenuItem asChild className="cursor-pointer rounded-xl px-0 py-0 focus:bg-slate-50">
+                        <Link
+                          href={settingsPath}
+                          className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-slate-700 outline-none hover:bg-slate-50 hover:text-slate-900"
+                        >
+                          <Settings className="h-4 w-4" />
+                          Open settings
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  ) : null}
                   <DropdownMenuSeparator className="bg-slate-100" />
                   <DropdownMenuItem variant="destructive" asChild className="cursor-pointer rounded-xl px-0 py-0">
                     <Button
@@ -403,6 +424,20 @@ export default function HMSLayoutShell({
               </DropdownMenu>
 
               <HmsNotificationsBell slug={slug} />
+
+              {showFrontDeskNavShortcut ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setFrontDeskNavOpen(true)}
+                  className="size-10 shrink-0 rounded-xl text-slate-600"
+                  aria-label="Open front desk links"
+                  title="Front desk links"
+                >
+                  <Menu className="h-5 w-5" />
+                </Button>
+              ) : null}
             </div>
           </div>
         </header>
@@ -419,6 +454,38 @@ export default function HMSLayoutShell({
           initialRoomCode={checkoutPrefill.roomCode}
           initialReservationId={checkoutPrefill.reservationId}
         />
+      ) : null}
+
+      {showFrontDeskNavShortcut ? (
+        <Sheet open={frontDeskNavOpen} onOpenChange={setFrontDeskNavOpen}>
+          <SheetContent side="right" className="w-72 sm:max-w-xs">
+            <SheetHeader className="border-b border-slate-100">
+              <SheetTitle>Front desk links</SheetTitle>
+              <SheetDescription>Jump into any front desk page without switching role.</SheetDescription>
+            </SheetHeader>
+            <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 pb-4">
+              {frontDeskNavItems.map(({ key, icon, label, path }) => {
+                const Icon = ICON_MAP[icon];
+                const active = pathname === path || pathname.startsWith(`${path}/`);
+                return (
+                  <Link
+                    key={key}
+                    href={path}
+                    onClick={() => setFrontDeskNavOpen(false)}
+                    className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                      active
+                        ? "bg-blue-50 text-blue-700"
+                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4 flex-shrink-0" />
+                    <span>{label}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+          </SheetContent>
+        </Sheet>
       ) : null}
     </div>
   );

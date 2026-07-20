@@ -6,7 +6,6 @@ export type HmsSectionKey =
   | "notifications"
   | "guests"
   | "frontdesk"
-  | "frontdesk-settings"
   | "reservations"
   | "reservations-settings"
   | "restaurant-bar"
@@ -14,10 +13,28 @@ export type HmsSectionKey =
   | "kitchen"
   | "kitchen-settings"
   | "housekeeping"
+  | "housekeeping-my-tasks"
+  | "housekeeping-assignments"
+  | "housekeeping-inspections"
+  | "housekeeping-lost-found"
+  | "housekeeping-reports"
   | "housekeeping-settings"
   | "inventory"
+  | "inventory-stock"
+  | "inventory-receiving"
+  | "inventory-requisitions"
+  | "inventory-transfers"
+  | "inventory-counts"
+  | "inventory-waste"
+  | "inventory-reports"
   | "inventory-settings"
   | "procurement"
+  | "procurement-vendors"
+  | "procurement-requisitions"
+  | "procurement-orders"
+  | "procurement-receiving"
+  | "procurement-budgets"
+  | "procurement-reports"
   | "procurement-settings"
   | "accounts"
   | "accounts-settings"
@@ -46,7 +63,12 @@ export type HmsNavIconKey =
   | "settings"
   | "bell"
   | "moon"
-  | "doorOpen";
+  | "doorOpen"
+  | "package"
+  | "truck"
+  | "arrowLeftRight"
+  | "clipboardCheck"
+  | "trash2";
 
 export type HmsNavItem = {
   key: string;
@@ -75,7 +97,6 @@ const ADMIN_SECTIONS: HmsSectionKey[] = [
   "notifications",
   "guests",
   "frontdesk",
-  "frontdesk-settings",
   "reservations",
   "reservations-settings",
   "restaurant-bar",
@@ -83,10 +104,28 @@ const ADMIN_SECTIONS: HmsSectionKey[] = [
   "kitchen",
   "kitchen-settings",
   "housekeeping",
+  "housekeeping-my-tasks",
+  "housekeeping-assignments",
+  "housekeeping-inspections",
+  "housekeeping-lost-found",
+  "housekeeping-reports",
   "housekeeping-settings",
   "inventory",
+  "inventory-stock",
+  "inventory-receiving",
+  "inventory-requisitions",
+  "inventory-transfers",
+  "inventory-counts",
+  "inventory-waste",
+  "inventory-reports",
   "inventory-settings",
   "procurement",
+  "procurement-vendors",
+  "procurement-requisitions",
+  "procurement-orders",
+  "procurement-receiving",
+  "procurement-budgets",
+  "procurement-reports",
   "procurement-settings",
   "accounts",
   "accounts-settings",
@@ -103,9 +142,9 @@ export const DEPARTMENT_ROLE_SCOPES: Record<string, DepartmentScopeDefinition> =
     departmentRole: "Front Desk",
     roleLabel: "Front Desk",
     homeSection: "frontdesk",
-    settingsSection: "frontdesk-settings",
+    settingsSection: "frontdesk",
     homePath: (slug) => `/hms/${slug}/frontdesk`,
-    settingsPath: (slug) => `/hms/${slug}/frontdesk/settings`,
+    settingsPath: (slug) => `/hms/${slug}/frontdesk`,
     navItems: (slug) => [
       { key: "fd-overview", icon: "dashboard", label: "Overview", path: `/hms/${slug}/frontdesk` },
       {
@@ -113,6 +152,12 @@ export const DEPARTMENT_ROLE_SCOPES: Record<string, DepartmentScopeDefinition> =
         icon: "reservations",
         label: "Arrivals",
         path: `/hms/${slug}/frontdesk/arrivals`,
+      },
+      {
+        key: "fd-reservations",
+        icon: "clipboardCheck",
+        label: "Reservations",
+        path: `/hms/${slug}/reservations`,
       },
       { key: "fd-rooms", icon: "rooms", label: "Rooms", path: `/hms/${slug}/frontdesk/rooms` },
       {
@@ -140,48 +185,28 @@ export const DEPARTMENT_ROLE_SCOPES: Record<string, DepartmentScopeDefinition> =
         label: "Checkout",
         path: `/hms/${slug}/frontdesk/checkout`,
       },
-      { key: "fd-night", icon: "moon", label: "Night shift", path: `/hms/${slug}/frontdesk/night` },
-      { key: "fd-reports", icon: "revenue", label: "Reports", path: `/hms/${slug}/frontdesk/reports` },
       {
         key: "fd-notifications",
         icon: "bell",
         label: "Notifications",
         path: `/hms/${slug}/notifications`,
       },
-      {
-        key: "frontdesk-settings",
-        icon: "settings",
-        label: "Settings",
-        path: `/hms/${slug}/frontdesk/settings`,
-      },
     ],
-    allowedSections: ["frontdesk", "frontdesk-settings", "notifications", "guests"],
-  },
-  Reservations: {
-    departmentRole: "Reservations",
-    roleLabel: "Reservations",
-    homeSection: "reservations",
-    settingsSection: "reservations-settings",
-    homePath: (slug) => `/hms/${slug}/reservations`,
-    settingsPath: (slug) => `/hms/${slug}/reservations/settings`,
-    navItems: (slug) => [
-      { key: "reservations-dashboard", icon: "dashboard", label: "Dashboard", path: `/hms/${slug}/reservations` },
-      { key: "reservations-settings", icon: "settings", label: "Settings", path: `/hms/${slug}/reservations/settings` },
-    ],
-    allowedSections: ["reservations", "reservations-settings", "notifications", "guests"],
+    allowedSections: ["frontdesk", "reservations", "notifications", "guests"],
   },
   Housekeeping: {
     departmentRole: "Housekeeping",
     roleLabel: "Housekeeping",
-    homeSection: "housekeeping",
-    settingsSection: "housekeeping-settings",
-    homePath: (slug) => `/hms/${slug}/housekeeping`,
-    settingsPath: (slug) => `/hms/${slug}/housekeeping/settings`,
+    homeSection: "housekeeping-my-tasks",
+    settingsSection: "housekeeping-my-tasks",
+    homePath: (slug) => `/hms/${slug}/housekeeping/my-tasks`,
+    settingsPath: (slug) => `/hms/${slug}/housekeeping/my-tasks`,
     navItems: (slug) => [
-      { key: "housekeeping-dashboard", icon: "dashboard", label: "Dashboard", path: `/hms/${slug}/housekeeping` },
-      { key: "housekeeping-settings", icon: "settings", label: "Settings", path: `/hms/${slug}/housekeeping/settings` },
+      { key: "housekeeping-my-tasks", icon: "housekeeping", label: "My tasks", path: `/hms/${slug}/housekeeping/my-tasks` },
+      { key: "housekeeping-lost-found", icon: "clipboardCheck", label: "Lost & found", path: `/hms/${slug}/housekeeping/lost-found` },
+      { key: "housekeeping-notifications", icon: "bell", label: "Notifications", path: `/hms/${slug}/notifications` },
     ],
-    allowedSections: ["housekeeping", "housekeeping-settings", "notifications"],
+    allowedSections: ["housekeeping-my-tasks", "housekeeping-lost-found", "notifications"],
   },
   "F&B Staff": {
     departmentRole: "F&B Staff",
@@ -191,9 +216,9 @@ export const DEPARTMENT_ROLE_SCOPES: Record<string, DepartmentScopeDefinition> =
     homePath: (slug) => `/hms/${slug}/restaurant-bar`,
     settingsPath: (slug) => `/hms/${slug}/restaurant-bar`,
     navItems: (slug) => [
+      { key: "fb-orders", icon: "reservations", label: "Orders", path: `/hms/${slug}/restaurant-bar/orders` },
       { key: "fb-pos", icon: "dashboard", label: "POS", path: `/hms/${slug}/restaurant-bar` },
       { key: "fb-tables", icon: "rooms", label: "Tables", path: `/hms/${slug}/restaurant-bar/tables` },
-      { key: "fb-orders", icon: "reservations", label: "Orders", path: `/hms/${slug}/restaurant-bar/orders` },
       {
         key: "fb-history",
         icon: "reservations",
@@ -212,6 +237,7 @@ export const DEPARTMENT_ROLE_SCOPES: Record<string, DepartmentScopeDefinition> =
     settingsPath: (slug) => `/hms/${slug}/kitchen`,
     navItems: (slug) => [
       { key: "kitchen-live", icon: "dashboard", label: "Live orders", path: `/hms/${slug}/kitchen` },
+      { key: "kitchen-menu", icon: "inventory", label: "Menu", path: `/hms/${slug}/kitchen/menu` },
       { key: "kitchen-history", icon: "reservations", label: "Order history", path: `/hms/${slug}/kitchen/history` },
     ],
     allowedSections: ["kitchen", "notifications"],
@@ -238,9 +264,31 @@ export const DEPARTMENT_ROLE_SCOPES: Record<string, DepartmentScopeDefinition> =
     settingsPath: (slug) => `/hms/${slug}/procurement/settings`,
     navItems: (slug) => [
       { key: "procurement-dashboard", icon: "dashboard", label: "Dashboard", path: `/hms/${slug}/procurement` },
+      { key: "procurement-requisitions", icon: "reservations", label: "Requisitions", path: `/hms/${slug}/procurement/requisitions` },
+      { key: "procurement-vendors", icon: "truck", label: "Vendors", path: `/hms/${slug}/procurement/vendors` },
+      { key: "procurement-orders", icon: "package", label: "Purchase orders", path: `/hms/${slug}/procurement/orders` },
+      { key: "procurement-receiving", icon: "clipboardCheck", label: "Receiving", path: `/hms/${slug}/procurement/receiving` },
+      { key: "procurement-budgets", icon: "revenue", label: "Budgets", path: `/hms/${slug}/procurement/budgets` },
+      { key: "procurement-reports", icon: "revenue", label: "Reports", path: `/hms/${slug}/procurement/reports` },
+      {
+        key: "procurement-notifications",
+        icon: "bell",
+        label: "Notifications",
+        path: `/hms/${slug}/notifications`,
+      },
       { key: "procurement-settings", icon: "settings", label: "Settings", path: `/hms/${slug}/procurement/settings` },
     ],
-    allowedSections: ["procurement", "procurement-settings", "notifications"],
+    allowedSections: [
+      "procurement",
+      "procurement-vendors",
+      "procurement-requisitions",
+      "procurement-orders",
+      "procurement-receiving",
+      "procurement-budgets",
+      "procurement-reports",
+      "procurement-settings",
+      "notifications",
+    ],
   },
   "Store / Inventory": {
     departmentRole: "Store / Inventory",
@@ -251,9 +299,35 @@ export const DEPARTMENT_ROLE_SCOPES: Record<string, DepartmentScopeDefinition> =
     settingsPath: (slug) => `/hms/${slug}/inventory/settings`,
     navItems: (slug) => [
       { key: "inventory-dashboard", icon: "dashboard", label: "Dashboard", path: `/hms/${slug}/inventory` },
-      { key: "inventory-settings", icon: "settings", label: "Settings", path: `/hms/${slug}/inventory/settings` },
+      { key: "inventory-stock", icon: "package", label: "Stock levels", path: `/hms/${slug}/inventory/stock` },
+      { key: "inventory-receiving", icon: "truck", label: "Receiving", path: `/hms/${slug}/inventory/receiving` },
+      {
+        key: "inventory-requisitions",
+        icon: "reservations",
+        label: "Requisitions",
+        path: `/hms/${slug}/inventory/requisitions`,
+      },
+      {
+        key: "inventory-transfers",
+        icon: "arrowLeftRight",
+        label: "Transfers",
+        path: `/hms/${slug}/inventory/transfers`,
+      },
+      { key: "inventory-counts", icon: "clipboardCheck", label: "Stock counts", path: `/hms/${slug}/inventory/counts` },
+      { key: "inventory-waste", icon: "trash2", label: "Waste & spoilage", path: `/hms/${slug}/inventory/waste` },
+      { key: "inventory-reports", icon: "revenue", label: "Reports", path: `/hms/${slug}/inventory/reports` },
     ],
-    allowedSections: ["inventory", "inventory-settings", "notifications"],
+    allowedSections: [
+      "inventory",
+      "inventory-stock",
+      "inventory-receiving",
+      "inventory-requisitions",
+      "inventory-transfers",
+      "inventory-counts",
+      "inventory-waste",
+      "inventory-reports",
+      "notifications",
+    ],
   },
   Accounts: {
     departmentRole: "Accounts",
@@ -280,19 +354,6 @@ export const DEPARTMENT_ROLE_SCOPES: Record<string, DepartmentScopeDefinition> =
       { key: "hr-settings", icon: "settings", label: "Settings", path: `/hms/${slug}/hr/settings` },
     ],
     allowedSections: ["hr", "hr-settings", "notifications"],
-  },
-  "Revenue Manager": {
-    departmentRole: "Revenue Manager",
-    roleLabel: "Revenue",
-    homeSection: "revenue",
-    settingsSection: "revenue-settings",
-    homePath: (slug) => `/hms/${slug}/revenue`,
-    settingsPath: (slug) => `/hms/${slug}/revenue/settings`,
-    navItems: (slug) => [
-      { key: "revenue-dashboard", icon: "dashboard", label: "Dashboard", path: `/hms/${slug}/revenue` },
-      { key: "revenue-settings", icon: "settings", label: "Settings", path: `/hms/${slug}/revenue/settings` },
-    ],
-    allowedSections: ["revenue", "revenue-settings", "notifications"],
   },
 };
 
@@ -399,6 +460,13 @@ export function getAdminNavItems(slug: string): HmsNavItem[] {
       tourTarget: "sidebar-settings",
     },
   ];
+}
+
+/** The granular Front Desk sub-nav (Arrivals, Rooms, Folio, etc.) — Admin/Owner only see the
+ * single "Front Desk" tile in their own sidebar, so this powers a secondary panel that lets
+ * them jump directly into any Front Desk page without switching role. */
+export function getFrontDeskNavItems(slug: string): HmsNavItem[] {
+  return DEPARTMENT_ROLE_SCOPES["Front Desk"].navItems(slug);
 }
 
 export function isAdminLikeRole(role: string | null) {

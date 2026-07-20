@@ -4,6 +4,7 @@ import { getHmsAccessContext } from "@/lib/hms/access";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { normalizePricingSetup } from "@/lib/hms/room-pricing";
 import HMSLayoutShell from "@/components/hms/HMSLayoutShell";
+import { CardBlockSkeleton, PageHeaderSkeleton } from "@/components/hms/PageSkeletons";
 
 /**
  * Persistent HMS shell layout for all /hms/[slug]/* routes.
@@ -12,6 +13,14 @@ import HMSLayoutShell from "@/components/hms/HMSLayoutShell";
  * and stays mounted during client-side navigation between pages inside the
  * same [slug] segment. This prevents the header/sidebar from flashing away
  * on every navigation.
+ *
+ * The Suspense boundary wraps only {children} (the page slot), not
+ * HMSLayoutShell. Wrapping the shell itself would make it re-suspend (and
+ * remount, losing sidebar/scroll state) whenever a slow page navigates in —
+ * which is what caused the header/sidebar to intermittently blank out until
+ * a manual refresh. Scoping Suspense to the page slot keeps the shell
+ * mounted and only shows a fallback for the content area while a slow page
+ * loads.
  *
  * Individual pages still use HMSLayout (the section-guard component) which
  * only enforces auth + section access and renders {children} — it no longer
@@ -35,20 +44,31 @@ export default async function HmsSlugLayout({
   const currency = normalizePricingSetup(tenant?.pricing_setup).currency;
 
   return (
-    <Suspense fallback={<div className="min-h-screen bg-slate-50" />}>
-      <HMSLayoutShell
-        slug={slug}
-        currency={currency}
-        hotelDisplayName={access.hotelDisplayName}
-        logoUrl={access.logoUrl}
-        currentUserName={access.currentUserName}
-        roleLabel={access.roleLabel}
-        homePath={access.homePath}
-        settingsPath={access.settingsPath}
-        navItems={access.navItems}
+    <HMSLayoutShell
+      slug={slug}
+      currency={currency}
+      hotelDisplayName={access.hotelDisplayName}
+      logoUrl={access.logoUrl}
+      currentUserName={access.currentUserName}
+      roleLabel={access.roleLabel}
+      homePath={access.homePath}
+      settingsPath={access.settingsPath}
+      canAccessAllDepartments={access.canAccessAllDepartments}
+      navItems={access.navItems}
+    >
+      <Suspense
+        fallback={
+          <div className="px-8 py-8">
+            <PageHeaderSkeleton />
+            <div className="mt-6 space-y-4">
+              <CardBlockSkeleton lines={4} />
+              <CardBlockSkeleton lines={4} />
+            </div>
+          </div>
+        }
       >
         {children}
-      </HMSLayoutShell>
-    </Suspense>
+      </Suspense>
+    </HMSLayoutShell>
   );
 }
