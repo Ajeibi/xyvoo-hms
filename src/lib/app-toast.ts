@@ -16,6 +16,15 @@ export function toastError(title: string, description?: string) {
   });
 }
 
+/** Neutral, self-dismissing FYI — no action required from the viewer. */
+export function toastInfo(title: string, description?: string) {
+  toast({
+    variant: "default",
+    title,
+    description,
+  });
+}
+
 export function toastFromResponse(
   res: Response,
   data: { error?: string } | null | undefined,

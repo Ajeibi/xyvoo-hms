@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CircleAlert, Eye, EyeOff } from "lucide-react";
 import WebsiteLayout from "@/components/website/WebsiteLayout";
@@ -10,7 +9,6 @@ import { formatSignInError } from "@/lib/auth-errors";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [from] = useState(() => {
     if (typeof window === "undefined") return "";
     return new URLSearchParams(window.location.search).get("from") || "";
@@ -55,8 +53,14 @@ export default function LoginPage() {
     }
     toastSuccess("Signed in", "Welcome back. Opening your dashboard…");
     await new Promise((resolve) => setTimeout(resolve, 700));
-    router.replace(redirectData.redirectTo || "/register");
-    router.refresh();
+    // Hard navigation, not router.replace/refresh: the destination is almost
+    // always the same middleware-guarded route the user was just bounced
+    // from (e.g. a department home path). A soft client-side transition can
+    // reach the middleware's auth check before the just-set session cookies
+    // are guaranteed visible to it, which redirects straight back to
+    // /auth/login?from=... — a full page load always carries the fresh
+    // cookies and never reuses a cached response for that path.
+    window.location.assign(redirectData.redirectTo || "/register");
   };
 
   return (

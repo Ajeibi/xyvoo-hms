@@ -23,5 +23,10 @@ export async function requireHotelApiMember(slug: string) {
 
   if (!membership) return { error: "Forbidden" as const, status: 403 as const };
 
-  return { user, tenant, service, role: membership.role as string };
+  const departmentRole =
+    typeof user.user_metadata?.department_role === "string"
+      ? (user.user_metadata.department_role as string)
+      : null;
+
+  return { user, tenant, service, role: membership.role as string, departmentRole };
 }
