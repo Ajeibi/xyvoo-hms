@@ -3,6 +3,19 @@ import type { MetricTileItem, StatusRowItem, SummaryTileItem } from "./shared";
 export type FinancePeriod = "day" | "week" | "month" | "quarter";
 export type FinanceMetric = "revenue" | "occupancy" | "adr" | "revpar" | "expenses" | "profit";
 
+/** Reporting window for the Food & Beverage / Kitchen dashboard cards. */
+export type DashboardPeriod = "day" | "week" | "month";
+
+export type FoodAndBeverageView = {
+  items: MetricTileItem[];
+  outletBreakdownItems: StatusRowItem[];
+};
+
+export type KitchenView = {
+  items: MetricTileItem[];
+  alertItems: StatusRowItem[];
+};
+
 export type FloorStatusItem = {
   label: string;
   value: number;
@@ -42,10 +55,8 @@ export type DashboardAnalyticsModel = {
   roomStatusItems: RoomStatusItem[];
   floorStatusItems: FloorStatusItem[];
   occupancyTrend: OccupancyTrend;
-  foodAndBeverageItems: MetricTileItem[];
-  outletBreakdownItems: StatusRowItem[];
-  kitchenItems: MetricTileItem[];
-  kitchenAlertItems: StatusRowItem[];
+  foodAndBeverageViews: Record<DashboardPeriod, FoodAndBeverageView>;
+  kitchenViews: Record<DashboardPeriod, KitchenView>;
   inventorySummary: SummaryTileItem[];
   lowStockItems: StatusRowItem[];
   operationalAlerts: StatusRowItem[];

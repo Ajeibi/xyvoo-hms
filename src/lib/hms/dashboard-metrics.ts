@@ -1,14 +1,20 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   DashboardAnalyticsModel,
+  DashboardPeriod,
   FloorStatusItem,
+  FoodAndBeverageView,
+  KitchenView,
   OccupancyTrend,
   RoomStatusItem,
 } from "@/components/hms/dashboard/analytics/dashboard-analytics-types";
 import type { MetricTileItem, StatusRowItem, SummaryTileItem } from "@/components/hms/dashboard/analytics/shared";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getInventoryDashboardStats, getLowStockLevels } from "@/lib/hms/inventory-stock";
 import {
   buildDashboardFbSections,
+  PERIOD_NOUN,
   type DashboardFbItemRow,
   type DashboardFbOrderRow,
   type DashboardFbOutletRow,
@@ -104,87 +110,102 @@ function buildOccupancyTrendFromReservations(
   return { labels, values };
 }
 
-function emptyDepartmentPlaceholders(currency: string): Pick<
-  DashboardAnalyticsModel,
-  | "foodAndBeverageItems"
-  | "outletBreakdownItems"
-  | "kitchenItems"
-  | "kitchenAlertItems"
-  | "inventorySummary"
-  | "lowStockItems"
-> {
+function emptyFoodAndBeverageView(currency: string, period: DashboardPeriod): FoodAndBeverageView {
+  const periodNoun = PERIOD_NOUN[period];
   return {
-    foodAndBeverageItems: [
+    items: [
       {
         label: "F&B revenue",
         value: formatPricingAmount(0, currency),
-        description: "No tickets closed today.",
+        description: `No tickets closed ${periodNoun}.`,
       },
       {
-        label: "Orders today",
+        label: "Orders",
         value: "0",
-        description: "Closed outlet orders for today (UTC).",
+        description: `Closed outlet orders ${periodNoun} (UTC).`,
       },
       {
         label: "Average bill",
         value: formatPricingAmount(0, currency),
-        description: "Average spend per closed order today.",
+        description: `Average spend per closed order ${periodNoun}.`,
       },
       {
         label: "Charge to room",
         value: formatPricingAmount(0, currency),
-        description: "Room-charge orders posted to folios today.",
+        description: `Room-charge orders posted to folios ${periodNoun}.`,
       },
     ],
     outletBreakdownItems: [
       {
         title: "Restaurant",
-        detail: "No restaurant tickets closed today.",
+        detail: `No restaurant tickets closed ${periodNoun}.`,
         value: formatPricingAmount(0, currency),
         tone: "info",
       },
       {
         title: "Bar",
-        detail: "No bar tickets closed today.",
+        detail: `No bar tickets closed ${periodNoun}.`,
         value: formatPricingAmount(0, currency),
         tone: "info",
       },
       {
         title: "Room service",
-        detail: "No room-service tickets closed today.",
+        detail: `No room-service tickets closed ${periodNoun}.`,
         value: formatPricingAmount(0, currency),
         tone: "info",
       },
     ],
-    kitchenItems: [
+  };
+}
+
+function emptyKitchenView(period: DashboardPeriod): KitchenView {
+  const periodNoun = PERIOD_NOUN[period];
+  return {
+    items: [
       {
         label: "Open tickets",
         value: "0",
-        description: "Kitchen tickets still in prep.",
+        description: "Kitchen tickets still in prep (live, not affected by the period filter).",
       },
       {
         label: "Average prep time",
         value: "—",
-        description: "Average prep time for tickets closed today.",
+        description: `Average prep time for tickets closed ${periodNoun}.`,
       },
       {
         label: "Delayed orders",
         value: "0",
-        description: "Tickets past the kitchen SLA today.",
+        description: `Tickets past the kitchen SLA ${periodNoun}.`,
       },
       {
         label: "Ready for service",
         value: "0",
-        description: "Tickets marked ready and awaiting pickup.",
+        description: "Tickets marked ready and awaiting pickup (live, not affected by the period filter).",
       },
     ],
-    kitchenAlertItems: [
+    alertItems: [
       {
         title: "Kitchen queue",
         detail: "No kitchen alerts for the current shift.",
         tone: "info",
       },
     ],
+  };
+}
+
+const DASHBOARD_PERIODS: DashboardPeriod[] = ["day", "week", "month"];
+
+function emptyDepartmentPlaceholders(currency: string): Pick<
+  DashboardAnalyticsModel,
+  "foodAndBeverageViews" | "kitchenViews" | "inventorySummary" | "lowStockItems"
+> {
+  return {
+    foodAndBeverageViews: Object.fromEntries(
+      DASHBOARD_PERIODS.map((period) => [period, emptyFoodAndBeverageView(currency, period)]),
+    ) as Record<DashboardPeriod, FoodAndBeverageView>,
+    kitchenViews: Object.fromEntries(
+      DASHBOARD_PERIODS.map((period) => [period, emptyKitchenView(period)]),
+    ) as Record<DashboardPeriod, KitchenView>,
     inventorySummary: [
       { label: "Tracked SKUs", value: "0", caption: "No stock items on file." },
       { label: "Par variance", value: "0", caption: "No par levels configured." },
@@ -198,6 +219,52 @@ function emptyDepartmentPlaceholders(currency: string): Pick<
       },
     ],
   };
+}
+
+async function buildInventoryDashboardSections(
+  supabase: SupabaseClient,
+  tenantId: string,
+  currency: string,
+): Promise<Pick<DashboardAnalyticsModel, "inventorySummary" | "lowStockItems">> {
+  const [stats, lowStock] = await Promise.all([
+    getInventoryDashboardStats(supabase, tenantId),
+    getLowStockLevels(supabase, tenantId),
+  ]);
+
+  const inventorySummary: SummaryTileItem[] = [
+    {
+      label: "Tracked SKUs",
+      value: String(stats.skuCount),
+      caption: stats.skuCount > 0 ? formatPricingAmount(stats.stockValue, currency) + " in stock" : "No stock items on file.",
+    },
+    {
+      label: "Low stock",
+      value: String(stats.lowStockCount),
+      caption: stats.lowStockCount > 0 ? "Item(s) at or below reorder point." : "Everything is above its reorder point.",
+    },
+    {
+      label: "Reorder queue",
+      value: String(stats.pendingRequisitions),
+      caption: stats.pendingRequisitions > 0 ? "Requisition(s) awaiting action." : "No pending requisitions.",
+    },
+  ];
+
+  const lowStockItems: StatusRowItem[] =
+    lowStock.length > 0
+      ? lowStock.slice(0, 5).map((l) => ({
+          title: l.item_name,
+          detail: `${l.location_name}: ${l.qty_on_hand} ${l.unit_of_measure} on hand (reorder at ${l.reorder_point}).`,
+          tone: "warning" as const,
+        }))
+      : [
+          {
+            title: "Stock visibility",
+            detail: "No items are currently below their reorder point.",
+            tone: "info" as const,
+          },
+        ];
+
+  return { inventorySummary, lowStockItems };
 }
 
 function emptyDashboardModel(currency: string): DashboardAnalyticsModel {
@@ -514,17 +581,51 @@ export async function getHotelDashboardMetrics(params: {
   });
 
   const fbDataOk = fbOrderError == null && fbOutletError == null && fbItemError == null;
-  const fbSections = fbDataOk
-    ? buildDashboardFbSections({
-        orders: fbOrders,
-        outlets: (fbOutletRows ?? []) as DashboardFbOutletRow[],
-        items: (fbItemRows ?? []) as DashboardFbItemRow[],
-        currency,
-        kitchenOverdueMinutes: fbSettings.kitchenOverdueMinutes,
-        reference: now,
-      })
-    : null;
   const deptPlaceholders = emptyDepartmentPlaceholders(currency);
+
+  const inventoryModel = await buildInventoryDashboardSections(supabase, tenantId, currency).catch(() => null);
+
+  const fbSectionsByPeriod = fbDataOk
+    ? Object.fromEntries(
+        DASHBOARD_PERIODS.map((period) => [
+          period,
+          buildDashboardFbSections({
+            orders: fbOrders,
+            outlets: (fbOutletRows ?? []) as DashboardFbOutletRow[],
+            items: (fbItemRows ?? []) as DashboardFbItemRow[],
+            currency,
+            kitchenOverdueMinutes: fbSettings.kitchenOverdueMinutes,
+            period,
+            reference: now,
+          }),
+        ]),
+      )
+    : null;
+
+  const foodAndBeverageViews: Record<DashboardPeriod, FoodAndBeverageView> = Object.fromEntries(
+    DASHBOARD_PERIODS.map((period) => [
+      period,
+      fbSectionsByPeriod
+        ? {
+            items: fbSectionsByPeriod[period].foodAndBeverageItems,
+            outletBreakdownItems: fbSectionsByPeriod[period].outletBreakdownItems,
+          }
+        : deptPlaceholders.foodAndBeverageViews[period],
+    ]),
+  ) as Record<DashboardPeriod, FoodAndBeverageView>;
+
+  const kitchenViews: Record<DashboardPeriod, KitchenView> = Object.fromEntries(
+    DASHBOARD_PERIODS.map((period) => [
+      period,
+      fbSectionsByPeriod
+        ? {
+            items: fbSectionsByPeriod[period].kitchenItems,
+            alertItems: fbSectionsByPeriod[period].kitchenAlertItems,
+          }
+        : deptPlaceholders.kitchenViews[period],
+    ]),
+  ) as Record<DashboardPeriod, KitchenView>;
+
   const operationalAlerts = buildOperationalAlerts(rooms, reservations, now);
 
   const model: DashboardAnalyticsModel = {
@@ -538,12 +639,10 @@ export async function getHotelDashboardMetrics(params: {
     roomStatusItems,
     floorStatusItems,
     occupancyTrend,
-    foodAndBeverageItems: fbSections?.foodAndBeverageItems ?? deptPlaceholders.foodAndBeverageItems,
-    outletBreakdownItems: fbSections?.outletBreakdownItems ?? deptPlaceholders.outletBreakdownItems,
-    kitchenItems: fbSections?.kitchenItems ?? deptPlaceholders.kitchenItems,
-    kitchenAlertItems: fbSections?.kitchenAlertItems ?? deptPlaceholders.kitchenAlertItems,
-    inventorySummary: deptPlaceholders.inventorySummary,
-    lowStockItems: deptPlaceholders.lowStockItems,
+    foodAndBeverageViews,
+    kitchenViews,
+    inventorySummary: inventoryModel?.inventorySummary ?? deptPlaceholders.inventorySummary,
+    lowStockItems: inventoryModel?.lowStockItems ?? deptPlaceholders.lowStockItems,
     operationalAlerts,
   };
 

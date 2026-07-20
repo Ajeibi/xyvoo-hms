@@ -1,3 +1,4 @@
+import type { DashboardPeriod } from "@/components/hms/dashboard/analytics/dashboard-analytics-types";
 import type { MetricTileItem, StatusRowItem } from "@/components/hms/dashboard/analytics/shared";
 import {
   hasOpenKitchenItems,
@@ -52,6 +53,30 @@ function inUtcDay(value: string, reference = new Date()) {
   return t >= parseTs(startIso) && t < parseTs(nextIso);
 }
 
+const PERIOD_DAYS: Record<DashboardPeriod, number> = { day: 1, week: 7, month: 30 };
+
+export const PERIOD_NOUN: Record<DashboardPeriod, string> = {
+  day: "today",
+  week: "this week",
+  month: "this month",
+};
+
+/** Rolling window ending at the start of the next UTC day (e.g. "week" = last 7 calendar days). */
+function utcPeriodRangeIso(period: DashboardPeriod, reference = new Date()) {
+  const y = reference.getUTCFullYear();
+  const m = reference.getUTCMonth();
+  const d = reference.getUTCDate();
+  const start = new Date(Date.UTC(y, m, d - (PERIOD_DAYS[period] - 1), 0, 0, 0, 0));
+  const next = new Date(Date.UTC(y, m, d + 1, 0, 0, 0, 0));
+  return { startIso: start.toISOString(), nextIso: next.toISOString() };
+}
+
+function inUtcPeriod(value: string, period: DashboardPeriod, reference = new Date()) {
+  const t = parseTs(value);
+  const { startIso, nextIso } = utcPeriodRangeIso(period, reference);
+  return t >= parseTs(startIso) && t < parseTs(nextIso);
+}
+
 function num(value: string | number): number {
   const n = typeof value === "number" ? value : Number.parseFloat(value);
   return Number.isFinite(n) ? n : 0;
@@ -101,10 +126,20 @@ export function buildDashboardFbSections(params: {
   items: DashboardFbItemRow[];
   currency: string;
   kitchenOverdueMinutes: number;
+  period?: DashboardPeriod;
   reference?: Date;
 }): DashboardFbSections {
-  const { orders, outlets, items, currency, kitchenOverdueMinutes, reference = new Date() } = params;
+  const {
+    orders,
+    outlets,
+    items,
+    currency,
+    kitchenOverdueMinutes,
+    period = "day",
+    reference = new Date(),
+  } = params;
   const hasLiveFbData = orders.length > 0;
+  const periodNoun = PERIOD_NOUN[period];
 
   const itemsByOrder = new Map<string, { kitchen_status: string }[]>();
   for (const row of items) {
@@ -114,21 +149,26 @@ export function buildDashboardFbSections(params: {
   }
 
   const outletById = new Map(outlets.map((o) => [o.id, o]));
-  const fbRevenueToday = fbClosedRevenueForUtcDay(orders, reference);
   const fbPosRevenueToday = fbPosRevenueForUtcDay(orders, reference);
 
-  const closedToday = orders.filter(
-    (o) => o.status === "closed" && o.closed_at && inUtcDay(o.closed_at, reference),
+  const closedInPeriod = orders.filter(
+    (o) => o.status === "closed" && o.closed_at && inUtcPeriod(o.closed_at, period, reference),
   );
-  const ordersToday = closedToday.length;
-  const chargeToRoomToday = closedToday
+  const fbRevenueInPeriod =
+    Math.round(
+      closedInPeriod
+        .filter((o) => o.settlement_method === "room_charge" || isPosSettlement(o.settlement_method))
+        .reduce((sum, o) => sum + num(o.subtotal), 0) * 100,
+    ) / 100;
+  const ordersInPeriod = closedInPeriod.length;
+  const chargeToRoomInPeriod = closedInPeriod
     .filter((o) => o.settlement_method === "room_charge")
     .reduce((sum, o) => sum + num(o.subtotal), 0);
   const averageBill =
-    ordersToday > 0 ? Math.round(fbRevenueToday / ordersToday) : 0;
+    ordersInPeriod > 0 ? Math.round(fbRevenueInPeriod / ordersInPeriod) : 0;
 
   const outletTotals = new Map<string, number>();
-  for (const order of closedToday) {
+  for (const order of closedInPeriod) {
     const outlet = outletById.get(order.outlet_id);
     const key = outlet?.outlet_type ?? "restaurant";
     outletTotals.set(key, (outletTotals.get(key) ?? 0) + num(order.subtotal));
@@ -143,26 +183,26 @@ export function buildDashboardFbSections(params: {
   const foodAndBeverageItems: MetricTileItem[] = [
     {
       label: "F&B revenue",
-      value: formatPricingAmount(fbRevenueToday, currency),
+      value: formatPricingAmount(fbRevenueInPeriod, currency),
       description:
-        ordersToday > 0
-          ? `${ordersToday} closed ticket(s) today (UTC).`
-          : "No F&B tickets closed today yet.",
+        ordersInPeriod > 0
+          ? `${ordersInPeriod} closed ticket(s) ${periodNoun} (UTC).`
+          : `No F&B tickets closed ${periodNoun} yet.`,
     },
     {
-      label: "Orders today",
-      value: String(ordersToday),
-      description: "Closed restaurant, bar, and room-service tickets.",
+      label: "Orders",
+      value: String(ordersInPeriod),
+      description: `Closed restaurant, bar, and room-service tickets ${periodNoun}.`,
     },
     {
       label: "Average bill",
       value: formatPricingAmount(averageBill, currency),
-      description: "Mean subtotal per closed ticket today.",
+      description: `Mean subtotal per closed ticket ${periodNoun}.`,
     },
     {
       label: "Charge to room",
-      value: formatPricingAmount(chargeToRoomToday, currency),
-      description: "Posted to in-house guest folios today.",
+      value: formatPricingAmount(chargeToRoomInPeriod, currency),
+      description: `Posted to in-house guest folios ${periodNoun}.`,
     },
   ];
 
@@ -174,8 +214,8 @@ export function buildDashboardFbSections(params: {
         title: outletLabel[type],
         detail:
           value > 0
-            ? `${names.join(", ") || outletLabel[type]} sales today.`
-            : `No ${outletLabel[type].toLowerCase()} tickets closed today.`,
+            ? `${names.join(", ") || outletLabel[type]} sales ${periodNoun}.`
+            : `No ${outletLabel[type].toLowerCase()} tickets closed ${periodNoun}.`,
         value: formatPricingAmount(value, currency),
         tone: value > 0 ? ("info" as const) : ("info" as const),
       };
@@ -185,9 +225,11 @@ export function buildDashboardFbSections(params: {
   const now = reference.getTime();
   const threshold = resolveOverdueMinutes(kitchenOverdueMinutes);
   let openTickets = 0;
-  let delayedOrders = 0;
+  let liveDelayedOrders = 0;
   let readyForService = 0;
-  const prepSamples: number[] = [];
+  const prepSamplesInPeriod: number[] = [];
+  let completedInPeriod = 0;
+  let delayedInPeriod = 0;
 
   for (const order of orders) {
     const orderItems = itemsByOrder.get(order.id) ?? [];
@@ -196,14 +238,18 @@ export function buildDashboardFbSections(params: {
         order.status === "closed" &&
         order.kitchen_ready_at &&
         order.sent_to_kitchen_at &&
-        inUtcDay(order.kitchen_ready_at, reference)
+        inUtcPeriod(order.kitchen_ready_at, period, reference)
       ) {
         const mins = kitchenTimeMinutes({
           sent_to_kitchen_at: order.sent_to_kitchen_at,
           created_at: order.created_at,
           closed_at: order.kitchen_ready_at,
         });
-        if (mins !== null) prepSamples.push(mins);
+        if (mins !== null) {
+          prepSamplesInPeriod.push(mins);
+          completedInPeriod += 1;
+          if (mins > threshold) delayedInPeriod += 1;
+        }
       }
       continue;
     }
@@ -220,7 +266,7 @@ export function buildDashboardFbSections(params: {
             threshold,
           )
         ) {
-          delayedOrders += 1;
+          liveDelayedOrders += 1;
         }
       }
       if (
@@ -234,38 +280,41 @@ export function buildDashboardFbSections(params: {
   }
 
   const avgPrep =
-    prepSamples.length > 0
-      ? `${Math.round(prepSamples.reduce((a, b) => a + b, 0) / prepSamples.length)}m`
+    prepSamplesInPeriod.length > 0
+      ? `${Math.round(prepSamplesInPeriod.reduce((a, b) => a + b, 0) / prepSamplesInPeriod.length)}m`
       : "—";
 
   const kitchenItems: MetricTileItem[] = [
     {
       label: "Open tickets",
       value: String(openTickets),
-      description: "Tickets still on the kitchen line.",
+      description: "Tickets on the kitchen line right now (live, not affected by the period filter).",
     },
     {
       label: "Average prep time",
       value: avgPrep,
-      description: "Mean cook time for tickets finished today.",
+      description: `Mean cook time for tickets finished ${periodNoun}.`,
     },
     {
       label: "Delayed orders",
-      value: String(delayedOrders),
-      description: `Over ${threshold} min on the live board.`,
+      value: String(period === "day" ? liveDelayedOrders : delayedInPeriod),
+      description:
+        period === "day"
+          ? `Over ${threshold} min on the live board right now.`
+          : `${delayedInPeriod} of ${completedInPeriod} ticket(s) finished ${periodNoun} took over ${threshold} min.`,
     },
     {
       label: "Ready for service",
       value: String(readyForService),
-      description: "Kitchen done — awaiting F&B pickup.",
+      description: "Kitchen done — awaiting F&B pickup (live, not affected by the period filter).",
     },
   ];
 
   const kitchenAlertItems: StatusRowItem[] = [];
-  if (delayedOrders > 0) {
+  if (liveDelayedOrders > 0) {
     kitchenAlertItems.push({
       title: "Kitchen delays",
-      detail: `${delayedOrders} live ticket(s) exceeded the ${threshold} minute target.`,
+      detail: `${liveDelayedOrders} live ticket(s) exceeded the ${threshold} minute target.`,
       tone: "warning",
     });
   }

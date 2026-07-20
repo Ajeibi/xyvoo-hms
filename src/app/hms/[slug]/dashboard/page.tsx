@@ -149,14 +149,10 @@ export default async function HMSDashboardPage({ params }: { params: Promise<{ s
             <FloorStatusCard items={analyticsModel.floorStatusItems} />
           </div>
 
-          <div className="grid items-stretch gap-4 xl:grid-cols-[1.05fr_0.95fr]">
-            <FoodBeverageCard
-              items={analyticsModel.foodAndBeverageItems}
-              outletBreakdownItems={analyticsModel.outletBreakdownItems}
-            />
+          <div className="grid items-stretch gap-4 xl:grid-cols-2">
+            <FoodBeverageCard viewsByPeriod={analyticsModel.foodAndBeverageViews} />
             <KitchenCard
-              items={analyticsModel.kitchenItems}
-              alertItems={analyticsModel.kitchenAlertItems}
+              viewsByPeriod={analyticsModel.kitchenViews}
               setupHref={kitchenTimingSetupHref}
             />
           </div>

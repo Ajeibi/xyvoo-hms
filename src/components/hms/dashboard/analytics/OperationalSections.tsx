@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import {
   BarElement,
@@ -25,12 +26,44 @@ import {
 } from "lucide-react";
 import { Bar, Line } from "react-chartjs-2";
 import type {
+  DashboardPeriod,
   FloorStatusItem,
+  FoodAndBeverageView,
+  KitchenView,
   OccupancyTrend,
   RoomStatusItem,
 } from "./dashboard-analytics-types";
 import type { MetricTileItem, StatusRowItem, SummaryTileItem } from "./shared";
-import { AnalyticsCard, MetricTile, StatusRow, SummaryTile } from "./shared";
+import { AnalyticsCard, MetricTile, StatusRow, SummaryTile, capitalize } from "./shared";
+
+const DASHBOARD_PERIODS: DashboardPeriod[] = ["day", "week", "month"];
+
+function PeriodToggle({
+  value,
+  onChange,
+}: {
+  value: DashboardPeriod;
+  onChange: (period: DashboardPeriod) => void;
+}) {
+  return (
+    <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1">
+      {DASHBOARD_PERIODS.map((period) => (
+        <button
+          key={period}
+          type="button"
+          onClick={() => onChange(period)}
+          className={`rounded-xl px-3 py-1.5 text-sm font-medium transition-colors ${
+            value === period
+              ? "bg-white text-blue-600 shadow-sm shadow-slate-200/70"
+              : "text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          {capitalize(period)}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 ChartJS.register(
   BarElement,
@@ -249,18 +282,23 @@ export function FloorStatusCard({
 }
 
 export function FoodBeverageCard({
-  items,
-  outletBreakdownItems,
+  viewsByPeriod,
 }: {
-  items: MetricTileItem[];
-  outletBreakdownItems: StatusRowItem[];
+  viewsByPeriod: Record<DashboardPeriod, FoodAndBeverageView>;
 }) {
+  const [period, setPeriod] = useState<DashboardPeriod>("day");
+  const { items, outletBreakdownItems } = viewsByPeriod[period];
+
   return (
     <AnalyticsCard
       icon={UtensilsCrossed}
       title="Food & Beverage"
-      description="Restaurant, bar, and room-service activity for today."
+      description="Restaurant, bar, and room-service activity."
     >
+      <div className="mb-4 flex justify-end">
+        <PeriodToggle value={period} onChange={setPeriod} />
+      </div>
+
       <div className="grid gap-3 sm:grid-cols-2">
         {items.map((item) => (
           <MetricTile key={item.label} {...item} />
@@ -277,21 +315,26 @@ export function FoodBeverageCard({
 }
 
 export function KitchenCard({
-  items,
-  alertItems,
+  viewsByPeriod,
   setupHref,
 }: {
-  items: MetricTileItem[];
-  alertItems: StatusRowItem[];
+  viewsByPeriod: Record<DashboardPeriod, KitchenView>;
   /** Shown when kitchen timing has not been configured in back office */
   setupHref?: string | null;
 }) {
+  const [period, setPeriod] = useState<DashboardPeriod>("day");
+  const { items, alertItems } = viewsByPeriod[period];
+
   return (
     <AnalyticsCard
       icon={Soup}
       title="Kitchen"
-      description="Prep flow, delays, and item availability for the current shift."
+      description="Prep flow, delays, and item availability."
     >
+      <div className="mb-4 flex justify-end">
+        <PeriodToggle value={period} onChange={setPeriod} />
+      </div>
+
       {setupHref ? (
         <Link
           href={setupHref}
