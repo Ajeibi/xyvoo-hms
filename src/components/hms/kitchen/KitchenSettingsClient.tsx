@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Loader2 } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, Loader2 } from "lucide-react";
 import type { FbRoleCapabilities } from "@/lib/hms/fb-rbac";
 import type { FbCategoryPrepRow } from "@/lib/hms/fb-menu";
 import {
@@ -185,6 +186,14 @@ export function KitchenSettingsClient({
         </p>
       </div>
 
+      <Link
+        href={`/hms/${slug}/restaurant-bar/settings`}
+        className="flex items-center justify-between gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50/60 px-5 py-3 text-sm text-slate-600 transition-colors hover:border-blue-300 hover:bg-blue-50/40 hover:text-blue-700"
+      >
+        <span>Menu items, kitchen stations, and 86&apos;ing dishes are managed on Restaurant &amp; Bar → Settings.</span>
+        <ArrowRight className="size-4 shrink-0" aria-hidden />
+      </Link>
+
       <div className="max-w-lg rounded-2xl border border-slate-200 bg-white p-5">
         <label className="mb-1 block text-sm font-medium text-slate-900">
           Default order wait threshold (minutes)
@@ -248,7 +257,7 @@ export function KitchenSettingsClient({
 
         {categories.length === 0 ? (
           <p className="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-            No menu categories yet. Add categories in Settings → Menu setup.
+            No menu categories yet. Add categories in Restaurant &amp; Bar → Settings.
           </p>
         ) : (
           <div className="mt-4 space-y-5">

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ImagePlus } from "lucide-react";
 import { toastError, toastSuccess } from "@/lib/app-toast";
+import { SettingsSectionInfo } from "@/components/hms/settings/SettingsSectionInfo";
 
 export default function HotelBrandingSetup({
   slug,
@@ -53,7 +54,13 @@ export default function HotelBrandingSetup({
 
   return (
     <form onSubmit={handleSave} className="bg-white border border-slate-200 rounded-xl p-6 space-y-4">
-      <h2 className="text-sm font-semibold text-slate-800">Hotel Branding</h2>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <h2 className="text-sm font-semibold text-slate-800">Hotel Branding</h2>
+        <SettingsSectionInfo
+          title="Hotel Branding"
+          text="The name and logo shown at the top-left of every HMS page, on printed registration cards, and on the public guest menu. Set this up once — it rarely needs to change."
+        />
+      </div>
       <p className="text-xs text-slate-500">Update logo and dashboard name shown at the top-left of HMS.</p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -5,6 +5,7 @@ import { Copy, Eye, EyeOff } from "lucide-react";
 import { CREATABLE_DEPARTMENT_ROLES, ROLE_SECTIONS } from "@/lib/hms/role-sections";
 import type { DepartmentLoginSummary } from "@/lib/hms/department-logins";
 import { toastError, toastSuccess } from "@/lib/app-toast";
+import { SettingsSectionInfo } from "@/components/hms/settings/SettingsSectionInfo";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -195,7 +196,13 @@ export default function DepartmentAccessSetup({
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-slate-900">Department Access Setup</h1>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <h1 className="text-xl font-semibold text-slate-900">Department Access Setup</h1>
+        <SettingsSectionInfo
+          title="Department Access Setup"
+          text="Create a login for each department (Front Desk, Housekeeping, Kitchen, etc.), reset passwords, and see which sections each role can reach. Security-sensitive — only Owner/Admin can create or reset logins, and it's an occasional task (new hires, password resets), not a daily one."
+        />
+      </div>
       <p className="mt-0.5 text-sm text-slate-500">
         Owner/Admin should configure department logins and set passwords for each operational unit.
       </p>

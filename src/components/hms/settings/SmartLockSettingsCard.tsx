@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { toastError, toastSuccess } from "@/lib/app-toast";
+import { SettingsSectionInfo } from "@/components/hms/settings/SettingsSectionInfo";
 
 export function SmartLockSettingsCard({ slug }: { slug: string }) {
   const [provider, setProvider] = useState("audit_only");
@@ -39,7 +40,13 @@ export function SmartLockSettingsCard({ slug }: { slug: string }) {
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 className="text-lg font-semibold text-slate-900">Smart lock integration</h2>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <h2 className="text-lg font-semibold text-slate-900">Smart lock integration</h2>
+        <SettingsSectionInfo
+          title="Smart lock integration"
+          text="One-time technical setup connecting XYVOO to your physical door-lock provider so front desk can remotely unlock or reissue keys. Only touch this again if you switch lock vendors or rotate API credentials."
+        />
+      </div>
       <p className="mt-1 text-sm text-slate-600">
         Configure how remote unlock and key reissue reach your lock provider. Audit-only records events
         without calling external systems.

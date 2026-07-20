@@ -37,6 +37,7 @@ import {
   RoomInventoryTypeAssignment,
   buildRoomTypeOptionsFromDrafts,
 } from "@/components/hms/settings/RoomInventoryTypeAssignment";
+import { SettingsSectionInfo } from "@/components/hms/settings/SettingsSectionInfo";
 
 type PricingSetupDraft = {
   currency: string;
@@ -640,9 +641,15 @@ export default function HotelRoomPricingSetup({
     >
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h2 className="text-sm font-semibold text-slate-800">
-            Super Admin Setup: Rooms & Pricing
-          </h2>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <h2 className="text-sm font-semibold text-slate-800">
+              Super Admin Setup: Rooms & Pricing
+            </h2>
+            <SettingsSectionInfo
+              title="Rooms & Pricing"
+              text="Room types, floor/room counts, the floor plan, and the property's rate structure — the structural definition of what you sell. Set this up once (or occasionally revisit rates); day-to-day front desk work never touches this page."
+            />
+          </div>
           <p className="mt-1 max-w-2xl text-xs leading-6 text-slate-500">
             Define room types, default sell rates, and hotel-wide pricing rules here so
             department staff can focus on daily operations instead of setup.
