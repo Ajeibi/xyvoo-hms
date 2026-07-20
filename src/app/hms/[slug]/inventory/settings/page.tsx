@@ -1,5 +1,11 @@
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import HMSLayout from "@/components/hms/HMSLayout";
-import ModuleScaffold from "@/components/hms/ModuleScaffold";
+import { InventoryItemsClient } from "@/components/hms/inventory/InventoryItemsClient";
+import { getHmsAccessContext } from "@/lib/hms/access";
+import { getHotelTenantBySlug } from "@/lib/hms/data";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { listCategories, listItems, listItemTypes, listUnits } from "@/lib/hms/inventory-items";
 
 export default async function InventorySettingsPage({
   params,
@@ -7,20 +13,49 @@ export default async function InventorySettingsPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  const [tenant, access] = await Promise.all([getHotelTenantBySlug(slug), getHmsAccessContext(slug)]);
+
+  const [categories, items, units, itemTypes] = tenant
+    ? await (async () => {
+        const supabase = createServerSupabaseClient();
+        return Promise.all([
+          listCategories(supabase, tenant.id),
+          listItems(supabase, tenant.id),
+          listUnits(supabase, tenant.id),
+          listItemTypes(supabase, tenant.id),
+        ]);
+      })()
+    : [[], [], [], []];
 
   return (
     <HMSLayout slug={slug} requiredSection="inventory-settings">
-      <ModuleScaffold
-        title="Inventory Settings"
-        subtitle="Adjust stock handling, reorder logic, and inventory dashboard preferences."
-        checklist={[
-          "Store locations and stock movement rules",
-          "Reorder thresholds and low-stock alerts",
-          "Issue, return, and variance controls",
-          "Cycle count frequency and approval flow",
-          "Inventory dashboard cards and notifications",
-        ]}
-      />
+      <div className="w-full space-y-6 px-6 py-6">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">Inventory settings</h1>
+          <p className="text-sm text-slate-500">
+            Manage stock categories and the item catalog — add a new item, retire one, or reorganize
+            categories whenever your stock lineup changes.
+          </p>
+        </div>
+
+        {access.canAccessAllDepartments ? (
+          <Link
+            href={`/hms/${slug}/settings#inventory-setup`}
+            className="flex items-center justify-between gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50/60 px-5 py-3 text-sm text-slate-600 transition-colors hover:border-blue-300 hover:bg-blue-50/40 hover:text-blue-700"
+          >
+            <span>Store locations, units of measure, item types, and store types are structural setup — manage those on the Admin hub.</span>
+            <ArrowRight className="size-4 shrink-0" aria-hidden />
+          </Link>
+        ) : null}
+
+        <InventoryItemsClient
+          slug={slug}
+          initialCategories={categories}
+          initialItems={items}
+          initialUnits={units}
+          initialItemTypes={itemTypes}
+        />
+      </div>
     </HMSLayout>
   );
 }
