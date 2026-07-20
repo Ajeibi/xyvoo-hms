@@ -9,9 +9,9 @@ import {
   defaultDepartmentForCategory,
   listGuestRequestsForTenant,
   resolveReservationIdByCode,
-  GUEST_SERVICE_CATEGORIES,
   GUEST_REQUEST_PRIORITIES,
 } from "@/lib/hms/guest-services";
+import { getCategoryDepartment, isKnownActiveCategory } from "@/lib/hms/guest-service-categories";
 
 const ListQuery = z.object({
   slug: z.string().min(1),
@@ -38,9 +38,6 @@ const PostBody = z.object({
 }).refine(
   (d) => (d.reservationId ?? d.confirmationCode) != null,
   { message: "reservationId or confirmationCode required" },
-).refine(
-  (d) => GUEST_SERVICE_CATEGORIES.includes(d.serviceCategory as (typeof GUEST_SERVICE_CATEGORIES)[number]),
-  { message: "Invalid serviceCategory" },
 );
 
 export async function GET(req: Request) {
@@ -60,7 +57,7 @@ export async function GET(req: Request) {
     const auth = await requireHotelApiMember(query.slug);
     if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
-    const caps = getGuestServicesCapabilities(auth.role);
+    const caps = getGuestServicesCapabilities({ membershipRole: auth.role, departmentRole: auth.departmentRole });
     if (!caps.canView) return NextResponse.json({ error: "Not allowed." }, { status: 403 });
 
     const payload = await listGuestRequestsForTenant(
@@ -94,8 +91,13 @@ export async function POST(req: Request) {
     const auth = await requireHotelApiMember(body.slug);
     if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
-    const caps = getGuestServicesCapabilities(auth.role);
+    const caps = getGuestServicesCapabilities({ membershipRole: auth.role, departmentRole: auth.departmentRole });
     if (!caps.canCreate) return NextResponse.json({ error: "Not allowed." }, { status: 403 });
+
+    const validCategory = await isKnownActiveCategory(auth.service, auth.tenant.id, body.serviceCategory);
+    if (!validCategory) {
+      return NextResponse.json({ error: "Invalid serviceCategory" }, { status: 400 });
+    }
 
     let reservationId = body.reservationId ?? null;
     if (!reservationId && body.confirmationCode) {
@@ -121,7 +123,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Reservation not found." }, { status: 404 });
     }
 
-    const dept = (body.department ?? defaultDepartmentForCategory(body.serviceCategory)).toLowerCase();
+    const categoryDept = await getCategoryDepartment(auth.service, auth.tenant.id, body.serviceCategory);
+    const dept = (body.department ?? categoryDept ?? defaultDepartmentForCategory(body.serviceCategory)).toLowerCase();
     const priority = body.priority ?? "normal";
     const createdAtIso = new Date().toISOString();
     const expectedAt = computeExpectedCompletedIso(createdAtIso, body.serviceCategory);
@@ -185,6 +188,7 @@ export async function POST(req: Request) {
       severity: vip || priority === "urgent" ? "warning" : "info",
       entityType: "guest_request",
       entityId: row.id as string,
+      department: dept,
     });
 
     return NextResponse.json({ ok: true, id: row.id });

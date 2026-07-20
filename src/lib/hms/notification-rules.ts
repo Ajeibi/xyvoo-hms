@@ -16,6 +16,63 @@ export async function notifyWalkInCheckIn(
   });
 }
 
+export async function notifyReservationCreated(
+  base: Base & { guestName: string; confirmationCode: string; arrivalDate: string },
+) {
+  await emitNotification({
+    ...base,
+    type: "reservation_created",
+    title: "New reservation created",
+    body: `${base.guestName} · ${base.confirmationCode} · Arriving ${base.arrivalDate}`,
+    severity: "info",
+    entityType: "reservation",
+    entityId: base.entityId,
+  });
+}
+
+export async function notifyReservationCancelled(
+  base: Base & { guestName: string; confirmationCode: string },
+) {
+  await emitNotification({
+    ...base,
+    type: "reservation_cancelled",
+    title: "Reservation cancelled",
+    body: `${base.guestName} · ${base.confirmationCode}`,
+    severity: "warning",
+    entityType: "reservation",
+    entityId: base.entityId,
+  });
+}
+
+export async function notifyGuestIncidentLogged(
+  base: Base & { caseType: "complaint" | "incident"; category: string; incidentSeverity: string },
+) {
+  await emitNotification({
+    ...base,
+    type: "guest_incident_logged",
+    title: base.caseType === "complaint" ? "Complaint logged" : "Incident logged",
+    body: `${base.category.replace(/_/g, " ")} · ${base.incidentSeverity} severity`,
+    severity:
+      base.incidentSeverity === "critical" ? "critical" : base.incidentSeverity === "high" ? "warning" : "info",
+    entityType: "guest_incident",
+    entityId: base.entityId,
+  });
+}
+
+export async function notifyGuestIncidentEscalated(
+  base: Base & { caseType: "complaint" | "incident"; category: string; department: string },
+) {
+  await emitNotification({
+    ...base,
+    type: "guest_incident_escalated",
+    title: base.caseType === "complaint" ? "Complaint escalated" : "Incident escalated",
+    body: `${base.category.replace(/_/g, " ")} escalated to ${base.department.replace(/_/g, " ")}`,
+    severity: "warning",
+    entityType: "guest_incident",
+    entityId: base.entityId,
+  });
+}
+
 export async function notifyVipArrival(
   base: Base & { guestName: string; roomCode: string | null },
 ) {
@@ -198,6 +255,20 @@ export async function notifyCashFloatVariance(
   });
 }
 
+export async function notifyLowStock(
+  base: Base & { itemName: string; locationName: string; qtyOnHand: number; unitOfMeasure: string },
+) {
+  await emitNotification({
+    ...base,
+    type: "low_stock",
+    title: `Low stock — ${base.itemName}`,
+    body: `${base.locationName}: ${base.qtyOnHand} ${base.unitOfMeasure} remaining, at or below reorder point.`,
+    severity: "warning",
+    entityType: "inventory_item",
+    entityId: base.entityId,
+  });
+}
+
 export async function notifyCommissionDue(
   base: Base & { guestName: string; amount: number },
 ) {
@@ -208,6 +279,104 @@ export async function notifyCommissionDue(
     body: `${base.guestName} · ${base.amount} commission flagged`,
     severity: "info",
     entityType: "reservation",
+    entityId: base.entityId,
+  });
+}
+
+export async function notifyPriorityTaskOverdue(
+  base: Base & { roomCode: string; priorityLevel: string },
+) {
+  await emitNotification({
+    ...base,
+    type: "housekeeping_priority_overdue",
+    title: `Overdue — Room ${base.roomCode}`,
+    body: `${base.priorityLevel} priority clean is past its target time.`,
+    severity: base.priorityLevel === "vip" || base.priorityLevel === "urgent" ? "critical" : "warning",
+    entityType: "housekeeping_task",
+    entityId: base.entityId,
+  });
+}
+
+export async function notifyInspectionFailed(
+  base: Base & { roomCode: string; note?: string | null },
+) {
+  await emitNotification({
+    ...base,
+    type: "housekeeping_inspection_failed",
+    title: `Inspection failed — Room ${base.roomCode}`,
+    body: base.note?.trim() || "Room needs rework before it can be marked ready.",
+    severity: "warning",
+    entityType: "housekeeping_task",
+    entityId: base.entityId,
+  });
+}
+
+export async function notifyPoApprovalNeeded(
+  base: Base & { poNumber: string; vendorName: string; total: number; currency: string },
+) {
+  await emitNotification({
+    ...base,
+    type: "po_approval_needed",
+    title: `Approval needed — ${base.poNumber}`,
+    body: `${base.vendorName ? `${base.vendorName} · ` : ""}${base.total} ${base.currency} awaiting sign-off.`,
+    severity: "warning",
+    entityType: "purchase_order",
+    entityId: base.entityId,
+  });
+}
+
+export async function notifyPoApproved(
+  base: Base & { poNumber: string; total: number; currency: string },
+) {
+  await emitNotification({
+    ...base,
+    type: "po_approved",
+    title: `Purchase order approved — ${base.poNumber}`,
+    body: `${base.total} ${base.currency} approved and ready to send to the vendor.`,
+    severity: "info",
+    entityType: "purchase_order",
+    entityId: base.entityId,
+  });
+}
+
+export async function notifyPoRejected(
+  base: Base & { poNumber: string; reason: string },
+) {
+  await emitNotification({
+    ...base,
+    type: "po_rejected",
+    title: `Purchase order rejected — ${base.poNumber}`,
+    body: base.reason,
+    severity: "warning",
+    entityType: "purchase_order",
+    entityId: base.entityId,
+  });
+}
+
+export async function notifyGoodsReceivedDiscrepancy(
+  base: Base & { poNumber: string; receiptNumber: string },
+) {
+  await emitNotification({
+    ...base,
+    type: "goods_received_discrepancy",
+    title: `Delivery discrepancy — ${base.poNumber}`,
+    body: `${base.receiptNumber} was received with a quantity or quality discrepancy. Follow up with the vendor.`,
+    severity: "critical",
+    entityType: "purchase_order",
+    entityId: base.entityId,
+  });
+}
+
+export async function notifyBudgetThresholdReached(
+  base: Base & { department: string; percentUsed: number },
+) {
+  await emitNotification({
+    ...base,
+    type: "budget_threshold_reached",
+    title: `Budget alert — ${base.department}`,
+    body: `${base.department} has used ${base.percentUsed}% of its procurement budget for this period.`,
+    severity: "warning",
+    entityType: "procurement_budget",
     entityId: base.entityId,
   });
 }

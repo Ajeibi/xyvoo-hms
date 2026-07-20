@@ -4,8 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { GuestServicesListPayload, GuestRequestRow } from "@/lib/hms/guest-services";
 import type { GuestServicesRoleCapabilities } from "@/lib/hms/guest-services-rbac";
+import type { GuestServiceCategoryRow } from "@/lib/hms/guest-service-categories";
 import { useFrontDeskRealtime } from "@/hooks/useFrontDeskRealtime";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { cn } from "@/lib/utils";
@@ -19,18 +21,17 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-const CATEGORIES = [
-  { value: "housekeeping", label: "Housekeeping" },
-  { value: "laundry", label: "Laundry" },
-  { value: "food_beverage", label: "Food & beverage" },
-  { value: "concierge", label: "Concierge" },
-  { value: "maintenance", label: "Maintenance" },
-  { value: "security", label: "Security" },
-  { value: "spa", label: "Spa" },
-  { value: "transportation", label: "Transportation" },
-  { value: "special", label: "Special" },
-  { value: "other", label: "Other" },
-] as const;
+const GUEST_SERVICES_PAGE_SIZE = 5;
+
+const DEPARTMENT_LABELS: Record<string, string> = {
+  front_desk: "Front desk",
+  housekeeping: "Housekeeping",
+  laundry: "Laundry",
+  maintenance: "Maintenance",
+  concierge: "Concierge",
+  security: "Security",
+  food_beverage: "F&B",
+};
 
 function SummaryCard({
   label,
@@ -66,13 +67,17 @@ export function FrontDeskGuestServicesClient({
   tenantId,
   capabilities,
   initialSearch = "",
+  categories,
 }: {
   slug: string;
   tenantId: string;
   capabilities: GuestServicesRoleCapabilities;
   /** Deep link from guest profile etc. */
   initialSearch?: string;
+  /** Tenant-configured categories (Settings → Guest service categories), replacing the old hardcoded list. */
+  categories: GuestServiceCategoryRow[];
 }) {
+  const defaultCategoryCode = categories.find((c) => c.code === "special")?.code ?? categories[0]?.code ?? "";
   const [data, setData] = useState<GuestServicesListPayload | null>(null);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<{
@@ -97,12 +102,13 @@ export function FrontDeskGuestServicesClient({
     const t = setTimeout(() => setDebouncedQ(search.trim()), 300);
     return () => clearTimeout(t);
   }, [search]);
+  const [page, setPage] = useState(1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [createForm, setCreateForm] = useState({
     confirmationCode: "",
-    serviceCategory: "special",
+    serviceCategory: defaultCategoryCode,
     requestType: "",
     details: "",
     priority: "normal" as const,
@@ -123,7 +129,10 @@ export function FrontDeskGuestServicesClient({
       if (filter.dateTo) params.set("dateTo", `${filter.dateTo}T23:59:59.999Z`);
       const res = await fetch(`/api/hotel/frontdesk/guest-services?${params}`);
       const json = (await res.json()) as GuestServicesListPayload & { error?: string };
-      if (!json.error) setData(json);
+      if (!json.error) {
+        setData(json);
+        setPage(1);
+      }
     } finally {
       setLoading(false);
     }
@@ -164,6 +173,26 @@ export function FrontDeskGuestServicesClient({
     });
   }, [data?.requests, filter.delayed, filter.billable]);
 
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / GUEST_SERVICES_PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pageRows = useMemo(
+    () => filteredRows.slice((currentPage - 1) * GUEST_SERVICES_PAGE_SIZE, currentPage * GUEST_SERVICES_PAGE_SIZE),
+    [filteredRows, currentPage],
+  );
+
+  /** Derived from the tenant's configured categories rather than a hardcoded list, so a new
+   * department only shows up here once a category actually routes to it. */
+  const departmentOptions = useMemo(() => {
+    const seen = new Set<string>();
+    const options: { value: string; label: string }[] = [];
+    for (const c of categories) {
+      if (seen.has(c.department)) continue;
+      seen.add(c.department);
+      options.push({ value: c.department, label: DEPARTMENT_LABELS[c.department] ?? c.department.replace(/_/g, " ") });
+    }
+    return options;
+  }, [categories]);
+
   async function submitCreate() {
     if (!capabilities.canCreate) return;
     const res = await fetch(`/api/hotel/frontdesk/guest-services`, {
@@ -188,7 +217,7 @@ export function FrontDeskGuestServicesClient({
     setCreateOpen(false);
     setCreateForm({
       confirmationCode: "",
-      serviceCategory: "special",
+      serviceCategory: defaultCategoryCode,
       requestType: "",
       details: "",
       priority: "normal",
@@ -256,13 +285,19 @@ export function FrontDeskGuestServicesClient({
             label="Delayed"
             value={summary.delayed}
             active={filter.delayed}
-            onClick={() => setFilter((f) => ({ ...f, delayed: !f.delayed, status: undefined }))}
+            onClick={() => {
+              setFilter((f) => ({ ...f, delayed: !f.delayed, status: undefined }));
+              setPage(1);
+            }}
           />
           <SummaryCard
             label="Billable pending"
             value={summary.billablePending}
             active={filter.billable}
-            onClick={() => setFilter((f) => ({ ...f, billable: !f.billable }))}
+            onClick={() => {
+              setFilter((f) => ({ ...f, billable: !f.billable }));
+              setPage(1);
+            }}
           />
         </section>
       ) : null}
@@ -308,13 +343,11 @@ export function FrontDeskGuestServicesClient({
             }
           >
             <option value="">All departments</option>
-            <option value="front_desk">Front desk</option>
-            <option value="housekeeping">Housekeeping</option>
-            <option value="laundry">Laundry</option>
-            <option value="maintenance">Maintenance</option>
-            <option value="concierge">Concierge</option>
-            <option value="security">Security</option>
-            <option value="food_beverage">F&amp;B</option>
+            {departmentOptions.map((d) => (
+              <option key={d.value} value={d.value}>
+                {d.label}
+              </option>
+            ))}
           </select>
           <label className="flex items-center gap-2 text-sm">
             <input
@@ -327,40 +360,38 @@ export function FrontDeskGuestServicesClient({
         </div>
       </section>
 
-      <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        {loading ? (
-          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-white/60">
-            <RefreshCw className="h-8 w-8 animate-spin text-slate-400" />
-          </div>
-        ) : null}
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[1200px] text-left text-sm">
-            <thead className="border-b bg-slate-50 text-xs font-semibold uppercase text-slate-500">
-              <tr>
-                <th className="px-4 py-3">Guest / room</th>
-                <th className="px-4 py-3">Phone</th>
-                <th className="px-4 py-3">Request ID</th>
-                <th className="px-4 py-3">Created</th>
-                <th className="px-4 py-3">Assignee</th>
-                <th className="px-4 py-3">Service</th>
-                <th className="px-4 py-3">Dept</th>
-                <th className="px-4 py-3">Priority</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">SLA</th>
-                <th className="px-4 py-3">Billing</th>
-                <th className="px-4 py-3">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredRows.length === 0 ? (
-                <tr>
-                  <td colSpan={12} className="px-4 py-12 text-center text-slate-500">
-                    No service requests match your filters.
-                  </td>
-                </tr>
-              ) : (
-                <>
-                  {filteredRows.map((row) => (
+      {loading && !data ? (
+        <GuestServicesTableSkeleton />
+      ) : (
+        <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          {loading ? (
+            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-white/60">
+              <RefreshCw className="h-8 w-8 animate-spin text-slate-400" />
+            </div>
+          ) : null}
+          {filteredRows.length === 0 ? (
+            <div className="px-4 py-16 text-center text-slate-500">No service requests match your filters.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1320px] text-left text-sm">
+                <thead className="border-b bg-slate-50 text-xs font-semibold uppercase text-slate-500">
+                  <tr>
+                    <th className="min-w-[220px] px-4 py-3">Guest / room</th>
+                    <th className="min-w-[130px] px-4 py-3">Phone</th>
+                    <th className="px-4 py-3">Request ID</th>
+                    <th className="min-w-[140px] px-4 py-3">Created</th>
+                    <th className="min-w-[140px] px-4 py-3">Assignee</th>
+                    <th className="min-w-[180px] px-4 py-3">Service</th>
+                    <th className="px-4 py-3">Dept</th>
+                    <th className="px-4 py-3">Priority</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="min-w-[140px] px-4 py-3">SLA</th>
+                    <th className="px-4 py-3">Billing</th>
+                    <th className="px-4 py-3">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageRows.map((row) => (
                     <GuestServiceTableRow
                       key={row.id}
                       row={row}
@@ -370,12 +401,44 @@ export function FrontDeskGuestServicesClient({
                       }}
                     />
                   ))}
-                </>
-              )}
-            </tbody>
-          </table>
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      )}
+
+      {filteredRows.length > 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
+          <p>
+            Showing {(currentPage - 1) * GUEST_SERVICES_PAGE_SIZE + 1}–
+            {Math.min(currentPage * GUEST_SERVICES_PAGE_SIZE, filteredRows.length)} of {filteredRows.length}
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={currentPage <= 1}
+              onClick={() => setPage(Math.max(1, currentPage - 1))}
+            >
+              Previous
+            </Button>
+            <span className="px-2 text-xs font-medium text-slate-500">
+              Page {currentPage} of {totalPages}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={currentPage >= totalPages}
+              onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
+            >
+              Next
+            </Button>
+          </div>
         </div>
-      </section>
+      ) : null}
 
       <FrontDeskGuestServiceDetailSheet
         slug={slug}
@@ -407,9 +470,9 @@ export function FrontDeskGuestServicesClient({
                 value={createForm.serviceCategory}
                 onChange={(e) => setCreateForm((s) => ({ ...s, serviceCategory: e.target.value }))}
               >
-                {CATEGORIES.map((c) => (
-                  <option key={c.value} value={c.value}>
-                    {c.label}
+                {categories.map((c) => (
+                  <option key={c.id} value={c.code}>
+                    {c.name}
                   </option>
                 ))}
               </select>
@@ -475,6 +538,85 @@ export function FrontDeskGuestServicesClient({
   );
 }
 
+const GUEST_SERVICES_SKELETON_COLS = [
+  { label: "Guest / room", minWidth: "min-w-[220px]" },
+  { label: "Phone", minWidth: "min-w-[130px]" },
+  { label: "Request ID", minWidth: "" },
+  { label: "Created", minWidth: "min-w-[140px]" },
+  { label: "Assignee", minWidth: "min-w-[140px]" },
+  { label: "Service", minWidth: "min-w-[180px]" },
+  { label: "Dept", minWidth: "" },
+  { label: "Priority", minWidth: "" },
+  { label: "Status", minWidth: "" },
+  { label: "SLA", minWidth: "min-w-[140px]" },
+  { label: "Billing", minWidth: "" },
+  { label: "Actions", minWidth: "" },
+];
+
+function GuestServicesTableSkeleton() {
+  return (
+    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[1320px] text-left text-sm">
+          <thead className="border-b bg-slate-50">
+            <tr>
+              {GUEST_SERVICES_SKELETON_COLS.map((col) => (
+                <th key={col.label} className={`${col.minWidth} px-4 py-3`}>
+                  <Skeleton className="h-3 w-16 bg-slate-200" />
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <tr key={i}>
+                <td className="px-4 py-3">
+                  <Skeleton className="h-4 w-32 bg-slate-200" />
+                  <Skeleton className="mt-1.5 h-3 w-24 bg-slate-200" />
+                </td>
+                <td className="px-4 py-3">
+                  <Skeleton className="h-3.5 w-20 bg-slate-200" />
+                </td>
+                <td className="px-4 py-3">
+                  <Skeleton className="h-3.5 w-16 bg-slate-200" />
+                </td>
+                <td className="px-4 py-3">
+                  <Skeleton className="h-3.5 w-24 bg-slate-200" />
+                </td>
+                <td className="px-4 py-3">
+                  <Skeleton className="h-3.5 w-20 bg-slate-200" />
+                </td>
+                <td className="px-4 py-3">
+                  <Skeleton className="h-4 w-28 bg-slate-200" />
+                  <Skeleton className="mt-1.5 h-3 w-20 bg-slate-200" />
+                </td>
+                <td className="px-4 py-3">
+                  <Skeleton className="h-3.5 w-16 bg-slate-200" />
+                </td>
+                <td className="px-4 py-3">
+                  <Skeleton className="h-3.5 w-12 bg-slate-200" />
+                </td>
+                <td className="px-4 py-3">
+                  <Skeleton className="h-6 w-20 rounded-full bg-slate-200" />
+                </td>
+                <td className="px-4 py-3">
+                  <Skeleton className="h-3.5 w-24 bg-slate-200" />
+                </td>
+                <td className="px-4 py-3">
+                  <Skeleton className="h-3.5 w-12 bg-slate-200" />
+                </td>
+                <td className="px-4 py-3">
+                  <Skeleton className="h-8 w-14 rounded-md bg-slate-200" />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
 function GuestServiceTableRow({ row, onOpen }: { row: GuestRequestRow; onOpen: () => void }) {
   const delayed =
     row.expectedCompletedAt &&
@@ -483,7 +625,7 @@ function GuestServiceTableRow({ row, onOpen }: { row: GuestRequestRow; onOpen: (
   const shortId = row.id.slice(0, 8);
   return (
     <tr className="border-b border-slate-100 hover:bg-slate-50/80">
-      <td className="px-4 py-3">
+      <td className="whitespace-nowrap px-4 py-3">
         <p className="font-medium text-slate-900">{row.guestName ?? "—"}</p>
         <p className="text-xs text-slate-500">
           {row.roomCode ? `Rm ${row.roomCode}` : "—"} · {row.confirmationCode ?? "—"}
@@ -494,7 +636,7 @@ function GuestServiceTableRow({ row, onOpen }: { row: GuestRequestRow; onOpen: (
           ) : null}
         </p>
       </td>
-      <td className="px-4 py-3 text-xs text-slate-700">{row.guestPhone ?? "—"}</td>
+      <td className="whitespace-nowrap px-4 py-3 text-xs text-slate-700">{row.guestPhone ?? "—"}</td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-1">
           <code className="text-xs text-slate-800" title={row.id}>
@@ -514,8 +656,8 @@ function GuestServiceTableRow({ row, onOpen }: { row: GuestRequestRow; onOpen: (
       <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-600">
         {new Date(row.createdAt).toLocaleString()}
       </td>
-      <td className="px-4 py-3 text-xs text-slate-700">{row.assignedStaffName ?? "—"}</td>
-      <td className="px-4 py-3">
+      <td className="whitespace-nowrap px-4 py-3 text-xs text-slate-700">{row.assignedStaffName ?? "—"}</td>
+      <td className="whitespace-nowrap px-4 py-3">
         <p className="font-medium">{row.requestType}</p>
         <p className="text-xs text-slate-500">{row.serviceCategory.replace(/_/g, " ")}</p>
       </td>

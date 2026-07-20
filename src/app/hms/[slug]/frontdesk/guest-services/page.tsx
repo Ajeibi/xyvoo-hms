@@ -1,8 +1,9 @@
 import HMSLayout from "@/components/hms/HMSLayout";
 import { FrontDeskGuestServicesClient } from "@/components/hms/frontdesk/guest-services/FrontDeskGuestServicesClient";
+import { getHmsAccessContext } from "@/lib/hms/access";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { getGuestServicesCapabilities } from "@/lib/hms/guest-services-rbac";
-import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
+import { listGuestServiceCategories } from "@/lib/hms/guest-service-categories";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export default async function FrontDeskGuestServicesPage({
@@ -14,38 +15,25 @@ export default async function FrontDeskGuestServicesPage({
 }) {
   const { slug } = await params;
   const sp = searchParams ? await searchParams : {};
-  const tenant = await getHotelTenantBySlug(slug);
+  const [tenant, access] = await Promise.all([getHotelTenantBySlug(slug), getHmsAccessContext(slug)]);
 
-  let capabilities = getGuestServicesCapabilities("Front Desk");
-  let tenantId = tenant?.id ?? "";
+  const capabilities = getGuestServicesCapabilities({
+    membershipRole: access.role ?? "staff",
+    departmentRole: access.departmentRole,
+  });
 
-  if (tenant?.id) {
-    const auth = await createSupabaseAuthServerClient();
-    const {
-      data: { user },
-    } = await auth.auth.getUser();
-    if (user) {
-      const service = createServerSupabaseClient();
-      const { data: membership } = await service
-        .schema("hotel")
-        .from("memberships")
-        .select("role")
-        .eq("tenant_id", tenant.id)
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (membership?.role) {
-        capabilities = getGuestServicesCapabilities(membership.role as string);
-      }
-    }
-  }
+  const categories = tenant
+    ? await listGuestServiceCategories(createServerSupabaseClient(), tenant.id, { activeOnly: true })
+    : [];
 
   return (
     <HMSLayout slug={slug} requiredSection="frontdesk">
       <FrontDeskGuestServicesClient
         slug={slug}
-        tenantId={tenantId}
+        tenantId={tenant?.id ?? ""}
         capabilities={capabilities}
         initialSearch={sp.q ?? ""}
+        categories={categories}
       />
     </HMSLayout>
   );

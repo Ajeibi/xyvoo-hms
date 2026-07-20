@@ -20,7 +20,7 @@ export async function POST(
     const auth = await requireHotelApiMember(body.slug);
     if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
-    const caps = getGuestServicesCapabilities(auth.role);
+    const caps = getGuestServicesCapabilities({ membershipRole: auth.role, departmentRole: auth.departmentRole });
     if (!caps.canUpdate) return NextResponse.json({ error: "Not allowed." }, { status: 403 });
     if (body.visibility === "manager" && !caps.canViewManagerNotes) {
       return NextResponse.json({ error: "Manager visibility not allowed." }, { status: 403 });

@@ -44,7 +44,7 @@ export async function GET(
     const auth = await requireHotelApiMember(slug);
     if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
-    const caps = getGuestServicesCapabilities(auth.role);
+    const caps = getGuestServicesCapabilities({ membershipRole: auth.role, departmentRole: auth.departmentRole });
     if (!caps.canView) return NextResponse.json({ error: "Not allowed." }, { status: 403 });
 
     const detail = await getGuestRequestDetail(auth.service, auth.tenant.id, id, caps);
@@ -66,7 +66,7 @@ export async function PATCH(
     const auth = await requireHotelApiMember(body.slug);
     if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
-    const caps = getGuestServicesCapabilities(auth.role);
+    const caps = getGuestServicesCapabilities({ membershipRole: auth.role, departmentRole: auth.departmentRole });
     if (!caps.canUpdate) return NextResponse.json({ error: "Not allowed." }, { status: 403 });
 
     const { data: existing, error: exErr } = await auth.service

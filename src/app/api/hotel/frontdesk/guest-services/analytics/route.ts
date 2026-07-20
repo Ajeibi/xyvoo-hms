@@ -16,7 +16,7 @@ export async function GET(req: Request) {
     const auth = await requireHotelApiMember(query.slug);
     if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
-    const caps = getGuestServicesCapabilities(auth.role);
+    const caps = getGuestServicesCapabilities({ membershipRole: auth.role, departmentRole: auth.departmentRole });
     if (!caps.canView) return NextResponse.json({ error: "Not allowed." }, { status: 403 });
 
     const { requests } = await listGuestRequestsForTenant(

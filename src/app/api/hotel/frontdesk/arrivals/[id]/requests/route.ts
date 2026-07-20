@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
-import { writeAuditLog } from "@/lib/hms/front-desk-ops";
-import {
-  appendGuestRequestEvent,
-  computeExpectedCompletedIso,
-  GUEST_SERVICE_CATEGORIES,
-} from "@/lib/hms/guest-services";
+import { writeAuditLog, emitNotification } from "@/lib/hms/front-desk-ops";
+import { appendGuestRequestEvent, computeExpectedCompletedIso } from "@/lib/hms/guest-services";
+import { isKnownActiveCategory } from "@/lib/hms/guest-service-categories";
 const PostSchema = z.object({
   slug: z.string().min(1),
   requestType: z.string().min(1).max(80),
@@ -73,8 +70,8 @@ export async function POST(
     if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
     const dept = (body.department ?? "front_desk").toLowerCase().replace(/\s+/g, "_");
-    const known = new Set(GUEST_SERVICE_CATEGORIES as readonly string[]);
-    const serviceCategory = known.has(dept) ? dept : "special";
+    const isKnownCategory = await isKnownActiveCategory(auth.service, auth.tenant.id, dept);
+    const serviceCategory = isKnownCategory ? dept : "special";
 
     const { data: resRow } = await auth.service
       .schema("hotel")
@@ -130,6 +127,17 @@ export async function POST(
       entityType: "reservation",
       entityId: id,
       after: { request_type: body.requestType },
+    });
+
+    await emitNotification({
+      tenantId: auth.tenant.id,
+      type: "guest_service_request",
+      title: "New guest service request",
+      body: `${body.requestType} — ${dept.replace(/_/g, " ")}`,
+      severity: "info",
+      entityType: "guest_request",
+      entityId: data.id as string,
+      department: dept,
     });
 
     return NextResponse.json({ ok: true, request: data });

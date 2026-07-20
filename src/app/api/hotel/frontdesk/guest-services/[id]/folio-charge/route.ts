@@ -24,7 +24,7 @@ export async function POST(
     const auth = await requireHotelApiMember(body.slug);
     if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
-    const caps = getGuestServicesCapabilities(auth.role);
+    const caps = getGuestServicesCapabilities({ membershipRole: auth.role, departmentRole: auth.departmentRole });
     if (!caps.canPostFolio) return NextResponse.json({ error: "Not allowed." }, { status: 403 });
 
     const { data: gr } = await auth.service
