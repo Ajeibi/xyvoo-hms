@@ -9,6 +9,7 @@ import { PAYMENT_STATUS_LABEL } from "@/components/hms/frontdesk/board/payment-s
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toastError, toastSuccess } from "@/lib/app-toast";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type FolioPayload = {
   reservation: {
@@ -42,12 +43,20 @@ type SearchHit = {
   guestName: string;
   roomCode: string | null;
   status: string;
+  balance?: number;
+  lastActivityAt?: string | null;
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  checked_in: "In-house",
+  checked_out: "Checked out",
 };
 
 export function FrontDeskFolioClient({ slug, currency }: { slug: string; currency: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialId = searchParams.get("reservationId");
+  const initialCode = searchParams.get("code");
 
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<SearchHit[]>([]);
@@ -57,6 +66,8 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
   const [tab, setTab] = useState<"folio" | "cash-float">("folio");
   const [cashSession, setCashSession] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(false);
+  const [activeList, setActiveList] = useState<SearchHit[]>([]);
+  const [activeListLoading, setActiveListLoading] = useState(true);
 
   const loadFolio = useCallback(
     async (id: string) => {
@@ -86,10 +97,37 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
     }
   }, [slug]);
 
+  const loadActiveList = useCallback(async () => {
+    setActiveListLoading(true);
+    try {
+      const res = await fetch(`/api/hotel/folio/active?slug=${encodeURIComponent(slug)}`);
+      if (res.ok) {
+        const data = (await res.json()) as { results: SearchHit[] };
+        setActiveList(data.results);
+      }
+    } finally {
+      setActiveListLoading(false);
+    }
+  }, [slug]);
+
   useEffect(() => {
-    if (initialId) void loadFolio(initialId);
+    if (initialId) {
+      void loadFolio(initialId);
+    } else if (initialCode) {
+      void (async () => {
+        const res = await fetch(
+          `/api/hotel/folio/search?slug=${encodeURIComponent(slug)}&q=${encodeURIComponent(initialCode)}`,
+        );
+        if (!res.ok) return;
+        const data = (await res.json()) as { results: SearchHit[] };
+        const match =
+          data.results.find((r) => r.confirmationCode === initialCode) ?? data.results[0];
+        if (match) void loadFolio(match.reservationId);
+      })();
+    }
     void loadCashFloat();
-  }, [initialId, loadFolio, loadCashFloat, slug]);
+    void loadActiveList();
+  }, [initialId, initialCode, loadFolio, loadCashFloat, loadActiveList, slug]);
 
   const search = async () => {
     if (!query.trim()) return;
@@ -126,6 +164,7 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
     toastSuccess("Charge posted");
     e.currentTarget.reset();
     void loadFolio(reservationId);
+    void loadActiveList();
     router.refresh();
   };
 
@@ -152,6 +191,7 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
     toastSuccess("Payment posted");
     e.currentTarget.reset();
     void loadFolio(reservationId);
+    void loadActiveList();
     router.refresh();
   };
 
@@ -162,7 +202,7 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
     }) ?? [];
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-8 sm:px-8">
+    <div className="w-full px-6 py-8 sm:px-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Front desk</p>
@@ -173,7 +213,7 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
         </Link>
       </div>
 
-      <div className="mt-6 inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5">
+      <div className="mt-6 flex items-center gap-2">
         <Button
           type="button"
           variant={tab === "folio" ? "default" : "ghost"}
@@ -207,26 +247,26 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
               Search
             </Button>
           </div>
-          {hits.length > 0 ? (
-            <ul className="mt-3 space-y-1 rounded-xl border border-slate-200 bg-white p-2">
-              {hits.map((h) => (
-                <li key={h.reservationId}>
-                  <button
-                    type="button"
-                    className="w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-50"
-                    onClick={() => void loadFolio(h.reservationId)}
-                  >
-                    <span className="font-medium">{h.guestName}</span>
-                    <span className="text-slate-500">
-                      {" "}
-                      · {h.folioNumber} · {h.confirmationCode}
-                      {h.roomCode ? ` · Room ${h.roomCode}` : ""}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : null}
+
+          {query.trim() ? (
+            <FolioRowList
+              title="Search results"
+              rows={hits}
+              currency={currency}
+              emptyText="No matches. Try a different name, folio #, or confirmation code."
+              onSelect={(id) => void loadFolio(id)}
+            />
+          ) : activeListLoading ? (
+            <FolioRowListSkeleton />
+          ) : (
+            <FolioRowList
+              title="In-house & unpaid"
+              rows={activeList}
+              currency={currency}
+              emptyText="No in-house guests or outstanding balances right now."
+              onSelect={(id) => void loadFolio(id)}
+            />
+          )}
 
           {payload ? (
             <div className="mt-8 space-y-6">
@@ -308,12 +348,201 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
               </div>
             </div>
           ) : loading ? (
-            <p className="mt-8 text-sm text-slate-500">Loading folio…</p>
-          ) : (
-            <p className="mt-8 text-sm text-slate-500">Search for a stay to open its folio.</p>
-          )}
+            <FolioSkeleton />
+          ) : null}
         </>
       )}
+    </div>
+  );
+}
+
+const sk = "bg-slate-200";
+
+function FolioSkeleton() {
+  return (
+    <div className="mt-8 space-y-6">
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="space-y-2">
+            <Skeleton className={`h-5 w-48 ${sk}`} />
+            <Skeleton className={`h-4 w-56 ${sk}`} />
+          </div>
+          <div className="space-y-2 text-right">
+            <Skeleton className={`ml-auto h-3 w-20 ${sk}`} />
+            <Skeleton className={`ml-auto h-7 w-28 ${sk}`} />
+            <Skeleton className={`ml-auto h-3 w-24 ${sk}`} />
+          </div>
+        </div>
+        <div className="mt-4 flex gap-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className={`h-8 w-16 rounded-md ${sk}`} />
+          ))}
+        </div>
+        <div className="mt-4 rounded-xl border border-slate-100">
+          <div className="flex gap-8 border-b border-slate-100 bg-slate-50 px-4 py-3">
+            {["Date", "Description", "Leg", "Amount"].map((label) => (
+              <Skeleton key={label} className={`h-3 w-16 ${sk}`} />
+            ))}
+          </div>
+          <div className="divide-y divide-slate-100">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-8 px-4 py-3">
+                <Skeleton className={`h-4 w-28 ${sk}`} />
+                <Skeleton className={`h-4 w-48 ${sk}`} />
+                <Skeleton className={`h-4 w-12 ${sk}`} />
+                <Skeleton className={`ml-auto h-4 w-20 ${sk}`} />
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3">
+        <Skeleton className={`h-4 w-40 ${sk}`} />
+        <Skeleton className={`h-10 w-full rounded-md ${sk}`} />
+        <Skeleton className={`h-10 w-full rounded-md ${sk}`} />
+        <Skeleton className={`h-10 w-full rounded-md ${sk}`} />
+      </section>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3">
+          <Skeleton className={`h-4 w-28 ${sk}`} />
+          <Skeleton className={`h-10 w-full rounded-md ${sk}`} />
+          <Skeleton className={`h-10 w-full rounded-md ${sk}`} />
+          <Skeleton className={`h-10 w-full rounded-md ${sk}`} />
+          <Skeleton className={`h-10 w-24 rounded-md ${sk}`} />
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3">
+          <Skeleton className={`h-4 w-32 ${sk}`} />
+          <Skeleton className={`h-10 w-full rounded-md ${sk}`} />
+          <Skeleton className={`h-10 w-full rounded-md ${sk}`} />
+          <Skeleton className={`h-10 w-full rounded-md ${sk}`} />
+          <Skeleton className={`h-10 w-24 rounded-md ${sk}`} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const STATUS_BADGE_STYLE: Record<string, string> = {
+  checked_in: "bg-blue-50 text-blue-700",
+  checked_out: "bg-slate-100 text-slate-600",
+};
+
+function FolioRowList({
+  title,
+  rows,
+  currency,
+  emptyText,
+  onSelect,
+}: {
+  title: string;
+  rows: SearchHit[];
+  currency: string;
+  emptyText: string;
+  onSelect: (reservationId: string) => void;
+}) {
+  return (
+    <div className="mt-4">
+      <div className="flex items-center gap-2 px-1">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{title}</p>
+        {rows.length > 0 ? (
+          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
+            {rows.length}
+          </span>
+        ) : null}
+      </div>
+
+      {rows.length === 0 ? (
+        <p className="mt-2 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+          {emptyText}
+        </p>
+      ) : (
+        <div className="mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-slate-100 text-xs font-medium uppercase tracking-wide text-slate-400">
+                <th className="py-3 pl-5 pr-4 font-medium">Guest</th>
+                <th className="py-3 pr-4 font-medium">Room</th>
+                <th className="py-3 pr-4 font-medium">Folio</th>
+                <th className="py-3 pr-4 text-right font-medium">Balance</th>
+                <th className="py-3 pr-5 text-right font-medium">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {rows.map((h) => (
+                <tr
+                  key={h.reservationId}
+                  className="cursor-pointer transition-colors hover:bg-slate-50"
+                  onClick={() => onSelect(h.reservationId)}
+                >
+                  <td className="py-3 pl-5 pr-4">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-slate-900">{h.guestName}</p>
+                      <p className="truncate text-xs text-slate-500">{h.confirmationCode}</p>
+                    </div>
+                  </td>
+                  <td className="py-3 pr-4 text-slate-600">
+                    {h.roomCode ? (
+                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium">
+                        Room {h.roomCode}
+                      </span>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                  <td className="py-3 pr-4 font-mono text-xs text-slate-500">{h.folioNumber}</td>
+                  <td className="py-3 pr-4 text-right">
+                    {h.balance != null ? (
+                      <span
+                        className={`font-semibold tabular-nums ${
+                          h.balance > 0 ? "text-red-600" : "text-emerald-600"
+                        }`}
+                      >
+                        {formatPricingAmount(h.balance, currency)}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
+                  </td>
+                  <td className="py-3 pr-5 text-right">
+                    <span
+                      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
+                        STATUS_BADGE_STYLE[h.status] ?? "bg-slate-100 text-slate-600"
+                      }`}
+                    >
+                      {STATUS_LABEL[h.status] ?? h.status}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FolioRowListSkeleton() {
+  return (
+    <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="flex gap-8 border-b border-slate-100 px-5 py-3">
+        {["Guest", "Room", "Folio", "Balance", "Status"].map((label) => (
+          <Skeleton key={label} className="h-3 w-14 bg-slate-200" />
+        ))}
+      </div>
+      <div className="divide-y divide-slate-100">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-3 px-5 py-3">
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <Skeleton className="h-4 w-32 bg-slate-200" />
+              <Skeleton className="h-3 w-20 bg-slate-200" />
+            </div>
+            <Skeleton className="ml-auto h-4 w-20 bg-slate-200" />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

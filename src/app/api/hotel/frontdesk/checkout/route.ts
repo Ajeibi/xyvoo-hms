@@ -6,6 +6,7 @@ import { isAdminLikeRole } from "@/lib/hms/department-access";
 import { getFolioForReservation, getTenantFolioSettings, adjustFolioForEarlyCheckout } from "@/lib/hms/folio";
 import { normalizePricingSetup } from "@/lib/hms/room-pricing";
 import { notifyCheckoutCompleted, notifyCommissionDue, notifyOverdueCheckout } from "@/lib/hms/notification-rules";
+import { openOrEscalateHousekeepingTask } from "@/lib/hms/housekeeping-tasks";
 
 const CheckoutSchema = z
   .object({
@@ -147,17 +148,12 @@ export async function POST(req: Request) {
         .update({ status: "dirty", notes: body.notes ?? null })
         .eq("id", reservation.room_unit_id);
 
-      await auth.service.schema("hotel").from("housekeeping_tasks").upsert(
-        {
-          tenant_id: auth.tenant.id,
-          room_unit_id: reservation.room_unit_id,
-          status: "dirty",
-          started_at: null,
-          completed_at: null,
-          inspected_at: null,
-        },
-        { onConflict: "room_unit_id" },
-      );
+      await openOrEscalateHousekeepingTask(auth.service, {
+        tenantId: auth.tenant.id,
+        roomUnitId: reservation.room_unit_id,
+        taskType: "checkout_clean",
+        reservationId: reservation.id,
+      });
     }
 
     const { data: rg } = await auth.service

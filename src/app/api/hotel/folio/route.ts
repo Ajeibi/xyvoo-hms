@@ -33,6 +33,9 @@ export async function GET(req: Request) {
         folioSplitNotes: payload.reservation.folio_split_notes,
         commissionPlan: payload.reservation.commission_plan,
         commissionValue: payload.reservation.commission_value,
+        roomTypeName: payload.roomTypeName,
+        nights: payload.reservation.nights,
+        guestName: payload.guestName,
       },
       folio: {
         lines: payload.folio.lines,

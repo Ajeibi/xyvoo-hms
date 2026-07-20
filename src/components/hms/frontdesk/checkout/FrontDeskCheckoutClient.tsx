@@ -1,193 +1,132 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import type { FolioLineRow } from "@/lib/hms/folio";
-import { formatPricingAmount } from "@/lib/hms/room-pricing";
+import { useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { toastError, toastSuccess } from "@/lib/app-toast";
-import { requestNotificationsRefresh } from "@/lib/hms/notifications-bus";
+import { formatPricingAmount } from "@/lib/hms/room-pricing";
+import { openCheckoutDialog } from "@/lib/hms/open-checkout-bus";
+import type { CheckoutDueRow } from "@/lib/hms/frontdesk-checkout";
+
+function formatDeparture(iso: string) {
+  return new Date(iso).toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 export function FrontDeskCheckoutClient({
   slug,
   currency,
-  initialReservationId,
+  initialRows,
 }: {
   slug: string;
   currency: string;
-  initialReservationId?: string;
+  initialRows: CheckoutDueRow[];
 }) {
   const router = useRouter();
-  const [reservationId, setReservationId] = useState(initialReservationId ?? "");
-  const [roomCode, setRoomCode] = useState("");
-  const [folio, setFolio] = useState<{
-    lines: FolioLineRow[];
-    balance: number;
-    folioNumber: string;
-    guestName?: string;
-  } | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const loadFolio = useCallback(async () => {
-    if (!reservationId) return;
-    const res = await fetch(
-      `/api/hotel/folio?slug=${encodeURIComponent(slug)}&reservationId=${encodeURIComponent(reservationId)}`,
-    );
-    if (res.ok) {
-      const data = await res.json();
-      setFolio({
-        lines: data.folio.lines,
-        balance: data.folio.balance,
-        folioNumber: data.reservation.folioNumber,
-      });
-    }
-  }, [slug, reservationId]);
+  const searchParams = useSearchParams();
 
   useEffect(() => {
-    if (initialReservationId) void loadFolio();
-  }, [initialReservationId, loadFolio]);
-
-  const search = async () => {
-    const q = roomCode.trim() || reservationId;
-    if (!q) return;
-    const res = await fetch(
-      `/api/hotel/folio/search?slug=${encodeURIComponent(slug)}&q=${encodeURIComponent(q)}`,
-    );
-    if (res.ok) {
-      const data = (await res.json()) as { results: { reservationId: string; guestName: string }[] };
-      if (data.results[0]) {
-        setReservationId(data.results[0].reservationId);
-        setFolio(null);
-      }
+    const reservationId = searchParams.get("reservationId") ?? searchParams.get("checkoutReservation");
+    const room = searchParams.get("room") ?? searchParams.get("checkoutRoom");
+    if (reservationId || room) {
+      openCheckoutDialog({ reservationId: reservationId ?? undefined, roomCode: room ?? undefined });
+      router.replace(`/hms/${slug}/frontdesk/checkout`);
     }
-  };
-
-  useEffect(() => {
-    if (reservationId) void loadFolio();
-  }, [reservationId, loadFolio]);
-
-  const settleAndCheckout = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setError(null);
-    const fd = new FormData(e.currentTarget);
-    const payAmount = Number(fd.get("payAmount"));
-    const method = String(fd.get("method") ?? "cash");
-    if (payAmount > 0 && reservationId && method !== "card") {
-      const payRes = await fetch("/api/hotel/folio/payments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          slug,
-          reservationId,
-          amount: payAmount,
-          method: fd.get("method"),
-        }),
-      });
-      if (!payRes.ok) {
-        const err = (await payRes.json()) as { error?: string };
-        const msg = err.error ?? "Payment failed.";
-        setError(msg);
-        toastError("Payment failed", msg);
-        return;
-      }
-      toastSuccess("Payment recorded");
-    }
-    const checkoutRes = await fetch("/api/hotel/frontdesk/checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        slug,
-        reservationId: reservationId || undefined,
-        roomCode: roomCode.trim() || undefined,
-        overrideBalance: fd.get("overrideBalance") === "on",
-      }),
-    });
-    if (!checkoutRes.ok) {
-      const err = (await checkoutRes.json()) as { error?: string; balance?: number };
-      const msg = err.balance != null ? `${err.error} (${err.balance})` : err.error ?? "Checkout failed.";
-      setError(msg);
-      toastError("Checkout failed", msg);
-      void loadFolio();
-      return;
-    }
-    toastSuccess(
-      "Guest checked out successfully",
-      "Room released and marked for housekeeping.",
-    );
-    router.replace(`/hms/${slug}/frontdesk`);
-    router.refresh();
-    requestNotificationsRefresh();
-  };
-
-  const printReceipt = () => {
-    window.print();
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once on mount to consume the deep-link params
+  }, []);
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-8 sm:px-8 print:py-4">
-      <Link href={`/hms/${slug}/frontdesk`} className="text-sm text-blue-600 hover:underline print:hidden">
-        ← Front desk
-      </Link>
-      <h1 className="mt-4 text-2xl font-semibold text-slate-900">Check-out</h1>
-      <p className="mt-1 text-sm text-slate-500 print:hidden">Final folio review and settlement</p>
-
-      <div className="mt-6 flex flex-wrap gap-2 print:hidden">
-        <Input value={roomCode} onChange={(e) => setRoomCode(e.target.value)} placeholder="Room code" />
-        <Input
-          value={reservationId}
-          onChange={(e) => setReservationId(e.target.value)}
-          placeholder="Reservation ID"
-          className="max-w-xs"
-        />
-        <Button type="button" variant="outline" onClick={() => void search()}>
-          Find stay
+    <div className="w-full px-6 py-8 sm:px-8">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Front desk</p>
+          <h1 className="mt-2 text-2xl font-semibold text-slate-900">Checkout</h1>
+          <p className="mt-1 text-sm text-slate-500">
+            Guests due to check out today, plus anyone overdue from a previous day.
+          </p>
+        </div>
+        <Button type="button" variant="outline" size="sm" onClick={() => router.refresh()}>
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Refresh
         </Button>
       </div>
 
-      {folio ? (
-        <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="font-semibold text-slate-900">Folio {folio.folioNumber}</h2>
-          <p className="mt-2 text-2xl font-bold tabular-nums">
-            Balance: {formatPricingAmount(folio.balance, currency)}
-          </p>
-          <table className="mt-4 w-full text-sm">
-            <tbody>
-              {folio.lines
-                .filter((l) => !l.voided_at)
-                .map((l) => (
-                  <tr key={l.id} className="border-t border-slate-100">
-                    <td className="py-2">{l.description ?? l.kind}</td>
-                    <td className="py-2 text-right tabular-nums">{formatPricingAmount(l.amount, currency)}</td>
-                  </tr>
-                ))}
+      {initialRows.length === 0 ? (
+        <p className="mt-8 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-16 text-center text-sm text-slate-500">
+          No guests due to check out right now.
+        </p>
+      ) : (
+        <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-slate-100 text-xs font-medium uppercase tracking-wide text-slate-400">
+                <th className="py-3 pl-6 pr-4 font-medium">Guest</th>
+                <th className="py-3 pr-4 font-medium">Room</th>
+                <th className="py-3 pr-4 font-medium">Departure</th>
+                <th className="py-3 pr-4 text-right font-medium">Balance</th>
+                <th className="py-3 pr-6 text-right font-medium">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {initialRows.map((row) => (
+                <tr
+                  key={row.reservationId}
+                  className="cursor-pointer transition-colors hover:bg-slate-50"
+                  onClick={() =>
+                    openCheckoutDialog({ reservationId: row.reservationId, roomCode: row.roomCode ?? undefined })
+                  }
+                >
+                  <td className="py-3 pl-6 pr-4">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-slate-900">
+                        {row.guestName}
+                        {row.isVip ? (
+                          <span className="ml-2 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                            VIP
+                          </span>
+                        ) : null}
+                      </p>
+                      <p className="truncate text-xs text-slate-500">{row.confirmationCode}</p>
+                    </div>
+                  </td>
+                  <td className="py-3 pr-4 text-slate-600">
+                    {row.roomCode ? (
+                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium">
+                        Room {row.roomCode}
+                      </span>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                  <td className="py-3 pr-4 text-slate-600">{formatDeparture(row.departureAt)}</td>
+                  <td className="py-3 pr-4 text-right">
+                    <span
+                      className={`font-semibold tabular-nums ${
+                        row.balance > 0 ? "text-red-600" : "text-emerald-600"
+                      }`}
+                    >
+                      {formatPricingAmount(row.balance, currency)}
+                    </span>
+                  </td>
+                  <td className="py-3 pr-6 text-right">
+                    <span
+                      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
+                        row.isOverdue ? "bg-red-50 text-red-700" : "bg-blue-50 text-blue-700"
+                      }`}
+                    >
+                      {row.isOverdue ? "Overdue" : "Due today"}
+                    </span>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
-        </section>
-      ) : null}
-
-      <form onSubmit={settleAndCheckout} className="mt-6 space-y-4 rounded-2xl border border-slate-200 bg-white p-6 print:hidden">
-        <h3 className="font-semibold text-slate-900">Settle & check out</h3>
-        <Input name="payAmount" type="number" step="0.01" min="0" placeholder="Payment amount (cash/POS/card)" />
-        <select name="method" className="h-10 w-full rounded-md border border-slate-200 px-3 text-sm">
-          <option value="cash">Cash</option>
-          <option value="card">Card (manual)</option>
-          <option value="pos">POS terminal</option>
-          <option value="direct_bill">Direct bill</option>
-        </select>
-        <label className="flex items-center gap-2 text-sm text-slate-600">
-          <input type="checkbox" name="overrideBalance" />
-          Manager override open balance
-        </label>
-        {error ? <p className="text-sm text-red-600">{error}</p> : null}
-        <div className="flex flex-wrap gap-2">
-          <Button type="submit">Complete checkout</Button>
-          <Button type="button" variant="outline" onClick={printReceipt}>
-            Print receipt
-          </Button>
         </div>
-      </form>
+      )}
     </div>
   );
 }

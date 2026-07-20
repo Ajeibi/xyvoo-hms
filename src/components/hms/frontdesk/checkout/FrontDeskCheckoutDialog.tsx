@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { FolioLineRow } from "@/lib/hms/folio";
-import { formatPricingAmount } from "@/lib/hms/room-pricing";
+import type { FbOrderWithItems } from "@/lib/hms/fb-types";
+import { formatCurrencySymbol, formatPricingAmount } from "@/lib/hms/room-pricing";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { requestNotificationsRefresh } from "@/lib/hms/notifications-bus";
 import {
@@ -14,8 +15,25 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { LogOut, Loader2, Search } from "lucide-react";
 
 type SearchHit = {
@@ -28,6 +46,27 @@ type SearchHit = {
 };
 
 type Step = "find" | "settle";
+
+/** All F&B folio charges are posted with this exact description shape. */
+function extractFbOrderNumber(line: FolioLineRow): string | null {
+  if (line.reference) return line.reference;
+  const match = line.description ? /F&B order (\S+)/.exec(line.description) : null;
+  return match?.[1] ?? null;
+}
+
+/** Keeps the amount editable while showing it grouped with commas, e.g. 264,500.00 */
+function formatAmountInputValue(raw: string) {
+  if (!raw) return "";
+  const [intPart, decPart] = raw.split(".");
+  const digits = intPart.replace(/[^0-9]/g, "");
+  if (!digits) return decPart !== undefined ? `.${decPart}` : "";
+  const formattedInt = Number(digits).toLocaleString("en-NG");
+  return decPart !== undefined ? `${formattedInt}.${decPart}` : formattedInt;
+}
+
+function parseAmountInputValue(formatted: string) {
+  return formatted.replace(/,/g, "").replace(/[^0-9.]/g, "");
+}
 
 export function FrontDeskCheckoutDialog({
   slug,
@@ -53,14 +92,18 @@ export function FrontDeskCheckoutDialog({
   const [roomCode, setRoomCode] = useState("");
   const [guestName, setGuestName] = useState("");
   const [folioNumber, setFolioNumber] = useState("");
+  const [roomTypeName, setRoomTypeName] = useState<string | null>(null);
+  const [fbOrdersByNumber, setFbOrdersByNumber] = useState<Map<string, FbOrderWithItems>>(new Map());
   const [lines, setLines] = useState<FolioLineRow[]>([]);
   const [balance, setBalance] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [manualPayAmount, setManualPayAmount] = useState("");
   const [manualMethod, setManualMethod] = useState("cash");
   const [overrideBalance, setOverrideBalance] = useState(false);
   const [cashFloatActive, setCashFloatActive] = useState<boolean | null>(null);
+  const [confirmOverrideOpen, setConfirmOverrideOpen] = useState(false);
 
   const reset = useCallback(() => {
     setStep("find");
@@ -70,12 +113,16 @@ export function FrontDeskCheckoutDialog({
     setRoomCode("");
     setGuestName("");
     setFolioNumber("");
+    setRoomTypeName(null);
+    setFbOrdersByNumber(new Map());
     setLines([]);
     setBalance(0);
     setError(null);
     setManualPayAmount("");
     setOverrideBalance(false);
     setCashFloatActive(null);
+    setConfirmOverrideOpen(false);
+    setSubmitting(false);
   }, []);
 
   useEffect(() => {
@@ -98,9 +145,14 @@ export function FrontDeskCheckoutDialog({
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(
-          `/api/hotel/folio?slug=${encodeURIComponent(slug)}&reservationId=${encodeURIComponent(id)}`,
-        );
+        const [res, fbRes] = await Promise.all([
+          fetch(
+            `/api/hotel/folio?slug=${encodeURIComponent(slug)}&reservationId=${encodeURIComponent(id)}`,
+          ),
+          fetch(
+            `/api/hotel/fb/orders?slug=${encodeURIComponent(slug)}&reservationId=${encodeURIComponent(id)}&status=open,sent_to_kitchen,ready,closed,voided`,
+          ),
+        ]);
         const data = await res.json();
         if (!res.ok) {
           setError(data.error ?? "Could not load folio.");
@@ -112,11 +164,22 @@ export function FrontDeskCheckoutDialog({
           return;
         }
         setReservationId(id);
+        setGuestName(data.reservation.guestName ?? "");
         setFolioNumber(data.reservation.folioNumber);
+        setRoomTypeName(data.reservation.roomTypeName ?? null);
         setLines(data.folio.lines);
         setBalance(data.folio.balance);
         setManualPayAmount(data.folio.balance > 0 ? String(data.folio.balance.toFixed(2)) : "");
         setStep("settle");
+
+        const fbData = await fbRes.json().catch(() => ({}));
+        if (fbRes.ok) {
+          const map = new Map<string, FbOrderWithItems>();
+          for (const order of (fbData.orders ?? []) as FbOrderWithItems[]) {
+            map.set(order.order_number, order);
+          }
+          setFbOrdersByNumber(map);
+        }
 
         const adjRes = await fetch("/api/hotel/folio/early-checkout-adjustment", {
           method: "POST",
@@ -211,7 +274,7 @@ export function FrontDeskCheckoutDialog({
   };
 
   const completeCheckout = async () => {
-    setLoading(true);
+    setSubmitting(true);
     setError(null);
     try {
       if (Number(manualPayAmount) > 0) {
@@ -242,15 +305,26 @@ export function FrontDeskCheckoutDialog({
         "Room released and marked for housekeeping.",
       );
       onOpenChange(false);
-      router.replace(`/hms/${slug}/frontdesk`);
       router.refresh();
       requestNotificationsRefresh();
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
+  const paymentNow = Number(manualPayAmount) || 0;
+  const remainingAfterPayment = Math.max(0, balance - paymentNow);
+
+  const handleCompleteClick = () => {
+    if (overrideBalance && remainingAfterPayment > 0.01) {
+      setConfirmOverrideOpen(true);
+      return;
+    }
+    void completeCheckout();
+  };
+
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[min(90vh,calc(100vh-2rem))] max-w-lg flex-col gap-0 overflow-hidden p-0">
         <DialogHeader className="shrink-0 border-b border-slate-100 px-6 py-5 pr-12">
@@ -316,6 +390,8 @@ export function FrontDeskCheckoutDialog({
                 </ul>
               ) : null}
             </div>
+          ) : loading && !folioNumber ? (
+            <CheckoutSettleSkeleton />
           ) : (
             <div className="space-y-4">
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
@@ -323,6 +399,7 @@ export function FrontDeskCheckoutDialog({
                 <p className="text-slate-600">
                   Folio {folioNumber}
                   {roomCode ? ` · Room ${roomCode}` : ""}
+                  {roomTypeName ? ` · ${roomTypeName}` : ""}
                 </p>
                 <p className="mt-2 text-2xl font-bold tabular-nums text-slate-900">
                   {formatPricingAmount(balance, currency)}
@@ -330,36 +407,126 @@ export function FrontDeskCheckoutDialog({
                 <p className="text-xs text-slate-500">Balance due</p>
               </div>
 
-              {lines.filter((l) => !l.voided_at).length > 0 ? (
-                <div className="max-h-36 overflow-y-auto rounded-xl border border-slate-100 text-sm">
-                  <table className="w-full">
-                    <tbody>
-                      {lines
-                        .filter((l) => !l.voided_at)
-                        .map((l) => (
-                          <tr key={l.id} className="border-t border-slate-50 first:border-0">
-                            <td className="px-3 py-2 text-slate-700">{l.description ?? l.kind}</td>
-                            <td className="px-3 py-2 text-right tabular-nums">
-                              {formatPricingAmount(l.amount, currency)}
-                            </td>
-                          </tr>
-                        ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : null}
+              {(() => {
+                const activeLines = lines.filter((l) => !l.voided_at);
+                const roomLines = activeLines.filter((l) => l.department === "rooms");
+                const fbLines = activeLines.filter((l) => l.department === "food_beverage");
+                const otherLines = activeLines.filter(
+                  (l) => l.department !== "rooms" && l.department !== "food_beverage",
+                );
+
+                return (
+                  <>
+                    {roomLines.length > 0 ? (
+                      <div className="overflow-hidden rounded-xl border border-slate-100 text-sm">
+                        <p className="border-b border-slate-100 bg-slate-50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          Room{roomTypeName ? ` — ${roomTypeName}` : ""}
+                        </p>
+                        <table className="w-full">
+                          <tbody>
+                            {roomLines.map((l) => (
+                              <tr key={l.id} className="border-t border-slate-50 first:border-0">
+                                <td className="px-3 py-2 text-slate-700">{l.description ?? l.kind}</td>
+                                <td className="px-3 py-2 text-right tabular-nums">
+                                  {formatPricingAmount(l.amount, currency)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : null}
+
+                    {fbLines.length > 0 ? (
+                      <div className="overflow-hidden rounded-xl border border-slate-100 text-sm">
+                        <p className="border-b border-slate-100 bg-slate-50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          Food &amp; Beverage
+                        </p>
+                        <Accordion type="multiple" className="px-2">
+                          {fbLines.map((l) => {
+                            const orderNumber = extractFbOrderNumber(l);
+                            const order = orderNumber ? fbOrdersByNumber.get(orderNumber) : undefined;
+                            return (
+                              <AccordionItem key={l.id} value={l.id} className="border-slate-100">
+                                <AccordionTrigger className="py-2 hover:no-underline">
+                                  <span className="flex min-w-0 flex-1 items-center justify-between gap-2 pr-2">
+                                    <span className="truncate text-slate-700">
+                                      {l.description ?? l.kind}
+                                    </span>
+                                    <span className="shrink-0 tabular-nums text-slate-900">
+                                      {formatPricingAmount(l.amount, currency)}
+                                    </span>
+                                  </span>
+                                </AccordionTrigger>
+                                <AccordionContent>
+                                  {order && order.items.length > 0 ? (
+                                    <ul className="space-y-1 text-xs text-slate-600">
+                                      {order.items
+                                        .filter((item) => item.kitchen_status !== "voided")
+                                        .map((item) => (
+                                          <li key={item.id} className="flex justify-between gap-2">
+                                            <span className="min-w-0 truncate">
+                                              {item.quantity}× {item.name_snapshot}
+                                            </span>
+                                            <span className="shrink-0 tabular-nums">
+                                              {formatPricingAmount(
+                                                item.price_snapshot * item.quantity,
+                                                currency,
+                                              )}
+                                            </span>
+                                          </li>
+                                        ))}
+                                    </ul>
+                                  ) : (
+                                    <p className="text-xs text-slate-400">Order details unavailable.</p>
+                                  )}
+                                </AccordionContent>
+                              </AccordionItem>
+                            );
+                          })}
+                        </Accordion>
+                      </div>
+                    ) : null}
+
+                    {otherLines.length > 0 ? (
+                      <div className="overflow-hidden rounded-xl border border-slate-100 text-sm">
+                        <p className="border-b border-slate-100 bg-slate-50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          Other
+                        </p>
+                        <table className="w-full">
+                          <tbody>
+                            {otherLines.map((l) => (
+                              <tr key={l.id} className="border-t border-slate-50 first:border-0">
+                                <td className="px-3 py-2 text-slate-700">{l.description ?? l.kind}</td>
+                                <td className="px-3 py-2 text-right tabular-nums">
+                                  {formatPricingAmount(l.amount, currency)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : null}
+                  </>
+                );
+              })()}
 
               {balance > 0.01 ? (
                 <div className="space-y-3">
                   <div className="rounded-xl border border-slate-200 p-4 space-y-2">
                     <p className="text-sm font-medium text-slate-900">Cash / POS payment</p>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={manualPayAmount}
-                      onChange={(e) => setManualPayAmount(e.target.value)}
-                    />
+                    <div className="relative">
+                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-500">
+                        {formatCurrencySymbol(currency)}
+                      </span>
+                      <Input
+                        type="text"
+                        inputMode="decimal"
+                        className="pl-8 tabular-nums"
+                        value={formatAmountInputValue(manualPayAmount)}
+                        onChange={(e) => setManualPayAmount(parseAmountInputValue(e.target.value))}
+                      />
+                    </div>
                     <select
                       className="h-10 w-full rounded-md border border-slate-200 px-3 text-sm"
                       value={manualMethod}
@@ -405,11 +572,15 @@ export function FrontDeskCheckoutDialog({
         <DialogFooter className="shrink-0 border-t border-slate-100 px-6 py-4">
           {step === "settle" ? (
             <>
-              <Button type="button" variant="outline" onClick={() => setStep("find")} disabled={loading}>
+              <Button type="button" variant="outline" onClick={() => setStep("find")} disabled={loading || submitting}>
                 Back
               </Button>
-              <Button type="button" disabled={loading || !reservationId} onClick={() => void completeCheckout()}>
-                {loading ? "Processing…" : "Complete checkout"}
+              <Button
+                type="button"
+                disabled={loading || submitting || !reservationId || !folioNumber}
+                onClick={handleCompleteClick}
+              >
+                {submitting ? "Processing…" : "Complete checkout"}
               </Button>
             </>
           ) : (
@@ -420,5 +591,79 @@ export function FrontDeskCheckoutDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={confirmOverrideOpen} onOpenChange={setConfirmOverrideOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Check out with an unpaid balance?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {guestName || "This guest"}
+            {roomCode ? ` (Room ${roomCode})` : ""} will be checked out under manager override.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+
+        <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-slate-500">Balance due</span>
+            <span className="font-medium tabular-nums text-slate-900">
+              {formatPricingAmount(balance, currency)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-slate-500">Paid now</span>
+            <span className="font-medium tabular-nums text-slate-900">
+              {formatPricingAmount(paymentNow, currency)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between border-t border-slate-200 pt-2">
+            <span className="font-medium text-red-700">Waived (left unpaid)</span>
+            <span className="font-semibold tabular-nums text-red-700">
+              {formatPricingAmount(remainingAfterPayment, currency)}
+            </span>
+          </div>
+        </div>
+
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={() => void completeCheckout()}>
+            Check out anyway
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
+  );
+}
+
+function CheckoutSettleSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+        <Skeleton className="h-4 w-32 bg-slate-200" />
+        <Skeleton className="h-3.5 w-48 bg-slate-200" />
+        <Skeleton className="mt-1 h-7 w-28 bg-slate-200" />
+        <Skeleton className="h-3 w-20 bg-slate-200" />
+      </div>
+      <div className="overflow-hidden rounded-xl border border-slate-100">
+        <div className="border-b border-slate-100 bg-slate-50 px-3 py-2">
+          <Skeleton className="h-3 w-16 bg-slate-200" />
+        </div>
+        <div className="space-y-2 p-3">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-3.5 w-32 bg-slate-200" />
+            <Skeleton className="h-3.5 w-16 bg-slate-200" />
+          </div>
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-3.5 w-24 bg-slate-200" />
+            <Skeleton className="h-3.5 w-16 bg-slate-200" />
+          </div>
+        </div>
+      </div>
+      <div className="space-y-2 rounded-xl border border-slate-200 p-4">
+        <Skeleton className="h-3.5 w-36 bg-slate-200" />
+        <Skeleton className="h-10 w-full rounded-md bg-slate-200" />
+        <Skeleton className="h-10 w-full rounded-md bg-slate-200" />
+      </div>
+    </div>
   );
 }
