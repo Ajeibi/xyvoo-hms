@@ -385,23 +385,23 @@ export function FrontDeskRoomDetailSheet({
                   </div>
                   <div>
                     <p className="text-xs text-slate-500">Bed / basis</p>
-                    <p className="font-medium">
+                    <div className="font-medium">
                       {supplementLoading && !detail ? (
                         <Skeleton className="inline-block h-4 w-20" />
                       ) : (
                         (detail?.roomType.bedType ?? "—")
                       )}
-                    </p>
+                    </div>
                   </div>
                   <div>
                     <p className="text-xs text-slate-500">Capacity</p>
-                    <p className="font-medium">
+                    <div className="font-medium">
                       {supplementLoading && !detail ? (
                         <Skeleton className="inline-block h-4 w-10" />
                       ) : (
                         (detail?.roomType.capacity ?? "—")
                       )}
-                    </p>
+                    </div>
                   </div>
                   <div>
                     <p className="text-xs text-slate-500">Unit status</p>
@@ -570,7 +570,7 @@ export function FrontDeskRoomDetailSheet({
                       ) : null}
                       <Button asChild size="sm" variant="outline">
                         <Link
-                          href={`/hms/${slug}/frontdesk/folio?code=${encodeURIComponent(stay.confirmationCode)}`}
+                          href={`/hms/${slug}/frontdesk/folio?reservationId=${encodeURIComponent(stay.reservationId)}`}
                         >
                           Open folio
                         </Link>

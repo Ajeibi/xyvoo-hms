@@ -1,6 +1,18 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { departmentScopeForRole } from "@/lib/hms/guest-services-rbac";
 
 export type NotificationSeverity = "info" | "warning" | "critical";
+
+/** Postgrest `.or()` filter restricting notifications to what a department-scoped viewer
+ * (Housekeeping/Maintenance/F&B) should see — their own department's targeted notifications,
+ * plus untargeted/tenant-wide ones. Null when the viewer isn't department-scoped (Front Desk,
+ * Manager, Admin), who continue to see everything, unchanged from before department targeting
+ * existed. */
+export function notificationVisibilityFilter(departmentRole: string | null): string | null {
+  const scope = departmentScopeForRole(departmentRole);
+  if (!scope) return null;
+  return `department.is.null,department.eq.${scope}`;
+}
 
 export type EmitNotificationInput = {
   tenantId: string;
@@ -11,6 +23,10 @@ export type EmitNotificationInput = {
   entityType?: string;
   entityId?: string;
   metadata?: Record<string, unknown>;
+  /** Restricts visibility to staff scoped to this department (housekeeping/maintenance/
+   * food_beverage, per `departmentScopeForRole`); omit/null for a tenant-wide notification
+   * everyone sees, same as before this field existed. */
+  department?: string | null;
 };
 
 export async function emitNotification(input: EmitNotificationInput) {
@@ -24,6 +40,7 @@ export async function emitNotification(input: EmitNotificationInput) {
     entity_type: input.entityType ?? null,
     entity_id: input.entityId ?? null,
     metadata: input.metadata ?? {},
+    department: input.department ?? null,
   });
   if (error) console.warn("[emitNotification]", error);
 }

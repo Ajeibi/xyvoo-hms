@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
 import { writeAuditLog, emitNotification } from "@/lib/hms/front-desk-ops";
 import { getRoomsCapabilities } from "@/lib/hms/rooms-rbac";
+import { openOrEscalateHousekeepingTask } from "@/lib/hms/housekeeping-tasks";
 
 const BodySchema = z.object({
   slug: z.string().min(1),
@@ -33,20 +34,14 @@ export async function POST(
       .eq("id", id)
       .maybeSingle();
 
-    await auth.service
-      .schema("hotel")
-      .from("housekeeping_tasks")
-      .upsert(
-        {
-          tenant_id: auth.tenant.id,
-          room_unit_id: id,
-          status: "dirty",
-          priority_level: body.priorityLevel,
-          due_by: body.dueBy ?? null,
-          notes: body.notes ?? null,
-        },
-        { onConflict: "room_unit_id" },
-      );
+    await openOrEscalateHousekeepingTask(auth.service, {
+      tenantId: auth.tenant.id,
+      roomUnitId: id,
+      taskType: "checkout_clean",
+      priorityLevel: body.priorityLevel,
+      dueBy: body.dueBy ?? null,
+      notes: body.notes ?? null,
+    });
 
     await writeAuditLog({
       tenantId: auth.tenant.id,

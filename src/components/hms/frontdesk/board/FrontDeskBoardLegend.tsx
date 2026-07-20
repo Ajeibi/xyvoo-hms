@@ -1,10 +1,5 @@
 import { cn } from "@/lib/utils";
-import {
-  PAYMENT_DOT_CLASS,
-  PAYMENT_LEGEND_KEYS,
-  PAYMENT_STATUS_HINT,
-  PAYMENT_STATUS_LABEL,
-} from "./payment-styles";
+import { PaymentLegend } from "./PaymentLegend";
 
 const ROOM_STATUS_LEGEND = [
   { label: "Overdue checkout", className: "bg-red-500" },
@@ -61,14 +56,7 @@ export function FrontDeskBoardLegend() {
           Small <strong className="font-semibold text-slate-600">circle</strong> in the top-right on
           occupied / reserved rooms (not the cell color)
         </p>
-        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-[10px] font-medium text-slate-600">
-          {PAYMENT_LEGEND_KEYS.map((key) => (
-            <span key={key} className="flex items-center gap-1.5" title={PAYMENT_STATUS_HINT[key]}>
-              <LegendSwatch shape="dot" className={PAYMENT_DOT_CLASS[key]} />
-              {PAYMENT_STATUS_LABEL[key]}
-            </span>
-          ))}
-        </div>
+        <PaymentLegend className="mt-2 text-[10px]" />
       </div>
 
       <div className="border-t border-slate-200/80 pt-3">

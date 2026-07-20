@@ -990,7 +990,8 @@ export async function getFrontDeskBoardData(params: {
       .select(
         "room_unit_id,status,started_at,completed_at,inspected_at,assigned_staff_id,priority_level,due_by",
       )
-      .eq("tenant_id", tenantId),
+      .eq("tenant_id", tenantId)
+      .neq("status", "ready"),
     supabase
       .schema("hotel")
       .from("payment_intents")
@@ -1615,6 +1616,7 @@ export async function loadFrontDeskRoomBoardItemForUnit(params: {
       )
       .eq("tenant_id", tenantId)
       .eq("room_unit_id", unit.id)
+      .neq("status", "ready")
       .maybeSingle(),
   ]);
 

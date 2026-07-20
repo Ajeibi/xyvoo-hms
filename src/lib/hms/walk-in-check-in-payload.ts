@@ -38,8 +38,13 @@ export const minorGuestSchema = z.object({
 export const walkInCheckInPayloadSchema = z
   .object({
     slug: z.string().min(1),
-    /** Hotel user attributed as having checked the guest in (must be a tenant member). */
-    checkedInByUserId: z.string().uuid(),
+    /** false when this submission only creates a reservation (no room-occupied/folio side effects yet). */
+    checkInNow: z.coerce.boolean().optional().default(true),
+    /** When set, this submission completes check-in for an already-booked reservation (update) instead
+     * of creating a brand-new one. */
+    reservationId: z.string().uuid().optional(),
+    /** Hotel user attributed as having checked the guest in. Required only when checkInNow is true. */
+    checkedInByUserId: z.string().uuid().optional(),
     title: guestTitleSchema.optional().nullable(),
 
     firstName: z.string().min(1).max(80),
@@ -123,6 +128,14 @@ export const walkInCheckInPayloadSchema = z
     vipFlag: z.coerce.boolean().optional(),
   })
   .superRefine((data, ctx) => {
+    if (data.checkInNow && !data.checkedInByUserId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Select the staff member who checked this guest in.",
+        path: ["checkedInByUserId"],
+      });
+    }
+
     const extraAdults = Math.max(0, data.adults - 1);
     const children = data.children ?? 0;
     const infants = data.infants ?? 0;

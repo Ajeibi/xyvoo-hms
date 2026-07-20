@@ -28,6 +28,18 @@ export function HousekeepingInfoBlock({
           <dt className="text-slate-500">Room unit</dt>
           <dd className="font-medium capitalize">{unitStatus.replace(/_/g, " ")}</dd>
         </div>
+        {task?.priorityLevel && task.priorityLevel !== "normal" ? (
+          <div className="flex justify-between gap-4">
+            <dt className="text-slate-500">Priority</dt>
+            <dd className="font-medium capitalize text-amber-700">{task.priorityLevel}</dd>
+          </div>
+        ) : null}
+        {task?.dueBy ? (
+          <div className="flex justify-between gap-4">
+            <dt className="text-slate-500">Due by</dt>
+            <dd className="font-medium">{formatBoardDateTime(task.dueBy)}</dd>
+          </div>
+        ) : null}
         <div className="flex justify-between gap-4">
           <dt className="text-slate-500">Started</dt>
           <dd>{task?.startedAt ? formatBoardDateTime(task.startedAt) : "—"}</dd>

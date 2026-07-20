@@ -1,8 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { toastError, toastSuccess } from "@/lib/app-toast";
 import {
   Dialog,
   DialogContent,
@@ -12,19 +10,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { FrontDeskPopoverSelect } from "@/components/hms/frontdesk/FrontDeskPopoverSelect";
-import type { ArrivalDetailPayload } from "@/lib/hms/arrivals-workbench";
+import { FrontDeskAssignRoomPicker, READINESS_LABEL } from "./FrontDeskAssignRoomPicker";
 import type { ArrivalsRoleCapabilities } from "@/lib/hms/arrivals-rbac";
-import type { ArrivalWorkbenchRow } from "@/lib/hms/arrivals-workbench";
 import type { CheckInStaffOption } from "@/lib/hms/check-in-staff-options";
 import { PAYMENT_STATUS_LABEL } from "@/components/hms/frontdesk/board/payment-styles";
-import {
-  assignRoomApi,
-  FrontDeskAssignRoomPicker,
-  READINESS_LABEL,
-} from "./FrontDeskAssignRoomPicker";
+import { formatPricingAmount } from "@/lib/hms/room-pricing";
+import { useReservationCheckIn, type CheckInRow } from "@/lib/hms/useReservationCheckIn";
 
-type Step = "verify" | "payment" | "room" | "confirm" | "done";
+export type { CheckInRow as ReservationCheckInDialogRow } from "@/lib/hms/useReservationCheckIn";
 
 export function FrontDeskReservationCheckInDialog({
   slug,
@@ -35,128 +28,46 @@ export function FrontDeskReservationCheckInDialog({
   capabilities,
   checkInStaffOptions,
   defaultCheckedInByUserId,
+  currency = "NGN",
 }: {
   slug: string;
-  row: ArrivalWorkbenchRow | null;
+  row: CheckInRow | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
   capabilities: ArrivalsRoleCapabilities;
   checkInStaffOptions: CheckInStaffOption[];
   defaultCheckedInByUserId: string | null;
+  /** For the pre-arrival "expected total" line — this is a reservation's known room rate, not the
+   * folio balance (which is legitimately 0/unknown until charges post at check-in). */
+  currency?: string;
 }) {
-  const [step, setStep] = useState<Step>("verify");
-  const [detail, setDetail] = useState<ArrivalDetailPayload | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [roomUnitId, setRoomUnitId] = useState("");
-  const [floorFilter, setFloorFilter] = useState("");
-  const [guestRemarks, setGuestRemarks] = useState("");
-  const [managerPin, setManagerPin] = useState("");
-  const [checkedInByUserId, setCheckedInByUserId] = useState("");
-
-  useEffect(() => {
-    if (!open || !row) return;
-    setStep("verify");
-    setError(null);
-    setManagerPin("");
-    const staffDefault =
-      defaultCheckedInByUserId && checkInStaffOptions.some((o) => o.userId === defaultCheckedInByUserId)
-        ? defaultCheckedInByUserId
-        : checkInStaffOptions.length === 1
-          ? checkInStaffOptions[0]!.userId
-          : "";
-    setCheckedInByUserId(staffDefault);
-    setFloorFilter("");
-    setLoading(true);
-    fetch(`/api/hotel/frontdesk/arrivals/${row.id}?slug=${encodeURIComponent(slug)}`)
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.error) throw new Error(d.error);
-        setDetail(d);
-        setRoomUnitId(d.reservation.roomUnitId ?? "");
-        setGuestRemarks(d.reservation.guestRemarks ?? "");
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"))
-      .finally(() => setLoading(false));
-  }, [open, row, slug, checkInStaffOptions, defaultCheckedInByUserId]);
-
-  const settlementLabel = useMemo(() => {
-    const m = detail?.reservation.settlementMethod;
-    if (m === "direct_bill") return "Direct bill";
-    if (m === "card") return "Card";
-    if (m === "pos") return "POS terminal";
-    if (m === "partial_credit") return "Partial credit";
-    if (m === "split") return "Split";
-    return "Cash";
-  }, [detail]);
-
-  async function reloadDetail() {
-    if (!row) return;
-    const res = await fetch(`/api/hotel/frontdesk/arrivals/${row.id}?slug=${encodeURIComponent(slug)}`);
-    if (res.ok) {
-      const d = await res.json();
-      setDetail(d);
-    }
-  }
-
-  async function assignRoomIfNeeded() {
-    if (!row || !roomUnitId || roomUnitId === detail?.reservation.roomUnitId) return true;
-    const result = await assignRoomApi({
-      slug,
-      reservationId: row.id,
-      roomUnitId,
-      managerPin: managerPin || undefined,
-    });
-    if (!result.ok) {
-      setError(result.error ?? "Room assignment failed");
-      if (result.requiresPin) setStep("room");
-      return false;
-    }
-    return true;
-  }
-
-  async function completeCheckIn() {
-    if (!row || !capabilities.canCheckIn) return;
-    if (!checkInStaffOptions.length) {
-      setError("No hotel staff found. Add team members under Settings before check-in.");
-      return;
-    }
-    if (!checkedInByUserId.trim() || !checkInStaffOptions.some((o) => o.userId === checkedInByUserId)) {
-      setError("Select the staff member who checked this guest in.");
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    const assigned = await assignRoomIfNeeded();
-    if (!assigned) {
-      setLoading(false);
-      return;
-    }
-    const res = await fetch(`/api/hotel/frontdesk/arrivals/${row.id}/check-in`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        slug,
-        checkedInByUserId: checkedInByUserId.trim(),
-        roomUnitId: roomUnitId || undefined,
-        guestRemarks,
-        managerPin: managerPin || undefined,
-      }),
-    });
-    const data = await res.json();
-    setLoading(false);
-    if (!res.ok) {
-      const msg = data.error ?? "Check-in failed";
-      setError(msg);
-      toastError("Check-in failed", msg);
-      if (data.requiresPin) setStep("room");
-      return;
-    }
-    toastSuccess("Guest checked in", row.confirmationCode);
-    setStep("done");
-    onSuccess();
-  }
+  const {
+    step,
+    setStep,
+    detail,
+    loading,
+    error,
+    roomUnitId,
+    setRoomUnitId,
+    floorFilter,
+    setFloorFilter,
+    guestRemarks,
+    setGuestRemarks,
+    managerPin,
+    setManagerPin,
+    checkedInByUserId,
+    settlementLabel,
+    completeCheckIn,
+  } = useReservationCheckIn({
+    slug,
+    row,
+    active: open,
+    capabilities,
+    checkInStaffOptions,
+    defaultCheckedInByUserId,
+    onSuccess,
+  });
 
   if (!row) return null;
 
@@ -191,13 +102,28 @@ export function FrontDeskReservationCheckInDialog({
 
         {step === "payment" && detail && capabilities.canViewFolioFinancials ? (
           <div className="space-y-3 text-sm">
-            <p>
-              <span className="text-slate-500">Status:</span>{" "}
-              {PAYMENT_STATUS_LABEL[detail.folio.displayStatus]}
-            </p>
-            <p>
-              <span className="text-slate-500">Balance:</span> {detail.folio.balanceFormatted}
-            </p>
+            {detail.folio.charges === 0 && detail.reservation.status === "confirmed" ? (
+              <>
+                <p>
+                  <span className="text-slate-500">Expected total for stay:</span>{" "}
+                  {formatPricingAmount(detail.reservation.totalRoomCharges, currency)}
+                </p>
+                <p className="text-xs text-slate-500">
+                  Room charges haven&apos;t posted to the folio yet — they post automatically when you complete
+                  check-in.
+                </p>
+              </>
+            ) : (
+              <>
+                <p>
+                  <span className="text-slate-500">Status:</span>{" "}
+                  {PAYMENT_STATUS_LABEL[detail.folio.displayStatus]}
+                </p>
+                <p>
+                  <span className="text-slate-500">Balance:</span> {detail.folio.balanceFormatted}
+                </p>
+              </>
+            )}
             <p>
               <span className="text-slate-500">Settlement:</span> {settlementLabel}
             </p>
@@ -265,7 +191,7 @@ export function FrontDeskReservationCheckInDialog({
           <p className="text-sm font-medium text-emerald-700">Guest checked in successfully.</p>
         ) : null}
 
-        <DialogFooter className="gap-2 sm:gap-0">
+        <DialogFooter className="gap-2">
           {step === "verify" ? (
             <>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

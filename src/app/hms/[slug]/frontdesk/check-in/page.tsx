@@ -75,7 +75,7 @@ export default async function FrontDeskCheckInPage({
 
   return (
     <HMSLayout slug={slug} requiredSection="frontdesk">
-      <div className="mx-auto w-full max-w-[1200px] px-6 py-8 sm:px-8">
+      <div className="w-full px-6 py-8 sm:px-8">
         <div className="mb-6">
           <Link
             href={`/hms/${slug}/frontdesk`}

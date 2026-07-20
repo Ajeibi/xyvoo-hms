@@ -4,6 +4,7 @@ import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { notifyMaintenance, notifyRoomReady, notifyRoomStatus } from "@/lib/hms/notification-rules";
 import { getRoomsCapabilities } from "@/lib/hms/rooms-rbac";
+import { pauseHousekeepingTaskForRoom, syncHousekeepingTaskForManualRoomStatus } from "@/lib/hms/housekeeping-tasks";
 
 const PatchSchema = z.object({
   slug: z.string().min(1),
@@ -82,15 +83,19 @@ export async function PATCH(req: Request) {
     }
 
     if (body.status === "dirty" || body.status === "ready_for_occupancy") {
-      await auth.service.schema("hotel").from("housekeeping_tasks").upsert(
-        {
-          tenant_id: auth.tenant.id,
-          room_unit_id: unit.id,
-          status: body.status === "dirty" ? "dirty" : "ready",
-          completed_at: body.status === "ready_for_occupancy" ? new Date().toISOString() : null,
-        },
-        { onConflict: "room_unit_id" },
-      );
+      await syncHousekeepingTaskForManualRoomStatus(auth.service, {
+        tenantId: auth.tenant.id,
+        roomUnitId: unit.id,
+        roomStatus: body.status,
+      });
+    } else if (body.status === "maintenance" || body.status === "out_of_order") {
+      // HK-07: taking a room out of service outside the HK status machine pauses any open task
+      // rather than continuing to prompt an attendant to clean a room that is no longer sellable.
+      await pauseHousekeepingTaskForRoom(auth.service, {
+        tenantId: auth.tenant.id,
+        roomUnitId: unit.id,
+        reason: `Room set to ${body.status.replace(/_/g, " ")} by Front Desk.`,
+      });
     }
 
     await writeAuditLog({

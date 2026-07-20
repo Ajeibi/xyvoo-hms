@@ -18,6 +18,7 @@ import type {
 import type { CheckInStaffOption } from "@/lib/hms/check-in-staff-options";
 import type { ArrivalsRoleCapabilities } from "@/lib/hms/arrivals-rbac";
 import { PAYMENT_DOT_CLASS, PAYMENT_STATUS_LABEL } from "@/components/hms/frontdesk/board/payment-styles";
+import { PaymentLegend } from "@/components/hms/frontdesk/board/PaymentLegend";
 import { FrontDeskPopoverSelect } from "@/components/hms/frontdesk/FrontDeskPopoverSelect";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import { useFrontDeskRealtime } from "@/hooks/useFrontDeskRealtime";
@@ -135,6 +136,8 @@ function FilterField({
 
 type SortKey = "arrivalAt" | "guestName" | "confirmationCode";
 
+const ARRIVALS_PAGE_SIZE = 5;
+
 function movementBadgeVariant(
   highlight: ArrivalWorkbenchRow["highlight"],
 ): "soon" | "overdue" | null {
@@ -182,6 +185,7 @@ export function FrontDeskArrivalsClient({
   const [assignRow, setAssignRow] = useState<ArrivalWorkbenchRow | null>(null);
   const [assignOpen, setAssignOpen] = useState(false);
   const [showTimeline, setShowTimeline] = useState(true);
+  const [page, setPage] = useState(1);
   const selectAllRef = useRef<HTMLInputElement>(null);
 
   const refresh = useCallback(async () => {
@@ -200,7 +204,10 @@ export function FrontDeskArrivalsClient({
     try {
       const res = await fetch(`/api/hotel/frontdesk/arrivals?${params}`);
       const json = await res.json();
-      if (!json.error) setData(json);
+      if (!json.error) {
+        setData(json);
+        setPage(1);
+      }
     } finally {
       setLoading(false);
     }
@@ -238,6 +245,16 @@ export function FrontDeskArrivalsClient({
     return rows;
   }, [data.rows, sortKey, sortAsc]);
 
+  const totalPages = Math.max(1, Math.ceil(sortedRows.length / ARRIVALS_PAGE_SIZE));
+  // Clamped inline (not via effect-driven setState) for whenever a filter change shrinks the
+  // result set faster than the explicit resets below catch it.
+  const currentPage = Math.min(page, totalPages);
+
+  const pageRows = useMemo(
+    () => sortedRows.slice((currentPage - 1) * ARRIVALS_PAGE_SIZE, currentPage * ARRIVALS_PAGE_SIZE),
+    [sortedRows, currentPage],
+  );
+
   const hasActiveFilters =
     search.trim() !== "" ||
     statusFilter !== "" ||
@@ -248,8 +265,8 @@ export function FrontDeskArrivalsClient({
     preset === "custom";
 
   const allVisibleSelected =
-    sortedRows.length > 0 && sortedRows.every((r) => selectedIds.has(r.id));
-  const someVisibleSelected = sortedRows.some((r) => selectedIds.has(r.id));
+    pageRows.length > 0 && pageRows.every((r) => selectedIds.has(r.id));
+  const someVisibleSelected = pageRows.some((r) => selectedIds.has(r.id));
 
   useEffect(() => {
     if (selectAllRef.current) {
@@ -274,7 +291,7 @@ export function FrontDeskArrivalsClient({
       setSelectedIds(new Set());
       return;
     }
-    setSelectedIds(new Set(sortedRows.map((r) => r.id)));
+    setSelectedIds(new Set(pageRows.map((r) => r.id)));
   }
 
   function toggleSort(key: SortKey) {
@@ -283,6 +300,7 @@ export function FrontDeskArrivalsClient({
       setSortKey(key);
       setSortAsc(true);
     }
+    setPage(1);
   }
 
   function openDetail(row: ArrivalWorkbenchRow) {
@@ -502,6 +520,10 @@ export function FrontDeskArrivalsClient({
             </Button>
           ) : null}
         </div>
+        <div className="border-t border-slate-100 px-6 py-3">
+          <PaymentLegend />
+          <p className="mt-1 text-[11px] text-slate-400">Dot shown next to the Balance amount for each arrival.</p>
+        </div>
       </section>
 
       {capabilities.canBulkActions && selectedIds.size > 0 ? (
@@ -523,7 +545,7 @@ export function FrontDeskArrivalsClient({
         </div>
       ) : null}
 
-      <div className="thin-scrollbar relative overflow-x-auto rounded-xl border border-slate-200 bg-white pb-0.5 shadow-sm">
+      <div className="thin-scrollbar relative rounded-xl border border-slate-200 bg-white shadow-sm">
         {loading ? (
           <div
             className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-white/70 backdrop-blur-[1px]"
@@ -532,7 +554,26 @@ export function FrontDeskArrivalsClient({
             <RefreshCw className="h-7 w-7 animate-spin text-slate-400" />
           </div>
         ) : null}
-        <table className="min-w-[1720px] w-full border-collapse text-left">
+        {sortedRows.length === 0 && !loading ? (
+          <div className="flex flex-col items-center gap-3 px-4 py-16 text-center">
+            <CalendarOff className="h-10 w-10 text-slate-300" aria-hidden />
+            <div>
+              <p className="font-medium text-slate-800">No arrivals in this view</p>
+              <p className="mt-1 text-sm text-slate-500">
+                {hasActiveFilters
+                  ? "Try clearing filters or choosing a wider date range."
+                  : "There are no reservations arriving for the selected period."}
+              </p>
+            </div>
+            {hasActiveFilters ? (
+              <Button type="button" size="sm" variant="outline" onClick={clearFilters}>
+                Clear filters
+              </Button>
+            ) : null}
+          </div>
+        ) : (
+        <div className="overflow-x-auto pb-0.5">
+        <table className="min-w-[1900px] w-full border-collapse text-left">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-100/80">
               {capabilities.canBulkActions ? (
@@ -558,7 +599,7 @@ export function FrontDeskArrivalsClient({
                 </button>
               </th>
               <th className={cn(TH, "min-w-[100px]")}>Booked</th>
-              <th className={cn(TH, "min-w-[220px]")}>
+              <th className={cn(TH, "min-w-[260px]")}>
                 <button
                   type="button"
                   className="cursor-pointer hover:text-slate-800"
@@ -567,8 +608,8 @@ export function FrontDeskArrivalsClient({
                   Guest
                 </button>
               </th>
-              <th className={cn(TH, "min-w-[200px]")}>Contact</th>
-              <th className={cn(TH, "min-w-[150px]")}>
+              <th className={cn(TH, "min-w-[240px]")}>Contact</th>
+              <th className={cn(TH, "min-w-[160px]")}>
                 <button
                   type="button"
                   className="cursor-pointer hover:text-slate-800"
@@ -579,8 +620,8 @@ export function FrontDeskArrivalsClient({
               </th>
               <th className={cn(TH, "min-w-[110px]")}>Departure</th>
               <th className={cn(TH, "min-w-[72px] text-center")}>Nights</th>
-              <th className={cn(TH, "min-w-[100px]")}>Type / floor</th>
-              <th className={cn(TH, "min-w-[80px]")}>Room</th>
+              <th className={cn(TH, "min-w-[180px]")}>Type / floor</th>
+              <th className={cn(TH, "min-w-[90px]")}>Room</th>
               <th className={cn(TH, "min-w-[64px] text-center")}>Party</th>
               <th className={cn(TH, "min-w-[100px] text-right")}>Total</th>
               <th className={cn(TH, "min-w-[100px] text-right")}>Paid</th>
@@ -595,29 +636,7 @@ export function FrontDeskArrivalsClient({
             </tr>
           </thead>
           <tbody>
-            {sortedRows.length === 0 && !loading ? (
-              <tr>
-                <td colSpan={capabilities.canBulkActions ? 19 : 18}>
-                  <div className="flex flex-col items-center gap-3 px-4 py-16 text-center">
-                    <CalendarOff className="h-10 w-10 text-slate-300" aria-hidden />
-                    <div>
-                      <p className="font-medium text-slate-800">No arrivals in this view</p>
-                      <p className="mt-1 text-sm text-slate-500">
-                        {hasActiveFilters
-                          ? "Try clearing filters or choosing a wider date range."
-                          : "There are no reservations arriving for the selected period."}
-                      </p>
-                    </div>
-                    {hasActiveFilters ? (
-                      <Button type="button" size="sm" variant="outline" onClick={clearFilters}>
-                        Clear filters
-                      </Button>
-                    ) : null}
-                  </div>
-                </td>
-              </tr>
-            ) : (
-              sortedRows.map((row, index) => {
+            {pageRows.map((row, index) => {
                 const surface = arrivalRowSurfaceClasses(row.highlight, index);
                 const movement = movementBadgeVariant(row.highlight);
                 return (
@@ -652,7 +671,7 @@ export function FrontDeskArrivalsClient({
                       {row.confirmationCode}
                     </td>
                     <td className={cn(TD, "text-xs text-slate-600", surface)}>{formatUtcDate(row.bookingDate)}</td>
-                    <td className={cn(TD, surface)}>
+                    <td className={cn(TD, "whitespace-nowrap", surface)}>
                       <div className="space-y-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="font-semibold text-slate-900">{row.guestName}</span>
@@ -665,7 +684,7 @@ export function FrontDeskArrivalsClient({
                         <p className="text-xs text-slate-500">{row.bookingSourceLabel}</p>
                       </div>
                     </td>
-                    <td className={cn(TD, "text-xs leading-relaxed text-slate-600", surface)}>
+                    <td className={cn(TD, "whitespace-nowrap text-xs leading-relaxed text-slate-600", surface)}>
                       <div>{row.phone}</div>
                       <div className="text-slate-500">{row.email}</div>
                       <div className="font-medium text-slate-700">{row.nationality}</div>
@@ -678,7 +697,7 @@ export function FrontDeskArrivalsClient({
                     </td>
                     <td className={cn(TD, "whitespace-nowrap text-xs", surface)}>{formatUtcDate(row.departureAt)}</td>
                     <td className={cn(TD, "text-center text-sm font-medium tabular-nums", surface)}>{row.nights}</td>
-                    <td className={cn(TD, "text-xs", surface)}>
+                    <td className={cn(TD, "whitespace-nowrap text-xs", surface)}>
                       <div className="font-medium">{row.roomTypeCode}</div>
                       {row.floor != null ? <div className="text-slate-500">Floor {row.floor}</div> : null}
                     </td>
@@ -742,11 +761,44 @@ export function FrontDeskArrivalsClient({
                     </td>
                   </tr>
                 );
-              })
-            )}
+              })}
           </tbody>
         </table>
+        </div>
+        )}
       </div>
+
+      {sortedRows.length > 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
+          <p>
+            Showing {(currentPage - 1) * ARRIVALS_PAGE_SIZE + 1}–
+            {Math.min(currentPage * ARRIVALS_PAGE_SIZE, sortedRows.length)} of {sortedRows.length}
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={currentPage <= 1}
+              onClick={() => setPage(Math.max(1, currentPage - 1))}
+            >
+              Previous
+            </Button>
+            <span className="px-2 text-xs font-medium text-slate-500">
+              Page {currentPage} of {totalPages}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={currentPage >= totalPages}
+              onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      ) : null}
 
       <section>
         <button
@@ -818,6 +870,7 @@ export function FrontDeskArrivalsClient({
         capabilities={capabilities}
         checkInStaffOptions={checkInStaffOptions}
         defaultCheckedInByUserId={defaultCheckedInByUserId}
+        currency={currency}
       />
     </div>
   );

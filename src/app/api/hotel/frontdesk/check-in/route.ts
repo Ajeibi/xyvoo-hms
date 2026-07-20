@@ -5,7 +5,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { postWalkInFolioBundle } from "@/lib/hms/folio";
-import { notifyVipArrival, notifyWalkInCheckIn } from "@/lib/hms/notification-rules";
+import { notifyReservationCreated, notifyVipArrival, notifyWalkInCheckIn } from "@/lib/hms/notification-rules";
 import { normalizePricingSetup, normalizeRoomTypes } from "@/lib/hms/room-pricing";
 import { guestTitleFromPayload, NATIONAL_ID_ID_EXPIRY_PLACEHOLDER, resolveGuestIdExpiry, walkInCheckInPayloadSchema } from "@/lib/hms/walk-in-check-in-payload";
 import type { AccompanyingAdultGuest, MinorGuest, WalkInCheckInPayload } from "@/lib/hms/walk-in-check-in-payload";
@@ -148,12 +148,14 @@ export async function POST(req: Request) {
     const allowed = await assertTenantMember(tenant.id, user.id);
     if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    const attendedByMember = await assertTenantMember(tenant.id, parsed.checkedInByUserId);
-    if (!attendedByMember) {
-      return NextResponse.json(
-        { error: "Selected staff member is not part of this hotel." },
-        { status: 400 },
-      );
+    if (parsed.checkInNow && parsed.checkedInByUserId) {
+      const attendedByMember = await assertTenantMember(tenant.id, parsed.checkedInByUserId);
+      if (!attendedByMember) {
+        return NextResponse.json(
+          { error: "Selected staff member is not part of this hotel." },
+          { status: 400 },
+        );
+      }
     }
 
     const roomTypes = normalizeRoomTypes(tenant.room_types);
@@ -273,20 +275,93 @@ export async function POST(req: Request) {
     const nowIso = new Date().toISOString();
     const primaryContact: GuestInsertContact = { phone: parsed.phone, email: parsed.email };
 
-    const { guest, error: guestError } = await insertGuestProfile(
-      service,
-      tenant.id,
-      primaryGuestFields(parsed),
-    );
+    let existingReservation: {
+      id: string;
+      confirmation_code: string;
+      folio_number: string;
+      registration_number: string;
+    } | null = null;
+    let existingPrimaryGuestId: string | null = null;
 
-    if (guestError || !guest) {
-      console.error("[check-in] guest insert:", guestError);
-      return NextResponse.json({ error: "Could not create guest profile." }, { status: 500 });
+    if (parsed.reservationId) {
+      const { data: existing } = await service
+        .schema("hotel")
+        .from("reservations")
+        .select("id,confirmation_code,folio_number,registration_number,status")
+        .eq("tenant_id", tenant.id)
+        .eq("id", parsed.reservationId)
+        .maybeSingle();
+
+      if (!existing) {
+        return NextResponse.json({ error: "Reservation not found." }, { status: 404 });
+      }
+      if (existing.status !== "confirmed") {
+        return NextResponse.json(
+          { error: "This reservation is not awaiting check-in." },
+          { status: 400 },
+        );
+      }
+
+      const { data: primaryLink } = await service
+        .schema("hotel")
+        .from("reservation_guests")
+        .select("guest_id")
+        .eq("reservation_id", existing.id)
+        .eq("is_primary", true)
+        .maybeSingle();
+
+      if (!primaryLink) {
+        return NextResponse.json(
+          { error: "Primary guest not found for this reservation." },
+          { status: 500 },
+        );
+      }
+
+      existingReservation = existing;
+      existingPrimaryGuestId = primaryLink.guest_id as string;
     }
 
-    const confirmationCode = uniqueCode("XYV");
-    const folioNumber = uniqueCode("XYV-F");
-    const registrationNumber = uniqueCode("XYV-R");
+    let guestId: string;
+    if (existingReservation && existingPrimaryGuestId) {
+      const { error: guestUpdateError } = await service
+        .schema("hotel")
+        .from("guests")
+        .update({
+          title: guestTitleFromPayload(parsed.title),
+          first_name: parsed.firstName,
+          last_name: parsed.lastName,
+          nationality: parsed.nationality.toUpperCase(),
+          id_type: parsed.idType,
+          id_number: parsed.idNumber,
+          id_expiry_date: resolveGuestIdExpiry(parsed.idType, parsed.idExpiryDate),
+          date_of_birth: parsed.dateOfBirth,
+          phone: parsed.phone,
+          email: parsed.email,
+        })
+        .eq("id", existingPrimaryGuestId);
+
+      if (guestUpdateError) {
+        console.error("[check-in] guest update:", guestUpdateError);
+        return NextResponse.json({ error: "Could not update guest profile." }, { status: 500 });
+      }
+      guestId = existingPrimaryGuestId;
+    } else {
+      const { guest, error: guestError } = await insertGuestProfile(
+        service,
+        tenant.id,
+        primaryGuestFields(parsed),
+      );
+
+      if (guestError || !guest) {
+        console.error("[check-in] guest insert:", guestError);
+        return NextResponse.json({ error: "Could not create guest profile." }, { status: 500 });
+      }
+      guestId = guest.id;
+    }
+
+    const confirmationCode = existingReservation?.confirmation_code ?? uniqueCode("XYV");
+    const folioNumber = existingReservation?.folio_number ?? uniqueCode("XYV-F");
+    const registrationNumber = existingReservation?.registration_number ?? uniqueCode("XYV-R");
 
     const remarksByPhase = {
       reservation: parsed.guestRemarksReservation?.trim() || "",
@@ -332,74 +407,117 @@ export async function POST(req: Request) {
       computedAt: nowIso,
     };
 
-    const { data: reservation, error: resError } = await service
-      .schema("hotel")
-      .from("reservations")
-      .insert({
-        tenant_id: tenant.id,
-        confirmation_code: confirmationCode,
-        status: "checked_in",
-        arrival_at: arrivalAt,
-        departure_at: departureAt,
-        nights,
-        adults: parsed.adults,
-        children_json: buildChildrenJson(parsed.children ?? 0, parsed.infants ?? 0),
-        purpose_of_visit: parsed.purposeOfVisit,
-        room_type_code: roomTypeCode,
-        room_unit_id: roomUnitId,
-        rate_type: parsed.rateType,
-        season_code: parsed.seasonCode?.trim() || null,
-        rate_per_night: expectedBar,
-        total_room_charges: pricingModel.roomSubtotalAfterDiscount,
-        rate_overridden: parsed.rateOverridden,
-        rate_override_reason: parsed.rateOverrideReason?.trim() || null,
-        show_rate_on_registration_card: parsed.showRateOnRegistrationCard,
-        vat_applicable: !parsed.taxExemptVat,
-        tax_exempt: blanketTaxExempt,
-        tax_exemption_reason: parsed.taxExemptionReason?.trim() || null,
-        tax_exemption_doc_ref: parsed.taxExemptionDocRef?.trim() || null,
-        settlement_method: parsed.settlementMethod,
-        preauth_amount: parsed.preauthAmount ?? null,
-        bill_to_account: parsed.billToAccount?.trim() || null,
-        po_number: parsed.poNumber?.trim() || null,
-        min_payment_per_day: parsed.minPaymentPerDayToExtend ?? null,
-        booking_channel: parsed.bookingChannel?.trim() || null,
-        market_segment: parsed.marketSegment,
-        source: parsed.source,
-        travel_agent_name: parsed.travelAgentName?.trim() || null,
-        commission_plan: parsed.commissionPlan?.trim() || null,
-        commission_value: parsed.commissionValue ?? null,
-        guest_remarks: parsed.guestRemarksCheckIn?.trim() || null,
-        voucher_number: parsed.voucherNumber?.trim() || null,
-        vip_flag: parsed.vipFlag ?? false,
-        folio_number: folioNumber,
-        registration_number: registrationNumber,
-        checked_in_at: nowIso,
-        checked_in_by_staff_id: parsed.checkedInByUserId,
-        generate_bill: parsed.generateBill,
-        immigration_registration_required: parsed.immigrationRegistrationRequired,
-        pricing_snapshot: pricingSnapshot,
-        remarks_by_phase: remarksByPhase,
-        guarantee_release_date: parsed.guaranteeReleaseDate ?? null,
-      })
-      .select("id,confirmation_code")
-      .single();
+    const reservationFields = {
+      status: parsed.checkInNow ? ("checked_in" as const) : ("confirmed" as const),
+      arrival_at: arrivalAt,
+      departure_at: departureAt,
+      nights,
+      adults: parsed.adults,
+      children_json: buildChildrenJson(parsed.children ?? 0, parsed.infants ?? 0),
+      purpose_of_visit: parsed.purposeOfVisit,
+      room_type_code: roomTypeCode,
+      room_unit_id: roomUnitId,
+      rate_type: parsed.rateType,
+      season_code: parsed.seasonCode?.trim() || null,
+      rate_per_night: expectedBar,
+      total_room_charges: pricingModel.roomSubtotalAfterDiscount,
+      rate_overridden: parsed.rateOverridden,
+      rate_override_reason: parsed.rateOverrideReason?.trim() || null,
+      show_rate_on_registration_card: parsed.showRateOnRegistrationCard,
+      vat_applicable: !parsed.taxExemptVat,
+      tax_exempt: blanketTaxExempt,
+      tax_exemption_reason: parsed.taxExemptionReason?.trim() || null,
+      tax_exemption_doc_ref: parsed.taxExemptionDocRef?.trim() || null,
+      settlement_method: parsed.settlementMethod,
+      preauth_amount: parsed.preauthAmount ?? null,
+      bill_to_account: parsed.billToAccount?.trim() || null,
+      po_number: parsed.poNumber?.trim() || null,
+      min_payment_per_day: parsed.minPaymentPerDayToExtend ?? null,
+      booking_channel: parsed.bookingChannel?.trim() || null,
+      market_segment: parsed.marketSegment,
+      source: parsed.source,
+      travel_agent_name: parsed.travelAgentName?.trim() || null,
+      commission_plan: parsed.commissionPlan?.trim() || null,
+      commission_value: parsed.commissionValue ?? null,
+      guest_remarks: parsed.guestRemarksCheckIn?.trim() || null,
+      voucher_number: parsed.voucherNumber?.trim() || null,
+      vip_flag: parsed.vipFlag ?? false,
+      checked_in_at: parsed.checkInNow ? nowIso : null,
+      checked_in_by_staff_id: parsed.checkInNow ? (parsed.checkedInByUserId ?? null) : null,
+      generate_bill: parsed.generateBill,
+      immigration_registration_required: parsed.immigrationRegistrationRequired,
+      pricing_snapshot: pricingSnapshot,
+      remarks_by_phase: remarksByPhase,
+      guarantee_release_date: parsed.guaranteeReleaseDate ?? null,
+    };
 
-    if (resError || !reservation) {
-      console.error("[check-in] reservation insert:", resError);
-      return NextResponse.json({ error: "Could not create reservation." }, { status: 500 });
-    }
+    let reservation: { id: string; confirmation_code: string };
 
-    const { error: linkError } = await service.schema("hotel").from("reservation_guests").insert({
-      reservation_id: reservation.id,
-      guest_id: guest.id,
-      is_primary: true,
-      relationship: "primary",
-    });
+    if (existingReservation) {
+      const { data: updated, error: resUpdateError } = await service
+        .schema("hotel")
+        .from("reservations")
+        .update(reservationFields)
+        .eq("id", existingReservation.id)
+        .eq("tenant_id", tenant.id)
+        .select("id,confirmation_code")
+        .single();
 
-    if (linkError) {
-      console.error("[check-in] reservation_guests:", linkError);
-      return NextResponse.json({ error: "Could not link guest to stay." }, { status: 500 });
+      if (resUpdateError || !updated) {
+        console.error("[check-in] reservation update:", resUpdateError);
+        return NextResponse.json({ error: "Could not update reservation." }, { status: 500 });
+      }
+      reservation = updated;
+
+      // Additional guests are re-captured on every submission — clear the old set before
+      // re-inserting so edits (added/removed companions) don't orphan stale links.
+      const { data: oldLinks } = await service
+        .schema("hotel")
+        .from("reservation_guests")
+        .select("guest_id")
+        .eq("reservation_id", existingReservation.id)
+        .eq("is_primary", false);
+      const oldGuestIds = (oldLinks ?? []).map((l) => l.guest_id as string);
+      if (oldGuestIds.length > 0) {
+        await service
+          .schema("hotel")
+          .from("reservation_guests")
+          .delete()
+          .eq("reservation_id", existingReservation.id)
+          .eq("is_primary", false);
+        await service.schema("hotel").from("guests").delete().in("id", oldGuestIds);
+      }
+    } else {
+      const { data: inserted, error: resError } = await service
+        .schema("hotel")
+        .from("reservations")
+        .insert({
+          tenant_id: tenant.id,
+          confirmation_code: confirmationCode,
+          folio_number: folioNumber,
+          registration_number: registrationNumber,
+          ...reservationFields,
+        })
+        .select("id,confirmation_code")
+        .single();
+
+      if (resError || !inserted) {
+        console.error("[check-in] reservation insert:", resError);
+        return NextResponse.json({ error: "Could not create reservation." }, { status: 500 });
+      }
+      reservation = inserted;
+
+      const { error: linkError } = await service.schema("hotel").from("reservation_guests").insert({
+        reservation_id: reservation.id,
+        guest_id: guestId,
+        is_primary: true,
+        relationship: "primary",
+      });
+
+      if (linkError) {
+        console.error("[check-in] reservation_guests:", linkError);
+        return NextResponse.json({ error: "Could not link guest to stay." }, { status: 500 });
+      }
     }
 
     const extraLinks: { reservation_id: string; guest_id: string; is_primary: boolean; relationship: string }[] = [];
@@ -466,7 +584,7 @@ export async function POST(req: Request) {
       }
     }
 
-    if (roomUnitId) {
+    if (parsed.checkInNow && roomUnitId) {
       await service
         .schema("hotel")
         .from("room_units")
@@ -487,30 +605,42 @@ export async function POST(req: Request) {
     await writeAuditLog({
       tenantId: tenant.id,
       actorUserId: user.id,
-      action: "check_in",
+      action: parsed.checkInNow ? "check_in" : "reservation_created",
       entityType: "reservation",
       entityId: reservation.id,
       after: { confirmation_code: reservation.confirmation_code },
     });
 
-    await postWalkInFolioBundle(service, {
-      tenantId: tenant.id,
-      reservationId: reservation.id,
-      nights,
-      postedBy: user.id,
-      currencyCode: pricing.currency,
-      pricing: pricingModel,
-      discountPercent: parsed.discountPercent,
-      discountScope: parsed.discountScope,
-    });
+    if (parsed.checkInNow) {
+      await postWalkInFolioBundle(service, {
+        tenantId: tenant.id,
+        reservationId: reservation.id,
+        nights,
+        postedBy: user.id,
+        currencyCode: pricing.currency,
+        pricing: pricingModel,
+        discountPercent: parsed.discountPercent,
+        discountScope: parsed.discountScope,
+      });
+    }
 
     const guestName = `${parsed.firstName} ${parsed.lastName}`;
-    await notifyWalkInCheckIn({
-      tenantId: tenant.id,
-      guestName,
-      confirmationCode,
-      entityId: reservation.id,
-    });
+    if (parsed.checkInNow) {
+      await notifyWalkInCheckIn({
+        tenantId: tenant.id,
+        guestName,
+        confirmationCode,
+        entityId: reservation.id,
+      });
+    } else {
+      await notifyReservationCreated({
+        tenantId: tenant.id,
+        guestName,
+        confirmationCode,
+        arrivalDate: parsed.arrivalDate,
+        entityId: reservation.id,
+      });
+    }
 
     if (parsed.vipFlag) {
       await notifyVipArrival({

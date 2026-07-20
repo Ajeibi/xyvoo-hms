@@ -23,6 +23,7 @@ import { NIGERIA_VAT_RATE_PERCENT } from "@/lib/hms/nigeria-hospitality-taxes";
 import type { HotelPricingSetup, HotelRoomTypeSetup } from "@/lib/hms/room-pricing";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import { NATIONAL_ID_ID_EXPIRY_PLACEHOLDER, type AccompanyingAdultGuest, type MinorGuest } from "@/lib/hms/walk-in-check-in-payload";
+import type { CheckInFormInitialData } from "@/lib/hms/check-in-form-initial-data";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import type { DiscountScope } from "@/lib/hms/walk-in-pricing";
 import {
@@ -50,6 +51,18 @@ type FrontDeskCheckInFormProps = {
   pricing: HotelPricingSetup;
   /** Hotel checkout time default for the departure time field. */
   defaultDepartureTime: string;
+  /**
+   * "check_in" (default) completes a walk-in stay immediately — marks the room occupied and
+   * posts folio charges. "reserve" only books the stay ahead of arrival (status "confirmed"):
+   * no room-occupied side effect, no folio posting, no check-in staff attribution required.
+   */
+  mode?: "check_in" | "reserve";
+  /** Pre-fills every field from an already-booked reservation — used when completing check-in
+   * for an existing reservation instead of capturing a brand-new guest/stay from scratch. */
+  initialData?: CheckInFormInitialData;
+  /** When set, submitting completes check-in for this existing reservation (update) rather than
+   * creating a new one. */
+  existingReservationId?: string;
 };
 
 const SETTLEMENT_OPTIONS = [
@@ -115,62 +128,79 @@ export function FrontDeskCheckInForm({
   defaultRoomCode,
   pricing,
   defaultDepartureTime,
+  mode = "check_in",
+  initialData,
+  existingReservationId,
 }: FrontDeskCheckInFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [assignedRoom, setAssignedRoom] = useState(() =>
-    resolveAssignableRoomCode(searchParams.get("room") ?? defaultRoomCode, roomUnits),
+    resolveAssignableRoomCode(initialData?.roomCode ?? searchParams.get("room") ?? defaultRoomCode, roomUnits),
   );
 
   const defaultType = roomTypes[0]?.id ?? "";
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [phone, setPhone] = useState<string | undefined>(undefined);
-  const [primaryEmailInput, setPrimaryEmailInput] = useState("");
-  const [roomTypeCode, setRoomTypeCode] = useState(defaultType);
-  const [arrivalDate, setArrivalDate] = useState(() => localYmd(new Date()));
-  const [departureDate, setDepartureDate] = useState(() => {
+  const [phone, setPhone] = useState<string | undefined>(initialData?.phone);
+  const [primaryEmailInput, setPrimaryEmailInput] = useState(initialData?.email ?? "");
+  const [roomTypeCode, setRoomTypeCode] = useState(initialData?.roomTypeCode || defaultType);
+  const [arrivalDate, setArrivalDate] = useState(() => {
+    if (initialData?.arrivalDate) return initialData.arrivalDate;
     const d = new Date();
-    d.setDate(d.getDate() + 1);
+    if (mode === "reserve") d.setDate(d.getDate() + 1);
     return localYmd(d);
   });
-  const [arrivalTime, setArrivalTime] = useState(() => localHHmm(new Date()));
-  const [departureTime, setDepartureTime] = useState(defaultDepartureTime);
+  const [departureDate, setDepartureDate] = useState(() => {
+    if (initialData?.departureDate) return initialData.departureDate;
+    const d = new Date();
+    d.setDate(d.getDate() + (mode === "reserve" ? 2 : 1));
+    return localYmd(d);
+  });
+  const [arrivalTime, setArrivalTime] = useState(() => initialData?.arrivalTime ?? localHHmm(new Date()));
+  const [departureTime, setDepartureTime] = useState(initialData?.departureTime ?? defaultDepartureTime);
   /** String state so users can clear the field and type a new number (controlled number + `|| 1` forced "12" / blocked empty). */
-  const [adultsInput, setAdultsInput] = useState("1");
-  const [childrenInput, setChildrenInput] = useState("0");
-  const [infantsInput, setInfantsInput] = useState("0");
-  const [discountPercentInput, setDiscountPercentInput] = useState("");
+  const [adultsInput, setAdultsInput] = useState(String(initialData?.adults ?? 1));
+  const [childrenInput, setChildrenInput] = useState(String(initialData?.children ?? 0));
+  const [infantsInput, setInfantsInput] = useState(String(initialData?.infants ?? 0));
+  const [discountPercentInput, setDiscountPercentInput] = useState(
+    initialData?.discountPercent ? String(initialData.discountPercent) : "",
+  );
   const discountPercent = useMemo(() => {
     const t = discountPercentInput.trim().replace(",", ".");
     if (t === "" || t === ".") return 0;
     const n = Number.parseFloat(t);
     return Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : 0;
   }, [discountPercentInput]);
-  const [discountScope, setDiscountScope] = useState<DiscountScope>("none");
-  const [taxExemptVat, setTaxExemptVat] = useState(false);
-  const [taxExemptService, setTaxExemptService] = useState(false);
-  const [taxExemptState, setTaxExemptState] = useState(false);
-  const [taxExemptStamp, setTaxExemptStamp] = useState(false);
+  const [discountScope, setDiscountScope] = useState<DiscountScope>(initialData?.discountScope ?? "none");
+  const [taxExemptVat, setTaxExemptVat] = useState(initialData?.taxExemptVat ?? false);
+  const [taxExemptService, setTaxExemptService] = useState(initialData?.taxExemptServiceCharge ?? false);
+  const [taxExemptState, setTaxExemptState] = useState(initialData?.taxExemptStateLevy ?? false);
+  const [taxExemptStamp, setTaxExemptStamp] = useState(initialData?.taxExemptStampLevy ?? false);
   const [settlementMethod, setSettlementMethod] = useState<
     "cash" | "card" | "pos" | "split" | "direct_bill" | "partial_credit"
-  >("cash");
-  const [guestTitle, setGuestTitle] = useState("");
-  const [purposeOfVisit, setPurposeOfVisit] = useState<"leisure" | "business" | "transit">("leisure");
-  const [idTypeField, setIdTypeField] = useState<"passport" | "national_id" | "drivers_license">("national_id");
+  >(initialData?.settlementMethod ?? "cash");
+  const [guestTitle, setGuestTitle] = useState(initialData?.title ?? "");
+  const [purposeOfVisit, setPurposeOfVisit] = useState<"leisure" | "business" | "transit">(
+    initialData?.purposeOfVisit ?? "leisure",
+  );
+  const [idTypeField, setIdTypeField] = useState<"passport" | "national_id" | "drivers_license">(
+    initialData?.idType ?? "national_id",
+  );
   const [rateTypeField, setRateTypeField] = useState<"rack" | "corporate" | "walk_in_bar" | "promotional">(
-    "walk_in_bar",
+    initialData?.rateType ?? "walk_in_bar",
   );
   const [marketSegmentField, setMarketSegmentField] = useState<
     "transient" | "corporate" | "group" | "government" | "wholesale"
-  >("transient");
+  >(initialData?.marketSegment ?? "transient");
   const [sourceField, setSourceField] = useState<
     "walk_in" | "phone" | "referral" | "ota" | "website" | "travel_agent"
-  >("walk_in");
-  const [additionalAdults, setAdditionalAdults] = useState<AccompanyingAdultGuest[]>([]);
-  const [childGuests, setChildGuests] = useState<MinorGuest[]>([]);
-  const [infantGuests, setInfantGuests] = useState<MinorGuest[]>([]);
+  >(initialData?.source ?? (mode === "reserve" ? "phone" : "walk_in"));
+  const [additionalAdults, setAdditionalAdults] = useState<AccompanyingAdultGuest[]>(
+    initialData?.additionalAdults ?? [],
+  );
+  const [childGuests, setChildGuests] = useState<MinorGuest[]>(initialData?.childGuests ?? []);
+  const [infantGuests, setInfantGuests] = useState<MinorGuest[]>(initialData?.infantGuests ?? []);
 
   const selectedType = useMemo(() => roomTypes.find((t) => t.id === roomTypeCode), [roomTypes, roomTypeCode]);
 
@@ -395,10 +425,13 @@ export function FrontDeskCheckInForm({
 
     const form = new FormData(event.currentTarget);
 
-    const checkedInByUserId = checkedInByUserIdField.trim();
-    if (!checkedInByUserId || !checkInStaffOptions.some((o) => o.userId === checkedInByUserId)) {
-      setError("Select the staff member who checked this guest in.");
-      return;
+    let checkedInByUserId: string | undefined;
+    if (mode === "check_in") {
+      checkedInByUserId = checkedInByUserIdField.trim();
+      if (!checkedInByUserId || !checkInStaffOptions.some((o) => o.userId === checkedInByUserId)) {
+        setError("Select the staff member who checked this guest in.");
+        return;
+      }
     }
 
     const titleRaw = guestTitle.trim();
@@ -447,6 +480,8 @@ export function FrontDeskCheckInForm({
 
     const payload = {
       slug,
+      checkInNow: mode === "check_in",
+      reservationId: existingReservationId,
       checkedInByUserId,
       title,
       firstName: String(form.get("firstName") ?? "").trim(),
@@ -541,17 +576,25 @@ export function FrontDeskCheckInForm({
         registrationNumber?: string;
       };
       if (!res.ok) {
-        const msg = data.error ?? "Check-in failed.";
+        const msg = data.error ?? (mode === "reserve" ? "Could not create reservation." : "Check-in failed.");
         setError(msg);
-        toastError("Check-in failed", msg);
+        toastError(mode === "reserve" ? "Reservation failed" : "Check-in failed", msg);
         return;
       }
-      toastSuccess("Guest checked in", data.confirmationCode ? `Ref ${data.confirmationCode}` : undefined);
-      router.push(`/hms/${slug}/frontdesk?checkedIn=${encodeURIComponent(data.confirmationCode ?? "1")}`);
+      if (mode === "reserve") {
+        toastSuccess("Reservation created", data.confirmationCode ? `Ref ${data.confirmationCode}` : undefined);
+        router.push(`/hms/${slug}/frontdesk?reserved=${encodeURIComponent(data.confirmationCode ?? "1")}`);
+      } else if (existingReservationId) {
+        toastSuccess("Guest checked in", data.confirmationCode ? `Ref ${data.confirmationCode}` : undefined);
+        router.push(`/hms/${slug}/reservations?checkedIn=${encodeURIComponent(data.confirmationCode ?? "1")}`);
+      } else {
+        toastSuccess("Guest checked in", data.confirmationCode ? `Ref ${data.confirmationCode}` : undefined);
+        router.push(`/hms/${slug}/frontdesk?checkedIn=${encodeURIComponent(data.confirmationCode ?? "1")}`);
+      }
       router.refresh();
     } catch {
       setError("Network error. Please try again.");
-      toastError("Check-in failed", "Network error. Please try again.");
+      toastError(mode === "reserve" ? "Reservation failed" : "Check-in failed", "Network error. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -629,13 +672,25 @@ export function FrontDeskCheckInForm({
                 <label htmlFor="firstName" className="text-sm font-medium text-slate-700">
                   First name <span className="text-rose-600">*</span>
                 </label>
-                <Input id="firstName" name="firstName" required className="h-10 rounded-xl" />
+                <Input
+                  id="firstName"
+                  name="firstName"
+                  required
+                  defaultValue={initialData?.firstName}
+                  className="h-10 rounded-xl"
+                />
               </div>
               <div className="space-y-2">
                 <label htmlFor="lastName" className="text-sm font-medium text-slate-700">
                   Last name <span className="text-rose-600">*</span>
                 </label>
-                <Input id="lastName" name="lastName" required className="h-10 rounded-xl" />
+                <Input
+                  id="lastName"
+                  name="lastName"
+                  required
+                  defaultValue={initialData?.lastName}
+                  className="h-10 rounded-xl"
+                />
               </div>
               <div className="space-y-2">
                 <CheckInFieldLabelRow
@@ -686,7 +741,13 @@ export function FrontDeskCheckInForm({
                 >
                   Nationality (ISO)
                 </CheckInFieldLabelRow>
-                <Input id="nationality" name="nationality" defaultValue="NG" maxLength={2} className="h-10 rounded-xl" />
+                <Input
+                  id="nationality"
+                  name="nationality"
+                  defaultValue={initialData?.nationality ?? "NG"}
+                  maxLength={2}
+                  className="h-10 rounded-xl"
+                />
               </div>
               <div className="space-y-2">
                 <CheckInFieldLabelRow
@@ -717,7 +778,13 @@ export function FrontDeskCheckInForm({
                 >
                   ID number
                 </CheckInFieldLabelRow>
-                <Input id="idNumber" name="idNumber" required className="h-10 rounded-xl" />
+                <Input
+                  id="idNumber"
+                  name="idNumber"
+                  required
+                  defaultValue={initialData?.idNumber}
+                  className="h-10 rounded-xl"
+                />
               </div>
               {idTypeField !== "national_id" ? (
                 <div className="space-y-2">
@@ -729,7 +796,14 @@ export function FrontDeskCheckInForm({
                   >
                     ID expiry
                   </CheckInFieldLabelRow>
-                  <Input id="idExpiryDate" name="idExpiryDate" type="date" required className="h-10 rounded-xl" />
+                  <Input
+                    id="idExpiryDate"
+                    name="idExpiryDate"
+                    type="date"
+                    required
+                    defaultValue={initialData?.idExpiryDate || undefined}
+                    className="h-10 rounded-xl"
+                  />
                 </div>
               ) : null}
               <div className="space-y-2 sm:col-span-2">
@@ -741,7 +815,14 @@ export function FrontDeskCheckInForm({
                 >
                   Date of birth
                 </CheckInFieldLabelRow>
-                <Input id="dateOfBirth" name="dateOfBirth" type="date" required className="h-10 rounded-xl" />
+                <Input
+                  id="dateOfBirth"
+                  name="dateOfBirth"
+                  type="date"
+                  required
+                  defaultValue={initialData?.dateOfBirth}
+                  className="h-10 rounded-xl"
+                />
               </div>
             </div>
           </fieldset>
@@ -1018,7 +1099,13 @@ export function FrontDeskCheckInForm({
                 >
                   Season / campaign code
                 </CheckInFieldLabelRow>
-                <Input id="seasonCode" name="seasonCode" placeholder="e.g. PEAK2026 or N/A" className="h-10 rounded-xl" />
+                <Input
+                  id="seasonCode"
+                  name="seasonCode"
+                  placeholder="e.g. PEAK2026 or N/A"
+                  defaultValue={initialData?.seasonCode ?? undefined}
+                  className="h-10 rounded-xl"
+                />
               </div>
               <div className="space-y-2">
                 <CheckInFieldLabelRow
@@ -1207,6 +1294,7 @@ export function FrontDeskCheckInForm({
                   rows={2}
                   className={fieldClass}
                   placeholder="e.g. Diplomatic note, statutory small supplier, medical…"
+                  defaultValue={initialData?.taxExemptionReason ?? undefined}
                 />
               </div>
               <div className="space-y-2">
@@ -1217,7 +1305,12 @@ export function FrontDeskCheckInForm({
                 >
                   Exemption document ref.
                 </CheckInFieldLabelRow>
-                <Input id="taxExemptionDocRef" name="taxExemptionDocRef" className="h-10 rounded-xl" />
+                <Input
+                  id="taxExemptionDocRef"
+                  name="taxExemptionDocRef"
+                  defaultValue={initialData?.taxExemptionDocRef ?? undefined}
+                  className="h-10 rounded-xl"
+                />
               </div>
             </div>
           </fieldset>
@@ -1267,6 +1360,7 @@ export function FrontDeskCheckInForm({
                   id="settlementType"
                   name="settlementType"
                   placeholder="e.g. Guest account, corporate master…"
+                  defaultValue={initialData?.settlementType ?? undefined}
                   className="h-10 rounded-xl"
                 />
               </div>
@@ -1285,6 +1379,7 @@ export function FrontDeskCheckInForm({
                     type="number"
                     min={0}
                     step="0.01"
+                    defaultValue={initialData?.preauthAmount ?? undefined}
                     className="h-10 rounded-xl"
                     placeholder="Optional"
                   />
@@ -1300,7 +1395,13 @@ export function FrontDeskCheckInForm({
                     >
                       Card last 4 digits
                     </CheckInFieldLabelRow>
-                    <Input id="cardLast4" name="cardLast4" maxLength={4} className="h-10 rounded-xl" />
+                    <Input
+                      id="cardLast4"
+                      name="cardLast4"
+                      maxLength={4}
+                      defaultValue={initialData?.cardLast4 ?? undefined}
+                      className="h-10 rounded-xl"
+                    />
                   </div>
                   <div className="space-y-2">
                     <CheckInFieldLabelRow
@@ -1310,7 +1411,13 @@ export function FrontDeskCheckInForm({
                     >
                       Card expiry (MM/YY)
                     </CheckInFieldLabelRow>
-                    <Input id="cardExpiry" name="cardExpiry" placeholder="MM/YY" className="h-10 rounded-xl" />
+                    <Input
+                      id="cardExpiry"
+                      name="cardExpiry"
+                      placeholder="MM/YY"
+                      defaultValue={initialData?.cardExpiry ?? undefined}
+                      className="h-10 rounded-xl"
+                    />
                   </div>
                 </>
               ) : null}
@@ -1322,7 +1429,12 @@ export function FrontDeskCheckInForm({
                 >
                   Bill to (account / company)
                 </CheckInFieldLabelRow>
-                <Input id="billToAccount" name="billToAccount" className="h-10 rounded-xl" />
+                <Input
+                  id="billToAccount"
+                  name="billToAccount"
+                  defaultValue={initialData?.billToAccount ?? undefined}
+                  className="h-10 rounded-xl"
+                />
               </div>
               <div className="space-y-2">
                 <CheckInFieldLabelRow
@@ -1332,7 +1444,12 @@ export function FrontDeskCheckInForm({
                 >
                   PO number
                 </CheckInFieldLabelRow>
-                <Input id="poNumber" name="poNumber" className="h-10 rounded-xl" />
+                <Input
+                  id="poNumber"
+                  name="poNumber"
+                  defaultValue={initialData?.poNumber ?? undefined}
+                  className="h-10 rounded-xl"
+                />
               </div>
             </div>
           </fieldset>
@@ -1354,7 +1471,13 @@ export function FrontDeskCheckInForm({
                 >
                   Guarantee release date
                 </CheckInFieldLabelRow>
-                <Input id="guaranteeReleaseDate" name="guaranteeReleaseDate" type="date" className="h-10 rounded-xl" />
+                <Input
+                  id="guaranteeReleaseDate"
+                  name="guaranteeReleaseDate"
+                  type="date"
+                  defaultValue={initialData?.guaranteeReleaseDate ?? undefined}
+                  className="h-10 rounded-xl"
+                />
               </div>
               <div className="space-y-2">
                 <CheckInFieldLabelRow
@@ -1370,6 +1493,7 @@ export function FrontDeskCheckInForm({
                   type="number"
                   min={0}
                   step="0.01"
+                  defaultValue={initialData?.minPaymentPerDayToExtend ?? undefined}
                   className="h-10 rounded-xl"
                   placeholder="0"
                 />
@@ -1400,6 +1524,7 @@ export function FrontDeskCheckInForm({
                   rows={3}
                   className={fieldClass}
                   placeholder="Booking / pre-arrival notes…"
+                  defaultValue={initialData?.guestRemarksReservation ?? undefined}
                 />
               </div>
               <div className="space-y-2">
@@ -1416,6 +1541,7 @@ export function FrontDeskCheckInForm({
                   rows={3}
                   className={fieldClass}
                   placeholder="Front desk notes at arrival…"
+                  defaultValue={initialData?.guestRemarksCheckIn ?? undefined}
                 />
               </div>
               <div className="space-y-2">
@@ -1432,6 +1558,7 @@ export function FrontDeskCheckInForm({
                   rows={3}
                   className={fieldClass}
                   placeholder="Expected departure / luggage / late CO…"
+                  defaultValue={initialData?.guestRemarksCheckOut ?? undefined}
                 />
               </div>
             </div>
@@ -1503,7 +1630,13 @@ export function FrontDeskCheckInForm({
                 >
                   Booking channel / OTA name
                 </CheckInFieldLabelRow>
-                <Input id="bookingChannel" name="bookingChannel" placeholder="e.g. Booking.com" className="h-10 rounded-xl" />
+                <Input
+                  id="bookingChannel"
+                  name="bookingChannel"
+                  placeholder="e.g. Booking.com"
+                  defaultValue={initialData?.bookingChannel ?? undefined}
+                  className="h-10 rounded-xl"
+                />
               </div>
               <div className="space-y-2">
                 <CheckInFieldLabelRow
@@ -1513,7 +1646,12 @@ export function FrontDeskCheckInForm({
                 >
                   Travel agent name
                 </CheckInFieldLabelRow>
-                <Input id="travelAgentName" name="travelAgentName" className="h-10 rounded-xl" />
+                <Input
+                  id="travelAgentName"
+                  name="travelAgentName"
+                  defaultValue={initialData?.travelAgentName ?? undefined}
+                  className="h-10 rounded-xl"
+                />
               </div>
               <div className="space-y-2">
                 <CheckInFieldLabelRow
@@ -1523,7 +1661,12 @@ export function FrontDeskCheckInForm({
                 >
                   Commission plan
                 </CheckInFieldLabelRow>
-                <Input id="commissionPlan" name="commissionPlan" className="h-10 rounded-xl" />
+                <Input
+                  id="commissionPlan"
+                  name="commissionPlan"
+                  defaultValue={initialData?.commissionPlan ?? undefined}
+                  className="h-10 rounded-xl"
+                />
               </div>
               <div className="space-y-2">
                 <CheckInFieldLabelRow
@@ -1533,7 +1676,15 @@ export function FrontDeskCheckInForm({
                 >
                   Commission value ({pricing.currency})
                 </CheckInFieldLabelRow>
-                <Input id="commissionValue" name="commissionValue" type="number" min={0} step="0.01" className="h-10 rounded-xl" />
+                <Input
+                  id="commissionValue"
+                  name="commissionValue"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  defaultValue={initialData?.commissionValue ?? undefined}
+                  className="h-10 rounded-xl"
+                />
               </div>
             </div>
           </fieldset>
@@ -1558,7 +1709,12 @@ export function FrontDeskCheckInForm({
                 >
                   Voucher #
                 </CheckInFieldLabelRow>
-                <Input id="voucherNumber" name="voucherNumber" className="h-10 rounded-xl" />
+                <Input
+                  id="voucherNumber"
+                  name="voucherNumber"
+                  defaultValue={initialData?.voucherNumber ?? undefined}
+                  className="h-10 rounded-xl"
+                />
               </div>
             </div>
           </fieldset>
@@ -1576,7 +1732,7 @@ export function FrontDeskCheckInForm({
                 id="showRateOnRegistrationCard"
                 type="checkbox"
                 name="showRateOnRegistrationCard"
-                defaultChecked
+                defaultChecked={initialData?.showRateOnRegistrationCard ?? true}
                 className="mt-1 rounded border-slate-300"
               />
               <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 text-sm text-slate-700">
@@ -1588,7 +1744,13 @@ export function FrontDeskCheckInForm({
               </div>
             </div>
             <div className="flex items-start gap-2">
-              <input id="generateBill" type="checkbox" name="generateBill" defaultChecked className="mt-1 rounded border-slate-300" />
+              <input
+                id="generateBill"
+                type="checkbox"
+                name="generateBill"
+                defaultChecked={initialData?.generateBill ?? true}
+                className="mt-1 rounded border-slate-300"
+              />
               <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 text-sm text-slate-700">
                 <label htmlFor="generateBill">Generate bill number</label>
                 <CheckInFieldInfo
@@ -1598,7 +1760,13 @@ export function FrontDeskCheckInForm({
               </div>
             </div>
             <div className="flex items-start gap-2">
-              <input id="rateOverridden" type="checkbox" name="rateOverridden" className="mt-1 rounded border-slate-300" />
+              <input
+                id="rateOverridden"
+                type="checkbox"
+                name="rateOverridden"
+                defaultChecked={initialData?.rateOverridden ?? false}
+                className="mt-1 rounded border-slate-300"
+              />
               <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 text-sm text-slate-700">
                 <label htmlFor="rateOverridden">Override rate (manager policy)</label>
                 <CheckInFieldInfo
@@ -1615,13 +1783,19 @@ export function FrontDeskCheckInForm({
               >
                 Rate override reason
               </CheckInFieldLabelRow>
-              <Input id="rateOverrideReason" name="rateOverrideReason" className="h-10 rounded-xl" />
+              <Input
+                id="rateOverrideReason"
+                name="rateOverrideReason"
+                defaultValue={initialData?.rateOverrideReason ?? undefined}
+                className="h-10 rounded-xl"
+              />
             </div>
             <div className="flex items-start gap-2">
               <input
                 id="immigrationRegistrationRequired"
                 type="checkbox"
                 name="immigrationRegistrationRequired"
+                defaultChecked={initialData?.immigrationRegistrationRequired ?? false}
                 className="mt-1 rounded border-slate-300"
               />
               <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 text-sm text-slate-700">
@@ -1635,7 +1809,13 @@ export function FrontDeskCheckInForm({
               </div>
             </div>
             <div className="flex items-start gap-2">
-              <input type="checkbox" id="vipFlag" name="vipFlag" className="mt-1 rounded border-slate-300" />
+              <input
+                type="checkbox"
+                id="vipFlag"
+                name="vipFlag"
+                defaultChecked={initialData?.vipFlag ?? false}
+                className="mt-1 rounded border-slate-300"
+              />
               <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 text-sm text-slate-700">
                 <label htmlFor="vipFlag">VIP guest</label>
                 <CheckInFieldInfo
@@ -1794,46 +1974,54 @@ export function FrontDeskCheckInForm({
         </aside>
       </div>
 
-      <fieldset className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/60 px-4 py-4 sm:px-5">
-        <legend className="flex flex-wrap items-center gap-2 px-1 text-sm font-semibold text-slate-900">
-          <span>Check-in attribution</span>
-          <CheckInFieldInfo
-            label="Checked in by"
-            text="Records which hotel team member attended this guest at check-in. Always your signed-in account."
-          />
-        </legend>
-        {checkInStaffOptions.length === 0 ? (
-          <p className="text-sm text-amber-800">
-            Your account is not linked to this hotel. Ask an administrator to add you under Settings → access
-            before completing check-in.
-          </p>
-        ) : (
-          <div className="space-y-2">
-            <CheckInFieldLabelRow
-              htmlFor="checkedInByUserId"
-              helpTitle="Staff who checked the guest in"
-              helpText="Recorded automatically as the account you are signed in with."
-            >
-              Checked in by <span className="text-rose-600">*</span>
-            </CheckInFieldLabelRow>
-            <p
-              id="checkedInByUserId"
-              className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900"
-            >
-              {checkInStaffOptions[0]!.displayName}
+      {mode === "check_in" && (
+        <fieldset className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/60 px-4 py-4 sm:px-5">
+          <legend className="flex flex-wrap items-center gap-2 px-1 text-sm font-semibold text-slate-900">
+            <span>Check-in attribution</span>
+            <CheckInFieldInfo
+              label="Checked in by"
+              text="Records which hotel team member attended this guest at check-in. Always your signed-in account."
+            />
+          </legend>
+          {checkInStaffOptions.length === 0 ? (
+            <p className="text-sm text-amber-800">
+              Your account is not linked to this hotel. Ask an administrator to add you under Settings → access
+              before completing check-in.
             </p>
-          </div>
-        )}
-      </fieldset>
+          ) : (
+            <div className="space-y-2">
+              <CheckInFieldLabelRow
+                htmlFor="checkedInByUserId"
+                helpTitle="Staff who checked the guest in"
+                helpText="Recorded automatically as the account you are signed in with."
+              >
+                Checked in by <span className="text-rose-600">*</span>
+              </CheckInFieldLabelRow>
+              <p
+                id="checkedInByUserId"
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-900"
+              >
+                {checkInStaffOptions[0]!.displayName}
+              </p>
+            </div>
+          )}
+        </fieldset>
+      )}
 
       <div className="flex flex-wrap gap-3 border-t border-slate-100 pt-6">
         <Button
           type="submit"
           size="lg"
-          disabled={loading || !occupancyCheck.ok || checkInStaffOptions.length === 0}
+          disabled={loading || !occupancyCheck.ok || (mode === "check_in" && checkInStaffOptions.length === 0)}
           className="rounded-xl px-8 font-semibold"
         >
-          {loading ? "Checking in…" : "Complete check-in"}
+          {mode === "reserve"
+            ? loading
+              ? "Creating reservation…"
+              : "Create reservation"
+            : loading
+              ? "Checking in…"
+              : "Complete check-in"}
         </Button>
         <Button type="button" variant="outline" size="lg" className="rounded-xl" onClick={() => router.back()}>
           Cancel
