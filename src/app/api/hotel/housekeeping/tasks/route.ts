@@ -2,84 +2,62 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
-import { notifyRoomReady } from "@/lib/hms/notification-rules";
+import { getHousekeepingCapabilities } from "@/lib/hms/housekeeping-rbac";
+import { HOUSEKEEPING_PRIORITY_LEVELS, HOUSEKEEPING_TASK_TYPES, openOrEscalateHousekeepingTask } from "@/lib/hms/housekeeping-tasks";
 
-const STATUS_TO_ROOM: Record<string, string> = {
-  dirty: "dirty",
-  cleaning_in_progress: "cleaning_in_progress",
-  cleaned: "dirty",
-  inspected: "inspected",
-  ready: "ready_for_occupancy",
-};
-
-const PatchSchema = z.object({
+const PostSchema = z.object({
   slug: z.string().min(1),
-  roomCode: z.string().min(1),
-  status: z.enum(["dirty", "cleaning_in_progress", "cleaned", "inspected", "ready"]),
+  roomCode: z.string().min(1).max(20),
+  taskType: z.enum(HOUSEKEEPING_TASK_TYPES).default("deep_clean"),
+  priorityLevel: z.enum(HOUSEKEEPING_PRIORITY_LEVELS).optional(),
+  dueBy: z.string().datetime().optional(),
+  notes: z.string().max(500).optional(),
 });
 
-export async function PATCH(req: Request) {
+/** Manual/ad-hoc task creation (HK-05) — e.g. a spill reported in an occupied stayover room. */
+export async function POST(req: Request) {
   try {
-    const body = PatchSchema.parse(await req.json());
+    const body = PostSchema.parse(await req.json());
     const auth = await requireHotelApiMember(body.slug);
     if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
+
+    const caps = getHousekeepingCapabilities({ membershipRole: auth.role, departmentRole: auth.departmentRole });
+    if (!caps.canCreateManualTask) return NextResponse.json({ error: "Not allowed." }, { status: 403 });
 
     const { data: unit } = await auth.service
       .schema("hotel")
       .from("room_units")
-      .select("id,room_code,status")
+      .select("id,room_code")
       .eq("tenant_id", auth.tenant.id)
       .eq("room_code", body.roomCode.trim())
       .maybeSingle();
 
     if (!unit) return NextResponse.json({ error: "Room not found." }, { status: 404 });
 
-    const now = new Date().toISOString();
-    const taskPatch: Record<string, unknown> = {
-      tenant_id: auth.tenant.id,
-      room_unit_id: unit.id,
-      status: body.status,
-    };
-    if (body.status === "cleaning_in_progress") taskPatch.started_at = now;
-    if (body.status === "cleaned") taskPatch.completed_at = now;
-    if (body.status === "inspected") taskPatch.inspected_at = now;
-
-    await auth.service.schema("hotel").from("housekeeping_tasks").upsert(taskPatch, {
-      onConflict: "room_unit_id",
+    const { id, created } = await openOrEscalateHousekeepingTask(auth.service, {
+      tenantId: auth.tenant.id,
+      roomUnitId: unit.id,
+      taskType: body.taskType,
+      priorityLevel: body.priorityLevel,
+      dueBy: body.dueBy ?? null,
+      notes: body.notes ?? null,
     });
-
-    const roomStatus = STATUS_TO_ROOM[body.status];
-    if (roomStatus) {
-      await auth.service
-        .schema("hotel")
-        .from("room_units")
-        .update({ status: roomStatus })
-        .eq("id", unit.id);
-    }
 
     await writeAuditLog({
       tenantId: auth.tenant.id,
       actorUserId: auth.user.id,
-      action: "housekeeping_updated",
-      entityType: "room_unit",
-      entityId: unit.id,
-      before: { status: unit.status, room_code: unit.room_code },
-      after: { status: roomStatus, hk_status: body.status, room_code: unit.room_code },
+      action: "housekeeping_task_created",
+      entityType: "housekeeping_task",
+      entityId: id,
+      after: { room_code: unit.room_code, task_type: body.taskType },
     });
 
-    if (body.status === "ready") {
-      await notifyRoomReady({
-        tenantId: auth.tenant.id,
-        roomCode: unit.room_code,
-        entityId: unit.id,
-      });
-    }
-
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, id, created });
   } catch (e) {
     if (e instanceof z.ZodError) {
       return NextResponse.json({ error: e.issues[0]?.message }, { status: 400 });
     }
-    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+    console.error("[housekeeping tasks POST]", e);
+    return NextResponse.json({ error: "Failed to create task." }, { status: 500 });
   }
 }
