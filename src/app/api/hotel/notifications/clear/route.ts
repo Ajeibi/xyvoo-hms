@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
-import { writeAuditLog } from "@/lib/hms/front-desk-ops";
+import { notificationVisibilityFilter, writeAuditLog } from "@/lib/hms/front-desk-ops";
 
 const BodySchema = z.object({
   slug: z.string().min(1),
@@ -19,6 +19,11 @@ export async function DELETE(req: Request) {
     if (body.mode === "read") {
       query = query.not("read_at", "is", null);
     }
+
+    // Scoped the same way the list is, so clearing never removes a notification this
+    // viewer couldn't see in the first place (they belong to another department).
+    const scopeFilter = notificationVisibilityFilter(auth.departmentRole);
+    if (scopeFilter) query = query.or(scopeFilter);
 
     const { error } = await query;
     if (error) return NextResponse.json({ error: "Could not clear notifications." }, { status: 500 });

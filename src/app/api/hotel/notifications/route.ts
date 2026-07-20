@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
+import { notificationVisibilityFilter } from "@/lib/hms/front-desk-ops";
 
 export async function GET(req: Request) {
   const slug = new URL(req.url).searchParams.get("slug");
@@ -9,13 +10,16 @@ export async function GET(req: Request) {
   const auth = await requireHotelApiMember(slug);
   if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
-  const { data, error } = await auth.service
+  let query = auth.service
     .schema("hotel")
     .from("notifications")
     .select("id,type,title,body,severity,created_at,read_at")
-    .eq("tenant_id", auth.tenant.id)
-    .order("created_at", { ascending: false })
-    .limit(30);
+    .eq("tenant_id", auth.tenant.id);
+
+  const scopeFilter = notificationVisibilityFilter(auth.departmentRole);
+  if (scopeFilter) query = query.or(scopeFilter);
+
+  const { data, error } = await query.order("created_at", { ascending: false }).limit(30);
 
   if (error) return NextResponse.json({ error: "Could not load notifications." }, { status: 500 });
 

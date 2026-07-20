@@ -1,7 +1,9 @@
 import { Bell } from "lucide-react";
 import HMSLayout from "@/components/hms/HMSLayout";
 import { NotificationsPageClient } from "@/components/hms/notifications/NotificationsPageClient";
+import { getHmsAccessContext } from "@/lib/hms/access";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
+import { notificationVisibilityFilter } from "@/lib/hms/front-desk-ops";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export default async function NotificationsPage({
@@ -10,7 +12,7 @@ export default async function NotificationsPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const tenant = await getHotelTenantBySlug(slug);
+  const [tenant, access] = await Promise.all([getHotelTenantBySlug(slug), getHmsAccessContext(slug)]);
   const items: {
     id: string;
     title: string;
@@ -22,13 +24,16 @@ export default async function NotificationsPage({
 
   if (tenant) {
     const supabase = createServerSupabaseClient();
-    const { data } = await supabase
+    let query = supabase
       .schema("hotel")
       .from("notifications")
       .select("id,title,body,severity,created_at,read_at")
-      .eq("tenant_id", tenant.id)
-      .order("created_at", { ascending: false })
-      .limit(100);
+      .eq("tenant_id", tenant.id);
+
+    const scopeFilter = notificationVisibilityFilter(access.departmentRole);
+    if (scopeFilter) query = query.or(scopeFilter);
+
+    const { data } = await query.order("created_at", { ascending: false }).limit(100);
 
     for (const n of data ?? []) {
       items.push({
@@ -44,7 +49,7 @@ export default async function NotificationsPage({
 
   return (
     <HMSLayout slug={slug} requiredSection="notifications">
-      <div className="mx-auto w-full max-w-4xl px-6 py-8 sm:px-8">
+      <div className="w-full px-6 py-8 sm:px-8">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
             <Bell className="h-5 w-5" />
