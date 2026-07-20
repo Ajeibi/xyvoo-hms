@@ -7,6 +7,12 @@ import { cn } from "@/lib/utils";
 const TABS = [
   { key: "live", label: "Live orders", path: (slug: string) => `/hms/${slug}/kitchen`, exact: true },
   {
+    key: "menu",
+    label: "Menu",
+    path: (slug: string) => `/hms/${slug}/kitchen/menu`,
+    exact: false,
+  },
+  {
     key: "history",
     label: "Order history",
     path: (slug: string) => `/hms/${slug}/kitchen/history`,

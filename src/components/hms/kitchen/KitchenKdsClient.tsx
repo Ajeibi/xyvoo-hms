@@ -34,6 +34,10 @@ const CLOCK_MS = 15_000;
 
 type KitchenItemAction = "preparing" | "ready" | "sold-out";
 
+function busyKey(itemId: string, action: KitchenItemAction) {
+  return `${itemId}:${action}`;
+}
+
 function ticketStartMs(ticket: FbKitchenTicket) {
   return new Date(ticket.sent_to_kitchen_at ?? ticket.created_at).getTime();
 }
@@ -83,7 +87,7 @@ export function KitchenKdsClient({
   const [stations, setStations] = useState<FbStationRow[]>(initial.stations);
   const [tickets, setTickets] = useState<FbKitchenTicket[]>(initial.tickets);
   const [overdueMinutes, setOverdueMinutes] = useState(initialOverdueMinutes);
-  const [busy, setBusy] = useState<{ itemId: string; action: KitchenItemAction } | null>(null);
+  const [busyKeys, setBusyKeys] = useState<Set<string>>(new Set());
   const [now, refreshNow] = useClientNow(CLOCK_MS);
   const [overdueAlertOpen, setOverdueAlertOpen] = useState(false);
   const [snoozedUntil, setSnoozedUntil] = useState(0);
@@ -183,39 +187,52 @@ export function KitchenKdsClient({
     return () => window.clearInterval(id);
   }, [overdueAlertOpen, hasOverdue, observerMode]);
 
-  const updateItem = async (itemId: string, kitchenStatus: "preparing" | "ready") => {
-    const action: KitchenItemAction = kitchenStatus;
-    setBusy({ itemId, action });
-    const res = await fetch(`/api/hotel/fb/order-items/${itemId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ slug, kitchenStatus }),
-    });
-    setBusy(null);
-    if (!res.ok) {
-      const data = await res.json();
-      toastError("Update failed", data.error ?? "Try again.");
-      return;
+  const withBusy = async (itemId: string, action: KitchenItemAction, run: () => Promise<void>) => {
+    const key = busyKey(itemId, action);
+    setBusyKeys((prev) => new Set(prev).add(key));
+    try {
+      await run();
+    } finally {
+      setBusyKeys((prev) => {
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
     }
-    await load();
+  };
+
+  const updateItem = async (itemId: string, kitchenStatus: "preparing" | "ready") => {
+    await withBusy(itemId, kitchenStatus, async () => {
+      const res = await fetch(`/api/hotel/fb/order-items/${itemId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug, kitchenStatus }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        toastError("Update failed", data.error ?? "Try again.");
+        return;
+      }
+      await load();
+    });
   };
 
   const markSoldOut = async (orderItemId: string, menuItemId: string | null, itemName: string) => {
     if (!menuItemId) return;
-    setBusy({ itemId: orderItemId, action: "sold-out" });
-    const res = await fetch(`/api/hotel/fb/menu-items/${menuItemId}/eighty-six`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ slug }),
+    await withBusy(orderItemId, "sold-out", async () => {
+      const res = await fetch(`/api/hotel/fb/menu-items/${menuItemId}/eighty-six`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        toastError("Could not mark sold out", data.error ?? "Try again.");
+        return;
+      }
+      toastSuccess("Marked sold out", `${itemName} is hidden from POS until back in stock.`);
+      await load();
     });
-    setBusy(null);
-    if (!res.ok) {
-      const data = await res.json();
-      toastError("Could not mark sold out", data.error ?? "Try again.");
-      return;
-    }
-    toastSuccess("Marked sold out", `${itemName} is hidden from POS until back in stock.`);
-    await load();
   };
 
   return (
@@ -369,10 +386,10 @@ export function KitchenKdsClient({
               ) : null}
               <ul className="mt-3 space-y-2">
                 {ticket.items.map((item) => {
-                  const itemBusy = busy?.itemId === item.id;
-                  const preparingLoading = itemBusy && busy.action === "preparing";
-                  const readyLoading = itemBusy && busy.action === "ready";
-                  const soldOutLoading = itemBusy && busy.action === "sold-out";
+                  const preparingLoading = busyKeys.has(busyKey(item.id, "preparing"));
+                  const readyLoading = busyKeys.has(busyKey(item.id, "ready"));
+                  const soldOutLoading = busyKeys.has(busyKey(item.id, "sold-out"));
+                  const itemBusy = preparingLoading || readyLoading || soldOutLoading;
 
                   return (
                   <li

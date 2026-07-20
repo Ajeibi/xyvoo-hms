@@ -18,6 +18,7 @@ const PatchSchema = z.object({
   rush: z.boolean().optional(),
   menuItemId: z.string().uuid().optional(),
   voidReason: z.string().max(200).optional(),
+  settlementMethod: z.enum(["cash", "pos"]).optional(),
 });
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -39,7 +40,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       const denied = fbForbidden(auth.capabilities, "canCloseOrder");
       if (denied) return NextResponse.json({ error: denied.error }, { status: denied.status });
       const result = await closeFbOrder(auth.service, auth.tenant.id, id, {
-        settlementMethod: "pos",
+        settlementMethod: body.settlementMethod ?? "pos",
       });
       if (result.error) return NextResponse.json({ error: result.error }, { status: 400 });
       return NextResponse.json({ ok: true, order: result.order });
@@ -59,7 +60,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (body.action === "serve") {
       const deniedServe = fbForbidden(auth.capabilities, "canCloseOrder");
       if (deniedServe) return NextResponse.json({ error: deniedServe.error }, { status: deniedServe.status });
-      const result = await markFbOrderServed(auth.service, auth.tenant.id, id);
+      const result = await markFbOrderServed(auth.service, auth.tenant.id, id, auth.user.id);
       if (result.error) return NextResponse.json({ error: result.error }, { status: 400 });
       const order =
         result.order ?? (await loadOrderById(auth.service, auth.tenant.id, id));

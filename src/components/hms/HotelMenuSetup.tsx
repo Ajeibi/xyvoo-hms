@@ -34,6 +34,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { isMenuItemSoldOut } from "@/lib/hms/fb-menu-availability";
+import { MenuItemIngredientsDialog } from "@/components/hms/inventory/MenuItemIngredientsDialog";
+import { SettingsSectionInfo } from "@/components/hms/settings/SettingsSectionInfo";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import type { FbConfigPayload } from "@/lib/hms/load-fb-pages";
 import type {
@@ -790,7 +792,13 @@ export default function HotelMenuSetup({
     <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">Menu setup</h2>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <h2 className="text-lg font-semibold text-slate-900">Menu setup</h2>
+            <SettingsSectionInfo
+              title="Menu setup"
+              text="Everything Restaurant & Bar sells: outlets, kitchen stations, tables, categories, and items. Sections and stations are structural (set up once); categories and items change often — add a dish, mark one sold out — so this whole page lives on the Restaurant & Bar team's own Settings, not the Admin hub."
+            />
+          </div>
           <p className="mt-1 text-sm text-slate-500">
             Configure menu sections, categories, and items. Used by POS, kitchen, and the public guest
             menu.
@@ -1265,7 +1273,7 @@ export default function HotelMenuSetup({
                   </AccordionTrigger>
                 </div>
                 <AccordionContent className="min-h-[min(52vh,540px)] max-h-[80vh] overflow-y-auto px-4 pb-4">
-                  <div className="mb-2 grid grid-cols-[1fr_100px_1fr_120px_100px_80px] gap-2 text-xs font-medium text-slate-500">
+                  <div className="mb-2 grid grid-cols-[1fr_100px_1fr_120px_100px_90px_80px] gap-2 text-xs font-medium text-slate-500">
                     <span>Item</span>
                     <span>Price ({currency})</span>
                     <span>Description</span>
@@ -1285,6 +1293,7 @@ export default function HotelMenuSetup({
                       ) : null}
                     </span>
                     <span>In stock</span>
+                    <span>Recipe</span>
                     <span />
                   </div>
                   <div className="space-y-2">
@@ -1297,7 +1306,7 @@ export default function HotelMenuSetup({
                       <div
                         key={item.key}
                         className={cn(
-                          "grid grid-cols-[1fr_100px_1fr_120px_100px_80px] items-center gap-2 rounded-lg p-2",
+                          "grid grid-cols-[1fr_100px_1fr_120px_100px_90px_80px] items-center gap-2 rounded-lg p-2",
                           soldOut ? "bg-slate-100 opacity-75" : "bg-slate-50",
                         )}
                       >
@@ -1374,6 +1383,11 @@ export default function HotelMenuSetup({
                             <span className="text-[10px] text-slate-500">Kitchen marked</span>
                           ) : null}
                         </label>
+                        {item.id ? (
+                          <MenuItemIngredientsDialog slug={slug} menuItemId={item.id} menuItemName={item.name} />
+                        ) : (
+                          <span className="text-center text-[11px] text-slate-400">Save first</span>
+                        )}
                   <Button
                     type="button"
                     variant="ghost"

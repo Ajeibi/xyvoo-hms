@@ -206,6 +206,19 @@ export async function loadKitchenKdsPageModel(slug: string) {
   };
 }
 
+export async function loadKitchenMenuPageModel(slug: string) {
+  const ctx = await fbServerContext(slug);
+  if (!ctx) return null;
+
+  const config = await loadFbConfig(ctx.service, ctx.tenant.id, { seedDefaults: false });
+
+  return {
+    slug,
+    tenantId: ctx.tenant.id,
+    initial: { config },
+  };
+}
+
 export async function loadKitchenSettingsPageModel(slug: string) {
   const ctx = await fbServerContext(slug);
   if (!ctx) return null;

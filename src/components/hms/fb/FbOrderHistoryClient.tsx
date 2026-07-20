@@ -61,14 +61,26 @@ function rowKitchenTimingStatus(
   return mins >= effective ? "late" : "on_time";
 }
 
+// Locale and timeZone are pinned (not left to the runtime default) so the
+// server-rendered markup always matches what the client re-renders — an
+// empty/omitted locale resolves differently on Node (SSR) vs the browser
+// (CSR), which is a classic hydration-mismatch source.
 function formatTime(iso: string | null) {
   if (!iso) return "—";
-  return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return new Date(iso).toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "UTC",
+  });
 }
 
 function formatDate(iso: string | null) {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString([], { month: "short", day: "numeric" });
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
 }
 
 function emptyLabel(range: FbOrderHistoryRange) {

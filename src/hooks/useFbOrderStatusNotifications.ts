@@ -1,21 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect } from "react";
+import { useFbRealtime } from "@/hooks/useFbRealtime";
+import { toastInfo, toastSuccess } from "@/lib/app-toast";
 import {
-  acknowledgeAllFbNotifications,
-  acknowledgeFbNotification,
-  getFbPendingNotifications,
-  ingestFbOrderSnapshot,
+  checkForFbNotifications,
   isReadyServiceNotification,
   readyServiceOrderIds,
-  subscribeFbPendingNotifications,
   type FbNotifyArea,
-  type FbStatusNotification,
 } from "@/lib/hms/fb-status-notifications";
-import { useFbRealtime } from "@/hooks/useFbRealtime";
 
-async function syncReadyAcknowledgment(slug: string, notes: FbStatusNotification[]) {
-  const orderIds = readyServiceOrderIds(notes);
+async function acknowledgeReadyOrders(slug: string, orderIds: string[]) {
   if (!orderIds.length) return;
   await fetch("/api/hotel/fb/orders/acknowledge-ready", {
     method: "POST",
@@ -24,6 +19,12 @@ async function syncReadyAcknowledgment(slug: string, notes: FbStatusNotification
   });
 }
 
+/**
+ * Fires a toast for each new, non-self-caused F&B status change since the
+ * last check for this (slug, area) pair — no persisted "pending" queue and
+ * nothing to acknowledge. A toast that's missed is simply gone, same as any
+ * other transient alert; the live board itself remains the source of truth.
+ */
 export function useFbOrderStatusNotifications(
   slug: string,
   tenantId: string | null,
@@ -31,43 +32,28 @@ export function useFbOrderStatusNotifications(
   options?: { enabled?: boolean },
 ) {
   const enabled = options?.enabled !== false;
-  const [pending, setPending] = useState<FbStatusNotification[]>([]);
-
-  const refreshPending = useCallback(() => {
-    setPending(getFbPendingNotifications(slug, area));
-  }, [slug, area]);
 
   const syncOrders = useCallback(async () => {
     const res = await fetch(`/api/hotel/fb/orders?slug=${encodeURIComponent(slug)}`);
     const data = await res.json();
     if (!res.ok) return;
-    ingestFbOrderSnapshot(slug, data.orders ?? []);
-    refreshPending();
-  }, [slug, refreshPending]);
 
-  useEffect(() => {
-    if (!enabled) return;
-    refreshPending();
-  }, [enabled, refreshPending]);
+    const events = checkForFbNotifications(slug, area, data.orders ?? []);
+    if (!events.length) return;
 
-  useEffect(() => {
-    if (!enabled) return;
-    return subscribeFbPendingNotifications(slug, area, refreshPending);
-  }, [slug, area, refreshPending, enabled]);
-
-  useEffect(() => {
-    if (!enabled) return;
-    const onStorage = (event: StorageEvent) => {
-      if (
-        event.key === `fb-status-notifs:${slug}:${area}` ||
-        event.key === `fb-status-acked:${slug}:${area}`
-      ) {
-        refreshPending();
+    for (const event of events) {
+      if (isReadyServiceNotification(event)) {
+        toastSuccess(event.message);
+      } else {
+        toastInfo(event.message);
       }
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, [slug, area, refreshPending, enabled]);
+    }
+
+    if (area === "restaurant") {
+      const orderIds = readyServiceOrderIds(events);
+      if (orderIds.length) void acknowledgeReadyOrders(slug, orderIds);
+    }
+  }, [slug, area]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -75,28 +61,4 @@ export function useFbOrderStatusNotifications(
   }, [syncOrders, enabled]);
 
   useFbRealtime(tenantId, enabled ? () => void syncOrders() : () => undefined);
-
-  const acknowledge = useCallback(
-    (id: string) => {
-      const current = getFbPendingNotifications(slug, area);
-      const target = current.find((n) => n.id === id);
-      acknowledgeFbNotification(slug, area, id);
-      refreshPending();
-      if (area === "restaurant" && target && isReadyServiceNotification(target)) {
-        void syncReadyAcknowledgment(slug, [target]);
-      }
-    },
-    [slug, area, refreshPending],
-  );
-
-  const acknowledgeAll = useCallback(() => {
-    const current = getFbPendingNotifications(slug, area);
-    if (area === "restaurant") {
-      void syncReadyAcknowledgment(slug, current);
-    }
-    acknowledgeAllFbNotifications(slug, area);
-    refreshPending();
-  }, [slug, area, refreshPending]);
-
-  return { pending, acknowledge, acknowledgeAll };
 }

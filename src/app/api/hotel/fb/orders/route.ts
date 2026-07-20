@@ -8,6 +8,7 @@ import { fbForbidden, requireFbApi } from "../_lib";
 const QuerySchema = z.object({
   slug: z.string().min(1),
   status: z.string().optional(),
+  reservationId: z.string().uuid().optional(),
 });
 
 const CreateSchema = z.object({
@@ -36,6 +37,7 @@ export async function GET(req: Request) {
     const query = QuerySchema.parse({
       slug: url.searchParams.get("slug"),
       status: url.searchParams.get("status") ?? undefined,
+      reservationId: url.searchParams.get("reservationId") ?? undefined,
     });
     const auth = await requireFbApi(query.slug);
     if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
@@ -44,7 +46,10 @@ export async function GET(req: Request) {
       ? (query.status.split(",") as FbOrderStatus[])
       : (["open", "sent_to_kitchen", "ready"] as FbOrderStatus[]);
 
-    const orders = await loadOrders(auth.service, auth.tenant.id, { status: statusList });
+    const orders = await loadOrders(auth.service, auth.tenant.id, {
+      status: statusList,
+      reservationId: query.reservationId,
+    });
     const fbSettings = await getTenantFbSettings(auth.service, auth.tenant.id);
     return NextResponse.json({
       orders,

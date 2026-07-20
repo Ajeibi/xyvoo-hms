@@ -1,6 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { insertFolioLine } from "@/lib/hms/folio";
 import { isKitchenWorkComplete, isOrderFullyServed } from "@/lib/hms/fb-order-timing";
+import { listIngredientsForMenuItems } from "@/lib/hms/fb-menu-ingredients";
+import { postStockMovement } from "@/lib/hms/inventory-stock";
 import type {
   FbKitchenStatus,
   FbKitchenTicket,
@@ -103,7 +105,7 @@ export async function recalcOrderSubtotal(supabase: SupabaseClient, orderId: str
 export async function loadOrders(
   supabase: SupabaseClient,
   tenantId: string,
-  opts?: { status?: FbOrderStatus[]; limit?: number },
+  opts?: { status?: FbOrderStatus[]; limit?: number; reservationId?: string },
 ): Promise<FbOrderWithItems[]> {
   let q = supabase
     .schema("hotel")
@@ -115,6 +117,9 @@ export async function loadOrders(
 
   if (opts?.status?.length) {
     q = q.in("status", opts.status);
+  }
+  if (opts?.reservationId) {
+    q = q.eq("reservation_id", opts.reservationId);
   }
 
   const { data: orders } = await q;
@@ -403,10 +408,104 @@ export async function sendOrderToKitchen(
   return { order: full, error: null };
 }
 
+/**
+ * Deducts each served item's mapped ingredients (recipe/BOM) from inventory
+ * stock, one `issue` movement per ingredient. Idempotent: only processes
+ * order items whose `ingredients_deducted_at` is still null, and always
+ * stamps that column afterwards — even on a retried "served" transition, an
+ * item is only ever deducted once. Insufficient stock on one ingredient is
+ * logged and skipped rather than blocking the rest of the order — the food
+ * has already left the kitchen by the time this runs.
+ */
+async function deductIngredientsForServedItems(
+  supabase: SupabaseClient,
+  tenantId: string,
+  outletType: string | undefined,
+  servedItemIds: string[],
+  performedBy: string,
+) {
+  if (!servedItemIds.length) return;
+
+  const { data: rows } = await supabase
+    .schema("hotel")
+    .from("fb_order_items")
+    .select("id,menu_item_id,quantity")
+    .eq("tenant_id", tenantId)
+    .in("id", servedItemIds)
+    .is("ingredients_deducted_at", null);
+
+  const pending = (rows ?? []).filter((r) => r.menu_item_id);
+  if (!pending.length) return;
+
+  const menuItemIds = [...new Set(pending.map((r) => r.menu_item_id as string))];
+  const ingredientsByMenuItem = await listIngredientsForMenuItems(supabase, tenantId, menuItemIds);
+  const hasAnyRecipe = pending.some((r) => (ingredientsByMenuItem.get(r.menu_item_id as string) ?? []).length > 0);
+
+  if (hasAnyRecipe) {
+    const preferredType = outletType === "bar" ? "bar_store" : "kitchen_store";
+    const { data: preferredLocation } = await supabase
+      .schema("hotel")
+      .from("inventory_locations")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("location_type", preferredType)
+      .eq("is_active", true)
+      .limit(1)
+      .maybeSingle();
+
+    let locationId = (preferredLocation?.id as string) ?? null;
+    if (!locationId) {
+      const { data: anyLocation } = await supabase
+        .schema("hotel")
+        .from("inventory_locations")
+        .select("id")
+        .eq("tenant_id", tenantId)
+        .eq("is_active", true)
+        .limit(1)
+        .maybeSingle();
+      locationId = (anyLocation?.id as string) ?? null;
+    }
+
+    if (locationId) {
+      for (const row of pending) {
+        const ingredients = ingredientsByMenuItem.get(row.menu_item_id as string) ?? [];
+        const quantity = Number(row.quantity) || 1;
+        for (const ingredient of ingredients) {
+          const result = await postStockMovement(supabase, {
+            tenantId,
+            itemId: ingredient.inventory_item_id,
+            locationId,
+            movementType: "issue",
+            qty: -(ingredient.qty_per_serving * quantity),
+            referenceType: "fb_order_item",
+            referenceId: row.id as string,
+            performedBy,
+            note: "Auto-deducted from F&B sale",
+          });
+          if (result.error) {
+            console.warn("[deductIngredientsForServedItems]", result.error);
+          }
+        }
+      }
+    }
+  }
+
+  await supabase
+    .schema("hotel")
+    .from("fb_order_items")
+    .update({ ingredients_deducted_at: new Date().toISOString() })
+    .eq("tenant_id", tenantId)
+    .in(
+      "id",
+      pending.map((r) => r.id as string),
+    );
+}
+
 export async function markFbOrderServed(
   supabase: SupabaseClient,
   tenantId: string,
   orderId: string,
+  performedBy?: string,
 ) {
   const order = await loadOrderById(supabase, tenantId, orderId);
   if (!order) return { order: null, error: "Order not found." };
@@ -414,8 +513,8 @@ export async function markFbOrderServed(
     return { order: null, error: "Order is not ready for service." };
   }
 
-  const hasReady = order.items.some((item) => item.kitchen_status === "ready");
-  if (!hasReady) {
+  const readyItems = order.items.filter((item) => item.kitchen_status === "ready");
+  if (!readyItems.length) {
     return { order: null, error: "No ready items to mark as served." };
   }
 
@@ -429,6 +528,16 @@ export async function markFbOrderServed(
     .eq("kitchen_status", "ready");
 
   if (error) return { order: null, error: error.message };
+
+  if (performedBy) {
+    await deductIngredientsForServedItems(
+      supabase,
+      tenantId,
+      order.outlet_type,
+      readyItems.map((item) => item.id),
+      performedBy,
+    );
+  }
 
   await supabase
     .schema("hotel")
@@ -446,7 +555,29 @@ export async function markFbOrderServed(
     .eq("tenant_id", tenantId)
     .is("served_at", null);
 
-  const full = await loadOrderById(supabase, tenantId, orderId);
+  let full = await loadOrderById(supabase, tenantId, orderId);
+
+  // Already paid before the kitchen finished — now that it's fully served,
+  // there is nothing left to collect, so close it out automatically.
+  if (full && full.settlement_method && isOrderFullyServed(full.items)) {
+    const { data: closedRow } = await supabase
+      .schema("hotel")
+      .from("fb_orders")
+      .update({ status: "closed", closed_at: now, updated_at: now })
+      .eq("id", orderId)
+      .eq("tenant_id", tenantId)
+      .select("table_id")
+      .maybeSingle();
+    if (closedRow?.table_id) {
+      await supabase
+        .schema("hotel")
+        .from("fb_tables")
+        .update({ status: "dirty" })
+        .eq("id", closedRow.table_id as string);
+    }
+    full = await loadOrderById(supabase, tenantId, orderId);
+  }
+
   return { order: full, error: null };
 }
 
@@ -521,6 +652,31 @@ export async function closeFbOrder(
   options?: { settlementMethod?: FbOrderSettlementMethod },
 ) {
   const now = new Date().toISOString();
+
+  const current = await loadOrderById(supabase, tenantId, orderId);
+  if (!current) return { order: null, error: "Order not found." };
+  if (current.status === "voided") return { order: null, error: "Could not close order." };
+
+  // Paid before the kitchen finished (e.g. pay-first walk-ins) — record the
+  // settlement but leave the order on the kitchen board. It isn't served yet,
+  // so it must not disappear from "awaiting kitchen" just because it's paid.
+  // It auto-closes once the kitchen finishes and the order is marked served
+  // (see markFbOrderServed).
+  if (!isKitchenWorkComplete(current.items)) {
+    if (!options?.settlementMethod) return { order: current, error: null };
+    const { data, error } = await supabase
+      .schema("hotel")
+      .from("fb_orders")
+      .update({ settlement_method: options.settlementMethod, updated_at: now })
+      .eq("id", orderId)
+      .eq("tenant_id", tenantId)
+      .neq("status", "voided")
+      .select("*")
+      .maybeSingle();
+    if (error || !data) return { order: null, error: error?.message ?? "Could not record payment." };
+    return { order: mapOrder(data as Record<string, unknown>), error: null };
+  }
+
   const patch: Record<string, unknown> = { status: "closed", closed_at: now, updated_at: now };
   if (options?.settlementMethod) {
     patch.settlement_method = options.settlementMethod;
@@ -628,6 +784,30 @@ export async function eightySixMenuItem(
     .maybeSingle();
 
   if (error || !data) return { error: error?.message ?? "Could not 86 item." };
+  return { error: null };
+}
+
+export async function restockMenuItem(
+  supabase: SupabaseClient,
+  tenantId: string,
+  menuItemId: string,
+) {
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .schema("hotel")
+    .from("fb_menu_items")
+    .update({
+      is_available: true,
+      eighty_sixed_at: null,
+      eighty_sixed_by: null,
+      updated_at: now,
+    })
+    .eq("id", menuItemId)
+    .eq("tenant_id", tenantId)
+    .select("*")
+    .maybeSingle();
+
+  if (error || !data) return { error: error?.message ?? "Could not restore item." };
   return { error: null };
 }
 
@@ -882,6 +1062,19 @@ export async function postOrderToFolio(
   const amount = num(order.subtotal);
   if (amount <= 0) return { error: "Order has no charges." };
 
+  const { data: reservation } = await supabase
+    .schema("hotel")
+    .from("reservations")
+    .select("status")
+    .eq("id", params.reservationId)
+    .eq("tenant_id", params.tenantId)
+    .maybeSingle();
+
+  if (!reservation) return { error: "Reservation not found." };
+  if (reservation.status !== "checked_in") {
+    return { error: "That guest is not currently checked in — cannot charge to room." };
+  }
+
   const { line, error } = await insertFolioLine(supabase, {
     tenantId: params.tenantId,
     reservationId: params.reservationId,
@@ -891,6 +1084,7 @@ export async function postOrderToFolio(
     description: `F&B order ${order.order_number}`,
     department: "food_beverage",
     postedBy: params.postedBy,
+    reference: order.order_number,
   });
 
   if (error || !line) return { error: error ?? "Could not post to folio." };

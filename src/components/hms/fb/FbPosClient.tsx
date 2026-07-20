@@ -21,6 +21,7 @@ type FbConfig = {
 
 type DraftLine = {
   menuItemId: string;
+  outletId: string;
   name: string;
   price: number;
   quantity: number;
@@ -95,9 +96,19 @@ export function FbPosClient({
     () => (config.items ?? []).filter((i) => i.outlet_id === outletId),
     [config, outletId],
   );
+
+  // Table (restaurant) and tab (bar) context are independent of which menu is
+  // currently being browsed — a single ticket can mix items from every active
+  // outlet, so both controls stay available whenever that outlet type exists.
+  const restaurantOutletIds = useMemo(
+    () => activeOutlets.filter((o) => o.outlet_type === "restaurant").map((o) => o.id),
+    [activeOutlets],
+  );
+  const hasRestaurantOutlet = restaurantOutletIds.length > 0;
+  const hasBarOutlet = activeOutlets.some((o) => o.outlet_type === "bar");
   const outletTables = useMemo(
-    () => (config.tables ?? []).filter((t) => t.outlet_id === outletId),
-    [config.tables, outletId],
+    () => (config.tables ?? []).filter((t) => restaurantOutletIds.includes(t.outlet_id)),
+    [config.tables, restaurantOutletIds],
   );
 
   const draftSubtotal = useMemo(
@@ -110,11 +121,16 @@ export function FbPosClient({
     [draft.lines],
   );
 
+  const outletNameById = useMemo(
+    () => new Map(config.outlets.map((o) => [o.id, o.name])),
+    [config.outlets],
+  );
+
+  /** Switches which menu is being browsed. The ticket in progress (and any
+   * table/tab already chosen) is untouched — items from every outlet the
+   * tenant has can land in the same order. */
   const switchOutlet = (id: string) => {
     setOutletId(id);
-    setTableId(null);
-    setTabLabel("");
-    setDraft(emptyDraft());
   };
 
   const addItem = (menuItemId: string) => {
@@ -142,6 +158,7 @@ export function FbPosClient({
           ...prev.lines,
           {
             menuItemId,
+            outletId: menuItem.outlet_id,
             name: menuItem.name,
             price: menuItem.price,
             quantity: 1,
@@ -178,6 +195,11 @@ export function FbPosClient({
   const sendToKitchen = async () => {
     if (!draft.lines.length || sending) return;
 
+    // The order needs one "home" outlet even when the ticket mixes menus —
+    // use whichever outlet the first item came from rather than whichever
+    // menu happens to be on screen right now.
+    const primaryOutletId = draft.lines[0]?.outletId ?? outletId;
+
     setSending(true);
     try {
       const res = await fetch("/api/hotel/fb/orders", {
@@ -185,9 +207,9 @@ export function FbPosClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           slug,
-          outletId,
-          tableId: outlet?.outlet_type === "restaurant" ? tableId : null,
-          tabLabel: outlet?.outlet_type === "bar" ? tabLabel || null : null,
+          outletId: primaryOutletId,
+          tableId: hasRestaurantOutlet ? tableId : null,
+          tabLabel: hasBarOutlet ? tabLabel || null : null,
           items: draft.lines.map((line) => ({
             menuItemId: line.menuItemId,
             quantity: line.quantity,
@@ -217,8 +239,6 @@ export function FbPosClient({
   };
 
   const hasMenu = allMenuItems.length > 0;
-  const isRestaurant = outlet?.outlet_type === "restaurant";
-  const isBar = outlet?.outlet_type === "bar";
   const hasDraft = draft.lines.length > 0;
 
   return (
@@ -278,19 +298,19 @@ export function FbPosClient({
         </div>
       ) : null}
 
-      {outlet && hasMenu && isBar ? (
+      {hasBarOutlet ? (
         <div className="max-w-xs">
           <label className="mb-1 block text-xs font-medium text-slate-500">Tab name</label>
           <input
             value={tabLabel}
             onChange={(e) => setTabLabel(e.target.value)}
-            placeholder={`e.g. ${outlet.name} tab`}
+            placeholder="e.g. Bar tab"
             className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
           />
         </div>
       ) : null}
 
-      {outlet && hasMenu && isRestaurant ? (
+      {hasRestaurantOutlet ? (
         <div className="max-w-md space-y-2">
           <div>
             <label className="mb-1 block text-xs font-medium text-slate-500">
@@ -393,8 +413,20 @@ export function FbPosClient({
         </div>
 
         <aside className="mt-4 lg:sticky lg:top-20 lg:mt-0 lg:self-start">
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 className="text-sm font-semibold text-slate-800">Current order</h2>
+          <div
+            className={cn(
+              "rounded-2xl border bg-white p-4 shadow-sm transition-colors",
+              draft.rush ? "border-2 border-red-500" : "border-slate-200",
+            )}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold text-slate-800">Current order</h2>
+              {draft.rush ? (
+                <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-red-700">
+                  Rush
+                </span>
+              ) : null}
+            </div>
             {hasDraft ? (
               <div className="mt-3 space-y-3">
                 <p className="text-xs text-slate-500">Draft — not sent yet</p>
@@ -405,7 +437,14 @@ export function FbPosClient({
                       className="rounded-lg border border-slate-100 bg-slate-50/80 p-2.5"
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <p className="min-w-0 flex-1 font-medium text-slate-900">{line.name}</p>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-slate-900">{line.name}</p>
+                          {activeOutlets.length > 1 ? (
+                            <p className="text-[11px] uppercase tracking-wide text-slate-400">
+                              {outletNameById.get(line.outletId) ?? ""}
+                            </p>
+                          ) : null}
+                        </div>
                         <p className="shrink-0 tabular-nums text-slate-700">
                           {formatPricingAmount(line.price * line.quantity, currency)}
                         </p>
