@@ -227,12 +227,12 @@ export default function HMSLayoutShell({
     <div className="flex h-screen overflow-hidden bg-slate-50">
       <aside
         data-tour="sidebar"
-        className={`flex flex-shrink-0 flex-col overflow-hidden bg-white transition-[width,border-color] duration-300 ${
+        className={`flex shrink-0 flex-col overflow-hidden bg-white transition-[width,border-color] duration-300 ${
           sidebarOpen ? "w-56 border-r border-slate-200" : "w-20 border-r border-slate-200"
         }`}
       >
         <div
-          className={`flex h-[4.5rem] shrink-0 items-center border-b border-slate-200 ${
+          className={`flex h-18 shrink-0 items-center border-b border-slate-200 ${
             sidebarOpen ? "px-5" : "px-3"
           }`}
         >
@@ -280,7 +280,7 @@ export default function HMSLayoutShell({
                     : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                 }`}
               >
-                <Icon className="h-4 w-4 flex-shrink-0" />
+                <Icon className="h-4 w-4 shrink-0" />
                 {sidebarOpen && <span>{label}</span>}
               </Link>
             );
@@ -305,7 +305,7 @@ export default function HMSLayoutShell({
       </aside>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="flex h-[4.5rem] shrink-0 items-center border-b border-slate-200 bg-white/95 backdrop-blur">
+        <header className="flex h-18 shrink-0 items-center border-b border-slate-200 bg-white/95 backdrop-blur">
           <div className="flex w-full items-center justify-between gap-6 px-6">
             <div className="flex min-w-0 flex-1 items-center gap-4">
               <Button
@@ -372,7 +372,7 @@ export default function HMSLayoutShell({
                       {(currentUserName || hotelDisplayName || "H").charAt(0).toUpperCase()}
                     </div>
                     <div className="hidden min-w-0 sm:block">
-                      <p className="max-w-[180px] truncate text-sm font-medium text-slate-800">
+                      <p className="max-w-45 truncate text-sm font-medium text-slate-800">
                         {currentUserName || hotelDisplayName || "Hotel"}
                       </p>
                       <p className="text-[10px] uppercase tracking-wider text-slate-400">
@@ -446,11 +446,11 @@ export default function HMSLayoutShell({
 
       {showFrontDeskNavShortcut ? (
         <aside
-          className={`flex flex-shrink-0 flex-col overflow-hidden bg-white transition-[width,border-color] duration-300 ${
+          className={`flex shrink-0 flex-col overflow-hidden bg-white transition-[width,border-color] duration-300 ${
             frontDeskNavOpen ? "w-56 border-l border-slate-200" : "w-0 border-l-0"
           }`}
         >
-          <div className="flex h-[4.5rem] w-56 shrink-0 items-center border-b border-slate-200 px-5">
+          <div className="flex h-18 w-56 shrink-0 items-center border-b border-slate-200 px-5">
             <p className="truncate text-xs font-semibold uppercase tracking-wider text-slate-400">
               Front desk links
             </p>
@@ -469,7 +469,7 @@ export default function HMSLayoutShell({
                       : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                   }`}
                 >
-                  <Icon className="h-4 w-4 flex-shrink-0" />
+                  <Icon className="h-4 w-4 shrink-0" />
                   <span>{label}</span>
                 </Link>
               );
