@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import { SupabaseNetworkErrorGuard } from "@/components/SupabaseNetworkErrorGuard";
 
 export const metadata: Metadata = {
   title: "XYVOO HMS",
@@ -17,6 +18,7 @@ export default function RootLayout({
       <body
         className="relative mx-auto flex min-h-full w-full max-w-[1800px] flex-col shadow-[var(--xyvoo-shadow-column)]"
       >
+        <SupabaseNetworkErrorGuard />
         {children}
         <Toaster />
       </body>

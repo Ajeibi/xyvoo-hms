@@ -28,39 +28,46 @@ export default function LoginPage() {
     event.preventDefault();
     setLoading(true);
     setError("");
-    const { error: signInError } = await supabaseAuthBrowser.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (signInError) {
-      const { title, message } = formatSignInError(signInError);
+    try {
+      const { error: signInError } = await supabaseAuthBrowser.auth.signInWithPassword({ email, password });
+      if (signInError) {
+        const { title, message } = formatSignInError(signInError);
+        setError(message);
+        toastError(title, message);
+        return;
+      }
+      const redirectRes = await fetch("/api/auth/post-login-redirect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ from }),
+      });
+      const redirectData = await redirectRes.json().catch(() => ({}));
+      if (!redirectRes.ok) {
+        const message =
+          typeof redirectData.error === "string"
+            ? redirectData.error
+            : "We signed you in but couldn't open your dashboard. Please try again.";
+        setError(message);
+        toastError("Redirect failed", message);
+        return;
+      }
+      toastSuccess("Signed in", "Welcome back. Opening your dashboard…");
+      await new Promise((resolve) => setTimeout(resolve, 700));
+      // Hard navigation, not router.replace/refresh: the destination is almost
+      // always the same middleware-guarded route the user was just bounced
+      // from (e.g. a department home path). A soft client-side transition can
+      // reach the middleware's auth check before the just-set session cookies
+      // are guaranteed visible to it, which redirects straight back to
+      // /auth/login?from=... — a full page load always carries the fresh
+      // cookies and never reuses a cached response for that path.
+      window.location.assign(redirectData.redirectTo || "/register");
+    } catch {
+      const message = "We couldn't reach the sign-in service. Check your internet connection and try again.";
       setError(message);
-      toastError(title, message);
-      return;
+      toastError("Connection problem", message);
+    } finally {
+      setLoading(false);
     }
-    const redirectRes = await fetch("/api/auth/post-login-redirect", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ from }),
-    });
-    const redirectData = await redirectRes.json().catch(() => ({}));
-    if (!redirectRes.ok) {
-      const message =
-        typeof redirectData.error === "string"
-          ? redirectData.error
-          : "We signed you in but couldn't open your dashboard. Please try again.";
-      setError(message);
-      toastError("Redirect failed", message);
-      return;
-    }
-    toastSuccess("Signed in", "Welcome back. Opening your dashboard…");
-    await new Promise((resolve) => setTimeout(resolve, 700));
-    // Hard navigation, not router.replace/refresh: the destination is almost
-    // always the same middleware-guarded route the user was just bounced
-    // from (e.g. a department home path). A soft client-side transition can
-    // reach the middleware's auth check before the just-set session cookies
-    // are guaranteed visible to it, which redirects straight back to
-    // /auth/login?from=... — a full page load always carries the fresh
-    // cookies and never reuses a cached response for that path.
-    window.location.assign(redirectData.redirectTo || "/register");
   };
 
   return (

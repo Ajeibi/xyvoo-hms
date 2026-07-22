@@ -45,7 +45,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { HmsNotificationsBell } from "@/components/hms/header/HmsNotificationsBell";
 import { HmsQuickActionsMenu } from "@/components/hms/header/HmsQuickActionsMenu";
 
@@ -430,9 +429,9 @@ export default function HMSLayoutShell({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  onClick={() => setFrontDeskNavOpen(true)}
+                  onClick={() => setFrontDeskNavOpen((open) => !open)}
                   className="size-10 shrink-0 rounded-xl text-slate-600"
-                  aria-label="Open front desk links"
+                  aria-label={frontDeskNavOpen ? "Hide front desk links" : "Show front desk links"}
                   title="Front desk links"
                 >
                   <Menu className="h-5 w-5" />
@@ -445,6 +444,40 @@ export default function HMSLayoutShell({
         <main ref={mainRef} className="min-h-0 flex-1 overflow-y-auto">{children}</main>
       </div>
 
+      {showFrontDeskNavShortcut ? (
+        <aside
+          className={`flex flex-shrink-0 flex-col overflow-hidden bg-white transition-[width,border-color] duration-300 ${
+            frontDeskNavOpen ? "w-56 border-l border-slate-200" : "w-0 border-l-0"
+          }`}
+        >
+          <div className="flex h-[4.5rem] w-56 shrink-0 items-center border-b border-slate-200 px-5">
+            <p className="truncate text-xs font-semibold uppercase tracking-wider text-slate-400">
+              Front desk links
+            </p>
+          </div>
+          <nav className="min-h-0 w-56 flex-1 space-y-0.5 overflow-y-auto px-3 py-3">
+            {frontDeskNavItems.map(({ key, icon, label, path }) => {
+              const Icon = ICON_MAP[icon];
+              const active = pathname === path || pathname.startsWith(`${path}/`);
+              return (
+                <Link
+                  key={key}
+                  href={path}
+                  className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${
+                    active
+                      ? "bg-blue-50 text-blue-700"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  }`}
+                >
+                  <Icon className="h-4 w-4 flex-shrink-0" />
+                  <span>{label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+        </aside>
+      ) : null}
+
       {showFrontDeskCta ? (
         <FrontDeskCheckoutDialog
           slug={slug}
@@ -454,38 +487,6 @@ export default function HMSLayoutShell({
           initialRoomCode={checkoutPrefill.roomCode}
           initialReservationId={checkoutPrefill.reservationId}
         />
-      ) : null}
-
-      {showFrontDeskNavShortcut ? (
-        <Sheet open={frontDeskNavOpen} onOpenChange={setFrontDeskNavOpen}>
-          <SheetContent side="right" className="w-72 sm:max-w-xs">
-            <SheetHeader className="border-b border-slate-100">
-              <SheetTitle>Front desk links</SheetTitle>
-              <SheetDescription>Jump into any front desk page without switching role.</SheetDescription>
-            </SheetHeader>
-            <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 pb-4">
-              {frontDeskNavItems.map(({ key, icon, label, path }) => {
-                const Icon = ICON_MAP[icon];
-                const active = pathname === path || pathname.startsWith(`${path}/`);
-                return (
-                  <Link
-                    key={key}
-                    href={path}
-                    onClick={() => setFrontDeskNavOpen(false)}
-                    className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                      active
-                        ? "bg-blue-50 text-blue-700"
-                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                    }`}
-                  >
-                    <Icon className="h-4 w-4 flex-shrink-0" />
-                    <span>{label}</span>
-                  </Link>
-                );
-              })}
-            </nav>
-          </SheetContent>
-        </Sheet>
       ) : null}
     </div>
   );
