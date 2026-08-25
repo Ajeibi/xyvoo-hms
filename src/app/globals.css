@@ -80,10 +80,6 @@
   padding: 4px 0;
 }
 
-* {
-  border-color: var(--border);
-}
-
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans: var(--font-sans);

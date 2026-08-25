@@ -5,17 +5,20 @@ import { useFrontDeskRealtime } from "@/hooks/useFrontDeskRealtime";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import type { HousekeepingTaskRow } from "@/lib/hms/housekeeping-tasks";
 import { PriorityBadge, StatusBadge, taskTypeLabel } from "@/components/hms/housekeeping/HousekeepingBadges";
+import { HousekeepingSubNav } from "@/components/hms/housekeeping/HousekeepingSubNav";
 
 export function HousekeepingAssignmentsClient({
   slug,
   tenantId,
   tasks,
   attendants,
+  canAccessAllDepartments,
 }: {
   slug: string;
   tenantId: string;
   tasks: HousekeepingTaskRow[];
   attendants: { userId: string; name: string }[];
+  canAccessAllDepartments: boolean;
 }) {
   const router = useRouter();
   useFrontDeskRealtime(tenantId, true);
@@ -39,6 +42,8 @@ export function HousekeepingAssignmentsClient({
     <div className="px-8 py-8">
       <h1 className="text-xl font-semibold text-slate-900">Assignments</h1>
       <p className="mt-0.5 text-sm text-slate-500">Assign or rebalance today&apos;s open tasks across attendants.</p>
+
+      <HousekeepingSubNav slug={slug} canAccessAllDepartments={canAccessAllDepartments} />
 
       {tasks.length === 0 ? (
         <div className="mt-6 rounded-xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">

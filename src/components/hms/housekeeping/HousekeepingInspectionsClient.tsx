@@ -7,23 +7,26 @@ import { useFrontDeskRealtime } from "@/hooks/useFrontDeskRealtime";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import type { HousekeepingTaskRow } from "@/lib/hms/housekeeping-tasks";
 import { PriorityBadge, taskTypeLabel } from "@/components/hms/housekeeping/HousekeepingBadges";
+import { HousekeepingSubNav } from "@/components/hms/housekeeping/HousekeepingSubNav";
 
 export function HousekeepingInspectionsClient({
   slug,
   tenantId,
   tasks,
+  canAccessAllDepartments,
 }: {
   slug: string;
   tenantId: string;
   tasks: HousekeepingTaskRow[];
+  canAccessAllDepartments: boolean;
 }) {
   const router = useRouter();
   const [noteByTask, setNoteByTask] = useState<Record<string, string>>({});
-  const [busyId, setBusyId] = useState<string | null>(null);
+  const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
   useFrontDeskRealtime(tenantId, true);
 
   const inspect = async (taskId: string, result: "pass" | "fail") => {
-    setBusyId(taskId);
+    setBusyIds((prev) => new Set(prev).add(taskId));
     try {
       const res = await fetch(`/api/hotel/housekeeping/tasks/${taskId}/inspect`, {
         method: "POST",
@@ -38,7 +41,11 @@ export function HousekeepingInspectionsClient({
       toastSuccess(result === "pass" ? "Room passed — marked ready." : "Room failed — reopened for rework.");
       router.refresh();
     } finally {
-      setBusyId(null);
+      setBusyIds((prev) => {
+        const next = new Set(prev);
+        next.delete(taskId);
+        return next;
+      });
     }
   };
 
@@ -48,6 +55,8 @@ export function HousekeepingInspectionsClient({
       <p className="mt-0.5 text-sm text-slate-500">
         Rooms awaiting sign-off. A pass marks the room ready; a fail reopens it for the attendant.
       </p>
+
+      <HousekeepingSubNav slug={slug} canAccessAllDepartments={canAccessAllDepartments} />
 
       {tasks.length === 0 ? (
         <div className="mt-6 rounded-xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">
@@ -61,7 +70,7 @@ export function HousekeepingInspectionsClient({
                 <div>
                   <p className="font-semibold text-slate-900">Room {t.roomCode}</p>
                   <p className="text-xs text-slate-500">
-                    {taskTypeLabel(t.taskType)} · Cleaned by {t.assignedStaffName ?? "unassigned attendant"}
+                    {taskTypeLabel(t.taskType)} · Assigned to {t.assignedNote ?? "unassigned"}
                   </p>
                 </div>
                 <PriorityBadge level={t.priorityLevel} />
@@ -77,19 +86,19 @@ export function HousekeepingInspectionsClient({
                 <Button
                   type="button"
                   className="rounded-lg bg-emerald-600 hover:bg-emerald-700"
-                  disabled={busyId === t.id}
+                  disabled={busyIds.has(t.id)}
                   onClick={() => void inspect(t.id, "pass")}
                 >
-                  Pass — mark ready
+                  {busyIds.has(t.id) ? "Saving…" : "Pass — mark ready"}
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
                   className="rounded-lg border-red-200 text-red-700 hover:bg-red-50"
-                  disabled={busyId === t.id}
+                  disabled={busyIds.has(t.id)}
                   onClick={() => void inspect(t.id, "fail")}
                 >
-                  Fail — send back
+                  {busyIds.has(t.id) ? "Saving…" : "Fail — send back"}
                 </Button>
               </div>
             </div>

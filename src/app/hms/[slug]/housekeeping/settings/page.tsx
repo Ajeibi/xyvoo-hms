@@ -1,4 +1,5 @@
 import HMSLayout from "@/components/hms/HMSLayout";
+import { getHmsAccessContext } from "@/lib/hms/access";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getTenantHousekeepingSettings } from "@/lib/hms/housekeeping-settings";
@@ -13,7 +14,7 @@ export default async function HousekeepingSettingsPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const tenant = await getHotelTenantBySlug(slug);
+  const [access, tenant] = await Promise.all([getHmsAccessContext(slug), getHotelTenantBySlug(slug)]);
 
   if (!tenant) {
     return (
@@ -36,7 +37,11 @@ export default async function HousekeepingSettingsPage({
 
   return (
     <HMSLayout slug={slug} requiredSection="housekeeping-settings">
-      <HousekeepingSettingsClient slug={slug} initialSettings={settings} />
+      <HousekeepingSettingsClient
+        slug={slug}
+        initialSettings={settings}
+        canAccessAllDepartments={access.canAccessAllDepartments}
+      />
       <HousekeepingRoomTypeParsClient
         slug={slug}
         roomTypes={roomTypes}

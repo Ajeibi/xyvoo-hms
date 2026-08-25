@@ -3,8 +3,6 @@ import { FrontDeskGuestServicesClient } from "@/components/hms/frontdesk/guest-s
 import { getHmsAccessContext } from "@/lib/hms/access";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { getGuestServicesCapabilities } from "@/lib/hms/guest-services-rbac";
-import { listGuestServiceCategories } from "@/lib/hms/guest-service-categories";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export default async function FrontDeskGuestServicesPage({
   params,
@@ -22,10 +20,6 @@ export default async function FrontDeskGuestServicesPage({
     departmentRole: access.departmentRole,
   });
 
-  const categories = tenant
-    ? await listGuestServiceCategories(createServerSupabaseClient(), tenant.id, { activeOnly: true })
-    : [];
-
   return (
     <HMSLayout slug={slug} requiredSection="frontdesk">
       <FrontDeskGuestServicesClient
@@ -33,7 +27,6 @@ export default async function FrontDeskGuestServicesPage({
         tenantId={tenant?.id ?? ""}
         capabilities={capabilities}
         initialSearch={sp.q ?? ""}
-        categories={categories}
       />
     </HMSLayout>
   );

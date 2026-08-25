@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
-import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { notifyMaintenance, notifyRoomReady, notifyRoomStatus } from "@/lib/hms/notification-rules";
 import { getRoomsCapabilities } from "@/lib/hms/rooms-rbac";
 import { pauseHousekeepingTaskForRoom, syncHousekeepingTaskForManualRoomStatus } from "@/lib/hms/housekeeping-tasks";
+import { setRoomStatus } from "@/lib/hms/room-status";
 
 const PatchSchema = z.object({
   slug: z.string().min(1),
@@ -68,17 +68,17 @@ export async function PATCH(req: Request) {
       }
     }
 
-    const { error: updateError } = await auth.service
-      .schema("hotel")
-      .from("room_units")
-      .update({
-        status: body.status,
-        notes: body.notes ?? unit.notes,
-      })
-      .eq("id", unit.id)
-      .eq("tenant_id", auth.tenant.id);
+    const result = await setRoomStatus(auth.service, {
+      tenantId: auth.tenant.id,
+      roomUnitId: unit.id,
+      status: body.status,
+      actorUserId: auth.user.id,
+      roomCode: unit.room_code,
+      previousStatus: unit.status,
+      extra: { notes: body.notes ?? unit.notes },
+    });
 
-    if (updateError) {
+    if (!result.ok) {
       return NextResponse.json({ error: "Could not update room." }, { status: 500 });
     }
 
@@ -97,16 +97,6 @@ export async function PATCH(req: Request) {
         reason: `Room set to ${body.status.replace(/_/g, " ")} by Front Desk.`,
       });
     }
-
-    await writeAuditLog({
-      tenantId: auth.tenant.id,
-      actorUserId: auth.user.id,
-      action: "room_status_changed",
-      entityType: "room_unit",
-      entityId: unit.id,
-      before: { status: unit.status, room_code: unit.room_code },
-      after: { status: body.status, room_code: unit.room_code },
-    });
 
     const statusLabel = body.status.replace(/_/g, " ");
     if (body.status === "maintenance") {

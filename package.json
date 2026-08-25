@@ -14,8 +14,14 @@
     "clear:orders": "tsx scripts/clear-tenant-cli.ts --orders-only",
     "seed:menu": "tsx scripts/seed-pope-menu-cli.ts",
     "seed:guests": "tsx scripts/seed-guest-stays-cli.ts",
+    "seed:guest-services": "tsx scripts/seed-guest-services-cli.ts",
+    "seed:requests": "tsx scripts/seed-requests-incidents-cli.ts",
     "seed:orders": "tsx scripts/seed-fb-orders-cli.ts",
-    "validate:demo": "tsx scripts/validate-demo-schema.ts"
+    "seed:inventory": "tsx scripts/seed-inventory-cli.ts",
+    "seed:procurement": "tsx scripts/seed-procurement-cli.ts",
+    "validate:demo": "tsx scripts/validate-demo-schema.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -59,6 +65,7 @@
     "eslint-config-next": "16.2.4",
     "tailwindcss": "^4",
     "tsx": "^4.23.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.10"
   }
 }

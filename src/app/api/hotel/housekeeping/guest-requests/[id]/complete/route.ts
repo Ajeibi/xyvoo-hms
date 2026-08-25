@@ -34,8 +34,22 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     if (request.department !== "housekeeping") {
       return NextResponse.json({ error: "This request does not belong to Housekeeping." }, { status: 403 });
     }
-    if (!canTransitionStatus(request.status as string, "completed")) {
-      return NextResponse.json({ error: `Cannot complete a request in status ${request.status}.` }, { status: 400 });
+
+    const status = request.status as string;
+    const canCompleteDirectly = canTransitionStatus(status, "completed");
+    /** "pending"/"assigned" can't jump straight to "completed" in the status machine — bridge
+     * through "in_progress" first so a single "Mark done" click always works regardless of
+     * where Front Desk left the request, instead of forcing staff to click through each step. */
+    if (!canCompleteDirectly && !canTransitionStatus(status, "in_progress")) {
+      return NextResponse.json({ error: `Cannot complete a request in status ${status}.` }, { status: 400 });
+    }
+
+    if (!canCompleteDirectly) {
+      await auth.service
+        .schema("hotel")
+        .from("guest_requests")
+        .update({ status: "in_progress", updated_at: new Date().toISOString() })
+        .eq("id", id);
     }
 
     await auth.service

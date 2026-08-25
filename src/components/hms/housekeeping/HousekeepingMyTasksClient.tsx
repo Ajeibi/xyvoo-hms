@@ -11,6 +11,9 @@ import type { HousekeepingGuestRequest, HousekeepingTaskRow } from "@/lib/hms/ho
 import { effectiveTaskDueBy, type TenantHousekeepingSettings } from "@/lib/hms/housekeeping-settings";
 import type { RoomTypePar } from "@/lib/hms/housekeeping-inventory";
 import { PriorityBadge, SlaCountdown, StatusBadge, taskTypeLabel } from "@/components/hms/housekeeping/HousekeepingBadges";
+import { HousekeepingSubNav } from "@/components/hms/housekeeping/HousekeepingSubNav";
+import { HousekeepingAssigneeField } from "@/components/hms/housekeeping/HousekeepingAssigneeField";
+import { HousekeepingNewTaskDialog, type HousekeepingRoomOption } from "@/components/hms/housekeeping/HousekeepingNewTaskDialog";
 
 const NEXT_STATUS: Record<string, { label: string; status: string } | null> = {
   dirty: { label: "Start cleaning", status: "cleaning_in_progress" },
@@ -29,6 +32,10 @@ export function HousekeepingMyTasksClient({
   settings,
   guestRequestsByTask,
   parsByTask,
+  canAccessAllDepartments,
+  canEditAssignedNote,
+  canCreateManualTask,
+  rooms,
 }: {
   slug: string;
   tenantId: string;
@@ -36,16 +43,28 @@ export function HousekeepingMyTasksClient({
   settings: TenantHousekeepingSettings;
   guestRequestsByTask: Record<string, HousekeepingGuestRequest[]>;
   parsByTask: Record<string, RoomTypePar[]>;
+  canAccessAllDepartments: boolean;
+  canEditAssignedNote: boolean;
+  canCreateManualTask: boolean;
+  rooms: HousekeepingRoomOption[];
 }) {
   const router = useRouter();
-  const [busyId, setBusyId] = useState<string | null>(null);
+  const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
   const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Record<string, SupplyDraft>>({});
   const [now] = useClientNow();
   useFrontDeskRealtime(tenantId, true);
 
+  const startBusy = (id: string) => setBusyIds((prev) => new Set(prev).add(id));
+  const stopBusy = (id: string) =>
+    setBusyIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+
   const advance = async (taskId: string, status: string, label: string) => {
-    setBusyId(taskId);
+    startBusy(taskId);
     try {
       const res = await fetch(`/api/hotel/housekeeping/tasks/${taskId}`, {
         method: "PATCH",
@@ -60,7 +79,7 @@ export function HousekeepingMyTasksClient({
       toastSuccess(label);
       router.refresh();
     } finally {
-      setBusyId(null);
+      stopBusy(taskId);
     }
   };
 
@@ -71,7 +90,7 @@ export function HousekeepingMyTasksClient({
   };
 
   const confirmCompletion = async (task: HousekeepingTaskRow) => {
-    setBusyId(task.id);
+    startBusy(task.id);
     try {
       const pars = parsByTask[task.id] ?? [];
       const lines = pars
@@ -100,36 +119,50 @@ export function HousekeepingMyTasksClient({
       setCompletingTaskId(null);
       router.refresh();
     } finally {
-      setBusyId(null);
+      stopBusy(task.id);
     }
   };
 
   const completeGuestRequest = async (requestId: string) => {
-    const res = await fetch(`/api/hotel/housekeeping/guest-requests/${requestId}/complete`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ slug }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      toastError("Could not update request", data.error ?? "Try again.");
-      return;
+    startBusy(requestId);
+    try {
+      const res = await fetch(`/api/hotel/housekeeping/guest-requests/${requestId}/complete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toastError("Could not update request", data.error ?? "Try again.");
+        return;
+      }
+      toastSuccess("Guest request marked done.");
+      router.refresh();
+    } finally {
+      stopBusy(requestId);
     }
-    toastSuccess("Guest request marked done.");
-    router.refresh();
   };
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-4 py-6 sm:px-6">
-      <h1 className="text-xl font-semibold text-slate-900">My tasks</h1>
-      <p className="mt-0.5 text-sm text-slate-500">Your assigned rooms for this shift, highest priority first.</p>
+    <div className="w-full px-6 py-8 sm:px-8">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-900">Housekeeping tasks</h1>
+          <p className="mt-0.5 text-sm text-slate-500">Every open room for this property, highest priority first.</p>
+        </div>
+        {canCreateManualTask ? (
+          <HousekeepingNewTaskDialog slug={slug} rooms={rooms} onCreated={() => router.refresh()} />
+        ) : null}
+      </div>
+
+      <HousekeepingSubNav slug={slug} canAccessAllDepartments={canAccessAllDepartments} />
 
       {tasks.length === 0 ? (
         <div className="mt-6 rounded-xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">
-          No tasks assigned to you right now.
+          No open housekeeping tasks right now.
         </div>
       ) : (
-        <div className="mt-6 space-y-4">
+        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {tasks.map((t) => {
             const next = NEXT_STATUS[t.status];
             const requests = guestRequestsByTask[t.id] ?? [];
@@ -152,6 +185,16 @@ export function HousekeepingMyTasksClient({
                   ) : null}
                 </div>
 
+                <div className="mt-2">
+                  <HousekeepingAssigneeField
+                    slug={slug}
+                    taskId={t.id}
+                    initialNote={t.assignedNote}
+                    canEdit={canEditAssignedNote}
+                    onSaved={() => router.refresh()}
+                  />
+                </div>
+
                 {requests.length > 0 ? (
                   <div className="mt-3 rounded-lg border border-purple-100 bg-purple-50/60 p-3">
                     <p className="text-xs font-semibold uppercase tracking-wide text-purple-700">Guest requests</p>
@@ -167,9 +210,10 @@ export function HousekeepingMyTasksClient({
                             size="sm"
                             variant="outline"
                             className="h-8 rounded-md text-xs"
+                            disabled={busyIds.has(r.id)}
                             onClick={() => void completeGuestRequest(r.id)}
                           >
-                            Mark done
+                            {busyIds.has(r.id) ? "Saving…" : "Mark done"}
                           </Button>
                         </li>
                       ))}
@@ -222,15 +266,16 @@ export function HousekeepingMyTasksClient({
                       <Button
                         type="button"
                         className="h-10 flex-1 rounded-lg text-sm font-semibold"
-                        disabled={busyId === t.id}
+                        disabled={busyIds.has(t.id)}
                         onClick={() => void confirmCompletion(t)}
                       >
-                        Confirm &amp; mark cleaned
+                        {busyIds.has(t.id) ? "Saving…" : "Confirm & mark cleaned"}
                       </Button>
                       <Button
                         type="button"
                         variant="outline"
                         className="h-10 rounded-lg text-sm"
+                        disabled={busyIds.has(t.id)}
                         onClick={() => setCompletingTaskId(null)}
                       >
                         Cancel
@@ -241,14 +286,14 @@ export function HousekeepingMyTasksClient({
                   <Button
                     type="button"
                     className="mt-4 h-12 w-full rounded-xl text-base font-semibold"
-                    disabled={busyId === t.id}
+                    disabled={busyIds.has(t.id)}
                     onClick={() =>
                       next.status === "cleaned" && pars.length > 0
                         ? openCompletion(t.id)
                         : void advance(t.id, next.status, `Room ${t.roomCode}: ${next.label}`)
                     }
                   >
-                    {next.label}
+                    {busyIds.has(t.id) ? "Saving…" : next.label}
                   </Button>
                 ) : t.status === "cleaned" ? (
                   <p className="mt-4 text-center text-sm font-medium text-amber-700">Awaiting supervisor inspection</p>

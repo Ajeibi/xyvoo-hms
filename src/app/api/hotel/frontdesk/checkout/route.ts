@@ -7,6 +7,7 @@ import { getFolioForReservation, getTenantFolioSettings, adjustFolioForEarlyChec
 import { normalizePricingSetup } from "@/lib/hms/room-pricing";
 import { notifyCheckoutCompleted, notifyCommissionDue, notifyOverdueCheckout } from "@/lib/hms/notification-rules";
 import { openOrEscalateHousekeepingTask } from "@/lib/hms/housekeeping-tasks";
+import { setRoomStatus } from "@/lib/hms/room-status";
 
 const CheckoutSchema = z
   .object({
@@ -142,11 +143,14 @@ export async function POST(req: Request) {
         .maybeSingle();
       if (unit) roomCode = unit.room_code;
 
-      await auth.service
-        .schema("hotel")
-        .from("room_units")
-        .update({ status: "dirty", notes: body.notes ?? null })
-        .eq("id", reservation.room_unit_id);
+      await setRoomStatus(auth.service, {
+        tenantId: auth.tenant.id,
+        roomUnitId: reservation.room_unit_id,
+        status: "dirty",
+        actorUserId: auth.user.id,
+        roomCode,
+        extra: { notes: body.notes ?? null },
+      });
 
       await openOrEscalateHousekeepingTask(auth.service, {
         tenantId: auth.tenant.id,
@@ -177,17 +181,6 @@ export async function POST(req: Request) {
       entityId: reservation.id,
       after: { room_code: roomCode, status: "checked_out" },
     });
-
-    if (reservation.room_unit_id) {
-      await writeAuditLog({
-        tenantId: auth.tenant.id,
-        actorUserId: auth.user.id,
-        action: "room_status_changed",
-        entityType: "room_unit",
-        entityId: reservation.room_unit_id,
-        after: { room_code: roomCode, status: "dirty" },
-      });
-    }
 
     await notifyCheckoutCompleted({
       tenantId: auth.tenant.id,

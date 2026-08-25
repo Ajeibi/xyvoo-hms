@@ -6,12 +6,11 @@ import { getGuestServicesCapabilities } from "@/lib/hms/guest-services-rbac";
 import {
   appendGuestRequestEvent,
   computeExpectedCompletedIso,
-  defaultDepartmentForCategory,
   listGuestRequestsForTenant,
   resolveReservationIdByCode,
+  GUEST_REQUEST_DEPARTMENTS,
   GUEST_REQUEST_PRIORITIES,
 } from "@/lib/hms/guest-services";
-import { getCategoryDepartment, isKnownActiveCategory } from "@/lib/hms/guest-service-categories";
 
 const ListQuery = z.object({
   slug: z.string().min(1),
@@ -31,7 +30,7 @@ const PostBody = z.object({
   serviceCategory: z.string().min(1),
   requestType: z.string().min(1).max(120),
   details: z.string().max(2000).optional(),
-  department: z.string().max(40).optional(),
+  department: z.enum(GUEST_REQUEST_DEPARTMENTS),
   priority: z.enum(GUEST_REQUEST_PRIORITIES).optional(),
   billable: z.boolean().optional(),
   notes: z.string().max(500).optional(),
@@ -94,11 +93,6 @@ export async function POST(req: Request) {
     const caps = getGuestServicesCapabilities({ membershipRole: auth.role, departmentRole: auth.departmentRole });
     if (!caps.canCreate) return NextResponse.json({ error: "Not allowed." }, { status: 403 });
 
-    const validCategory = await isKnownActiveCategory(auth.service, auth.tenant.id, body.serviceCategory);
-    if (!validCategory) {
-      return NextResponse.json({ error: "Invalid serviceCategory" }, { status: 400 });
-    }
-
     let reservationId = body.reservationId ?? null;
     if (!reservationId && body.confirmationCode) {
       reservationId = await resolveReservationIdByCode(
@@ -123,11 +117,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Reservation not found." }, { status: 404 });
     }
 
-    const categoryDept = await getCategoryDepartment(auth.service, auth.tenant.id, body.serviceCategory);
-    const dept = (body.department ?? categoryDept ?? defaultDepartmentForCategory(body.serviceCategory)).toLowerCase();
+    const dept = body.department;
     const priority = body.priority ?? "normal";
     const createdAtIso = new Date().toISOString();
-    const expectedAt = computeExpectedCompletedIso(createdAtIso, body.serviceCategory);
+    const expectedAt = computeExpectedCompletedIso(createdAtIso, dept);
 
     const { data: row, error } = await auth.service
       .schema("hotel")

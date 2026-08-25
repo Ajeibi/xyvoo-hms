@@ -5,6 +5,9 @@ export type LostFoundStatus = (typeof LOST_FOUND_STATUSES)[number];
 
 export type LostFoundItemRow = {
   id: string;
+  /** Short per-tenant reference (e.g. "LF-0007") for writing on a physical tag/bag or reading
+   * out to a guest on the phone — derived from found-order, not a stored column. */
+  tag: string;
   roomCode: string | null;
   reservationId: string | null;
   description: string;
@@ -63,8 +66,16 @@ export async function listLostFoundItems(
     if (p.contact_name) nameByUserId.set(p.user_id, p.contact_name);
   }
 
+  /** Tag numbers are assigned by found-order (oldest = #1), independent of the DESC display
+   * order above, so a tag stays stable as new items are logged. Only stable within the fetched
+   * window (limit 200) — fine for a low-volume operational log. */
+  const tagByRowId = new Map<string, string>();
+  const byFoundOrder = [...rows].sort((a, b) => a.found_at.localeCompare(b.found_at) || a.id.localeCompare(b.id));
+  byFoundOrder.forEach((r, i) => tagByRowId.set(r.id, `LF-${String(i + 1).padStart(4, "0")}`));
+
   return rows.map((r) => ({
     id: r.id,
+    tag: tagByRowId.get(r.id) ?? "LF-????",
     roomCode: r.room_unit_id ? roomCodeById.get(r.room_unit_id) ?? null : null,
     reservationId: r.reservation_id,
     description: r.description,

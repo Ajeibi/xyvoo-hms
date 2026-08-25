@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import HMSLayout from "@/components/hms/HMSLayout";
 import { InventoryItemsClient } from "@/components/hms/inventory/InventoryItemsClient";
+import { SettingsSectionInfo } from "@/components/hms/settings/SettingsSectionInfo";
 import { getHmsAccessContext } from "@/lib/hms/access";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -31,7 +32,13 @@ export default async function InventorySettingsPage({
     <HMSLayout slug={slug} requiredSection="inventory-settings">
       <div className="w-full space-y-6 px-6 py-6">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">Inventory settings</h1>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <h1 className="text-xl font-semibold text-slate-900">Inventory settings</h1>
+            <SettingsSectionInfo
+              title="Inventory settings"
+              text="Manage stock categories and the item catalog here. Store locations and lookup lists (units, item types, location types) are structural setup and live on the central Admin Settings page instead — see the link below."
+            />
+          </div>
           <p className="text-sm text-slate-500">
             Manage stock categories and the item catalog — add a new item, retire one, or reorganize
             categories whenever your stock lineup changes.

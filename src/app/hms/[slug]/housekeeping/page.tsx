@@ -1,6 +1,6 @@
 import HMSLayout from "@/components/hms/HMSLayout";
 import { getHmsAccessContext } from "@/lib/hms/access";
-import { getHotelTenantBySlug } from "@/lib/hms/data";
+import { getHotelTenantBySlug, listRoomUnitsForTenant } from "@/lib/hms/data";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getHousekeepingCapabilities } from "@/lib/hms/housekeeping-rbac";
 import { listOpenHousekeepingTasks } from "@/lib/hms/housekeeping-tasks";
@@ -28,9 +28,10 @@ export default async function HousekeepingPage({ params }: { params: Promise<{ s
   });
 
   const service = createServerSupabaseClient();
-  const [tasks, settings] = await Promise.all([
+  const [tasks, settings, rooms] = await Promise.all([
     listOpenHousekeepingTasks(service, tenant.id),
     getTenantHousekeepingSettings(service, tenant.id),
+    listRoomUnitsForTenant(tenant.id),
   ]);
 
   return (
@@ -41,6 +42,9 @@ export default async function HousekeepingPage({ params }: { params: Promise<{ s
         tasks={tasks}
         settings={settings}
         canManage={caps.canManageAssignments}
+        canCreateManualTask={caps.canCreateManualTask}
+        canAccessAllDepartments={access.canAccessAllDepartments}
+        rooms={rooms.map((r) => ({ id: r.id, roomCode: r.room_code, floor: r.floor }))}
       />
     </HMSLayout>
   );

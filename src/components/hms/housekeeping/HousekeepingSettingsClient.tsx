@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import type { TenantHousekeepingSettings } from "@/lib/hms/housekeeping-settings";
+import { HousekeepingSubNav } from "@/components/hms/housekeeping/HousekeepingSubNav";
 
 function NumberField({
   label,
@@ -36,9 +37,11 @@ function NumberField({
 export function HousekeepingSettingsClient({
   slug,
   initialSettings,
+  canAccessAllDepartments,
 }: {
   slug: string;
   initialSettings: TenantHousekeepingSettings;
+  canAccessAllDepartments: boolean;
 }) {
   const [settings, setSettings] = useState(initialSettings);
   const [saving, setSaving] = useState(false);
@@ -68,6 +71,8 @@ export function HousekeepingSettingsClient({
         <h1 className="text-xl font-semibold text-slate-900">Housekeeping Settings</h1>
         <p className="mt-0.5 text-sm text-slate-500">SLA targets, inspection policy, and escalation window.</p>
       </div>
+
+      <HousekeepingSubNav slug={slug} canAccessAllDepartments={canAccessAllDepartments} />
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5">
         <h2 className="text-sm font-semibold text-slate-800">SLA targets (minutes)</h2>

@@ -9,7 +9,7 @@ import { HMS_CYCLES, HMS_FEATURES, STORE_FEATURE_COMPARISON_ROWS, STORE_PLANS } 
 import type { HomePricingTab } from "@/types";
 
 type HomePricingSectionProps = {
-  /** Fixed header offset + tighter rhythm on `/home/pricing` */
+  /** Fixed header offset + tighter rhythm on `/pricing` */
   standalonePage?: boolean;
   /** Which tab is selected on first paint */
   defaultTab?: HomePricingTab;

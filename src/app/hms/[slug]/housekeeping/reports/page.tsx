@@ -1,11 +1,13 @@
 import HMSLayout from "@/components/hms/HMSLayout";
+import { getHmsAccessContext } from "@/lib/hms/access";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getHousekeepingDailyReport } from "@/lib/hms/housekeeping-reports";
+import { HousekeepingSubNav } from "@/components/hms/housekeeping/HousekeepingSubNav";
 
 export default async function HousekeepingReportsPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const tenant = await getHotelTenantBySlug(slug);
+  const [access, tenant] = await Promise.all([getHmsAccessContext(slug), getHotelTenantBySlug(slug)]);
 
   if (!tenant) {
     return (
@@ -26,6 +28,8 @@ export default async function HousekeepingReportsPage({ params }: { params: Prom
       <div className="mx-auto w-full max-w-4xl px-6 py-8">
         <h1 className="text-xl font-semibold text-slate-900">Reports</h1>
         <p className="mt-0.5 text-sm text-slate-500">Today&apos;s housekeeping activity, updated as tasks move.</p>
+
+        <HousekeepingSubNav slug={slug} canAccessAllDepartments={access.canAccessAllDepartments} />
 
         <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-2xl border border-slate-200 bg-white p-5">

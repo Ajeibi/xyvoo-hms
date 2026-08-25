@@ -5,6 +5,8 @@ import HotelBrandingSetup from "@/components/hms/HotelBrandingSetup";
 import HotelRoomPricingSetup from "@/components/hms/HotelRoomPricingSetup";
 import { InventoryLocationsClient } from "@/components/hms/inventory/InventoryLocationsClient";
 import { InventoryLookupManager } from "@/components/hms/inventory/InventoryLookupManager";
+import { InventoryItemTypeManager } from "@/components/hms/inventory/InventoryItemTypeManager";
+import { InventorySupplierManager } from "@/components/hms/inventory/InventorySupplierManager";
 import { GuestServiceCategoriesManager } from "@/components/hms/settings/GuestServiceCategoriesManager";
 import { SettingsGroupHeader } from "@/components/hms/settings/SettingsSectionInfo";
 import { SettingsDepartmentPointer } from "@/components/hms/settings/SettingsDepartmentPointer";
@@ -22,6 +24,7 @@ import {
   listItemTypes,
   listLocations,
   listLocationTypes,
+  listSuppliers,
   listUnits,
 } from "@/lib/hms/inventory-items";
 
@@ -44,7 +47,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ slug:
   const pricingSetup = normalizePricingSetup(tenant?.pricing_setup);
   const floorPlan = normalizeFloorPlan(tenant?.floor_plan);
 
-  const [invLocations, invLocationTypes, invUnits, invItemTypes, guestServiceCategories] = tenant
+  const [invLocations, invLocationTypes, invUnits, invItemTypes, invSuppliers, guestServiceCategories] = tenant
     ? await (async () => {
         const supabase = createServerSupabaseClient();
         return Promise.all([
@@ -52,10 +55,11 @@ export default async function SettingsPage({ params }: { params: Promise<{ slug:
           listLocationTypes(supabase, tenant.id),
           listUnits(supabase, tenant.id),
           listItemTypes(supabase, tenant.id),
+          listSuppliers(supabase, tenant.id),
           listGuestServiceCategories(supabase, tenant.id),
         ]);
       })()
-    : [[], [], [], [], []];
+    : [[], [], [], [], [], []];
 
   return (
     <HMSLayout slug={slug} requiredSection="settings">
@@ -133,15 +137,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ slug:
                 rows={invUnits}
                 helpText="The measurement units offered when adding or editing a stock item (kg, litre, carton, etc.). Structural setup — add one occasionally, when a new kind of measurement is needed."
               />
-              <InventoryLookupManager
-                slug={slug}
-                title="Item types"
-                description="Classification used across the item catalog and reports."
-                apiPath="item-types"
-                singularLabel="Item type"
-                rows={invItemTypes}
-                helpText="Broad classifications (e.g. Perishable, Equipment, Consumable) used across the item catalog and stock reports. Structural setup — occasional, not daily."
-              />
+              <InventoryItemTypeManager slug={slug} rows={invItemTypes} />
               <InventoryLookupManager
                 slug={slug}
                 title="Store location types"
@@ -152,6 +148,8 @@ export default async function SettingsPage({ params }: { params: Promise<{ slug:
                 helpText="The types offered when creating a new store location (e.g. Main Store, Bar Store, Kitchen Store). Structural setup — occasional, not daily."
               />
             </div>
+
+            <InventorySupplierManager slug={slug} suppliers={invSuppliers} />
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <SettingsDepartmentPointer

@@ -31,7 +31,13 @@ export default async function HousekeepingLostFoundPage({ params }: { params: Pr
 
   return (
     <HMSLayout slug={slug} requiredSection="housekeeping-lost-found">
-      <HousekeepingLostFoundClient slug={slug} tenantId={tenant.id} items={items} canResolve={caps.canResolveLostFound} />
+      <HousekeepingLostFoundClient
+        slug={slug}
+        tenantId={tenant.id}
+        items={items}
+        canResolve={caps.canResolveLostFound}
+        canAccessAllDepartments={access.canAccessAllDepartments}
+      />
     </HMSLayout>
   );
 }

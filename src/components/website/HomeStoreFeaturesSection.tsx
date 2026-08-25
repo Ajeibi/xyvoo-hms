@@ -41,7 +41,7 @@ const STORE_FEATURES: StoreFeatureRow[] = [
     ],
     urlLabel: "app.xyvoo.com / storefront",
     badge: "Live Store",
-    learnMoreHref: "/home/about",
+    learnMoreHref: "/about",
   },
   {
     id: "catalog",
@@ -57,7 +57,7 @@ const STORE_FEATURES: StoreFeatureRow[] = [
     ],
     urlLabel: "app.xyvoo.com / products",
     badge: "Inventory Sync",
-    learnMoreHref: "/home/about",
+    learnMoreHref: "/about",
   },
   {
     id: "orders",
@@ -73,7 +73,7 @@ const STORE_FEATURES: StoreFeatureRow[] = [
     ],
     urlLabel: "app.xyvoo.com / orders",
     badge: "Pipeline Active",
-    learnMoreHref: "/home/about",
+    learnMoreHref: "/about",
   },
   {
     id: "payments",
@@ -89,7 +89,7 @@ const STORE_FEATURES: StoreFeatureRow[] = [
     ],
     urlLabel: "app.xyvoo.com / checkout",
     badge: "Secure Payments",
-    learnMoreHref: "/home/about",
+    learnMoreHref: "/about",
   },
 ];
 

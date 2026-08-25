@@ -100,15 +100,20 @@ function AuthProductMenuRows({
   });
 }
 
-export function DesktopHeaderAuthMenus() {
+export function DesktopHeaderAuthMenus({ isHeroDark = false }: { isHeroDark?: boolean }) {
   return (
     <>
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <Button
-            variant="ghost"
-            size="sm"
-            className="gap-1 text-foreground"
+            variant="outline"
+            size="default"
+            className={cn(
+              "rounded-xl gap-1 px-5 font-semibold transition-all duration-200",
+              isHeroDark
+                ? "border-white/20 text-white hover:text-white hover:bg-white/10 bg-transparent"
+                : "border-border text-foreground hover:bg-muted/80 hover:text-xyvoo-blue"
+            )}
           >
             Sign in
             <ChevronDown className="size-3.5 shrink-0 opacity-70" aria-hidden />
@@ -123,13 +128,18 @@ export function DesktopHeaderAuthMenus() {
           <AuthProductMenuRows mode="signin" />
         </DropdownMenuContent>
       </DropdownMenu>
-
+ 
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <Button
             variant="default"
             size="default"
-            className="group rounded-xl px-5 font-semibold shadow-sm gap-1 data-[state=open]:shadow-md"
+            className={cn(
+              "group rounded-xl px-5 font-semibold shadow-sm gap-1 data-[state=open]:shadow-md transition-all duration-200",
+              isHeroDark
+                ? "bg-white text-[#07162c] hover:bg-slate-50 hover:text-[#07162c] border border-transparent"
+                : "bg-primary text-primary-foreground hover:bg-primary/92 border border-transparent"
+            )}
           >
             Get started
             <ChevronDown

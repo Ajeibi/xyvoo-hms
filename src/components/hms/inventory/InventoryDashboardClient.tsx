@@ -18,6 +18,7 @@ import type { InventoryMovementWithDetails, InventoryStockLevelWithDetails } fro
 import type { InventoryDashboardStats } from "@/lib/hms/inventory-stock";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import { useInventoryRealtime } from "@/hooks/useInventoryRealtime";
+import { SettingsSectionInfo } from "@/components/hms/settings/SettingsSectionInfo";
 import { InventorySubNav } from "@/components/hms/inventory/InventorySubNav";
 
 function formatWhen(iso: string) {
@@ -101,7 +102,13 @@ export function InventoryDashboardClient({
 
   return (
     <div className="px-8 py-8">
-      <h1 className="text-xl font-semibold text-slate-900">Inventory</h1>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <h1 className="text-xl font-semibold text-slate-900">Inventory</h1>
+        <SettingsSectionInfo
+          title="Inventory"
+          text="Live view of stock levels, today's activity, and reorder alerts across every store. Use the buttons below to jump straight into receiving, requisitions, or waste."
+        />
+      </div>
       <p className="mt-0.5 text-sm text-slate-500">
         Stock levels, movements, and reorder status across every store location.
       </p>

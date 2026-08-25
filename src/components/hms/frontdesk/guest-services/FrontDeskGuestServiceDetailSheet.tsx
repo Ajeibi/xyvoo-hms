@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { GuestServicesRoleCapabilities } from "@/lib/hms/guest-services-rbac";
-import { GUEST_REQUEST_PRIORITIES } from "@/lib/hms/guest-services";
+import { GUEST_REQUEST_DEPARTMENTS, GUEST_REQUEST_DEPARTMENT_LABELS, GUEST_REQUEST_PRIORITIES } from "@/lib/hms/guest-services";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 
 type DetailPayload = {
@@ -276,17 +276,9 @@ export function FrontDeskGuestServiceDetailSheet({
                           value={String(req.department)}
                           onChange={(e) => patch({ department: e.target.value })}
                         >
-                          {[
-                            "front_desk",
-                            "housekeeping",
-                            "laundry",
-                            "maintenance",
-                            "concierge",
-                            "security",
-                            "food_beverage",
-                          ].map((d) => (
+                          {GUEST_REQUEST_DEPARTMENTS.map((d) => (
                             <option key={d} value={d}>
-                              {d.replace(/_/g, " ")}
+                              {GUEST_REQUEST_DEPARTMENT_LABELS[d]}
                             </option>
                           ))}
                         </select>

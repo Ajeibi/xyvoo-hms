@@ -153,8 +153,11 @@ export async function deleteApprovalThreshold(supabase: SupabaseClient, tenantId
   return { error: null };
 }
 
-/** Resolves which approver tier a PO total requires, department-specific thresholds taking priority over "All departments". */
-async function resolveRequiredApproverRole(
+/** Resolves which approver tier a spend total requires, department-specific thresholds taking
+ * priority over "All departments". Shared across Procurement (purchase orders) and Accounts
+ * (vendor bills) — both draw from the same hotel.procurement_approval_thresholds configuration
+ * rather than each maintaining its own approval rules. */
+export async function resolveRequiredApproverRole(
   supabase: SupabaseClient,
   tenantId: string,
   department: string,

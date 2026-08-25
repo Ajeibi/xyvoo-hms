@@ -29,6 +29,22 @@ export type InventoryItemTypeRow = {
   code: string;
   sort_order: number;
   is_active: boolean;
+  /** Excluded from the stock ledger entirely — belongs on a separate asset register, not inventory. */
+  is_fixed_asset: boolean;
+  /** Tracked as durable goods — breakage/loss language instead of spoilage language. */
+  is_equipment: boolean;
+  created_at: string;
+};
+
+export type InventorySupplierRow = {
+  id: string;
+  tenant_id: string;
+  name: string;
+  contact_name: string | null;
+  phone: string | null;
+  email: string | null;
+  notes: string | null;
+  is_active: boolean;
   created_at: string;
 };
 
@@ -89,12 +105,19 @@ export type InventoryItemRow = {
   sku: string;
   name: string;
   category_id: string | null;
-  /** hotel.inventory_units.id */
+  /** hotel.inventory_units.id — the unit stock is tracked/issued in. */
   unit_of_measure: InventoryUnitOfMeasure;
   unit_of_measure_name: string;
+  /** hotel.inventory_units.id — the unit this item is bought in, if different from the issue unit (e.g. a case vs. a piece). */
+  purchase_unit_id: string | null;
+  purchase_unit_name: string | null;
+  /** How many issue units make up one purchase unit. 1 when purchase and issue units are the same. */
+  purchase_to_issue_factor: number;
   /** hotel.inventory_item_types.id */
   item_type: InventoryItemType;
   item_type_name: string;
+  item_type_is_fixed_asset: boolean;
+  item_type_is_equipment: boolean;
   unit_cost: number;
   barcode: string | null;
   is_active: boolean;
@@ -210,6 +233,7 @@ export type InventoryReceiptRow = {
   tenant_id: string;
   receipt_number: string;
   location_id: string;
+  supplier_id: string | null;
   supplier_name: string | null;
   procurement_reference: string | null;
   received_by: string;

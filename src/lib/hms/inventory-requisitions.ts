@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { postStockMovement, resolveInventoryItemDisplay } from "@/lib/hms/inventory-stock";
+import { findFixedAssetItem, postStockMovement, resolveInventoryItemDisplay } from "@/lib/hms/inventory-stock";
 import type {
   InventoryRequisitionRow,
   InventoryRequisitionStatus,
@@ -119,6 +119,11 @@ export async function createRequisition(
 ) {
   if (!params.lines.length) return { requisition: null, error: "Add at least one item." };
 
+  const fixedAssetName = await findFixedAssetItem(supabase, params.tenantId, params.lines.map((l) => l.itemId));
+  if (fixedAssetName) {
+    return { requisition: null, error: `${fixedAssetName} is a fixed asset — record it on your asset register, not through requisitions.` };
+  }
+
   const { data: req, error } = await supabase
     .schema("hotel")
     .from("inventory_requisitions")
@@ -189,6 +194,15 @@ export async function issueRequisition(
   if (!requisition) return { error: "Requisition not found." };
   if (!["approved", "partially_issued"].includes(requisition.status)) {
     return { error: "Requisition must be approved before issuing." };
+  }
+
+  const fixedAssetName = await findFixedAssetItem(
+    supabase,
+    tenantId,
+    lineIssues.map((issue) => requisition.lines.find((l) => l.id === issue.lineId)?.item_id).filter((id): id is string => Boolean(id)),
+  );
+  if (fixedAssetName) {
+    return { error: `${fixedAssetName} is a fixed asset — record it on your asset register, not through requisitions.` };
   }
 
   for (const issue of lineIssues) {

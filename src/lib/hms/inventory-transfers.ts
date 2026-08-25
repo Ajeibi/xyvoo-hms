@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { postStockMovement, resolveInventoryItemDisplay } from "@/lib/hms/inventory-stock";
+import { findFixedAssetItem, postStockMovement, resolveInventoryItemDisplay } from "@/lib/hms/inventory-stock";
 import type {
   InventoryTransferRow,
   InventoryTransferStatus,
@@ -125,6 +125,11 @@ export async function createTransfer(
   if (!params.lines.length) return { transfer: null, error: "Add at least one item." };
   if (params.fromLocationId === params.toLocationId) {
     return { transfer: null, error: "Source and destination locations must differ." };
+  }
+
+  const fixedAssetName = await findFixedAssetItem(supabase, params.tenantId, params.lines.map((l) => l.itemId));
+  if (fixedAssetName) {
+    return { transfer: null, error: `${fixedAssetName} is a fixed asset — record it on your asset register, not through transfers.` };
   }
 
   const { data: transfer, error } = await supabase

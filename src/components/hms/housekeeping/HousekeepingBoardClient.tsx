@@ -9,6 +9,9 @@ import { toastError, toastSuccess } from "@/lib/app-toast";
 import type { HousekeepingTaskRow } from "@/lib/hms/housekeeping-tasks";
 import { effectiveTaskDueBy, type TenantHousekeepingSettings } from "@/lib/hms/housekeeping-settings";
 import { PriorityBadge, SlaCountdown, StatusBadge, taskTypeLabel } from "@/components/hms/housekeeping/HousekeepingBadges";
+import { HousekeepingSubNav } from "@/components/hms/housekeeping/HousekeepingSubNav";
+import { HousekeepingAssigneeField } from "@/components/hms/housekeeping/HousekeepingAssigneeField";
+import { HousekeepingNewTaskDialog, type HousekeepingRoomOption } from "@/components/hms/housekeeping/HousekeepingNewTaskDialog";
 
 const NEXT_STATUS: Record<string, { label: string; status: string } | null> = {
   dirty: { label: "Start cleaning", status: "cleaning_in_progress" },
@@ -24,15 +27,22 @@ export function HousekeepingBoardClient({
   tasks,
   settings,
   canManage,
+  canCreateManualTask,
+  canAccessAllDepartments,
+  rooms,
 }: {
   slug: string;
   tenantId: string;
   tasks: HousekeepingTaskRow[];
   settings: TenantHousekeepingSettings;
   canManage: boolean;
+  canCreateManualTask: boolean;
+  canAccessAllDepartments: boolean;
+  rooms: HousekeepingRoomOption[];
 }) {
   const router = useRouter();
   const [generating, setGenerating] = useState(false);
+  const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
   const [now] = useClientNow();
   useFrontDeskRealtime(tenantId, true);
 
@@ -47,18 +57,27 @@ export function HousekeepingBoardClient({
   }, [tasks]);
 
   const advance = async (taskId: string, status: string, label: string) => {
-    const res = await fetch(`/api/hotel/housekeeping/tasks/${taskId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ slug, status }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      toastError("Could not update task", data.error ?? "Try again.");
-      return;
+    setBusyIds((prev) => new Set(prev).add(taskId));
+    try {
+      const res = await fetch(`/api/hotel/housekeeping/tasks/${taskId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug, status }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toastError("Could not update task", data.error ?? "Try again.");
+        return;
+      }
+      toastSuccess(label);
+      router.refresh();
+    } finally {
+      setBusyIds((prev) => {
+        const next = new Set(prev);
+        next.delete(taskId);
+        return next;
+      });
     }
-    toastSuccess(label);
-    router.refresh();
   };
 
   const generate = async () => {
@@ -88,12 +107,19 @@ export function HousekeepingBoardClient({
           <h1 className="text-xl font-semibold text-slate-900">Housekeeping</h1>
           <p className="mt-0.5 text-sm text-slate-500">Live room-cleaning board, grouped by floor.</p>
         </div>
-        {canManage ? (
-          <Button onClick={() => void generate()} disabled={generating} className="rounded-lg">
-            {generating ? "Generating…" : "Generate today's tasks"}
-          </Button>
-        ) : null}
+        <div className="flex flex-wrap gap-2">
+          {canCreateManualTask ? (
+            <HousekeepingNewTaskDialog slug={slug} rooms={rooms} onCreated={() => router.refresh()} />
+          ) : null}
+          {canManage ? (
+            <Button onClick={() => void generate()} disabled={generating} className="rounded-lg">
+              {generating ? "Generating…" : "Generate today's tasks"}
+            </Button>
+          ) : null}
+        </div>
       </div>
+
+      <HousekeepingSubNav slug={slug} canAccessAllDepartments={canAccessAllDepartments} />
 
       {tasks.length === 0 ? (
         <div className="mt-6 rounded-xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">
@@ -104,11 +130,11 @@ export function HousekeepingBoardClient({
           {byFloor.map(([floor, floorTasks]) => (
             <div key={floor} className="rounded-2xl border border-slate-200 bg-white p-4">
               <h2 className="mb-3 text-sm font-semibold text-slate-800">Floor {floor}</h2>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
                 {floorTasks.map((t) => {
                   const next = NEXT_STATUS[t.status];
                   return (
-                    <div key={t.id} className="rounded-xl border border-slate-200 p-3">
+                    <div key={t.id} className="rounded-xl border border-slate-200 p-4 shadow-sm">
                       <div className="flex items-start justify-between gap-2">
                         <div>
                           <p className="font-semibold text-slate-900">Room {t.roomCode}</p>
@@ -122,17 +148,24 @@ export function HousekeepingBoardClient({
                           <SlaCountdown dueBy={effectiveTaskDueBy(t.createdAt, t.taskType, t.dueBy, settings)} now={now} />
                         ) : null}
                       </div>
-                      <p className="mt-2 text-xs text-slate-500">
-                        {t.assignedStaffName ? `Assigned: ${t.assignedStaffName}` : "Unassigned"}
-                      </p>
+                      <div className="mt-2">
+                        <HousekeepingAssigneeField
+                          slug={slug}
+                          taskId={t.id}
+                          initialNote={t.assignedNote}
+                          canEdit={canManage}
+                          onSaved={() => router.refresh()}
+                        />
+                      </div>
                       {next ? (
                         <Button
                           type="button"
                           size="sm"
                           className="mt-3 w-full rounded-lg"
+                          disabled={busyIds.has(t.id)}
                           onClick={() => void advance(t.id, next.status, `Room ${t.roomCode}: ${next.label}`)}
                         >
-                          {next.label}
+                          {busyIds.has(t.id) ? "Saving…" : next.label}
                         </Button>
                       ) : t.status === "cleaned" ? (
                         <p className="mt-3 text-xs font-medium text-amber-700">Awaiting inspection</p>

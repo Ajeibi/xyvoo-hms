@@ -8,6 +8,8 @@ const PatchSchema = z.object({
   name: z.string().min(1).max(60).optional(),
   sortOrder: z.coerce.number().int().optional(),
   isActive: z.boolean().optional(),
+  isFixedAsset: z.boolean().optional(),
+  isEquipment: z.boolean().optional(),
 });
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -21,6 +23,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       name: body.name,
       sortOrder: body.sortOrder,
       isActive: body.isActive,
+      isFixedAsset: body.isFixedAsset,
+      isEquipment: body.isEquipment,
     });
     if (error || !row) {
       return NextResponse.json({ error: error ?? "Could not update item type." }, { status: 400 });

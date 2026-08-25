@@ -40,7 +40,7 @@ const FEATURES: FeatureRow[] = [
     ],
     urlLabel: "app.xyvoo.com / front-desk",
     badge: "Live",
-    learnMoreHref: "/home/about",
+    learnMoreHref: "/about",
     visualIcon: LayoutDashboard,
   },
   {
@@ -56,7 +56,7 @@ const FEATURES: FeatureRow[] = [
     ],
     urlLabel: "app.xyvoo.com / reservations",
     badge: "OTA Synced",
-    learnMoreHref: "/home/about",
+    learnMoreHref: "/about",
     visualIcon: CalendarDays,
   },
   {
@@ -72,7 +72,7 @@ const FEATURES: FeatureRow[] = [
     ],
     urlLabel: "app.xyvoo.com / analytics",
     badge: "Live Data",
-    learnMoreHref: "/home/about",
+    learnMoreHref: "/about",
     visualIcon: BarChart2,
   },
   {
@@ -88,7 +88,7 @@ const FEATURES: FeatureRow[] = [
     ],
     urlLabel: "app.xyvoo.com / housekeeping",
     badge: "Real-time",
-    learnMoreHref: "/home/about",
+    learnMoreHref: "/about",
     visualIcon: ClipboardCheck,
   },
 ];

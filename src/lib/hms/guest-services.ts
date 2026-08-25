@@ -16,6 +16,29 @@ export const GUEST_SERVICE_CATEGORIES = [
 
 export type GuestServiceCategory = (typeof GUEST_SERVICE_CATEGORIES)[number];
 
+/** The real routing targets for a guest request. Front Desk now picks this directly at
+ * creation time instead of relying on a tenant-configured category→department mapping. */
+export const GUEST_REQUEST_DEPARTMENTS = [
+  "front_desk",
+  "housekeeping",
+  "laundry",
+  "maintenance",
+  "concierge",
+  "security",
+  "food_beverage",
+] as const;
+export type GuestRequestDepartment = (typeof GUEST_REQUEST_DEPARTMENTS)[number];
+
+export const GUEST_REQUEST_DEPARTMENT_LABELS: Record<string, string> = {
+  front_desk: "Front desk",
+  housekeeping: "Housekeeping",
+  laundry: "Laundry",
+  maintenance: "Maintenance",
+  concierge: "Concierge",
+  security: "Security",
+  food_beverage: "F&B",
+};
+
 export const GUEST_REQUEST_STATUSES = [
   "pending",
   "assigned",
@@ -97,26 +120,23 @@ export function defaultDepartmentForCategory(category: string): string {
   return map[c] ?? "front_desk";
 }
 
-export function slaMinutesForCategory(category: string): number {
-  /** Default SLA minutes by category. Automated SLA-breach pushes are deferred (use cron/Edge Function + emitNotification). */
+export function slaMinutesForDepartment(department: string): number {
+  /** Default SLA minutes by department. Automated SLA-breach pushes are deferred (use cron/Edge Function + emitNotification). */
   const map: Record<string, number> = {
+    front_desk: 60,
     housekeeping: 30,
     laundry: 120,
     food_beverage: 45,
     concierge: 60,
     maintenance: 30,
     security: 15,
-    spa: 90,
-    transportation: 45,
-    special: 60,
-    other: 60,
   };
-  return map[category] ?? 60;
+  return map[department] ?? 60;
 }
 
-export function computeExpectedCompletedIso(createdAtIso: string, category: string): string {
+export function computeExpectedCompletedIso(createdAtIso: string, department: string): string {
   const d = new Date(createdAtIso);
-  d.setMinutes(d.getMinutes() + slaMinutesForCategory(category));
+  d.setMinutes(d.getMinutes() + slaMinutesForDepartment(department));
   return d.toISOString();
 }
 
@@ -528,4 +548,76 @@ export async function resolveReservationIdByCode(
     .ilike("folio_number", c)
     .maybeSingle();
   return (byFolio?.id as string) ?? null;
+}
+
+export type InHouseGuestOption = {
+  reservationId: string;
+  guestName: string;
+  roomCode: string | null;
+  confirmationCode: string;
+  isOverdue: boolean;
+};
+
+type InHouseReservationRow = {
+  id: string;
+  confirmation_code: string;
+  departure_at: string;
+  room_unit_id: string | null;
+  reservation_guests: {
+    is_primary: boolean;
+    guests:
+      | { first_name: string; last_name: string }
+      | { first_name: string; last_name: string }[]
+      | null;
+  }[] | null;
+};
+
+function guestNameForRow(r: InHouseReservationRow) {
+  const primary = r.reservation_guests?.find((e) => e.is_primary) ?? r.reservation_guests?.[0];
+  const g = primary?.guests;
+  const guest = Array.isArray(g) ? g[0] : g;
+  return guest ? `${guest.first_name} ${guest.last_name}`.trim() : "Guest";
+}
+
+/** Every currently checked-in stay, including guests past their scheduled checkout time
+ * (still `status = "checked_in"` until Front Desk actually checks them out). Used to populate
+ * guest/room pickers (e.g. the guest-services "new request" dialog) instead of a free-typed code. */
+export async function listInHouseGuestsForTenant(
+  service: SupabaseClient,
+  tenantId: string,
+): Promise<InHouseGuestOption[]> {
+  const { data: rows } = await service
+    .schema("hotel")
+    .from("reservations")
+    .select(
+      "id,confirmation_code,departure_at,room_unit_id,reservation_guests(is_primary,guests(first_name,last_name))",
+    )
+    .eq("tenant_id", tenantId)
+    .eq("status", "checked_in")
+    .order("departure_at", { ascending: true })
+    .limit(500);
+
+  const reservations = (rows ?? []) as InHouseReservationRow[];
+  if (reservations.length === 0) return [];
+
+  const roomUnitIds = [
+    ...new Set(
+      reservations.map((r) => r.room_unit_id).filter((id): id is string => typeof id === "string" && id.length > 0),
+    ),
+  ];
+  const { data: roomUnits } = roomUnitIds.length
+    ? await service.schema("hotel").from("room_units").select("id,room_code").in("id", roomUnitIds)
+    : { data: [] as { id: string; room_code: string }[] };
+  const roomCodeById = new Map((roomUnits ?? []).map((u) => [u.id as string, u.room_code as string]));
+
+  const now = Date.now();
+  const results = reservations.map((r) => ({
+    reservationId: r.id,
+    guestName: guestNameForRow(r),
+    roomCode: r.room_unit_id ? roomCodeById.get(r.room_unit_id) ?? null : null,
+    confirmationCode: r.confirmation_code,
+    isOverdue: new Date(r.departure_at).getTime() < now,
+  }));
+
+  return results.sort((a, b) => (a.roomCode ?? "").localeCompare(b.roomCode ?? ""));
 }

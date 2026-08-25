@@ -1,4 +1,5 @@
 import HMSLayout from "@/components/hms/HMSLayout";
+import { getHmsAccessContext } from "@/lib/hms/access";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { listOpenHousekeepingTasks } from "@/lib/hms/housekeeping-tasks";
@@ -7,7 +8,7 @@ import { HousekeepingAssignmentsClient } from "@/components/hms/housekeeping/Hou
 
 export default async function HousekeepingAssignmentsPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const tenant = await getHotelTenantBySlug(slug);
+  const [access, tenant] = await Promise.all([getHmsAccessContext(slug), getHotelTenantBySlug(slug)]);
 
   if (!tenant) {
     return (
@@ -32,7 +33,13 @@ export default async function HousekeepingAssignmentsPage({ params }: { params: 
 
   return (
     <HMSLayout slug={slug} requiredSection="housekeeping-assignments">
-      <HousekeepingAssignmentsClient slug={slug} tenantId={tenant.id} tasks={tasks} attendants={attendants} />
+      <HousekeepingAssignmentsClient
+        slug={slug}
+        tenantId={tenant.id}
+        tasks={tasks}
+        attendants={attendants}
+        canAccessAllDepartments={access.canAccessAllDepartments}
+      />
     </HMSLayout>
   );
 }

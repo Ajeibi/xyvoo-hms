@@ -29,6 +29,8 @@ const PostSchema = z.object({
   name: z.string().min(1).max(60),
   code: z.string().min(1).max(40).optional(),
   sortOrder: z.coerce.number().int().optional(),
+  isFixedAsset: z.boolean().optional(),
+  isEquipment: z.boolean().optional(),
 });
 
 export async function POST(req: Request) {
@@ -42,6 +44,8 @@ export async function POST(req: Request) {
       name: body.name,
       code: body.code,
       sortOrder: body.sortOrder,
+      isFixedAsset: body.isFixedAsset,
+      isEquipment: body.isEquipment,
     });
     if (error || !row) {
       return NextResponse.json({ error: error ?? "Could not create item type." }, { status: 400 });

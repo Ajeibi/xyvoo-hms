@@ -39,6 +39,7 @@ const LineSchema = z.object({
 const PostSchema = z.object({
   slug: z.string().min(1),
   locationId: z.string().min(1),
+  supplierId: z.string().min(1).optional(),
   supplierName: z.string().max(200).optional(),
   procurementReference: z.string().max(200).optional(),
   notes: z.string().max(2000).optional(),
@@ -54,6 +55,7 @@ export async function POST(req: Request) {
     const { receipt, error } = await createReceipt(auth.service, {
       tenantId: auth.tenant.id,
       locationId: body.locationId,
+      supplierId: body.supplierId,
       supplierName: body.supplierName,
       procurementReference: body.procurementReference,
       receivedBy: auth.user.id,

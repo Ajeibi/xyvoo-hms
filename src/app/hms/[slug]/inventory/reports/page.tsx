@@ -1,5 +1,6 @@
 import HMSLayout from "@/components/hms/HMSLayout";
 import { InventorySubNav } from "@/components/hms/inventory/InventorySubNav";
+import { SettingsSectionInfo } from "@/components/hms/settings/SettingsSectionInfo";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { getHmsAccessContext } from "@/lib/hms/access";
 import { normalizePricingSetup, formatPricingAmount } from "@/lib/hms/room-pricing";
@@ -64,10 +65,29 @@ export default async function InventoryReportsPage({ params }: { params: Promise
 
   const varianceRows = movements.filter((m) => m.movement_type === "count_variance");
 
+  // Cost of waste: waste movements now carry a real unit_cost_at_movement (weighted-average cost at the time), grouped by reason.
+  const wasteByReason = new Map<string, { reason: string; qty: number; cost: number }>();
+  for (const m of movements) {
+    if (m.movement_type !== "waste") continue;
+    const reason = m.reason ?? "Unspecified";
+    const entry = wasteByReason.get(reason) ?? { reason, qty: 0, cost: 0 };
+    entry.qty += Math.abs(m.qty);
+    entry.cost += Math.abs(m.qty) * m.unit_cost_at_movement;
+    wasteByReason.set(reason, entry);
+  }
+  const wasteRows = [...wasteByReason.values()].sort((a, b) => b.cost - a.cost);
+  const totalWasteCost = wasteRows.reduce((sum, r) => sum + r.cost, 0);
+
   return (
     <HMSLayout slug={slug} requiredSection="inventory-reports">
       <div className="px-8 py-8">
-        <h1 className="text-xl font-semibold text-slate-900">Inventory reports</h1>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <h1 className="text-xl font-semibold text-slate-900">Inventory reports</h1>
+          <SettingsSectionInfo
+            title="Inventory reports"
+            text="Read-only reporting drawn straight from the stock ledger: valuation by category, top-moving items, and recent count-variance history. Nothing here can be edited — it's a view of what already happened."
+          />
+        </div>
         <p className="mt-0.5 text-sm text-slate-500">
           Stock valuation, top-moving items, and count-variance history.
         </p>
@@ -140,6 +160,40 @@ export default async function InventoryReportsPage({ params }: { params: Promise
                         <td className="px-5 py-2.5 text-right font-medium text-slate-800">
                           {row.qty.toLocaleString()} {row.unit}
                         </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+
+          <section className="rounded-xl border border-slate-200 bg-white">
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900">Cost of waste</h2>
+                <p className="mt-0.5 text-xs text-slate-400">By reason, using each movement&apos;s cost at the time it was recorded.</p>
+              </div>
+              <span className="text-xs text-slate-400">Total: {formatPricingAmount(totalWasteCost, currency)}</span>
+            </div>
+            {wasteRows.length === 0 ? (
+              <p className="px-5 py-6 text-sm text-slate-500">No waste recorded yet.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-left text-xs font-medium uppercase tracking-wide text-slate-400">
+                      <th className="px-5 py-2.5">Reason</th>
+                      <th className="px-5 py-2.5 text-right">Qty wasted</th>
+                      <th className="px-5 py-2.5 text-right">Cost</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {wasteRows.map((row) => (
+                      <tr key={row.reason} className="border-b border-slate-50 last:border-0">
+                        <td className="px-5 py-2.5 font-medium text-slate-800">{row.reason}</td>
+                        <td className="px-5 py-2.5 text-right text-slate-600">{row.qty.toLocaleString()}</td>
+                        <td className="px-5 py-2.5 text-right text-slate-800">{formatPricingAmount(row.cost, currency)}</td>
                       </tr>
                     ))}
                   </tbody>

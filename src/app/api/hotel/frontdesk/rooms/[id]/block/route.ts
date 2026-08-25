@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
 import { writeAuditLog, emitNotification } from "@/lib/hms/front-desk-ops";
 import { getRoomsCapabilities } from "@/lib/hms/rooms-rbac";
+import { setRoomStatus } from "@/lib/hms/room-status";
 
 const PostSchema = z.object({
   slug: z.string().min(1),
@@ -53,20 +54,23 @@ export async function POST(
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    if (body.blockType !== "soft") {
-      await auth.service
-        .schema("hotel")
-        .from("room_units")
-        .update({ status: "out_of_order" })
-        .eq("id", id);
-    }
-
     const { data: unit } = await auth.service
       .schema("hotel")
       .from("room_units")
-      .select("room_code")
+      .select("room_code,status")
       .eq("id", id)
       .maybeSingle();
+
+    if (body.blockType !== "soft") {
+      await setRoomStatus(auth.service, {
+        tenantId: auth.tenant.id,
+        roomUnitId: id,
+        status: "out_of_order",
+        actorUserId: auth.user.id,
+        roomCode: unit?.room_code,
+        previousStatus: unit?.status,
+      });
+    }
 
     await writeAuditLog({
       tenantId: auth.tenant.id,
@@ -114,6 +118,15 @@ export async function PATCH(
     const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (body.active !== undefined) updates.active = body.active;
 
+    const { data: block } = await auth.service
+      .schema("hotel")
+      .from("room_blocks")
+      .select("block_type")
+      .eq("tenant_id", auth.tenant.id)
+      .eq("room_unit_id", id)
+      .eq("id", body.blockId)
+      .maybeSingle();
+
     await auth.service
       .schema("hotel")
       .from("room_blocks")
@@ -123,6 +136,31 @@ export async function PATCH(
       .eq("id", body.blockId);
 
     if (body.active === false) {
+      // The matching POST only sets room_units.status to out_of_order for a non-"soft" block
+      // (line ~60 above) — unblocking must undo exactly that, or the room stays stuck as
+      // out-of-order forever with nothing else to ever move it out of that status. It comes back
+      // as "dirty" rather than straight to available, since nobody has actually cleaned it since
+      // the block was lifted; occupied rooms are left alone (a block shouldn't have coexisted
+      // with an active stay, but this avoids clobbering real occupancy if it somehow did).
+      if (block?.block_type !== "soft") {
+        const { data: unit } = await auth.service
+          .schema("hotel")
+          .from("room_units")
+          .select("room_code,status")
+          .eq("id", id)
+          .maybeSingle();
+        if (unit && unit.status !== "occupied") {
+          await setRoomStatus(auth.service, {
+            tenantId: auth.tenant.id,
+            roomUnitId: id,
+            status: "dirty",
+            actorUserId: auth.user.id,
+            roomCode: unit.room_code,
+            previousStatus: unit.status,
+          });
+        }
+      }
+
       await writeAuditLog({
         tenantId: auth.tenant.id,
         actorUserId: auth.user.id,

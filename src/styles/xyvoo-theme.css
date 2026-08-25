@@ -100,7 +100,7 @@
   --xyvoo-feature-card-navy-title: rgb(255 255 255 / 0.96);
   --xyvoo-feature-card-navy-text: rgb(255 255 255 / 0.72);
 
-  /* HMS pricing hero (home + /home/pricing) */
+  /* HMS pricing hero (home + /pricing) */
   --xyvoo-hms-pricing-hero-gradient: linear-gradient(
     92.64deg,
     #041D42 -7.34%,

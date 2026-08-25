@@ -21,18 +21,23 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toastError, toastSuccess } from "@/lib/app-toast";
+import { InventoryItemPicker } from "@/components/hms/inventory/InventoryItemPicker";
 import type { InventoryReceiptWithLines } from "@/lib/hms/inventory-types";
-import type { InventoryItemRow, InventoryLocationRow } from "@/lib/hms/inventory-types";
+import type { InventoryItemRow, InventoryLocationRow, InventorySupplierRow } from "@/lib/hms/inventory-types";
+
+const OTHER_SUPPLIER = "__other__";
 
 type DraftLine = {
   key: string;
   itemId: string;
   qtyReceived: string;
   unitCost: string;
+  /** Which unit qtyReceived/unitCost are entered in — only meaningful when the item has a distinct purchase unit. */
+  unitMode: "issue" | "purchase";
 };
 
 function emptyLine(): DraftLine {
-  return { key: crypto.randomUUID(), itemId: "", qtyReceived: "1", unitCost: "0" };
+  return { key: crypto.randomUUID(), itemId: "", qtyReceived: "1", unitCost: "0", unitMode: "issue" };
 }
 
 function formatNumber(n: number) {
@@ -57,26 +62,46 @@ export function InventoryReceivingClient({
   slug,
   receipts,
   locations,
-  items,
+  items: initialItems,
+  suppliers = [],
+  canCreateItem = false,
 }: {
   slug: string;
   receipts: InventoryReceiptWithLines[];
   locations: InventoryLocationRow[];
   items: InventoryItemRow[];
+  suppliers?: InventorySupplierRow[];
+  canCreateItem?: boolean;
 }) {
   const router = useRouter();
+  const [items, setItems] = useState(initialItems);
   const [open, setOpen] = useState(false);
   const [locationId, setLocationId] = useState("");
+  const [supplierId, setSupplierId] = useState("");
   const [supplierName, setSupplierName] = useState("");
+  const activeSuppliers = useMemo(() => suppliers.filter((s) => s.is_active), [suppliers]);
   const [procurementReference, setProcurementReference] = useState("");
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<DraftLine[]>([emptyLine()]);
   const [submitting, setSubmitting] = useState(false);
+  const [search, setSearch] = useState("");
 
   const itemById = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
 
+  const filteredReceipts = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return receipts;
+    return receipts.filter(
+      (r) =>
+        r.receipt_number.toLowerCase().includes(term) ||
+        (r.supplier_name ?? "").toLowerCase().includes(term) ||
+        r.lines.some((l) => l.item_name.toLowerCase().includes(term) || l.item_sku.toLowerCase().includes(term)),
+    );
+  }, [receipts, search]);
+
   const resetForm = () => {
     setLocationId("");
+    setSupplierId("");
     setSupplierName("");
     setProcurementReference("");
     setNotes("");
@@ -89,7 +114,7 @@ export function InventoryReceivingClient({
 
   const setLineItem = (key: string, itemId: string) => {
     const item = itemById.get(itemId);
-    updateLine(key, { itemId, unitCost: item ? String(item.unit_cost) : "0" });
+    updateLine(key, { itemId, unitCost: item ? String(item.unit_cost) : "0", unitMode: "issue" });
   };
 
   const addLine = () => setLines((prev) => [...prev, emptyLine()]);
@@ -105,11 +130,17 @@ export function InventoryReceivingClient({
     try {
       const payloadLines = lines
         .filter((l) => l.itemId && Number(l.qtyReceived) > 0)
-        .map((l) => ({
-          itemId: l.itemId,
-          qtyReceived: Number(l.qtyReceived),
-          unitCost: Number(l.unitCost) || 0,
-        }));
+        .map((l) => {
+          const item = itemById.get(l.itemId);
+          const factor = l.unitMode === "purchase" ? item?.purchase_to_issue_factor || 1 : 1;
+          // Convert from the entered unit (purchase unit, e.g. a case) into the
+          // issue unit the ledger always tracks in (e.g. pieces).
+          return {
+            itemId: l.itemId,
+            qtyReceived: Number(l.qtyReceived) * factor,
+            unitCost: (Number(l.unitCost) || 0) / factor,
+          };
+        });
 
       const res = await fetch("/api/hotel/inventory/receipts", {
         method: "POST",
@@ -117,6 +148,7 @@ export function InventoryReceivingClient({
         body: JSON.stringify({
           slug,
           locationId,
+          supplierId: supplierId && supplierId !== OTHER_SUPPLIER ? supplierId : undefined,
           supplierName: supplierName.trim() || undefined,
           procurementReference: procurementReference.trim() || undefined,
           notes: notes.trim() || undefined,
@@ -139,7 +171,13 @@ export function InventoryReceivingClient({
 
   return (
     <div className="mt-6 space-y-4">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center gap-3">
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by receipt #, supplier, item, or SKU"
+          className="w-full flex-1 sm:max-w-sm"
+        />
         <Button
           type="button"
           className="rounded-lg"
@@ -155,11 +193,13 @@ export function InventoryReceivingClient({
         <div className="border-b border-slate-100 px-6 py-4">
           <h2 className="text-sm font-semibold text-slate-900">Recent receipts</h2>
         </div>
-        {receipts.length === 0 ? (
-          <p className="px-6 py-8 text-sm text-slate-500">No goods receipts recorded yet.</p>
+        {filteredReceipts.length === 0 ? (
+          <p className="px-6 py-8 text-sm text-slate-500">
+            {receipts.length === 0 ? "No goods receipts recorded yet." : "No receipts match your search."}
+          </p>
         ) : (
           <ul className="divide-y divide-slate-100">
-            {receipts.map((r) => (
+            {filteredReceipts.map((r) => (
               <li key={r.id} className="px-6 py-4 text-sm">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
@@ -228,7 +268,33 @@ export function InventoryReceivingClient({
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-600">Supplier (optional)</label>
-                <Input value={supplierName} onChange={(e) => setSupplierName(e.target.value)} placeholder="Supplier name" />
+                <Select
+                  value={supplierId}
+                  onValueChange={(v) => {
+                    setSupplierId(v);
+                    if (v !== OTHER_SUPPLIER) setSupplierName("");
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a supplier" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {activeSuppliers.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.name}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value={OTHER_SUPPLIER}>Other (type below)</SelectItem>
+                  </SelectContent>
+                </Select>
+                {supplierId === OTHER_SUPPLIER ? (
+                  <Input
+                    className="mt-2"
+                    value={supplierName}
+                    onChange={(e) => setSupplierName(e.target.value)}
+                    placeholder="Supplier name"
+                  />
+                ) : null}
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-slate-600">Procurement reference (optional)</label>
@@ -262,18 +328,15 @@ export function InventoryReceivingClient({
                       className="grid grid-cols-12 items-center gap-2 rounded-lg border border-slate-200 p-2"
                     >
                       <div className="col-span-5">
-                        <Select value={line.itemId} onValueChange={(v) => setLineItem(line.key, v)}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select item" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {items.map((i) => (
-                              <SelectItem key={i.id} value={i.id}>
-                                {i.name} ({i.sku})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <InventoryItemPicker
+                          slug={slug}
+                          items={items}
+                          value={line.itemId}
+                          onValueChange={(v) => setLineItem(line.key, v)}
+                          canCreateItem={canCreateItem}
+                          onItemCreated={(created) => setItems((prev) => [...prev, created])}
+                          placeholder="Select item"
+                        />
                       </div>
                       <div className="col-span-3">
                         <Input
@@ -306,7 +369,27 @@ export function InventoryReceivingClient({
                           <Trash2 className="h-4 w-4 text-slate-400" />
                         </Button>
                       </div>
-                      {item ? (
+                      {item?.purchase_unit_id ? (
+                        <div className="col-span-12 -mt-1 flex items-center gap-2 text-xs text-slate-400">
+                          <span>Entering qty/cost per:</span>
+                          <div className="flex overflow-hidden rounded-md border border-slate-200">
+                            <button
+                              type="button"
+                              className={`px-2 py-0.5 ${line.unitMode === "issue" ? "bg-blue-50 text-blue-700" : "text-slate-500"}`}
+                              onClick={() => updateLine(line.key, { unitMode: "issue" })}
+                            >
+                              {item.unit_of_measure_name}
+                            </button>
+                            <button
+                              type="button"
+                              className={`px-2 py-0.5 ${line.unitMode === "purchase" ? "bg-blue-50 text-blue-700" : "text-slate-500"}`}
+                              onClick={() => updateLine(line.key, { unitMode: "purchase" })}
+                            >
+                              {item.purchase_unit_name} (× {item.purchase_to_issue_factor} {item.unit_of_measure_name})
+                            </button>
+                          </div>
+                        </div>
+                      ) : item ? (
                         <p className="col-span-12 -mt-1 text-xs text-slate-400">{item.unit_of_measure_name}</p>
                       ) : null}
                     </div>

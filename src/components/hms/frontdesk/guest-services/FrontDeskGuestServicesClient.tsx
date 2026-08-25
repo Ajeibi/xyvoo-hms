@@ -5,9 +5,9 @@ import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { GuestServicesListPayload, GuestRequestRow } from "@/lib/hms/guest-services";
+import type { GuestServicesListPayload, GuestRequestRow, InHouseGuestOption } from "@/lib/hms/guest-services";
+import { GUEST_REQUEST_DEPARTMENTS, GUEST_REQUEST_DEPARTMENT_LABELS } from "@/lib/hms/guest-services";
 import type { GuestServicesRoleCapabilities } from "@/lib/hms/guest-services-rbac";
-import type { GuestServiceCategoryRow } from "@/lib/hms/guest-service-categories";
 import { useFrontDeskRealtime } from "@/hooks/useFrontDeskRealtime";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { cn } from "@/lib/utils";
@@ -22,16 +22,6 @@ import {
 } from "@/components/ui/dialog";
 
 const GUEST_SERVICES_PAGE_SIZE = 5;
-
-const DEPARTMENT_LABELS: Record<string, string> = {
-  front_desk: "Front desk",
-  housekeeping: "Housekeeping",
-  laundry: "Laundry",
-  maintenance: "Maintenance",
-  concierge: "Concierge",
-  security: "Security",
-  food_beverage: "F&B",
-};
 
 function SummaryCard({
   label,
@@ -67,17 +57,13 @@ export function FrontDeskGuestServicesClient({
   tenantId,
   capabilities,
   initialSearch = "",
-  categories,
 }: {
   slug: string;
   tenantId: string;
   capabilities: GuestServicesRoleCapabilities;
   /** Deep link from guest profile etc. */
   initialSearch?: string;
-  /** Tenant-configured categories (Settings → Guest service categories), replacing the old hardcoded list. */
-  categories: GuestServiceCategoryRow[];
 }) {
-  const defaultCategoryCode = categories.find((c) => c.code === "special")?.code ?? categories[0]?.code ?? "";
   const [data, setData] = useState<GuestServicesListPayload | null>(null);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<{
@@ -107,13 +93,32 @@ export function FrontDeskGuestServicesClient({
   const [sheetOpen, setSheetOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [createForm, setCreateForm] = useState({
-    confirmationCode: "",
-    serviceCategory: defaultCategoryCode,
+    reservationId: "",
+    department: "",
     requestType: "",
     details: "",
     priority: "normal" as const,
     billable: false,
   });
+  const [inHouseGuests, setInHouseGuests] = useState<InHouseGuestOption[]>([]);
+  const [guestsLoading, setGuestsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!createOpen || !tenantId) return;
+    let cancelled = false;
+    setGuestsLoading(true);
+    fetch(`/api/hotel/frontdesk/guest-services/in-house?${new URLSearchParams({ slug })}`)
+      .then((res) => res.json())
+      .then((json: { guests?: InHouseGuestOption[]; error?: string }) => {
+        if (!cancelled && !json.error) setInHouseGuests(json.guests ?? []);
+      })
+      .finally(() => {
+        if (!cancelled) setGuestsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [createOpen, slug, tenantId]);
 
   const refresh = useCallback(async () => {
     if (!tenantId) return;
@@ -180,28 +185,16 @@ export function FrontDeskGuestServicesClient({
     [filteredRows, currentPage],
   );
 
-  /** Derived from the tenant's configured categories rather than a hardcoded list, so a new
-   * department only shows up here once a category actually routes to it. */
-  const departmentOptions = useMemo(() => {
-    const seen = new Set<string>();
-    const options: { value: string; label: string }[] = [];
-    for (const c of categories) {
-      if (seen.has(c.department)) continue;
-      seen.add(c.department);
-      options.push({ value: c.department, label: DEPARTMENT_LABELS[c.department] ?? c.department.replace(/_/g, " ") });
-    }
-    return options;
-  }, [categories]);
-
   async function submitCreate() {
-    if (!capabilities.canCreate) return;
+    if (!capabilities.canCreate || !createForm.department) return;
     const res = await fetch(`/api/hotel/frontdesk/guest-services`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         slug,
-        confirmationCode: createForm.confirmationCode.trim(),
-        serviceCategory: createForm.serviceCategory,
+        reservationId: createForm.reservationId,
+        department: createForm.department,
+        serviceCategory: createForm.requestType.trim(),
         requestType: createForm.requestType.trim(),
         details: createForm.details.trim() || undefined,
         priority: createForm.priority,
@@ -216,8 +209,8 @@ export function FrontDeskGuestServicesClient({
     toastSuccess("Guest service request created");
     setCreateOpen(false);
     setCreateForm({
-      confirmationCode: "",
-      serviceCategory: defaultCategoryCode,
+      reservationId: "",
+      department: "",
       requestType: "",
       details: "",
       priority: "normal",
@@ -343,9 +336,9 @@ export function FrontDeskGuestServicesClient({
             }
           >
             <option value="">All departments</option>
-            {departmentOptions.map((d) => (
-              <option key={d.value} value={d.value}>
-                {d.label}
+            {GUEST_REQUEST_DEPARTMENTS.map((d) => (
+              <option key={d} value={d}>
+                {GUEST_REQUEST_DEPARTMENT_LABELS[d]}
               </option>
             ))}
           </select>
@@ -456,29 +449,45 @@ export function FrontDeskGuestServicesClient({
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <p className="mb-1 text-xs font-medium text-slate-600">Confirmation code</p>
-              <Input
-                value={createForm.confirmationCode}
-                onChange={(e) => setCreateForm((s) => ({ ...s, confirmationCode: e.target.value }))}
-                placeholder="e.g. ABC123"
-              />
-            </div>
-            <div>
-              <p className="mb-1 text-xs font-medium text-slate-600">Category</p>
+              <p className="mb-1 text-xs font-medium text-slate-600">Guest / room</p>
               <select
                 className="h-10 w-full rounded-lg border border-input px-3 text-sm"
-                value={createForm.serviceCategory}
-                onChange={(e) => setCreateForm((s) => ({ ...s, serviceCategory: e.target.value }))}
+                value={createForm.reservationId}
+                onChange={(e) => setCreateForm((s) => ({ ...s, reservationId: e.target.value }))}
+                disabled={guestsLoading}
               >
-                {categories.map((c) => (
-                  <option key={c.id} value={c.code}>
-                    {c.name}
+                <option value="">
+                  {guestsLoading ? "Loading guests…" : "Select a guest…"}
+                </option>
+                {inHouseGuests.map((g) => (
+                  <option key={g.reservationId} value={g.reservationId}>
+                    {g.roomCode ? `Rm ${g.roomCode} · ` : ""}
+                    {g.guestName} ({g.confirmationCode})
+                    {g.isOverdue ? " — overdue checkout" : ""}
+                  </option>
+                ))}
+              </select>
+              {!guestsLoading && inHouseGuests.length === 0 ? (
+                <p className="mt-1 text-xs text-slate-500">No guests are currently checked in.</p>
+              ) : null}
+            </div>
+            <div>
+              <p className="mb-1 text-xs font-medium text-slate-600">Department</p>
+              <select
+                className="h-10 w-full rounded-lg border border-input px-3 text-sm"
+                value={createForm.department}
+                onChange={(e) => setCreateForm((s) => ({ ...s, department: e.target.value }))}
+              >
+                <option value="">Select department…</option>
+                {GUEST_REQUEST_DEPARTMENTS.map((d) => (
+                  <option key={d} value={d}>
+                    {GUEST_REQUEST_DEPARTMENT_LABELS[d]}
                   </option>
                 ))}
               </select>
             </div>
             <div>
-              <p className="mb-1 text-xs font-medium text-slate-600">Request type</p>
+              <p className="mb-1 text-xs font-medium text-slate-600">Category</p>
               <Input
                 value={createForm.requestType}
                 onChange={(e) => setCreateForm((s) => ({ ...s, requestType: e.target.value }))}
@@ -527,7 +536,7 @@ export function FrontDeskGuestServicesClient({
             <Button
               type="button"
               onClick={submitCreate}
-              disabled={!createForm.confirmationCode.trim() || !createForm.requestType.trim()}
+              disabled={!createForm.reservationId || !createForm.department || !createForm.requestType.trim()}
             >
               Create
             </Button>

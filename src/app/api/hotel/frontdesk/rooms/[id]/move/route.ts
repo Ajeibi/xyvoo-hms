@@ -5,6 +5,7 @@ import { assignReservationToRoom } from "@/lib/hms/rooms-ops";
 import { writeAuditLog, emitNotification } from "@/lib/hms/front-desk-ops";
 import { verifyManagerPin } from "@/lib/hms/folio";
 import { getRoomsCapabilities } from "@/lib/hms/rooms-rbac";
+import { writeRoomStatus } from "@/lib/hms/room-status";
 
 const BodySchema = z.object({
   slug: z.string().min(1),
@@ -84,11 +85,11 @@ export async function POST(
       }
     }
 
-    await auth.service
-      .schema("hotel")
-      .from("room_units")
-      .update({ status: "dirty" })
-      .eq("id", fromRoomId);
+    await writeRoomStatus(auth.service, {
+      tenantId: auth.tenant.id,
+      roomUnitId: fromRoomId,
+      status: "dirty",
+    });
 
     await auth.service
       .schema("hotel")
@@ -102,11 +103,11 @@ export async function POST(
         { onConflict: "room_unit_id" },
       );
 
-    await auth.service
-      .schema("hotel")
-      .from("room_units")
-      .update({ status: "occupied" })
-      .eq("id", body.newRoomUnitId);
+    await writeRoomStatus(auth.service, {
+      tenantId: auth.tenant.id,
+      roomUnitId: body.newRoomUnitId,
+      status: "occupied",
+    });
 
     await writeAuditLog({
       tenantId: auth.tenant.id,

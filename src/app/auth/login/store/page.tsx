@@ -19,7 +19,7 @@ export default function StoreLoginPage() {
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <Link
-              href="/home/contact"
+              href="/contact"
               className="inline-flex flex-1 items-center justify-center rounded-xl bg-xyvoo-blue px-5 py-3 text-center text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-95"
             >
               Contact sales

@@ -20,23 +20,20 @@ export default async function InventoryRequisitionsPage({ params }: { params: Pr
     [requisitions, locations, items] = await Promise.all([
       listRequisitions(supabase, tenant.id, { limit: 100 }),
       listLocations(supabase, tenant.id),
-      listItems(supabase, tenant.id, { activeOnly: true }),
+      listItems(supabase, tenant.id, { activeOnly: true, excludeFixedAssets: true }),
     ]);
   }
 
   return (
     <HMSLayout slug={slug} requiredSection="inventory-requisitions">
       <div className="px-8 py-8">
-        <h1 className="text-xl font-semibold text-slate-900">Requisitions</h1>
-        <p className="mt-0.5 text-sm text-slate-500">
-          Department stock requests — approve, issue, or reject requests from a store.
-        </p>
         <InventorySubNav slug={slug} canAccessAllDepartments={access.canAccessAllDepartments} />
         <InventoryRequisitionsClient
           slug={slug}
           requisitions={requisitions}
           locations={locations}
           items={items}
+          canCreateItem={access.canAccessAllDepartments}
         />
       </div>
     </HMSLayout>

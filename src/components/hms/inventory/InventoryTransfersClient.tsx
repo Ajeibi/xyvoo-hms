@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toastError, toastSuccess } from "@/lib/app-toast";
+import { InventoryItemPicker } from "@/components/hms/inventory/InventoryItemPicker";
 import type {
   InventoryItemRow,
   InventoryLocationRow,
@@ -43,15 +44,20 @@ export function InventoryTransfersClient({
   slug,
   initialTransfers,
   locations,
-  items,
+  items: initialItems,
+  canCreateItem = false,
 }: {
   slug: string;
   initialTransfers: InventoryTransferWithLines[];
   locations: InventoryLocationRow[];
   items: InventoryItemRow[];
+  canCreateItem?: boolean;
 }) {
   const router = useRouter();
+  const [items, setItems] = useState(initialItems);
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [viewTarget, setViewTarget] = useState<InventoryTransferWithLines | null>(null);
   const [fromLocationId, setFromLocationId] = useState("");
   const [toLocationId, setToLocationId] = useState("");
   const [notes, setNotes] = useState("");
@@ -81,6 +87,18 @@ export function InventoryTransfersClient({
   const validLines = lines.filter((l) => l.itemId && Number(l.qty) > 0);
   const locationsDiffer = Boolean(fromLocationId) && Boolean(toLocationId) && fromLocationId !== toLocationId;
   const canSubmit = locationsDiffer && validLines.length > 0 && !submitting;
+
+  const filteredTransfers = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    if (!term) return initialTransfers;
+    return initialTransfers.filter(
+      (t) =>
+        t.transfer_number.toLowerCase().includes(term) ||
+        t.from_location_name.toLowerCase().includes(term) ||
+        t.to_location_name.toLowerCase().includes(term) ||
+        t.lines.some((l) => l.item_name.toLowerCase().includes(term) || l.item_sku.toLowerCase().includes(term)),
+    );
+  }, [initialTransfers, search]);
 
   async function submitTransfer() {
     if (!canSubmit) return;
@@ -153,19 +171,31 @@ export function InventoryTransfersClient({
 
   return (
     <div className="mt-6 space-y-4">
-      <div className="flex justify-end">
-        <Button type="button" onClick={() => setOpen(true)}>
+      <div className="flex flex-wrap items-center gap-3">
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by transfer #, store, item, or SKU"
+          className="w-full flex-1 sm:max-w-sm"
+        />
+        <Button type="button" className="rounded-lg" onClick={() => setOpen(true)}>
           New transfer
         </Button>
       </div>
 
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-        {initialTransfers.length === 0 ? (
-          <p className="px-6 py-8 text-sm text-slate-500">No transfers yet.</p>
+        {filteredTransfers.length === 0 ? (
+          <p className="px-6 py-8 text-sm text-slate-500">
+            {initialTransfers.length === 0 ? "No transfers yet." : "No transfers match your search."}
+          </p>
         ) : (
           <ul className="divide-y divide-slate-100">
-            {initialTransfers.map((t) => (
-              <li key={t.id} className="px-6 py-4 text-sm">
+            {filteredTransfers.map((t) => (
+              <li
+                key={t.id}
+                onClick={() => setViewTarget(t)}
+                className="cursor-pointer px-6 py-4 text-sm transition-colors hover:bg-slate-50"
+              >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="font-semibold text-slate-900">{t.transfer_number}</p>
@@ -188,7 +218,10 @@ export function InventoryTransfersClient({
                         size="sm"
                         className="rounded-lg"
                         disabled={busyId === t.id}
-                        onClick={() => void confirmReceipt(t.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void confirmReceipt(t.id);
+                        }}
                       >
                         Confirm receipt
                       </Button>
@@ -200,7 +233,10 @@ export function InventoryTransfersClient({
                         variant="outline"
                         className="rounded-lg"
                         disabled={busyId === t.id}
-                        onClick={() => void cancelPendingTransfer(t.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void cancelPendingTransfer(t.id);
+                        }}
                       >
                         Cancel
                       </Button>
@@ -268,18 +304,16 @@ export function InventoryTransfersClient({
               <p className="text-xs font-medium text-slate-600">Items</p>
               {lines.map((line, idx) => (
                 <div key={idx} className="flex items-center gap-2">
-                  <Select value={line.itemId} onValueChange={(v) => updateLine(idx, { itemId: v })}>
-                    <SelectTrigger className="flex-1">
-                      <SelectValue placeholder="Select item" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {items.map((it) => (
-                        <SelectItem key={it.id} value={it.id}>
-                          {it.name} ({it.sku})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <InventoryItemPicker
+                    slug={slug}
+                    items={items}
+                    value={line.itemId}
+                    onValueChange={(v) => updateLine(idx, { itemId: v })}
+                    canCreateItem={canCreateItem}
+                    onItemCreated={(item) => setItems((prev) => [...prev, item])}
+                    placeholder="Select item"
+                    className="flex-1"
+                  />
                   <Input
                     type="number"
                     min="0"
@@ -316,6 +350,96 @@ export function InventoryTransfersClient({
             </Button>
             <Button type="button" onClick={() => void submitTransfer()} disabled={!canSubmit}>
               Create transfer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(viewTarget)} onOpenChange={(o) => { if (!o) setViewTarget(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{viewTarget?.transfer_number}</DialogTitle>
+            <DialogDescription>
+              {viewTarget ? `${viewTarget.from_location_name} → ${viewTarget.to_location_name}` : ""}
+            </DialogDescription>
+          </DialogHeader>
+
+          {viewTarget ? (
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                <span
+                  className={`rounded-full px-2 py-0.5 font-semibold ${STATUS_STYLES[viewTarget.status] ?? "bg-slate-100 text-slate-700"}`}
+                >
+                  {viewTarget.status.replace(/_/g, " ")}
+                </span>
+                <span>Created {new Date(viewTarget.created_at).toLocaleString()}</span>
+              </div>
+
+              {viewTarget.notes ? (
+                <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">Note: {viewTarget.notes}</p>
+              ) : null}
+
+              <div className="overflow-hidden rounded-lg border border-slate-200">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 text-xs font-medium uppercase tracking-wide text-slate-500">
+                    <tr>
+                      <th className="px-3 py-2 text-left">Item</th>
+                      <th className="px-3 py-2 text-right">Qty</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {viewTarget.lines.map((l) => (
+                      <tr key={l.id}>
+                        <td className="px-3 py-2">
+                          <p className="font-medium text-slate-900">{l.item_name}</p>
+                          <p className="text-xs text-slate-400">{l.item_sku}</p>
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums text-slate-700">
+                          {l.qty} {l.unit_of_measure}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex justify-end gap-2">
+                {viewTarget.status === "in_transit" ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="rounded-lg"
+                    disabled={busyId === viewTarget.id}
+                    onClick={() => {
+                      void confirmReceipt(viewTarget.id);
+                      setViewTarget(null);
+                    }}
+                  >
+                    Confirm receipt
+                  </Button>
+                ) : null}
+                {viewTarget.status === "pending" ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="rounded-lg"
+                    disabled={busyId === viewTarget.id}
+                    onClick={() => {
+                      void cancelPendingTransfer(viewTarget.id);
+                      setViewTarget(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setViewTarget(null)}>
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -16,7 +16,9 @@ export type HmsSectionKey =
   | "housekeeping-my-tasks"
   | "housekeeping-assignments"
   | "housekeeping-inspections"
+  | "housekeeping-history"
   | "housekeeping-lost-found"
+  | "housekeeping-guest-requests"
   | "housekeeping-reports"
   | "housekeeping-settings"
   | "inventory"
@@ -37,6 +39,14 @@ export type HmsSectionKey =
   | "procurement-reports"
   | "procurement-settings"
   | "accounts"
+  | "accounts-chart"
+  | "accounts-journal"
+  | "accounts-trial-balance"
+  | "accounts-bills"
+  | "accounts-ap-aging"
+  | "accounts-invoices"
+  | "accounts-ar-aging"
+  | "accounts-night-audit"
   | "accounts-settings"
   | "maintenance"
   | "maintenance-settings"
@@ -107,7 +117,9 @@ const ADMIN_SECTIONS: HmsSectionKey[] = [
   "housekeeping-my-tasks",
   "housekeeping-assignments",
   "housekeeping-inspections",
+  "housekeeping-history",
   "housekeeping-lost-found",
+  "housekeeping-guest-requests",
   "housekeeping-reports",
   "housekeeping-settings",
   "inventory",
@@ -128,6 +140,14 @@ const ADMIN_SECTIONS: HmsSectionKey[] = [
   "procurement-reports",
   "procurement-settings",
   "accounts",
+  "accounts-chart",
+  "accounts-journal",
+  "accounts-trial-balance",
+  "accounts-bills",
+  "accounts-ap-aging",
+  "accounts-invoices",
+  "accounts-ar-aging",
+  "accounts-night-audit",
   "accounts-settings",
   "maintenance",
   "maintenance-settings",
@@ -202,11 +222,21 @@ export const DEPARTMENT_ROLE_SCOPES: Record<string, DepartmentScopeDefinition> =
     homePath: (slug) => `/hms/${slug}/housekeeping/my-tasks`,
     settingsPath: (slug) => `/hms/${slug}/housekeeping/my-tasks`,
     navItems: (slug) => [
-      { key: "housekeeping-my-tasks", icon: "housekeeping", label: "My tasks", path: `/hms/${slug}/housekeeping/my-tasks` },
+      { key: "housekeeping-my-tasks", icon: "housekeeping", label: "Housekeeping tasks", path: `/hms/${slug}/housekeeping/my-tasks` },
+      { key: "housekeeping-inspections", icon: "clipboardCheck", label: "Inspections", path: `/hms/${slug}/housekeeping/inspections` },
+      { key: "housekeeping-history", icon: "clipboardCheck", label: "History", path: `/hms/${slug}/housekeeping/history` },
       { key: "housekeeping-lost-found", icon: "clipboardCheck", label: "Lost & found", path: `/hms/${slug}/housekeeping/lost-found` },
+      { key: "housekeeping-guest-requests", icon: "clipboardCheck", label: "Guest requests", path: `/hms/${slug}/housekeeping/guest-requests` },
       { key: "housekeeping-notifications", icon: "bell", label: "Notifications", path: `/hms/${slug}/notifications` },
     ],
-    allowedSections: ["housekeeping-my-tasks", "housekeeping-lost-found", "notifications"],
+    allowedSections: [
+      "housekeeping-my-tasks",
+      "housekeeping-inspections",
+      "housekeeping-history",
+      "housekeeping-lost-found",
+      "housekeeping-guest-requests",
+      "notifications",
+    ],
   },
   "F&B Staff": {
     departmentRole: "F&B Staff",
@@ -338,9 +368,29 @@ export const DEPARTMENT_ROLE_SCOPES: Record<string, DepartmentScopeDefinition> =
     settingsPath: (slug) => `/hms/${slug}/accounts/settings`,
     navItems: (slug) => [
       { key: "accounts-dashboard", icon: "dashboard", label: "Dashboard", path: `/hms/${slug}/accounts` },
+      { key: "accounts-chart", icon: "clipboardCheck", label: "Chart of accounts", path: `/hms/${slug}/accounts/chart` },
+      { key: "accounts-journal", icon: "clipboardCheck", label: "Journal entries", path: `/hms/${slug}/accounts/journal` },
+      { key: "accounts-trial-balance", icon: "clipboardCheck", label: "Trial balance", path: `/hms/${slug}/accounts/trial-balance` },
+      { key: "accounts-bills", icon: "clipboardCheck", label: "Vendor bills", path: `/hms/${slug}/accounts/bills` },
+      { key: "accounts-ap-aging", icon: "clipboardCheck", label: "AP aging", path: `/hms/${slug}/accounts/ap-aging` },
+      { key: "accounts-invoices", icon: "clipboardCheck", label: "Customer invoices", path: `/hms/${slug}/accounts/invoices` },
+      { key: "accounts-ar-aging", icon: "clipboardCheck", label: "AR aging", path: `/hms/${slug}/accounts/ar-aging` },
+      { key: "accounts-night-audit", icon: "clipboardCheck", label: "Night audit", path: `/hms/${slug}/accounts/night-audit` },
       { key: "accounts-settings", icon: "settings", label: "Settings", path: `/hms/${slug}/accounts/settings` },
     ],
-    allowedSections: ["accounts", "accounts-settings", "notifications"],
+    allowedSections: [
+      "accounts",
+      "accounts-chart",
+      "accounts-journal",
+      "accounts-trial-balance",
+      "accounts-bills",
+      "accounts-ap-aging",
+      "accounts-invoices",
+      "accounts-ar-aging",
+      "accounts-night-audit",
+      "accounts-settings",
+      "notifications",
+    ],
   },
   "HR Manager": {
     departmentRole: "HR Manager",

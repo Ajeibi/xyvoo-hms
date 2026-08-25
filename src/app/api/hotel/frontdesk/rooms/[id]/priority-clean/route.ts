@@ -4,6 +4,7 @@ import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
 import { writeAuditLog, emitNotification } from "@/lib/hms/front-desk-ops";
 import { getRoomsCapabilities } from "@/lib/hms/rooms-rbac";
 import { openOrEscalateHousekeepingTask } from "@/lib/hms/housekeeping-tasks";
+import { setRoomStatus } from "@/lib/hms/room-status";
 
 const BodySchema = z.object({
   slug: z.string().min(1),
@@ -11,6 +12,11 @@ const BodySchema = z.object({
   dueBy: z.string().datetime().optional(),
   notes: z.string().max(500).optional(),
 });
+
+/** Room statuses that mean "administratively unavailable for a different reason" — a priority
+ * clean request shouldn't override why the room can't be sold. Every other status gets pulled
+ * out of the "looks available" pool immediately, same rule as manual housekeeping tasks. */
+const ROOM_STATUS_UNTOUCHED_BY_TASK = ["maintenance", "out_of_order"];
 
 export async function POST(
   req: Request,
@@ -30,9 +36,20 @@ export async function POST(
     const { data: unit } = await auth.service
       .schema("hotel")
       .from("room_units")
-      .select("room_code")
+      .select("room_code,status")
       .eq("id", id)
       .maybeSingle();
+
+    if (unit && !ROOM_STATUS_UNTOUCHED_BY_TASK.includes(unit.status)) {
+      await setRoomStatus(auth.service, {
+        tenantId: auth.tenant.id,
+        roomUnitId: id,
+        status: "dirty",
+        actorUserId: auth.user.id,
+        roomCode: unit.room_code,
+        previousStatus: unit.status,
+      });
+    }
 
     await openOrEscalateHousekeepingTask(auth.service, {
       tenantId: auth.tenant.id,

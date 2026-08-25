@@ -49,7 +49,7 @@ export const STORE_PLANS: HomeStorePlan[] = [
       "SLA-backed support",
     ],
     ctaLabel: "Talk to Sales",
-    ctaHref: "/home/contact",
+    ctaHref: "/contact",
   },
 ];
 

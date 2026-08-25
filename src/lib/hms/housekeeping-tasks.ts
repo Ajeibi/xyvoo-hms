@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { notifyInspectionFailed, notifyRoomReady } from "@/lib/hms/notification-rules";
 import { getTenantHousekeepingSettings } from "@/lib/hms/housekeeping-settings";
+import { writeRoomStatus, type RoomUnitStatus } from "@/lib/hms/room-status";
 
 export const HOUSEKEEPING_TASK_TYPES = [
   "checkout_clean",
@@ -25,7 +26,7 @@ export const HOUSEKEEPING_PRIORITY_LEVELS = ["normal", "high", "urgent", "vip"] 
 export type HousekeepingPriorityLevel = (typeof HOUSEKEEPING_PRIORITY_LEVELS)[number];
 
 /** Mirrors (and extends) the STATUS_TO_ROOM mapping that used to live only in the PATCH route. */
-const STATUS_TO_ROOM: Record<HousekeepingTaskStatus, string> = {
+const STATUS_TO_ROOM: Record<HousekeepingTaskStatus, RoomUnitStatus> = {
   dirty: "dirty",
   cleaning_in_progress: "cleaning_in_progress",
   cleaned: "dirty",
@@ -67,6 +68,7 @@ export type HousekeepingTaskRow = {
   reservationId: string | null;
   assignedStaffId: string | null;
   assignedStaffName: string | null;
+  assignedNote: string | null;
   startedAt: string | null;
   completedAt: string | null;
   inspectedAt: string | null;
@@ -86,6 +88,7 @@ type RawTaskRow = {
   due_by: string | null;
   reservation_id: string | null;
   assigned_staff_id: string | null;
+  assigned_note: string | null;
   started_at: string | null;
   completed_at: string | null;
   inspected_at: string | null;
@@ -96,7 +99,7 @@ type RawTaskRow = {
 };
 
 const TASK_COLUMNS =
-  "id,tenant_id,room_unit_id,task_type,status,priority_level,due_by,reservation_id,assigned_staff_id,started_at,completed_at,inspected_at,inspected_by,inspection_result,notes,created_at";
+  "id,tenant_id,room_unit_id,task_type,status,priority_level,due_by,reservation_id,assigned_staff_id,assigned_note,started_at,completed_at,inspected_at,inspected_by,inspection_result,notes,created_at";
 
 async function hydrateTasks(
   service: SupabaseClient,
@@ -145,6 +148,7 @@ async function hydrateTasks(
       reservationId: r.reservation_id,
       assignedStaffId: r.assigned_staff_id,
       assignedStaffName: r.assigned_staff_id ? nameByUserId.get(r.assigned_staff_id) ?? "Staff" : null,
+      assignedNote: r.assigned_note,
       startedAt: r.started_at,
       completedAt: r.completed_at,
       inspectedAt: r.inspected_at,
@@ -174,23 +178,81 @@ export async function listOpenHousekeepingTasks(
   return sortByPriorityThenDue(rows);
 }
 
-export async function listMyHousekeepingTasks(
+export type HousekeepingHistoryRow = {
+  id: string;
+  roomCode: string;
+  taskType: HousekeepingTaskType;
+  assignedNote: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  inspectedAt: string | null;
+  inspectedByName: string | null;
+  inspectionResult: "pass" | "fail" | null;
+  createdAt: string;
+};
+
+/** Rooms that have finished the whole cycle (cleaned, inspected, approved) — the live Board and
+ * My-tasks views deliberately exclude `ready` tasks, so this is the only place that log survives. */
+export async function listHousekeepingHistory(
   service: SupabaseClient,
   tenantId: string,
-  userId: string,
-): Promise<HousekeepingTaskRow[]> {
+  limit = 200,
+): Promise<HousekeepingHistoryRow[]> {
   const { data, error } = await service
     .schema("hotel")
     .from("housekeeping_tasks")
-    .select(TASK_COLUMNS)
+    .select(
+      "id,room_unit_id,task_type,assigned_note,started_at,completed_at,inspected_at,inspected_by,inspection_result,created_at",
+    )
     .eq("tenant_id", tenantId)
-    .eq("assigned_staff_id", userId)
-    .neq("status", "ready")
-    .order("created_at", { ascending: true });
+    .eq("status", "ready")
+    .order("inspected_at", { ascending: false, nullsFirst: false })
+    .limit(limit);
   if (error) throw new Error(error.message);
 
-  const rows = await hydrateTasks(service, tenantId, (data ?? []) as RawTaskRow[]);
-  return sortByPriorityThenDue(rows);
+  type HistoryRawRow = {
+    id: string;
+    room_unit_id: string;
+    task_type: string;
+    assigned_note: string | null;
+    started_at: string | null;
+    completed_at: string | null;
+    inspected_at: string | null;
+    inspected_by: string | null;
+    inspection_result: string | null;
+    created_at: string;
+  };
+  const rows = (data ?? []) as HistoryRawRow[];
+  if (rows.length === 0) return [];
+
+  const roomIds = [...new Set(rows.map((r) => r.room_unit_id))];
+  const inspectorIds = [...new Set(rows.map((r) => r.inspected_by).filter((x): x is string => Boolean(x)))];
+
+  const [{ data: rooms }, { data: profiles }] = await Promise.all([
+    service.schema("hotel").from("room_units").select("id,room_code").eq("tenant_id", tenantId).in("id", roomIds),
+    inspectorIds.length > 0
+      ? service.schema("hotel").from("profiles").select("user_id,contact_name").eq("tenant_id", tenantId).in("user_id", inspectorIds)
+      : Promise.resolve({ data: [] as { user_id: string; contact_name: string | null }[] }),
+  ]);
+
+  const roomCodeById = new Map((rooms ?? []).map((r) => [r.id as string, r.room_code as string]));
+  const nameByUserId = new Map<string, string>();
+  for (const p of (profiles ?? []) as { user_id: string; contact_name: string | null }[]) {
+    if (p.contact_name) nameByUserId.set(p.user_id, p.contact_name);
+  }
+
+  return rows.map((r) => ({
+    id: r.id,
+    roomCode: roomCodeById.get(r.room_unit_id) ?? "—",
+    taskType: r.task_type as HousekeepingTaskType,
+    assignedNote: r.assigned_note,
+    startedAt: r.started_at,
+    completedAt: r.completed_at,
+    inspectedAt: r.inspected_at,
+    inspectedByName: r.inspected_by ? nameByUserId.get(r.inspected_by) ?? "Staff" : null,
+    inspectionResult: r.inspection_result as "pass" | "fail" | null,
+    createdAt: r.created_at,
+  }));
 }
 
 export async function listInspectionQueue(
@@ -238,6 +300,7 @@ export async function openOrEscalateHousekeepingTask(
     priorityLevel?: HousekeepingPriorityLevel;
     dueBy?: string | null;
     notes?: string | null;
+    assignedNote?: string | null;
   },
 ): Promise<{ id: string; created: boolean }> {
   const { data: existing } = await service
@@ -255,6 +318,7 @@ export async function openOrEscalateHousekeepingTask(
     if (params.dueBy !== undefined) patch.due_by = params.dueBy;
     if (params.notes !== undefined) patch.notes = params.notes;
     if (params.reservationId !== undefined) patch.reservation_id = params.reservationId;
+    if (params.assignedNote !== undefined) patch.assigned_note = params.assignedNote;
     if (Object.keys(patch).length > 0) {
       await service.schema("hotel").from("housekeeping_tasks").update(patch).eq("id", existing.id);
     }
@@ -273,6 +337,7 @@ export async function openOrEscalateHousekeepingTask(
       due_by: params.dueBy ?? null,
       reservation_id: params.reservationId ?? null,
       notes: params.notes ?? null,
+      assigned_note: params.assignedNote ?? null,
     })
     .select("id")
     .single();
@@ -322,11 +387,11 @@ export async function transitionHousekeepingTaskStatus(
     .maybeSingle();
 
   if (unit) {
-    await service
-      .schema("hotel")
-      .from("room_units")
-      .update({ status: STATUS_TO_ROOM[params.toStatus] })
-      .eq("id", unit.id);
+    await writeRoomStatus(service, {
+      tenantId: params.tenantId,
+      roomUnitId: unit.id,
+      status: STATUS_TO_ROOM[params.toStatus],
+    });
 
     await writeAuditLog({
       tenantId: params.tenantId,
@@ -395,7 +460,11 @@ export async function inspectHousekeepingTask(
       })
       .eq("id", task.id);
 
-    await service.schema("hotel").from("room_units").update({ status: "dirty" }).eq("id", task.room_unit_id);
+    await writeRoomStatus(service, {
+      tenantId: params.tenantId,
+      roomUnitId: task.room_unit_id,
+      status: "dirty",
+    });
 
     await writeAuditLog({
       tenantId: params.tenantId,
@@ -443,7 +512,11 @@ export async function inspectHousekeepingTask(
     .maybeSingle();
 
   if (unit) {
-    await service.schema("hotel").from("room_units").update({ status: "ready_for_occupancy" }).eq("id", unit.id);
+    await writeRoomStatus(service, {
+      tenantId: params.tenantId,
+      roomUnitId: unit.id,
+      status: "ready_for_occupancy",
+    });
 
     await writeAuditLog({
       tenantId: params.tenantId,
@@ -488,6 +561,39 @@ export async function assignHousekeepingTask(
     entityType: "housekeeping_task",
     entityId: params.taskId,
     after: { assigned_staff_id: params.staffUserId },
+  });
+
+  return { ok: true };
+}
+
+/**
+ * Manual, free-text "who's on this" label — set by whoever is looking at the task list rather
+ * than picked from a real login account. The Housekeeping department currently only ever has
+ * one login per tenant, so staff are divided up outside the system; this just records that
+ * division inside it.
+ */
+export async function setHousekeepingTaskNote(
+  service: SupabaseClient,
+  params: { tenantId: string; taskId: string; note: string | null; actorUserId: string | null },
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const note = params.note?.trim() || null;
+
+  const { error } = await service
+    .schema("hotel")
+    .from("housekeeping_tasks")
+    .update({ assigned_note: note })
+    .eq("tenant_id", params.tenantId)
+    .eq("id", params.taskId);
+
+  if (error) return { ok: false, error: "Could not save." };
+
+  await writeAuditLog({
+    tenantId: params.tenantId,
+    actorUserId: params.actorUserId,
+    action: "housekeeping_task_note_set",
+    entityType: "housekeeping_task",
+    entityId: params.taskId,
+    after: { assigned_note: note },
   });
 
   return { ok: true };

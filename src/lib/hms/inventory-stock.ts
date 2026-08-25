@@ -15,6 +15,70 @@ function round3(n: number): number {
   return Math.round(n * 1000) / 1000;
 }
 
+/**
+ * Fixed assets (ovens, fridges, furniture) aren't inventory — they belong on
+ * a separate asset register — so they must never enter the stock ledger.
+ * Returns the item's name (for error messages) when it's a fixed asset,
+ * or null when the movement may proceed.
+ */
+async function fixedAssetItemName(
+  supabase: SupabaseClient,
+  tenantId: string,
+  itemId: string,
+): Promise<{ fixedAssetName: string | null; unitCost: number }> {
+  const { data: item } = await supabase
+    .schema("hotel")
+    .from("inventory_items")
+    .select("name,item_type,unit_cost")
+    .eq("tenant_id", tenantId)
+    .eq("id", itemId)
+    .maybeSingle();
+  if (!item) return { fixedAssetName: null, unitCost: 0 };
+
+  const unitCost = num(item.unit_cost);
+  if (!item.item_type) return { fixedAssetName: null, unitCost };
+
+  const { data: type } = await supabase
+    .schema("hotel")
+    .from("inventory_item_types")
+    .select("is_fixed_asset")
+    .eq("id", item.item_type as string)
+    .maybeSingle();
+
+  return { fixedAssetName: type?.is_fixed_asset ? (item.name as string) : null, unitCost };
+}
+
+/** Batch version for pre-validating every line of a multi-line receipt/transfer/requisition before any writes happen. */
+export async function findFixedAssetItem(
+  supabase: SupabaseClient,
+  tenantId: string,
+  itemIds: string[],
+): Promise<string | null> {
+  const uniqueIds = [...new Set(itemIds)];
+  if (!uniqueIds.length) return null;
+
+  const { data: items } = await supabase
+    .schema("hotel")
+    .from("inventory_items")
+    .select("id,name,item_type")
+    .eq("tenant_id", tenantId)
+    .in("id", uniqueIds);
+  const rows = items ?? [];
+  const typeIds = [...new Set(rows.map((i) => i.item_type as string).filter(Boolean))];
+  if (!typeIds.length) return null;
+
+  const { data: types } = await supabase
+    .schema("hotel")
+    .from("inventory_item_types")
+    .select("id,is_fixed_asset")
+    .eq("tenant_id", tenantId)
+    .in("id", typeIds);
+  const fixedAssetTypeIds = new Set((types ?? []).filter((t) => t.is_fixed_asset).map((t) => t.id as string));
+
+  const offender = rows.find((i) => fixedAssetTypeIds.has(i.item_type as string));
+  return offender ? (offender.name as string) : null;
+}
+
 async function hasRecentNotification(
   supabase: SupabaseClient,
   tenantId: string,
@@ -84,6 +148,15 @@ export type PostMovementParams = {
  * qty_on_hand directly.
  */
 export async function postStockMovement(supabase: SupabaseClient, params: PostMovementParams) {
+  const { fixedAssetName, unitCost: itemUnitCost } = await fixedAssetItemName(supabase, params.tenantId, params.itemId);
+  if (fixedAssetName) {
+    return {
+      error: `${fixedAssetName} is a fixed asset — record it on your asset register, not through stock movements.`,
+      movement: null,
+      qtyOnHand: null,
+    };
+  }
+
   const { data: level } = await supabase
     .schema("hotel")
     .from("inventory_stock_levels")
@@ -123,7 +196,7 @@ export async function postStockMovement(supabase: SupabaseClient, params: PostMo
       location_id: params.locationId,
       movement_type: params.movementType,
       qty: params.qty,
-      unit_cost_at_movement: params.unitCost ?? 0,
+      unit_cost_at_movement: params.unitCost ?? itemUnitCost,
       related_location_id: params.relatedLocationId ?? null,
       reference_type: params.referenceType ?? null,
       reference_id: params.referenceId ?? null,
@@ -144,6 +217,40 @@ export async function postStockMovement(supabase: SupabaseClient, params: PostMo
   }
 
   return { error: null, movement, qtyOnHand: newQty };
+}
+
+/**
+ * Item-level weighted-average costing: every receipt blends the price paid
+ * into the item's running cost instead of overwriting it. Averaged across
+ * all locations (not per-location) — the simpler, agreed starting point.
+ * Must be called before the receiving line's postStockMovement, since it
+ * needs the pre-receipt on-hand quantity.
+ */
+export async function recalculateWeightedAverageCost(
+  supabase: SupabaseClient,
+  tenantId: string,
+  itemId: string,
+  qtyReceived: number,
+  unitCostReceived: number,
+): Promise<number> {
+  const [{ data: levels }, { data: item }] = await Promise.all([
+    supabase.schema("hotel").from("inventory_stock_levels").select("qty_on_hand").eq("tenant_id", tenantId).eq("item_id", itemId),
+    supabase.schema("hotel").from("inventory_items").select("unit_cost").eq("tenant_id", tenantId).eq("id", itemId).maybeSingle(),
+  ]);
+
+  const qtyBefore = (levels ?? []).reduce((sum, l) => sum + num(l.qty_on_hand), 0);
+  const costBefore = num(item?.unit_cost);
+  const qtyAfter = qtyBefore + qtyReceived;
+  const newCost = qtyAfter > 0 ? (qtyBefore * costBefore + qtyReceived * unitCostReceived) / qtyAfter : unitCostReceived;
+
+  await supabase
+    .schema("hotel")
+    .from("inventory_items")
+    .update({ unit_cost: newCost, updated_at: new Date().toISOString() })
+    .eq("id", itemId)
+    .eq("tenant_id", tenantId);
+
+  return newCost;
 }
 
 export async function recordWaste(

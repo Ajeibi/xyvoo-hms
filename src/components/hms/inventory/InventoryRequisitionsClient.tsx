@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Search, Trash2 } from "lucide-react";
+import { SettingsSectionInfo } from "@/components/hms/settings/SettingsSectionInfo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -22,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { toastError, toastSuccess } from "@/lib/app-toast";
+import { InventoryItemPicker } from "@/components/hms/inventory/InventoryItemPicker";
 import type {
   InventoryItemRow,
   InventoryLocationRow,
@@ -42,12 +44,21 @@ const STATUS_TABS: { key: "all" | InventoryRequisitionStatus; label: string }[] 
 ];
 
 const STATUS_BADGE: Record<InventoryRequisitionStatus, string> = {
-  pending: "bg-amber-50 text-amber-700 border-amber-200",
-  approved: "bg-blue-50 text-blue-700 border-blue-200",
-  partially_issued: "bg-indigo-50 text-indigo-700 border-indigo-200",
-  issued: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  rejected: "bg-red-50 text-red-700 border-red-200",
-  cancelled: "bg-slate-100 text-slate-500 border-slate-200",
+  pending: "bg-amber-50 text-amber-700",
+  approved: "bg-blue-50 text-blue-700",
+  partially_issued: "bg-violet-50 text-violet-700",
+  issued: "bg-emerald-50 text-emerald-700",
+  rejected: "bg-red-50 text-red-700",
+  cancelled: "bg-slate-100 text-slate-600",
+};
+
+const STATUS_RAIL: Record<InventoryRequisitionStatus, string> = {
+  pending: "bg-amber-500",
+  approved: "bg-blue-600",
+  partially_issued: "bg-violet-600",
+  issued: "bg-emerald-600",
+  rejected: "bg-red-600",
+  cancelled: "bg-slate-400",
 };
 
 const STATUS_LABEL: Record<InventoryRequisitionStatus, string> = {
@@ -69,19 +80,29 @@ function emptyLine(): DraftLine {
   return { key: crypto.randomUUID(), itemId: "", qty: "1" };
 }
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString(undefined, {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+function formatGroupLabel(iso: string) {
+  return new Date(iso).toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function formatTime(iso: string) {
+  return new Date(iso).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+}
+
+/** Consecutive same-day requisitions grouped under one date header — input is already sorted newest-first. */
+function groupByDate(list: InventoryRequisitionWithLines[]) {
+  const groups: { label: string; rows: InventoryRequisitionWithLines[] }[] = [];
+  for (const r of list) {
+    const label = formatGroupLabel(r.created_at);
+    const last = groups[groups.length - 1];
+    if (last && last.label === label) last.rows.push(r);
+    else groups.push({ label, rows: [r] });
+  }
+  return groups;
 }
 
 function StatusBadge({ status }: { status: InventoryRequisitionStatus }) {
   return (
-    <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[status]}`}>
+    <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold ${STATUS_BADGE[status]}`}>
       {STATUS_LABEL[status]}
     </span>
   );
@@ -91,23 +112,51 @@ export function InventoryRequisitionsClient({
   slug,
   requisitions,
   locations,
-  items,
+  items: initialItems,
+  canCreateItem = false,
 }: {
   slug: string;
   requisitions: InventoryRequisitionWithLines[];
   locations: InventoryLocationRow[];
   items: InventoryItemRow[];
+  canCreateItem?: boolean;
 }) {
   const router = useRouter();
+  const [items, setItems] = useState(initialItems);
   const [statusFilter, setStatusFilter] = useState<"all" | InventoryRequisitionStatus>("all");
   const [newOpen, setNewOpen] = useState(false);
   const [issueTarget, setIssueTarget] = useState<InventoryRequisitionWithLines | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
-  const filtered = useMemo(
-    () => (statusFilter === "all" ? requisitions : requisitions.filter((r) => r.status === statusFilter)),
-    [requisitions, statusFilter],
-  );
+  const filtered = useMemo(() => {
+    const byStatus = statusFilter === "all" ? requisitions : requisitions.filter((r) => r.status === statusFilter);
+    const term = search.trim().toLowerCase();
+    if (!term) return byStatus;
+    return byStatus.filter(
+      (r) =>
+        r.requisition_number.toLowerCase().includes(term) ||
+        r.requesting_department.toLowerCase().includes(term) ||
+        r.from_location_name.toLowerCase().includes(term) ||
+        r.lines.some((l) => l.item_name.toLowerCase().includes(term) || l.item_sku.toLowerCase().includes(term)),
+    );
+  }, [requisitions, statusFilter, search]);
+
+  const groupedRows = useMemo(() => groupByDate(filtered), [filtered]);
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<"all" | InventoryRequisitionStatus, number> = {
+      all: requisitions.length,
+      pending: 0,
+      approved: 0,
+      partially_issued: 0,
+      issued: 0,
+      rejected: 0,
+      cancelled: 0,
+    };
+    for (const r of requisitions) counts[r.status]++;
+    return counts;
+  }, [requisitions]);
 
   const patchAction = async (id: string, action: "approve" | "reject" | "cancel", successMsg: string) => {
     setBusyId(id);
@@ -130,27 +179,19 @@ export function InventoryRequisitionsClient({
   };
 
   return (
-    <div className="mt-6 space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-1">
-          {STATUS_TABS.map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => setStatusFilter(tab.key)}
-              className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-                statusFilter === tab.key
-                  ? "border-slate-900 bg-slate-900 text-white"
-                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
+    <div className="mt-6">
+      <p className="mb-1.5 text-xs text-slate-400">Inventory</p>
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <div className="flex items-center gap-1.5">
+          <h1 className="text-[23px] font-semibold tracking-tight text-slate-900">Requisitions</h1>
+          <SettingsSectionInfo
+            title="Requisitions"
+            text="Department stock requests. A request must be approved before it can be issued — issuing is the step that actually deducts stock from the store, not the initial request."
+          />
         </div>
         <Button
           type="button"
-          className="rounded-lg"
+          className="rounded-lg shadow-sm"
           onClick={() => setNewOpen(true)}
           disabled={locations.length === 0 || items.length === 0}
         >
@@ -159,113 +200,156 @@ export function InventoryRequisitionsClient({
         </Button>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <div className="border-b border-slate-100 px-6 py-4">
-          <h2 className="text-sm font-semibold text-slate-900">Requisitions</h2>
-        </div>
-        {filtered.length === 0 ? (
-          <p className="px-6 py-8 text-sm text-slate-500">No requisitions in this view.</p>
-        ) : (
-          <Accordion type="multiple" className="px-4">
-            {filtered.map((r) => {
-              const remainingTotal = r.lines.reduce((sum, l) => sum + (l.qty_requested - l.qty_issued), 0);
-              return (
-                <AccordionItem key={r.id} value={r.id} className="border-slate-100">
-                  <AccordionTrigger className="py-3 hover:no-underline">
-                    <span className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-2 pr-2 text-left">
-                      <span className="min-w-0">
-                        <span className="block font-semibold text-slate-900">{r.requisition_number}</span>
-                        <span className="block text-xs text-slate-500">
-                          {r.requesting_department} · from {r.from_location_name} · {formatDate(r.created_at)}
-                        </span>
-                      </span>
-                      <StatusBadge status={r.status} />
-                    </span>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="space-y-3">
-                      <ul className="space-y-1 text-sm text-slate-600">
-                        {r.lines.map((l) => (
-                          <li key={l.id} className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2">
-                            <span className="min-w-0 truncate">
-                              {l.item_name} <span className="text-xs text-slate-400">({l.item_sku})</span>
-                            </span>
-                            <span className="shrink-0 tabular-nums text-xs">
-                              {l.qty_issued} / {l.qty_requested} {l.unit_of_measure} issued
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                      {r.notes ? <p className="text-xs text-slate-500">Note: {r.notes}</p> : null}
-
-                      <div className="flex flex-wrap gap-2">
-                        {r.status === "pending" ? (
-                          <>
-                            <Button
-                              type="button"
-                              size="sm"
-                              className="rounded-lg"
-                              disabled={busyId === r.id}
-                              onClick={() => void patchAction(r.id, "approve", `${r.requisition_number} approved`)}
-                            >
-                              Approve
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="destructive"
-                              className="rounded-lg"
-                              disabled={busyId === r.id}
-                              onClick={() => void patchAction(r.id, "reject", `${r.requisition_number} rejected`)}
-                            >
-                              Reject
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              className="rounded-lg"
-                              disabled={busyId === r.id}
-                              onClick={() => void patchAction(r.id, "cancel", `${r.requisition_number} cancelled`)}
-                            >
-                              Cancel
-                            </Button>
-                          </>
-                        ) : null}
-                        {(r.status === "approved" || r.status === "partially_issued") ? (
-                          <>
-                            <Button
-                              type="button"
-                              size="sm"
-                              className="rounded-lg"
-                              disabled={busyId === r.id || remainingTotal <= 0}
-                              onClick={() => setIssueTarget(r)}
-                            >
-                              Issue
-                            </Button>
-                            {r.status === "approved" ? (
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                className="rounded-lg"
-                                disabled={busyId === r.id}
-                                onClick={() => void patchAction(r.id, "cancel", `${r.requisition_number} cancelled`)}
-                              >
-                                Cancel
-                              </Button>
-                            ) : null}
-                          </>
-                        ) : null}
-                      </div>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              );
-            })}
-          </Accordion>
-        )}
+      <div className="relative mb-5 max-w-sm">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by req #, department, or item"
+          className="pl-9"
+        />
       </div>
+
+      <div className="flex flex-wrap gap-1">
+        {STATUS_TABS.map((tab) => {
+          const active = statusFilter === tab.key;
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setStatusFilter(tab.key)}
+              className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                active ? "bg-blue-50 text-blue-700" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+              }`}
+            >
+              {tab.label}
+              <span className={`ml-1 text-xs ${active ? "text-blue-600" : "text-slate-400"}`}>
+                {statusCounts[tab.key]}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {groupedRows.length === 0 ? (
+        <p className="mt-6 rounded-xl border border-slate-200 bg-white px-6 py-8 text-center text-sm text-slate-500">
+          {requisitions.length === 0 ? "No requisitions in this view." : "No requisitions match your search."}
+        </p>
+      ) : (
+        <div className="mt-6 space-y-6">
+          {groupedRows.map((group) => (
+            <div key={group.label}>
+              <p className="mb-2.5 ml-0.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                {group.label}
+              </p>
+              <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+                <Accordion type="multiple">
+                  {group.rows.map((r) => {
+                    const remainingTotal = r.lines.reduce((sum, l) => sum + (l.qty_requested - l.qty_issued), 0);
+                    return (
+                      <AccordionItem key={r.id} value={r.id} className="relative border-slate-100">
+                        <span className={`absolute inset-y-0 left-0 w-[3px] ${STATUS_RAIL[r.status]}`} aria-hidden />
+                        <AccordionTrigger className="items-center rounded-none border-none py-3.5 pl-4 pr-4 hover:bg-slate-50/60 hover:no-underline">
+                          <span className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-2 pr-2 text-left">
+                            <span className="min-w-0">
+                              <span className="block text-[13.5px] font-semibold tabular-nums text-slate-900">
+                                {r.requisition_number}
+                              </span>
+                              <span className="mt-0.5 block text-[12.5px] text-slate-500">
+                                <span className="font-medium text-slate-700">{r.requesting_department}</span> · from{" "}
+                                {r.from_location_name} · {formatTime(r.created_at)}
+                              </span>
+                            </span>
+                            <StatusBadge status={r.status} />
+                          </span>
+                        </AccordionTrigger>
+                        <AccordionContent className="bg-slate-50/50">
+                          <div className="space-y-3 pl-[30px] pr-4">
+                            <ul className="divide-y divide-slate-100">
+                              {r.lines.map((l) => (
+                                <li key={l.id} className="flex items-center justify-between gap-2 py-2 text-[13px]">
+                                  <span className="min-w-0 truncate text-slate-900">
+                                    {l.item_name} <span className="text-xs font-normal text-slate-400">{l.item_sku}</span>
+                                  </span>
+                                  <span className="shrink-0 tabular-nums text-[12.5px] text-slate-500">
+                                    {l.qty_issued} / {l.qty_requested} {l.unit_of_measure} issued
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                            {r.notes ? <p className="text-xs text-slate-500">Note: {r.notes}</p> : null}
+
+                            <div className="flex flex-wrap gap-2 pb-1">
+                              {r.status === "pending" ? (
+                                <>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    className="rounded-lg"
+                                    disabled={busyId === r.id}
+                                    onClick={() => void patchAction(r.id, "approve", `${r.requisition_number} approved`)}
+                                  >
+                                    Approve
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="destructive"
+                                    className="rounded-lg"
+                                    disabled={busyId === r.id}
+                                    onClick={() => void patchAction(r.id, "reject", `${r.requisition_number} rejected`)}
+                                  >
+                                    Reject
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="rounded-lg"
+                                    disabled={busyId === r.id}
+                                    onClick={() => void patchAction(r.id, "cancel", `${r.requisition_number} cancelled`)}
+                                  >
+                                    Cancel
+                                  </Button>
+                                </>
+                              ) : null}
+                              {r.status === "approved" || r.status === "partially_issued" ? (
+                                <>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    className="rounded-lg"
+                                    disabled={busyId === r.id || remainingTotal <= 0}
+                                    onClick={() => setIssueTarget(r)}
+                                  >
+                                    Issue
+                                  </Button>
+                                  {r.status === "approved" ? (
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="outline"
+                                      className="rounded-lg"
+                                      disabled={busyId === r.id}
+                                      onClick={() => void patchAction(r.id, "cancel", `${r.requisition_number} cancelled`)}
+                                    >
+                                      Cancel
+                                    </Button>
+                                  ) : null}
+                                </>
+                              ) : null}
+                            </div>
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    );
+                  })}
+                </Accordion>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <NewRequisitionDialog
         slug={slug}
@@ -273,6 +357,8 @@ export function InventoryRequisitionsClient({
         onOpenChange={setNewOpen}
         locations={locations}
         items={items}
+        canCreateItem={canCreateItem}
+        onItemCreated={(item) => setItems((prev) => [...prev, item])}
         onDone={() => router.refresh()}
       />
 
@@ -298,6 +384,8 @@ function NewRequisitionDialog({
   onOpenChange,
   locations,
   items,
+  canCreateItem = false,
+  onItemCreated,
   onDone,
 }: {
   slug: string;
@@ -305,6 +393,8 @@ function NewRequisitionDialog({
   onOpenChange: (open: boolean) => void;
   locations: InventoryLocationRow[];
   items: InventoryItemRow[];
+  canCreateItem?: boolean;
+  onItemCreated?: (item: InventoryItemRow) => void;
   onDone: () => void;
 }) {
   const [department, setDepartment] = useState<string>("");
@@ -447,18 +537,15 @@ function NewRequisitionDialog({
                     className="grid grid-cols-12 items-center gap-2 rounded-lg border border-slate-200 p-2"
                   >
                     <div className="col-span-7">
-                      <Select value={line.itemId} onValueChange={(v) => updateLine(line.key, { itemId: v })}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select item" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {items.map((i) => (
-                            <SelectItem key={i.id} value={i.id}>
-                              {i.name} ({i.sku})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <InventoryItemPicker
+                        slug={slug}
+                        items={items}
+                        value={line.itemId}
+                        onValueChange={(v) => updateLine(line.key, { itemId: v })}
+                        canCreateItem={canCreateItem}
+                        onItemCreated={onItemCreated}
+                        placeholder="Select item"
+                      />
                     </div>
                     <div className="col-span-4">
                       <Input

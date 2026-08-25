@@ -1,5 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { postStockMovement, resolveInventoryItemDisplay } from "@/lib/hms/inventory-stock";
+import {
+  findFixedAssetItem,
+  postStockMovement,
+  recalculateWeightedAverageCost,
+  resolveInventoryItemDisplay,
+} from "@/lib/hms/inventory-stock";
 import type { InventoryReceiptRow, InventoryReceiptWithLines } from "@/lib/hms/inventory-types";
 
 function num(v: unknown): number {
@@ -17,6 +22,7 @@ function mapReceipt(r: Record<string, unknown>): InventoryReceiptRow {
     tenant_id: r.tenant_id as string,
     receipt_number: r.receipt_number as string,
     location_id: r.location_id as string,
+    supplier_id: (r.supplier_id as string) ?? null,
     supplier_name: (r.supplier_name as string) ?? null,
     procurement_reference: (r.procurement_reference as string) ?? null,
     received_by: r.received_by as string,
@@ -99,6 +105,7 @@ export async function createReceipt(
   params: {
     tenantId: string;
     locationId: string;
+    supplierId?: string;
     supplierName?: string;
     procurementReference?: string;
     receivedBy: string;
@@ -108,6 +115,25 @@ export async function createReceipt(
 ) {
   if (!params.lines.length) return { receipt: null, error: "Add at least one item." };
 
+  const fixedAssetName = await findFixedAssetItem(supabase, params.tenantId, params.lines.map((l) => l.itemId));
+  if (fixedAssetName) {
+    return { receipt: null, error: `${fixedAssetName} is a fixed asset — record it on your asset register, not through receiving.` };
+  }
+
+  // A registered supplier's name takes precedence over free text, so the
+  // receipt always shows a consistent name for a given supplier record.
+  let supplierName = params.supplierName?.trim() || null;
+  if (params.supplierId) {
+    const { data: supplier } = await supabase
+      .schema("hotel")
+      .from("inventory_suppliers")
+      .select("name")
+      .eq("id", params.supplierId)
+      .eq("tenant_id", params.tenantId)
+      .maybeSingle();
+    if (supplier?.name) supplierName = supplier.name as string;
+  }
+
   const { data: receipt, error } = await supabase
     .schema("hotel")
     .from("inventory_receipts")
@@ -115,7 +141,8 @@ export async function createReceipt(
       tenant_id: params.tenantId,
       receipt_number: receiptNumber(),
       location_id: params.locationId,
-      supplier_name: params.supplierName?.trim() || null,
+      supplier_id: params.supplierId ?? null,
+      supplier_name: supplierName,
       procurement_reference: params.procurementReference?.trim() || null,
       received_by: params.receivedBy,
       notes: params.notes?.trim() || null,
@@ -137,6 +164,12 @@ export async function createReceipt(
   if (linesError) return { receipt: null, error: linesError.message };
 
   for (const line of params.lines) {
+    // Blend this line's price into the item's weighted-average cost before the
+    // movement changes qty_on_hand — the calculation needs the pre-receipt quantity.
+    if (line.unitCost > 0) {
+      await recalculateWeightedAverageCost(supabase, params.tenantId, line.itemId, line.qtyReceived, line.unitCost);
+    }
+
     const result = await postStockMovement(supabase, {
       tenantId: params.tenantId,
       itemId: line.itemId,
@@ -149,16 +182,6 @@ export async function createReceipt(
       performedBy: params.receivedBy,
     });
     if (result.error) return { receipt: null, error: `${line.itemId}: ${result.error}` };
-
-    // Simple last-cost valuation: the item's standard cost tracks the most recent receipt price.
-    if (line.unitCost > 0) {
-      await supabase
-        .schema("hotel")
-        .from("inventory_items")
-        .update({ unit_cost: line.unitCost, updated_at: new Date().toISOString() })
-        .eq("id", line.itemId)
-        .eq("tenant_id", params.tenantId);
-    }
   }
 
   const full = await getReceiptById(supabase, params.tenantId, receipt.id as string);

@@ -20,40 +20,62 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toastError, toastSuccess } from "@/lib/app-toast";
+import { InventoryItemPicker } from "@/components/hms/inventory/InventoryItemPicker";
+import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import type {
   InventoryItemRow,
   InventoryLocationRow,
   InventoryMovementWithDetails,
 } from "@/lib/hms/inventory-types";
 
+const FOOD_REASON_PRESETS = ["Spoilage", "Expired", "Damaged in prep or service", "Other"];
+const EQUIPMENT_REASON_PRESETS = ["Broken", "Worn out / end of life", "Lost", "Stained or torn beyond repair", "Other"];
+
 export function InventoryWasteClient({
   slug,
   initialMovements,
   locations,
-  items,
+  items: initialItems,
+  currency,
+  canCreateItem = false,
 }: {
   slug: string;
   initialMovements: InventoryMovementWithDetails[];
   locations: InventoryLocationRow[];
   items: InventoryItemRow[];
+  currency: string;
+  canCreateItem?: boolean;
 }) {
   const router = useRouter();
+  const [items, setItems] = useState(initialItems);
   const [open, setOpen] = useState(false);
   const [itemId, setItemId] = useState("");
   const [locationId, setLocationId] = useState("");
   const [qty, setQty] = useState("");
-  const [reason, setReason] = useState("");
+  const [reasonPreset, setReasonPreset] = useState("");
+  const [customReason, setCustomReason] = useState("");
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const canSubmit = Boolean(itemId) && Boolean(locationId) && Number(qty) > 0 && reason.trim().length > 0 && !submitting;
+  const selectedItem = items.find((it) => it.id === itemId);
+  const reasonPresets = selectedItem?.item_type_is_equipment ? EQUIPMENT_REASON_PRESETS : FOOD_REASON_PRESETS;
+  const reason = reasonPreset === "Other" ? customReason.trim() : reasonPreset;
+
+  const canSubmit = Boolean(itemId) && Boolean(locationId) && Number(qty) > 0 && reason.length > 0 && !submitting;
 
   function resetForm() {
     setItemId("");
     setLocationId("");
     setQty("");
-    setReason("");
+    setReasonPreset("");
+    setCustomReason("");
     setNote("");
+  }
+
+  function selectItem(id: string) {
+    setItemId(id);
+    setReasonPreset("");
+    setCustomReason("");
   }
 
   async function submitWaste() {
@@ -106,6 +128,7 @@ export function InventoryWasteClient({
                   <th className="px-4 py-3">Item</th>
                   <th className="px-4 py-3">Location</th>
                   <th className="px-4 py-3">Qty</th>
+                  <th className="px-4 py-3 text-right">Cost</th>
                   <th className="px-4 py-3">Reason</th>
                   <th className="px-4 py-3">Note</th>
                 </tr>
@@ -123,6 +146,11 @@ export function InventoryWasteClient({
                     <td className="px-4 py-3 text-slate-700">{m.location_name}</td>
                     <td className="px-4 py-3 tabular-nums text-slate-900">
                       {Math.abs(m.qty)} {m.unit_of_measure}
+                    </td>
+                    <td className="px-4 py-3 text-right tabular-nums text-slate-700">
+                      {m.unit_cost_at_movement > 0
+                        ? formatPricingAmount(Math.abs(m.qty) * m.unit_cost_at_movement, currency)
+                        : "—"}
                     </td>
                     <td className="px-4 py-3 text-slate-700">{m.reason ?? "—"}</td>
                     <td className="px-4 py-3 text-slate-500">{m.note ?? "—"}</td>
@@ -149,18 +177,15 @@ export function InventoryWasteClient({
           <div className="space-y-3">
             <div>
               <p className="mb-1 text-xs font-medium text-slate-600">Item</p>
-              <Select value={itemId} onValueChange={setItemId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select item" />
-                </SelectTrigger>
-                <SelectContent>
-                  {items.map((it) => (
-                    <SelectItem key={it.id} value={it.id}>
-                      {it.name} ({it.sku})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <InventoryItemPicker
+                slug={slug}
+                items={items}
+                value={itemId}
+                onValueChange={selectItem}
+                canCreateItem={canCreateItem}
+                onItemCreated={(item) => setItems((prev) => [...prev, item])}
+                placeholder="Select item"
+              />
             </div>
             <div>
               <p className="mb-1 text-xs font-medium text-slate-600">Location</p>
@@ -189,11 +214,26 @@ export function InventoryWasteClient({
             </div>
             <div>
               <p className="mb-1 text-xs font-medium text-slate-600">Reason</p>
-              <Input
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                placeholder="e.g. Broken in transit"
-              />
+              <Select value={reasonPreset} onValueChange={setReasonPreset}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select reason" />
+                </SelectTrigger>
+                <SelectContent>
+                  {reasonPresets.map((r) => (
+                    <SelectItem key={r} value={r}>
+                      {r}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {reasonPreset === "Other" ? (
+                <Input
+                  className="mt-2"
+                  value={customReason}
+                  onChange={(e) => setCustomReason(e.target.value)}
+                  placeholder="Describe the reason"
+                />
+              ) : null}
             </div>
             <div>
               <p className="mb-1 text-xs font-medium text-slate-600">Note</p>

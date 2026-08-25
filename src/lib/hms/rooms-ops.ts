@@ -4,6 +4,7 @@ import {
   type RoomAssignCheckResult,
   type RoomUnitSnapshot,
 } from "@/lib/hms/arrivals-room";
+import { writeRoomStatus } from "@/lib/hms/room-status";
 
 export type RoomBlockRow = {
   id: string;
@@ -154,11 +155,11 @@ export async function assignReservationToRoom(params: {
     .eq("id", params.reservationId);
 
   if (reservation.status === "checked_in") {
-    await params.supabase
-      .schema("hotel")
-      .from("room_units")
-      .update({ status: "occupied" })
-      .eq("id", unit.id);
+    await writeRoomStatus(params.supabase, {
+      tenantId: params.tenantId,
+      roomUnitId: unit.id,
+      status: "occupied",
+    });
   }
 
   return { ok: true, roomCode: unit.room_code };
