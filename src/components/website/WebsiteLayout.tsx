@@ -53,7 +53,7 @@ import {
   MobileNavAuthSection,
 } from "@/components/website/WebsiteHeaderAuthMenus";
 
-import { LOGO_URL } from "@/constants/branding";
+import { LOGO_URL, LOGO_LIGHT_URL } from "@/constants/branding";
 
 function isNavGroup(item: NavItem): item is NavItemGroup {
   return "children" in item && Array.isArray(item.children);
@@ -75,37 +75,37 @@ const NAV_DROPDOWN_ITEM_VISUAL: Record<
   string,
   { Icon: LucideIcon; iconWellStyle: CSSProperties; iconColor: string }
 > = {
-  "/home/solutions/hotel": {
+  "/solutions/hotel": {
     Icon: Building2,
     iconWellStyle: { background: "rgb(var(--xyvoo-blue-rgb) / 0.12)" },
     iconColor: "rgb(var(--xyvoo-blue-rgb) / 0.88)",
   },
-  "/home/solutions/store": {
+  "/solutions/store": {
     Icon: ShoppingBag,
     iconWellStyle: { background: "rgb(var(--xyvoo-mint-rgb) / 0.22)" },
     iconColor: "var(--xyvoo-teal-product)",
   },
-  "/home/about": {
+  "/about": {
     Icon: Info,
     iconWellStyle: { background: "rgb(var(--xyvoo-blue-rgb) / 0.08)" },
     iconColor: "rgb(var(--xyvoo-blue-rgb) / 0.82)",
   },
-  "/home/team": {
+  "/team": {
     Icon: Users,
     iconWellStyle: { background: "rgb(var(--xyvoo-mint-rgb) / 0.16)" },
     iconColor: "var(--xyvoo-teal-product-hover)",
   },
-  "/home/careers": {
+  "/careers": {
     Icon: Briefcase,
     iconWellStyle: { background: "rgb(var(--xyvoo-blue-rgb) / 0.1)" },
     iconColor: "rgb(var(--xyvoo-blue-rgb) / 0.85)",
   },
-  "/home/blog": {
+  "/blog": {
     Icon: Newspaper,
     iconWellStyle: { background: "rgb(var(--xyvoo-blue-rgb) / 0.09)" },
     iconColor: "rgb(var(--xyvoo-blue-rgb) / 0.82)",
   },
-  "/home/support": {
+  "/support": {
     Icon: Headphones,
     iconWellStyle: { background: "rgb(var(--xyvoo-mint-rgb) / 0.14)" },
     iconColor: "var(--xyvoo-teal-product)",
@@ -113,19 +113,18 @@ const NAV_DROPDOWN_ITEM_VISUAL: Record<
 };
 
 const NAV: NavItem[] = [
-  { label: "Home", href: "/home" },
   {
     label: "Solutions",
     children: [
       {
         label: "Hotel Management System",
-        href: "/home/solutions/hotel",
+        href: "/solutions/hotel",
         description:
           "Front desk, housekeeping, F&B, and finance — one dashboard for your property.",
       },
       {
         label: "XYVOO Store",
-        href: "/home/solutions/store",
+        href: "/solutions/store",
         description:
           "Branded storefront, catalog, checkout, and fulfilment without bolt-ons.",
       },
@@ -136,17 +135,17 @@ const NAV: NavItem[] = [
     children: [
       {
         label: "About Us",
-        href: "/home/about",
+        href: "/about",
         description: "Our story, mission, and why we build for hoteliers.",
       },
       {
         label: "Our Team",
-        href: "/home/team",
+        href: "/team",
         description: "Meet the people shipping XYVOO across Africa.",
       },
       {
         label: "Careers",
-        href: "/home/careers",
+        href: "/careers",
         description: "Open roles and how we work together.",
       },
     ],
@@ -156,18 +155,18 @@ const NAV: NavItem[] = [
     children: [
       {
         label: "Blog",
-        href: "/home/blog",
+        href: "/blog",
         description: "Product news, guides, and hospitality reads.",
       },
       {
         label: "Support",
-        href: "/home/support",
+        href: "/support",
         description: "Help articles, FAQs, and how to get unstuck.",
       },
     ],
   },
-  { label: "Pricing", href: "/home/pricing" },
-  { label: "Contact", href: "/home/contact" },
+  { label: "Pricing", href: "/pricing" },
+  { label: "Contact", href: "/contact" },
 ];
 
 function MobileNavSidebar({ pathname }: { pathname: string }) {
@@ -211,7 +210,7 @@ function MobileNavSidebar({ pathname }: { pathname: string }) {
         </SheetHeader>
         <SidebarHeader className="shrink-0 border-0 border-b border-border/70 p-5 pb-4">
           <div className="flex items-center justify-between gap-3">
-            <Link href="/home" onClick={close} className="flex min-w-0 items-center">
+            <Link href="/" onClick={close} className="flex min-w-0 items-center">
               <Image src={LOGO_URL} alt="XYVOO" width={125} height={50} />
             </Link>
             <button
@@ -339,9 +338,11 @@ const NAV_DROPDOWN_HOVER_CLOSE_MS = 140;
 function NavGroupDropdown({
   item,
   pathname,
+  isHeroDark = false,
 }: {
   item: NavItemGroup;
   pathname: string;
+  isHeroDark?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -369,11 +370,16 @@ function NavGroupDropdown({
     <DropdownMenu open={open} onOpenChange={setOpen} modal={false}>
       <DropdownMenuTrigger
         type="button"
-        className={`group flex items-center gap-1 rounded-lg px-4 py-2 text-sm font-medium outline-none transition-all duration-200 ease-out hover:bg-muted/80 hover:text-xyvoo-blue data-[state=open]:bg-muted/70 data-[state=open]:text-foreground ${
-          childActive
-            ? "bg-blue-50 text-xyvoo-blue hover:bg-blue-100/90"
-            : "text-foreground"
-        }`}
+        className={cn(
+          "group flex items-center gap-1 rounded-lg px-4 py-2 text-sm font-medium outline-none transition-all duration-200 ease-out data-[state=open]:text-foreground",
+          isHeroDark
+            ? childActive
+              ? "bg-white/10 text-white hover:bg-white/20"
+              : "text-white/80 hover:bg-white/10 hover:text-white data-[state=open]:bg-white/10 data-[state=open]:text-white"
+            : childActive
+              ? "bg-blue-50 text-xyvoo-blue hover:bg-blue-100/90"
+              : "text-foreground hover:bg-muted/80 hover:text-xyvoo-blue data-[state=open]:bg-muted/70"
+        )}
         onPointerEnter={() => {
           cancelScheduledClose();
           setOpen(true);
@@ -456,28 +462,69 @@ function NavGroupDropdown({
 
 function WebsiteHeader({ pathname }: { pathname: string }) {
   const [scrolled, setScrolled] = useState(false);
+  const [visible, setVisible] = useState(true);
+  const [heroTheme, setHeroTheme] = useState<{ isDark: boolean; bg: string; id: string } | null>(null);
+  const lastScrollY = useRef(0);
   const { openMobile, setOpenMobile } = useSidebar();
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener("scroll", onScroll);
+    const onScroll = () => {
+      const currentScrollY = window.scrollY;
+      setScrolled(currentScrollY > 20);
+
+      // Hide on scroll down, show on scroll up
+      if (currentScrollY > lastScrollY.current && currentScrollY > 120) {
+        setVisible(false);
+      } else {
+        setVisible(true);
+      }
+      lastScrollY.current = currentScrollY;
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  useEffect(() => {
+    const handleThemeChange = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      setHeroTheme(detail);
+    };
+    window.addEventListener("heroThemeChange", handleThemeChange);
+    // Request current theme on mount
+    window.dispatchEvent(new CustomEvent("requestHeroTheme"));
+    return () => window.removeEventListener("heroThemeChange", handleThemeChange);
+  }, []);
+
+  const isHeroDark = !scrolled && pathname === "/" && !!heroTheme?.isDark;
+
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled ? "bg-white/95 backdrop-blur-md" : "bg-white/90 backdrop-blur-sm"
-      }`}
+      className={cn(
+        "fixed top-0 left-0 right-0 z-50 transition-all duration-300 transform",
+        visible ? "translate-y-0" : "-translate-y-full",
+        scrolled
+          ? "bg-white/95 backdrop-blur-md shadow-sm"
+          : pathname === "/" && heroTheme
+            ? "bg-transparent"
+            : "bg-white/90 backdrop-blur-sm"
+      )}
     >
       <div
-        className={`mx-auto w-full max-w-[1800px] transition-shadow duration-300 ${
+        className={cn(
+          "mx-auto w-full max-w-[1800px] transition-shadow duration-300",
           scrolled ? "shadow-[var(--xyvoo-shadow-header-scrolled)]" : ""
-        }`}
+        )}
       >
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-3">
-          <Link href="/home" className="group flex shrink-0 items-center">
-            <Image src={LOGO_URL} alt="XYVOO" width={125} height={50} />
+          <Link href="/" className="group flex shrink-0 items-center">
+            <Image
+              src={isHeroDark ? LOGO_LIGHT_URL : LOGO_URL}
+              alt="XYVOO"
+              width={isHeroDark ? 122 : 125}
+              height={50}
+              className="transition-all duration-200"
+              style={{ width: "auto", height: "auto" }}
+            />
           </Link>
           <nav className="hidden min-[1024px]:flex flex-1 justify-center gap-1">
             {NAV.map((item) =>
@@ -486,16 +533,22 @@ function WebsiteHeader({ pathname }: { pathname: string }) {
                   key={item.label}
                   item={item}
                   pathname={pathname}
+                  isHeroDark={isHeroDark}
                 />
               ) : (
                 <Link
                   key={item.label}
                   href={item.href}
-                  className={`rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ease-out ${
-                    pathname === item.href
-                      ? "bg-blue-50 text-xyvoo-blue hover:bg-blue-100/90"
-                      : "text-foreground hover:bg-muted/80 hover:text-xyvoo-blue"
-                  }`}
+                  className={cn(
+                    "rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ease-out",
+                    isHeroDark
+                      ? pathname === item.href
+                        ? "bg-white/10 text-white hover:bg-white/20"
+                        : "text-white/80 hover:bg-white/10 hover:text-white"
+                      : pathname === item.href
+                        ? "bg-blue-50 text-xyvoo-blue hover:bg-blue-100/90"
+                        : "text-foreground hover:bg-muted/80 hover:text-xyvoo-blue"
+                  )}
                 >
                   {item.label}
                 </Link>
@@ -504,11 +557,16 @@ function WebsiteHeader({ pathname }: { pathname: string }) {
           </nav>
           <div className="flex shrink-0 items-center gap-2">
             <div className="hidden min-[700px]:flex items-center gap-2">
-              <DesktopHeaderAuthMenus />
+              <DesktopHeaderAuthMenus isHeroDark={isHeroDark} />
             </div>
             <button
               type="button"
-              className="flex min-[1024px]:hidden rounded-lg p-2 text-foreground hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className={cn(
+                "flex min-[1024px]:hidden rounded-lg p-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                isHeroDark
+                  ? "text-white hover:bg-white/10"
+                  : "text-foreground hover:bg-muted/60"
+              )}
               aria-label={openMobile ? "Close menu" : "Open menu"}
               aria-expanded={openMobile}
               onClick={() => setOpenMobile(!openMobile)}
@@ -539,15 +597,18 @@ export default function WebsiteLayout({
 
       <main className={cn("min-w-0", !compactMain && "flex-1")}>{children}</main>
 
+      {!compactMain && <BrandCtaSection />}
+
       <footer className="bg-xyvoo-navy mt-0 px-6 py-16 text-white">
         <div className="mx-auto grid max-w-[1800px] grid-cols-1 gap-10 md:grid-cols-5">
           <div className="md:col-span-2">
             <Image
-              src={LOGO_URL}
+              src={LOGO_LIGHT_URL}
               alt="XYVOO"
-              width={125}
+              width={122}
               height={50}
-              className="mb-4 brightness-0 invert"
+              className="mb-4"
+              style={{ width: "auto", height: "auto" }}
             />
             <p className="text-sm text-slate-400 leading-relaxed max-w-xs">
               The modern Hotel Management System built for independent
@@ -569,8 +630,8 @@ export default function WebsiteLayout({
             {
               title: "Product",
               links: [
-                ["Features", "/home"],
-                ["Pricing", "/home/pricing"],
+                ["Features", "/"],
+                ["Pricing", "/pricing"],
                 ["Get started — HMS", XYVOO_AUTH_ROUTES.hms.register],
                 ["Get started — Store", XYVOO_AUTH_ROUTES.store.register],
               ],
@@ -578,17 +639,17 @@ export default function WebsiteLayout({
             {
               title: "Company",
               links: [
-                ["About", "/home/about"],
-                ["Team", "/home/team"],
-                ["Careers", "/home/careers"],
+                ["About", "/about"],
+                ["Team", "/team"],
+                ["Careers", "/careers"],
               ],
             },
             {
               title: "Resources",
               links: [
-                ["Blog", "/home/blog"],
-                ["Support", "/home/support"],
-                ["Contact", "/home/contact"],
+                ["Blog", "/blog"],
+                ["Support", "/support"],
+                ["Contact", "/contact"],
               ],
             },
           ].map((col) => (
@@ -629,7 +690,7 @@ export default function WebsiteLayout({
               Terms of Service
             </Link>
             <Link
-              href="/home/support"
+              href="/support"
               className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
             >
               Cookie Policy
@@ -638,5 +699,61 @@ export default function WebsiteLayout({
         </div>
       </footer>
     </SidebarProvider>
+  );
+}
+
+function BrandCtaSection() {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.muted = true;
+      videoRef.current.play().catch((err) => {
+        console.warn("Video autoplay failed:", err);
+      });
+    }
+  }, []);
+
+  return (
+    <section className="relative overflow-hidden w-full text-white py-16 md:py-20 px-6 lg:px-12 border-t border-white/5">
+      {/* Background Video */}
+      <video
+        ref={videoRef}
+        loop
+        muted
+        playsInline
+        className="absolute inset-0 w-full h-full object-cover z-0"
+      >
+        <source
+          src="/images/background%20images/animated_brandCTA_1920x350_h264.mp4"
+          type="video/mp4"
+        />
+      </video>
+
+      <div className="relative z-10 mx-auto max-w-[1200px] w-full flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        <div className="flex flex-col text-left max-w-2xl">
+          <h2 className="text-xl md:text-2xl lg:text-[1.625rem] font-bold tracking-tight text-white leading-tight">
+            Ready to run your business on your own system?
+          </h2>
+          <p className="mt-2 text-[13.5px] md:text-[14.5px] text-slate-300 leading-relaxed">
+            14-day free trial for HMS. Free plan available for Storefront. No credit card required to start.
+          </p>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto shrink-0">
+          <Link
+            href="/register"
+            className="inline-flex items-center justify-center gap-1 rounded-lg bg-[#3dc7be] hover:bg-[#2fb3ab] text-white px-6 py-3 text-[14.5px] font-semibold transition-all duration-200 hover:-translate-y-0.5 shadow-sm w-full sm:w-auto text-center"
+          >
+            Launch your HMS →
+          </Link>
+          <Link
+            href="/register/store"
+            className="inline-flex items-center justify-center gap-1 rounded-lg border border-white/30 bg-white/10 hover:bg-white/20 text-white px-6 py-3 text-[14.5px] font-semibold transition-all duration-200 hover:-translate-y-0.5 shadow-sm w-full sm:w-auto text-center"
+          >
+            Start your online store →
+          </Link>
+        </div>
+      </div>
+    </section>
   );
 }
