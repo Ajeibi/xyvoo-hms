@@ -742,7 +742,7 @@ function BrandCtaSection() {
         <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto shrink-0">
           <Link
             href="/register"
-            className="inline-flex items-center justify-center gap-1 rounded-lg bg-[#3dc7be] hover:bg-[#2fb3ab] text-white px-6 py-3 text-[14.5px] font-semibold transition-all duration-200 hover:-translate-y-0.5 shadow-sm w-full sm:w-auto text-center"
+            className="inline-flex items-center justify-center gap-1 rounded-lg bg-xyvoo-blue hover:bg-xyvoo-blue/90 text-white px-6 py-3 text-[14.5px] font-semibold transition-all duration-200 hover:-translate-y-0.5 shadow-sm w-full sm:w-auto text-center"
           >
             Launch your HMS →
           </Link>
