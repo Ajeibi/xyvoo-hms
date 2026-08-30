@@ -2,7 +2,6 @@
 
 import { motion, type Variants } from "framer-motion";
 import Link from "next/link";
-import WebsiteLayout from "@/components/website/WebsiteLayout";
 import { Share2, Globe2, ArrowRight } from "lucide-react";
 import type { MarketingTeamAvatarProps } from "@/types";
 
@@ -41,7 +40,7 @@ function Avatar({ initials, hue, size = "lg" }: MarketingTeamAvatarProps) {
 
 export default function TeamPage() {
   return (
-    <WebsiteLayout>
+    <>
       <section className="pt-32 pb-16 bg-white border-b border-slate-100">
         <div className="max-w-4xl mx-auto px-6 text-center">
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
@@ -137,6 +136,6 @@ export default function TeamPage() {
           </Link>
         </motion.div>
       </section>
-    </WebsiteLayout>
+    </>
   );
 }

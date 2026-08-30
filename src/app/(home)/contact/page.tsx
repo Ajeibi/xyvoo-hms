@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { motion, type Variants } from "framer-motion";
-import WebsiteLayout from "@/components/website/WebsiteLayout";
 import { Mail, MapPin, MessageCircle, Send, CheckCircle2 } from "lucide-react";
 import type { MarketingContactForm } from "@/types";
 
@@ -36,7 +35,7 @@ export default function ContactPage() {
   const inputCls = "w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all";
 
   return (
-    <WebsiteLayout>
+    <>
       <section className="pt-32 pb-20 bg-white border-b border-slate-100">
         <div className="max-w-4xl mx-auto px-6 text-center">
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
@@ -157,6 +156,6 @@ export default function ContactPage() {
           </div>
         </div>
       </section>
-    </WebsiteLayout>
+    </>
   );
 }

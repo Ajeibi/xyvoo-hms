@@ -2,7 +2,6 @@
 
 import { useRef } from "react";
 import { motion, useInView } from "framer-motion";
-import WebsiteLayout from "@/components/website/WebsiteLayout";
 import { ArrowRight, Clock } from "lucide-react";
 import type { FadeInSectionProps } from "@/types";
 
@@ -31,7 +30,7 @@ export default function BlogPage() {
   const featured = POSTS[0];
   const rest = POSTS.slice(1);
   return (
-    <WebsiteLayout>
+    <>
       <section className="pt-32 pb-16 bg-white border-b border-slate-100">
         <div className="max-w-4xl mx-auto px-6 text-center">
           <motion.p
@@ -127,6 +126,6 @@ export default function BlogPage() {
           </div>
         </div>
       </section>
-    </WebsiteLayout>
+    </>
   );
 }

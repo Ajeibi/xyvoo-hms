@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
-import WebsiteLayout from "@/components/website/WebsiteLayout";
 import { ArrowRight, MapPin, Clock, ChevronDown } from "lucide-react";
 
 const fadeUp: Variants = {
@@ -37,7 +36,7 @@ export default function CareersPage() {
   const filtered = dept === "All" ? JOBS : JOBS.filter((j) => j.dept === dept);
 
   return (
-    <WebsiteLayout>
+    <>
       <section className="pt-32 pb-24 bg-slate-950 text-white relative overflow-hidden">
         <div className="absolute inset-0 opacity-[0.06]" style={{ backgroundImage: "linear-gradient(rgba(99,102,241,0.5) 1px,transparent 1px),linear-gradient(90deg,rgba(99,102,241,0.5) 1px,transparent 1px)", backgroundSize: "60px 60px" }} />
         <div className="absolute top-20 left-1/4 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl" />
@@ -148,6 +147,6 @@ export default function CareersPage() {
           </motion.div>
         </div>
       </section>
-    </WebsiteLayout>
+    </>
   );
 }

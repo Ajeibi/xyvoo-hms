@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
-import WebsiteLayout from "@/components/website/WebsiteLayout";
 import { MessageCircle, Mail, Phone, BookOpen, ChevronDown, Search, ArrowRight, Clock } from "lucide-react";
 
 const fadeUp: Variants = {
@@ -53,7 +52,7 @@ export default function SupportPage() {
   const filtered = FAQS.filter((f) => f.q.toLowerCase().includes(search.toLowerCase()) || f.a.toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <WebsiteLayout>
+    <>
       <section className="pt-32 pb-16 bg-white border-b border-slate-100">
         <div className="max-w-3xl mx-auto px-6 text-center">
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
@@ -152,6 +151,6 @@ export default function SupportPage() {
           </a>
         </motion.div>
       </section>
-    </WebsiteLayout>
+    </>
   );
 }

@@ -1,0 +1,682 @@
+/* Responsive shell: the wheel itself is authored at a fixed 820px design size,
+   scaled to fill whatever box the caller gives it via container query units. */
+.viewport {
+  --navy-tint: rgba(58, 116, 196, 0.26);
+  --teal-tint: rgba(32, 168, 171, 0.24);
+  --glass-base: rgba(16, 22, 35, 0.6);
+  --ink: #f3f6fa;
+  --line: rgba(255, 255, 255, 0.22);
+  --spin-duration: 140s;
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  container-type: inline-size;
+}
+.canvasScale {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 820px;
+  height: 820px;
+  transform: translate(-50%, -50%) scale(calc(100cqi / 820px));
+  transform-origin: center center;
+}
+
+.stage {
+  position: relative;
+  width: 820px;
+  height: 820px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: stageIn 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes stageIn {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.glow {
+  position: absolute;
+  inset: 60px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(58, 116, 196, 0.5), transparent 60%),
+    radial-gradient(circle at 74% 68%, rgba(32, 168, 171, 0.45), transparent 60%);
+  filter: blur(46px);
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.wheel {
+  position: relative;
+  width: 800px;
+  height: 800px;
+}
+
+/* the whole ring (wedges + labels + badges) turns slowly clockwise;
+   the centre hub is deliberately outside this wrapper so it never spins */
+.spin {
+  position: absolute;
+  inset: 0;
+  animation: wheelSpin var(--spin-duration) linear infinite;
+}
+@keyframes wheelSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* freeze the turntable the instant anything on it is hovered, so a hovered
+   section never drifts out from under the cursor */
+.wheel:has(.hoverable:hover) .spin {
+  animation-play-state: paused;
+}
+.wheel:has(.hoverable:hover) .labelWrap {
+  animation-play-state: paused;
+}
+
+.wheel > .donut {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* glass wedges: true rounded-corner geometry (no stroke hack),
+   a dark frosted base + a translucent hue on top, one crisp 1px edge line */
+.glassBase {
+  fill: var(--glass-base);
+}
+.glassTint {
+  stroke: var(--line);
+  stroke-width: 1.3;
+}
+.glassTint.navy {
+  fill: var(--navy-tint);
+}
+.glassTint.teal {
+  fill: var(--teal-tint);
+}
+
+.segGroup {
+  pointer-events: none;
+  transform-origin: 400px 400px;
+  transition:
+    filter 0.3s ease,
+    transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.3s ease;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.35));
+  backdrop-filter: blur(10px);
+}
+
+/* invisible, never-independently-transformed hit-region: it only ever moves as
+   part of the slow turntable spin, and that spin freezes on hover, so the
+   hover boundary is always stable under the mouse (no flicker) */
+.hit {
+  fill: rgba(0, 0, 0, 0.01);
+  stroke: none;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+/* centre hub (fixed — never rotates) */
+.hub {
+  position: absolute;
+  inset: 240px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 32%, #1a2740, #0a101c 72%);
+  box-shadow:
+    inset 0 0 0 1px var(--line),
+    inset 0 10px 30px rgba(0, 0, 0, 0.55),
+    0 0 40px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+.hint {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0 40px;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 13px;
+  letter-spacing: 0.3px;
+  transition: opacity 0.3s ease;
+}
+.desc {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0 34px;
+  opacity: 0;
+  transform: translateY(8px) scale(0.92);
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  pointer-events: none;
+}
+.desc h4 {
+  margin: 0 0 10px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.25;
+}
+.desc p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+/* radial anchor shared by labels, badges, connectors — this is what
+   actually orbits, driven by the parent .spin rotation */
+.radial {
+  position: absolute;
+  top: 400px;
+  left: 400px;
+  width: 0;
+  height: 0;
+  transform: rotate(var(--rot, 0deg));
+}
+
+/* label anchors ALSO carry the hover scale, applied around this 0x0 hub
+   point — this is what pushes the icon+label radially outward together
+   with its wedge on hover, instead of ballooning in place */
+.labelRadial {
+  transform: rotate(var(--rot, 0deg)) scale(var(--rs, 1));
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* connector line from rim to badge */
+.connector {
+  position: absolute;
+  left: -1px;
+  top: -336px;
+  width: 2px;
+  height: 44px;
+  background: linear-gradient(var(--line), transparent);
+  transition: opacity 0.25s ease;
+}
+
+/* inner icon + label groups. Each one spins in the OPPOSITE direction
+   at the same speed as the turntable, so the icon/text stay upright and legible
+   the whole time the wheel is turning (only their orbital position moves).
+   Scale-on-hover lives on the parent .labelRadial, not here, so it doesn't
+   fight with this element's own rotate-only animation. */
+.labelWrap {
+  position: absolute;
+  left: -50px;
+  top: -250px;
+  width: 100px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: center;
+  color: var(--ink);
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  animation: counterSpin var(--spin-duration) linear infinite;
+}
+@keyframes counterSpin {
+  from {
+    transform: rotate(var(--base, 0deg)) rotate(0deg);
+  }
+  to {
+    transform: rotate(var(--base, 0deg)) rotate(-360deg);
+  }
+}
+.labelWrap .ic {
+  width: 24px;
+  height: 24px;
+  margin-bottom: 6px;
+  flex-shrink: 0;
+  stroke: #ffffff;
+  fill: none;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+}
+.labelWrap span {
+  display: block;
+  width: 100%;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.28;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+  letter-spacing: 0.05px;
+  hyphens: auto;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* outer badge circles: same frosted-glass treatment, single ring.
+   They orbit with the turntable and gently turn with it too. */
+.badge {
+  position: absolute;
+  left: -38px;
+  top: -388px;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(10px) saturate(1.3);
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
+    opacity 0.3s ease;
+  cursor: pointer;
+  transform: rotate(var(--brot, 0deg)) scale(var(--bs, 1));
+  animation: popIn 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(var(--i, 0) * 55ms + 0.35s);
+}
+@keyframes popIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.badge.navy {
+  background: linear-gradient(var(--navy-tint), var(--navy-tint)), var(--glass-base);
+}
+.badge.teal {
+  background: linear-gradient(var(--teal-tint), var(--teal-tint)), var(--glass-base);
+}
+.badge.navy:hover {
+  --bs: 1.1;
+  box-shadow:
+    0 8px 22px rgba(0, 0, 0, 0.55),
+    0 0 26px rgba(58, 116, 196, 0.5);
+}
+.badge.teal:hover {
+  --bs: 1.1;
+  box-shadow:
+    0 8px 22px rgba(0, 0, 0, 0.55),
+    0 0 26px rgba(32, 168, 171, 0.5);
+}
+.badge .ic {
+  width: 30px;
+  height: 30px;
+  stroke: #ffffff;
+  fill: none;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* hover focus interaction: enlarge the hovered section (wedge + its icon/label
+   move and scale together), dim the rest, reveal its description */
+.wheel:has(.t0:hover) .s0 {
+  transform: scale(1.16);
+  filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.65)) brightness(1.28) saturate(1.3);
+}
+.wheel:has(.t0:hover) .segGroup:not(.s0) {
+  opacity: 0.3;
+  filter: saturate(0.4) brightness(0.7);
+}
+.wheel:has(.t0:hover) .rl0 {
+  --rs: 1.16;
+  z-index: 5;
+}
+.wheel:has(.t0:hover) .labelWrap:not(.t0) {
+  opacity: 0.3;
+}
+.wheel:has(.t0:hover) .badge:not(.t0) {
+  opacity: 0.35;
+}
+.wheel:has(.t0:hover) .badge.t0 {
+  --bs: 1.1;
+}
+.wheel:has(.t0:hover) .c0 {
+  opacity: 0;
+}
+.wheel:has(.t0:hover) .desc0 {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+.wheel:has(.t0:hover) .hint {
+  opacity: 0;
+}
+
+.wheel:has(.t1:hover) .s1 {
+  transform: scale(1.16);
+  filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.65)) brightness(1.28) saturate(1.3);
+}
+.wheel:has(.t1:hover) .segGroup:not(.s1) {
+  opacity: 0.3;
+  filter: saturate(0.4) brightness(0.7);
+}
+.wheel:has(.t1:hover) .rl1 {
+  --rs: 1.16;
+  z-index: 5;
+}
+.wheel:has(.t1:hover) .labelWrap:not(.t1) {
+  opacity: 0.3;
+}
+.wheel:has(.t1:hover) .badge:not(.t1) {
+  opacity: 0.35;
+}
+.wheel:has(.t1:hover) .badge.t1 {
+  --bs: 1.1;
+}
+.wheel:has(.t1:hover) .c1 {
+  opacity: 0;
+}
+.wheel:has(.t1:hover) .desc1 {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+.wheel:has(.t1:hover) .hint {
+  opacity: 0;
+}
+
+.wheel:has(.t2:hover) .s2 {
+  transform: scale(1.16);
+  filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.65)) brightness(1.28) saturate(1.3);
+}
+.wheel:has(.t2:hover) .segGroup:not(.s2) {
+  opacity: 0.3;
+  filter: saturate(0.4) brightness(0.7);
+}
+.wheel:has(.t2:hover) .rl2 {
+  --rs: 1.16;
+  z-index: 5;
+}
+.wheel:has(.t2:hover) .labelWrap:not(.t2) {
+  opacity: 0.3;
+}
+.wheel:has(.t2:hover) .badge:not(.t2) {
+  opacity: 0.35;
+}
+.wheel:has(.t2:hover) .badge.t2 {
+  --bs: 1.1;
+}
+.wheel:has(.t2:hover) .c2 {
+  opacity: 0;
+}
+.wheel:has(.t2:hover) .desc2 {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+.wheel:has(.t2:hover) .hint {
+  opacity: 0;
+}
+
+.wheel:has(.t3:hover) .s3 {
+  transform: scale(1.16);
+  filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.65)) brightness(1.28) saturate(1.3);
+}
+.wheel:has(.t3:hover) .segGroup:not(.s3) {
+  opacity: 0.3;
+  filter: saturate(0.4) brightness(0.7);
+}
+.wheel:has(.t3:hover) .rl3 {
+  --rs: 1.16;
+  z-index: 5;
+}
+.wheel:has(.t3:hover) .labelWrap:not(.t3) {
+  opacity: 0.3;
+}
+.wheel:has(.t3:hover) .badge:not(.t3) {
+  opacity: 0.35;
+}
+.wheel:has(.t3:hover) .badge.t3 {
+  --bs: 1.1;
+}
+.wheel:has(.t3:hover) .c3 {
+  opacity: 0;
+}
+.wheel:has(.t3:hover) .desc3 {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+.wheel:has(.t3:hover) .hint {
+  opacity: 0;
+}
+
+.wheel:has(.t4:hover) .s4 {
+  transform: scale(1.16);
+  filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.65)) brightness(1.28) saturate(1.3);
+}
+.wheel:has(.t4:hover) .segGroup:not(.s4) {
+  opacity: 0.3;
+  filter: saturate(0.4) brightness(0.7);
+}
+.wheel:has(.t4:hover) .rl4 {
+  --rs: 1.16;
+  z-index: 5;
+}
+.wheel:has(.t4:hover) .labelWrap:not(.t4) {
+  opacity: 0.3;
+}
+.wheel:has(.t4:hover) .badge:not(.t4) {
+  opacity: 0.35;
+}
+.wheel:has(.t4:hover) .badge.t4 {
+  --bs: 1.1;
+}
+.wheel:has(.t4:hover) .c4 {
+  opacity: 0;
+}
+.wheel:has(.t4:hover) .desc4 {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+.wheel:has(.t4:hover) .hint {
+  opacity: 0;
+}
+
+.wheel:has(.t5:hover) .s5 {
+  transform: scale(1.16);
+  filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.65)) brightness(1.28) saturate(1.3);
+}
+.wheel:has(.t5:hover) .segGroup:not(.s5) {
+  opacity: 0.3;
+  filter: saturate(0.4) brightness(0.7);
+}
+.wheel:has(.t5:hover) .rl5 {
+  --rs: 1.16;
+  z-index: 5;
+}
+.wheel:has(.t5:hover) .labelWrap:not(.t5) {
+  opacity: 0.3;
+}
+.wheel:has(.t5:hover) .badge:not(.t5) {
+  opacity: 0.35;
+}
+.wheel:has(.t5:hover) .badge.t5 {
+  --bs: 1.1;
+}
+.wheel:has(.t5:hover) .c5 {
+  opacity: 0;
+}
+.wheel:has(.t5:hover) .desc5 {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+.wheel:has(.t5:hover) .hint {
+  opacity: 0;
+}
+
+.wheel:has(.t6:hover) .s6 {
+  transform: scale(1.16);
+  filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.65)) brightness(1.28) saturate(1.3);
+}
+.wheel:has(.t6:hover) .segGroup:not(.s6) {
+  opacity: 0.3;
+  filter: saturate(0.4) brightness(0.7);
+}
+.wheel:has(.t6:hover) .rl6 {
+  --rs: 1.16;
+  z-index: 5;
+}
+.wheel:has(.t6:hover) .labelWrap:not(.t6) {
+  opacity: 0.3;
+}
+.wheel:has(.t6:hover) .badge:not(.t6) {
+  opacity: 0.35;
+}
+.wheel:has(.t6:hover) .badge.t6 {
+  --bs: 1.1;
+}
+.wheel:has(.t6:hover) .c6 {
+  opacity: 0;
+}
+.wheel:has(.t6:hover) .desc6 {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+.wheel:has(.t6:hover) .hint {
+  opacity: 0;
+}
+
+.wheel:has(.t7:hover) .s7 {
+  transform: scale(1.16);
+  filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.65)) brightness(1.28) saturate(1.3);
+}
+.wheel:has(.t7:hover) .segGroup:not(.s7) {
+  opacity: 0.3;
+  filter: saturate(0.4) brightness(0.7);
+}
+.wheel:has(.t7:hover) .rl7 {
+  --rs: 1.16;
+  z-index: 5;
+}
+.wheel:has(.t7:hover) .labelWrap:not(.t7) {
+  opacity: 0.3;
+}
+.wheel:has(.t7:hover) .badge:not(.t7) {
+  opacity: 0.35;
+}
+.wheel:has(.t7:hover) .badge.t7 {
+  --bs: 1.1;
+}
+.wheel:has(.t7:hover) .c7 {
+  opacity: 0;
+}
+.wheel:has(.t7:hover) .desc7 {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+.wheel:has(.t7:hover) .hint {
+  opacity: 0;
+}
+
+.wheel:has(.t8:hover) .s8 {
+  transform: scale(1.16);
+  filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.65)) brightness(1.28) saturate(1.3);
+}
+.wheel:has(.t8:hover) .segGroup:not(.s8) {
+  opacity: 0.3;
+  filter: saturate(0.4) brightness(0.7);
+}
+.wheel:has(.t8:hover) .rl8 {
+  --rs: 1.16;
+  z-index: 5;
+}
+.wheel:has(.t8:hover) .labelWrap:not(.t8) {
+  opacity: 0.3;
+}
+.wheel:has(.t8:hover) .badge:not(.t8) {
+  opacity: 0.35;
+}
+.wheel:has(.t8:hover) .badge.t8 {
+  --bs: 1.1;
+}
+.wheel:has(.t8:hover) .c8 {
+  opacity: 0;
+}
+.wheel:has(.t8:hover) .desc8 {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+.wheel:has(.t8:hover) .hint {
+  opacity: 0;
+}
+
+.wheel:has(.t9:hover) .s9 {
+  transform: scale(1.16);
+  filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.65)) brightness(1.28) saturate(1.3);
+}
+.wheel:has(.t9:hover) .segGroup:not(.s9) {
+  opacity: 0.3;
+  filter: saturate(0.4) brightness(0.7);
+}
+.wheel:has(.t9:hover) .rl9 {
+  --rs: 1.16;
+  z-index: 5;
+}
+.wheel:has(.t9:hover) .labelWrap:not(.t9) {
+  opacity: 0.3;
+}
+.wheel:has(.t9:hover) .badge:not(.t9) {
+  opacity: 0.35;
+}
+.wheel:has(.t9:hover) .badge.t9 {
+  --bs: 1.1;
+}
+.wheel:has(.t9:hover) .c9 {
+  opacity: 0;
+}
+.wheel:has(.t9:hover) .desc9 {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+.wheel:has(.t9:hover) .hint {
+  opacity: 0;
+}
+
+.wheel:has(.t10:hover) .s10 {
+  transform: scale(1.16);
+  filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.65)) brightness(1.28) saturate(1.3);
+}
+.wheel:has(.t10:hover) .segGroup:not(.s10) {
+  opacity: 0.3;
+  filter: saturate(0.4) brightness(0.7);
+}
+.wheel:has(.t10:hover) .rl10 {
+  --rs: 1.16;
+  z-index: 5;
+}
+.wheel:has(.t10:hover) .labelWrap:not(.t10) {
+  opacity: 0.3;
+}
+.wheel:has(.t10:hover) .badge:not(.t10) {
+  opacity: 0.35;
+}
+.wheel:has(.t10:hover) .badge.t10 {
+  --bs: 1.1;
+}
+.wheel:has(.t10:hover) .c10 {
+  opacity: 0;
+}
+.wheel:has(.t10:hover) .desc10 {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+.wheel:has(.t10:hover) .hint {
+  opacity: 0;
+}

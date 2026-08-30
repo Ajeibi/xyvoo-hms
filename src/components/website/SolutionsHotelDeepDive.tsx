@@ -24,14 +24,16 @@ import {
   SOLUTIONS_HOTEL_INTEGRATIONS_TITLE,
   SOLUTIONS_HOTEL_ONBOARDING_ITEMS,
   SOLUTIONS_HOTEL_ONBOARDING_TITLE,
-  SOLUTIONS_HOTEL_PLATFORM_ITEMS,
-  SOLUTIONS_HOTEL_PLATFORM_SUBTITLE,
-  SOLUTIONS_HOTEL_PLATFORM_TITLE,
   SOLUTIONS_HOTEL_STACK_MODULES,
   type SolutionsHotelStackModule,
 } from "@/constants/solutions-hotel";
-import { SectionEyebrow } from "@/components/website/SectionEyebrow";
+import { SolutionsHotelWhyOneSystem } from "@/components/website/SolutionsHotelWhyOneSystem";
 import type { FadeInSectionProps } from "@/types";
+
+/** Glass palette — a bare hint of the hero wheel's navy/teal frosted glass,
+ * layered at low opacity over a white card rather than a dark one. */
+const GLASS_NAVY_TINT = "rgba(58, 116, 196, 0.05)";
+const GLASS_TEAL_TINT = "rgba(32, 168, 171, 0.05)";
 
 const STACK_ICON_BY_ID: Record<string, LucideIcon> = {
   pms: BedDouble,
@@ -45,6 +47,47 @@ const STACK_ICON_BY_ID: Record<string, LucideIcon> = {
   hr: UsersRound,
   analytics: BarChart2,
 };
+
+/** Row layout: which modules share a row (2-up) vs stand alone (full width) */
+const STACK_ROW_GROUPS: string[][] = [
+  ["pms", "crs"],
+  ["front-office"],
+  ["housekeeping", "fb-pos"],
+  ["billing"],
+  ["cmms", "procurement"],
+  ["hr"],
+  ["analytics"],
+];
+
+type StackRow =
+  | { kind: "single"; module: SolutionsHotelStackModule; tintIndex: number }
+  | {
+      kind: "pair";
+      modules: [SolutionsHotelStackModule, SolutionsHotelStackModule];
+      tintIndexes: [number, number];
+    };
+
+function buildStackRows(): StackRow[] {
+  const moduleById = new Map(
+    SOLUTIONS_HOTEL_STACK_MODULES.map((m) => [m.id, m]),
+  );
+  let tintIndex = 0;
+  return STACK_ROW_GROUPS.map((ids) => {
+    const modules = ids
+      .map((id) => moduleById.get(id))
+      .filter((m): m is SolutionsHotelStackModule => Boolean(m));
+    if (modules.length === 2) {
+      const tintIndexes: [number, number] = [tintIndex, tintIndex + 1];
+      tintIndex += 2;
+      return { kind: "pair" as const, modules: modules as [SolutionsHotelStackModule, SolutionsHotelStackModule], tintIndexes };
+    }
+    const idx = tintIndex;
+    tintIndex += 1;
+    return { kind: "single" as const, module: modules[0], tintIndex: idx };
+  });
+}
+
+const STACK_ROWS = buildStackRows();
 
 function FadeIn({ children, delay = 0 }: FadeInSectionProps) {
   const ref = useRef<HTMLDivElement>(null);
@@ -81,14 +124,16 @@ function ModuleStackCard({
         : rowToken === 3
           ? "var(--xyvoo-hms-features-ph-3)"
           : "var(--xyvoo-hms-features-ph-4)";
+  const isTeal = rowIndex % 2 === 1;
+  const glassTint = isTeal ? GLASS_TEAL_TINT : GLASS_NAVY_TINT;
 
   return (
     <div
-      className={`grid min-h-[480px] grid-cols-1 items-center overflow-hidden rounded-[20px] border md:min-h-[520px] md:grid-cols-2 ${
+      className={`grid min-h-[480px] grid-cols-1 items-center overflow-hidden rounded-[20px] border backdrop-blur-md md:min-h-[520px] md:grid-cols-2 ${
         reverse ? "md:[&>*:first-child]:order-2" : ""
       }`}
       style={{
-        background: `var(--xyvoo-hms-features-row-${rowToken})`,
+        background: `linear-gradient(${glassTint}, ${glassTint}), var(--xyvoo-white)`,
         borderColor: "var(--xyvoo-hms-features-row-border)",
         boxShadow:
           "var(--xyvoo-hms-features-row-shadow-lg), var(--xyvoo-hms-features-row-shadow-sm)",
@@ -97,7 +142,7 @@ function ModuleStackCard({
       <div className="flex flex-col px-5 pb-5 pt-9 sm:px-8 sm:pb-6 sm:pt-11 md:px-[72px] md:pb-[72px] md:pt-[72px]">
         <div
           className="mb-3 text-[11px] font-bold uppercase tracking-[0.16em]"
-          style={{ color: "var(--xyvoo-hms-features-number)" }}
+          style={{ color: "var(--xyvoo-blue)" }}
         >
           {module.number}
         </div>
@@ -223,15 +268,6 @@ function ModuleStackCard({
               <br />
               module preview
             </span>
-            <span
-              className="absolute bottom-3.5 right-3.5 z-[2] rounded-full px-2.5 py-1 text-[10.5px] font-semibold uppercase tracking-[0.05em]"
-              style={{
-                background: "var(--xyvoo-hms-features-badge-bg)",
-                color: "var(--xyvoo-hms-features-badge-text)",
-              }}
-            >
-              {module.badge}
-            </span>
           </div>
         </div>
       </div>
@@ -239,119 +275,151 @@ function ModuleStackCard({
   );
 }
 
+/** Compact variant for 2-up rows — bold, solid navy/teal (not the subtle
+ * glass hint the full-width rows use) so the page doesn't read as one flat
+ * treatment the whole way down. Navy is dark (white text); teal-product is
+ * light (dark text) — each card's text picks whichever reads clearly. */
+function CompactModuleCard({
+  module,
+  tintIndex,
+}: {
+  module: SolutionsHotelStackModule;
+  tintIndex: number;
+}) {
+  const Icon = STACK_ICON_BY_ID[module.id] ?? BarChart2;
+  const isTeal = tintIndex % 2 === 1;
+  const textColor = isTeal ? "var(--xyvoo-navy)" : "var(--xyvoo-white)";
+  const mutedText = isTeal
+    ? "rgb(var(--xyvoo-navy-rgb) / 0.68)"
+    : "rgba(255, 255, 255, 0.75)";
+  const accentColor = isTeal ? "var(--xyvoo-navy)" : "var(--xyvoo-blue-light)";
+
+  return (
+    <div
+      className="flex h-full flex-col rounded-[20px] px-6 py-8 shadow-[0_20px_45px_rgba(0,13,31,0.18)] sm:px-8 sm:py-9"
+      style={{
+        background: isTeal
+          ? "var(--xyvoo-teal-product)"
+          : "var(--xyvoo-navy)",
+      }}
+    >
+      <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-[12px] bg-white">
+        <Icon className="h-5 w-5 text-xyvoo-blue" aria-hidden />
+      </div>
+      <div
+        className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em]"
+        style={{ color: accentColor }}
+      >
+        {module.number}
+      </div>
+      <h3
+        className="mb-3 whitespace-pre-line font-extrabold leading-[1.18] text-[clamp(1.3rem,2.4vw,1.55rem)]"
+        style={{ color: textColor }}
+      >
+        {module.title}
+      </h3>
+      <p className="mb-5 text-[14.5px] leading-[1.7]" style={{ color: mutedText }}>
+        {module.description}
+      </p>
+      <div className="mb-6 flex flex-col gap-[10px]">
+        {module.bullets.map((bullet) => (
+          <div
+            key={bullet}
+            className="flex items-start gap-[11px] text-[13.5px] leading-[1.5]"
+            style={{ color: mutedText }}
+          >
+            <span
+              className="mt-[5px] h-[6px] w-[6px] shrink-0 rounded-full"
+              style={{ background: accentColor }}
+            />
+            <span>{bullet}</span>
+          </div>
+        ))}
+      </div>
+      <Link
+        href="/register"
+        className="mt-auto inline-flex items-center gap-2 text-sm font-semibold"
+        style={{ color: accentColor }}
+      >
+        Get started
+        <ArrowRight className="h-4 w-4" />
+      </Link>
+    </div>
+  );
+}
+
+/** Sticky-stack row: plain position:sticky + increasing z-index, so each row
+ * covers the previous one as it scrolls up. No opacity/transform animation
+ * here — a transform on a sticky element breaks its sticky behaviour in the
+ * browser, which is exactly what happened the last time this had a fade. */
+function StackRow({
+  zIndex,
+  children,
+}: {
+  zIndex: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="relative md:sticky md:top-24" style={{ zIndex }}>
+      {children}
+    </div>
+  );
+}
+
 export function SolutionsHotelDeepDive() {
   return (
     <>
-      {/* Platform — 1 col mobile, 2 col lg */}
-      <section
-        className="border-b border-slate-100 bg-white px-6 py-16 md:py-24"
-        aria-labelledby="hotel-platform-heading"
-      >
-        <div className="mx-auto max-w-[1200px]">
-          <FadeIn>
-            <SectionEyebrow
-              eyebrow="V1 capabilities"
-              title={SOLUTIONS_HOTEL_PLATFORM_TITLE}
-              titleId="hotel-platform-heading"
-              className="[&>h2]:[color:var(--xyvoo-products-navy-alt)] [&>p]:[color:var(--xyvoo-blue)]"
-            />
-            <p
-              className="mx-auto mt-4 max-w-2xl text-center text-[17px] leading-relaxed md:mx-0 md:text-left"
-              style={{ color: "var(--xyvoo-navy-muted-text)" }}
-            >
-              {SOLUTIONS_HOTEL_PLATFORM_SUBTITLE}
-            </p>
-          </FadeIn>
-          <FadeIn delay={0.08}>
-            <ul className="mt-12 grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
-              {SOLUTIONS_HOTEL_PLATFORM_ITEMS.map((item) => (
-                <li
-                  key={item}
-                  className="flex gap-3 rounded-2xl border bg-white p-5 md:p-6"
-                  style={{
-                    borderColor: "rgb(var(--xyvoo-blue-rgb) / 0.12)",
-                    boxShadow: "0 4px 24px rgb(var(--xyvoo-navy-rgb) / 0.05)",
-                  }}
-                >
-                  <Check
-                    className="mt-0.5 h-5 w-5 shrink-0 text-xyvoo-blue"
-                    aria-hidden
-                  />
-                  <span
-                    className="text-[15px] leading-relaxed"
-                    style={{ color: "var(--xyvoo-navy-muted-text)" }}
-                  >
-                    {item}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </FadeIn>
-        </div>
-      </section>
+      <SolutionsHotelWhyOneSystem />
 
       {/* Sticky stack — matches HomeWhyChoose scroll behaviour */}
       <section
         className="px-3 pb-10 md:px-6 md:pb-16"
-        style={{ background: "var(--xyvoo-hms-features-bg)" }}
+        style={{ background: "var(--xyvoo-white)" }}
         aria-label="XYVOO HMS module overview"
       >
         <div className="mx-auto max-w-[1200px]">
           <FadeIn>
-            <div className="px-5 pb-11 pt-2 text-center md:px-8 md:pb-[72px] md:pt-4">
-              <SectionEyebrow
-                eyebrow={
-                  <>
-                    <span
-                      className="inline-block h-[5px] w-[5px] rounded-full"
-                      style={{ background: "var(--xyvoo-blue)" }}
-                    />
-                    Ten modules
-                  </>
-                }
-                title={
-                  <>
-                    Everything in V1,
-                    <br />
-                    <span
-                      style={{
-                        background: "var(--xyvoo-gradient-text)",
-                        WebkitBackgroundClip: "text",
-                        backgroundClip: "text",
-                        WebkitTextFillColor: "transparent",
-                      }}
-                    >
-                      one operating model.
-                    </span>
-                  </>
-                }
-                eyebrowClassName="mb-[18px] inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-[11.5px] font-semibold uppercase tracking-[0.13em]"
-                titleClassName="mb-4 text-[clamp(1.625rem,4.4vw,2.75rem)] font-extrabold leading-[1.12]"
-                className="[&>h2]:[color:var(--xyvoo-hms-features-headline)] [&>p]:[color:var(--xyvoo-hms-features-eyebrow-text)] [&>p]:[border-color:var(--xyvoo-hms-features-eyebrow-border)] [&>p]:[background:var(--xyvoo-hms-features-eyebrow-bg)]"
-              />
-              <p
-                className="mx-auto max-w-[520px] text-[17px] leading-[1.65]"
-                style={{ color: "var(--xyvoo-hms-features-subtext)" }}
+            <div className="px-5 pb-11 pt-11 text-center md:px-8 md:pb-[72px] md:pt-[72px]">
+              <h2
+                className="mb-4 text-balance text-[clamp(1.625rem,4.4vw,2.75rem)] font-extrabold leading-[1.12]"
+                style={{ color: "var(--xyvoo-navy)" }}
               >
-                Scroll through priority pillars — P0 launches first; P1 rounds out
-                operations and back-office depth.
-              </p>
+                Every department,
+                <br />
+                one operating model.
+              </h2>
             </div>
           </FadeIn>
 
           <div className="flex flex-col gap-6 md:pb-[20vh]">
-            {SOLUTIONS_HOTEL_STACK_MODULES.map((module, index) => (
-              <div
-                key={module.id}
-                className="relative md:sticky md:top-24"
-                style={{ zIndex: index + 1 }}
+            {STACK_ROWS.map((row, rowPos) => (
+              <StackRow
+                key={
+                  row.kind === "single"
+                    ? row.module.id
+                    : row.modules.map((m) => m.id).join("-")
+                }
+                zIndex={rowPos + 1}
               >
-                <ModuleStackCard
-                  module={module}
-                  reverse={index % 2 === 1}
-                  rowIndex={index}
-                />
-              </div>
+                {row.kind === "single" ? (
+                  <ModuleStackCard
+                    module={row.module}
+                    reverse={row.tintIndex % 2 === 1}
+                    rowIndex={row.tintIndex}
+                  />
+                ) : (
+                  <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                    <CompactModuleCard
+                      module={row.modules[0]}
+                      tintIndex={row.tintIndexes[0]}
+                    />
+                    <CompactModuleCard
+                      module={row.modules[1]}
+                      tintIndex={row.tintIndexes[1]}
+                    />
+                  </div>
+                )}
+              </StackRow>
             ))}
           </div>
         </div>

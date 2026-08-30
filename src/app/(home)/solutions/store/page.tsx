@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { motion, type Variants } from "framer-motion";
 import { ArrowRight, Check } from "lucide-react";
-import WebsiteLayout from "@/components/website/WebsiteLayout";
 import { SectionEyebrow } from "@/components/website/SectionEyebrow";
 import {
   SOLUTIONS_STORE_FEATURES,
@@ -22,7 +21,7 @@ const fadeUp: Variants = {
 
 export default function SolutionsStorePage() {
   return (
-    <WebsiteLayout>
+    <>
       <section
         className="relative overflow-hidden border-b px-6 pb-24 pt-32"
         style={{
@@ -181,6 +180,6 @@ export default function SolutionsStorePage() {
           </div>
         </motion.div>
       </section>
-    </WebsiteLayout>
+    </>
   );
 }

@@ -75,7 +75,7 @@ const NAV_DROPDOWN_ITEM_VISUAL: Record<
   string,
   { Icon: LucideIcon; iconWellStyle: CSSProperties; iconColor: string }
 > = {
-  "/solutions/hotel": {
+  "/solution/hms": {
     Icon: Building2,
     iconWellStyle: { background: "rgb(var(--xyvoo-blue-rgb) / 0.12)" },
     iconColor: "rgb(var(--xyvoo-blue-rgb) / 0.88)",
@@ -118,7 +118,7 @@ const NAV: NavItem[] = [
     children: [
       {
         label: "Hotel Management System",
-        href: "/solutions/hotel",
+        href: "/solution/hms",
         description:
           "Front desk, housekeeping, F&B, and finance — one dashboard for your property.",
       },
@@ -495,7 +495,10 @@ function WebsiteHeader({ pathname }: { pathname: string }) {
     return () => window.removeEventListener("heroThemeChange", handleThemeChange);
   }, []);
 
-  const isHeroDark = !scrolled && pathname === "/" && !!heroTheme?.isDark;
+  const isHeroDark = !scrolled && (
+    (pathname === "/" && !!heroTheme?.isDark) ||
+    pathname === "/solution/hms"
+  );
 
   return (
     <header
@@ -504,7 +507,7 @@ function WebsiteHeader({ pathname }: { pathname: string }) {
         visible ? "translate-y-0" : "-translate-y-full",
         scrolled
           ? "bg-white/95 backdrop-blur-md shadow-sm"
-          : pathname === "/" && heroTheme
+          : (pathname === "/" && heroTheme) || pathname === "/solution/hms"
             ? "bg-transparent"
             : "bg-white/90 backdrop-blur-sm"
       )}
@@ -630,7 +633,8 @@ export default function WebsiteLayout({
             {
               title: "Product",
               links: [
-                ["Features", "/"],
+                ["Solution — HMS", "/solution/hms"],
+                ["Solution — Storefront", "/solutions/store"],
                 ["Pricing", "/pricing"],
                 ["Get started — HMS", XYVOO_AUTH_ROUTES.hms.register],
                 ["Get started — Store", XYVOO_AUTH_ROUTES.store.register],
@@ -704,6 +708,8 @@ export default function WebsiteLayout({
 
 function BrandCtaSection() {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const pathname = usePathname();
+  const isHms = pathname?.startsWith("/solution/hms") ?? false;
 
   useEffect(() => {
     if (videoRef.current) {
@@ -733,10 +739,14 @@ function BrandCtaSection() {
       <div className="relative z-10 mx-auto max-w-[1200px] w-full flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div className="flex flex-col text-left max-w-2xl">
           <h2 className="text-xl md:text-2xl lg:text-[1.625rem] font-bold tracking-tight text-white leading-tight">
-            Ready to run your business on your own system?
+            {isHms
+              ? "Ready to run your property on XYVOO?"
+              : "Ready to run your business on your own system?"}
           </h2>
           <p className="mt-2 text-[13.5px] md:text-[14.5px] text-slate-300 leading-relaxed">
-            14-day free trial for HMS. Free plan available for Storefront. No credit card required to start.
+            {isHms
+              ? "Start free or compare HMS plans — our team can help you migrate without downtime."
+              : "14-day free trial for HMS. Free plan available for Storefront. No credit card required to start."}
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto shrink-0">
@@ -744,14 +754,16 @@ function BrandCtaSection() {
             href="/register"
             className="inline-flex items-center justify-center gap-1 rounded-lg bg-xyvoo-blue hover:bg-xyvoo-blue/90 text-white px-6 py-3 text-[14.5px] font-semibold transition-all duration-200 hover:-translate-y-0.5 shadow-sm w-full sm:w-auto text-center"
           >
-            Launch your HMS →
+            {isHms ? "Get started →" : "Launch your HMS →"}
           </Link>
-          <Link
-            href="/register/store"
-            className="inline-flex items-center justify-center gap-1 rounded-lg border border-white/30 bg-white/10 hover:bg-white/20 text-white px-6 py-3 text-[14.5px] font-semibold transition-all duration-200 hover:-translate-y-0.5 shadow-sm w-full sm:w-auto text-center"
-          >
-            Start your online store →
-          </Link>
+          {!isHms && (
+            <Link
+              href="/register/store"
+              className="inline-flex items-center justify-center gap-1 rounded-lg border border-white/30 bg-white/10 hover:bg-white/20 text-white px-6 py-3 text-[14.5px] font-semibold transition-all duration-200 hover:-translate-y-0.5 shadow-sm w-full sm:w-auto text-center"
+            >
+              Start your online store →
+            </Link>
+          )}
         </div>
       </div>
     </section>

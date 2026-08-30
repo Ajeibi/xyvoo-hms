@@ -89,7 +89,7 @@ const HERO_TABS: HeroTab[] = [
       label: "Launch your HMS",
       href: XYVOO_AUTH_ROUTES.hms.register,
     },
-    secondaryCta: { label: "Explore HMS", href: "/solutions/hotel" },
+    secondaryCta: { label: "Explore HMS", href: "/solution/hms" },
   },
   {
     id: "store",
