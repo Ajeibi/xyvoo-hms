@@ -1,0 +1,428 @@
+/* Responsive orbital intelligence wheel for Operational Truth / Analytics */
+.viewport {
+  --navy-dark: #020817;
+  --navy-card: rgba(8, 20, 44, 0.92);
+  --teal-glow: rgba(32, 168, 171, 0.35);
+  --blue-glow: rgba(59, 130, 246, 0.3);
+  --border-line: rgba(255, 255, 255, 0.12);
+  --border-line-bright: rgba(32, 168, 171, 0.55);
+  --spin-duration: 95s;
+
+  position: relative;
+  width: 100%;
+  max-width: 620px;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  container-type: inline-size;
+}
+
+/* Ambient soft cyan/blue halo */
+.ambientGlow {
+  position: absolute;
+  inset: 20px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 35%, rgba(32, 168, 171, 0.15) 0%, transparent 60%),
+    radial-gradient(circle at 65% 65%, rgba(59, 130, 246, 0.12) 0%, transparent 60%);
+  filter: blur(32px);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Canvas Scaled to Fit Container via Container Queries */
+.canvasScale {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 640px;
+  height: 640px;
+  transform: translate(-50%, -50%) scale(calc(min(560px, 98cqi) / 640px));
+  transform-origin: center center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stage {
+  position: relative;
+  width: 640px;
+  height: 640px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Rotating turntable: orbital nodes turn smoothly */
+.turntable {
+  position: absolute;
+  inset: 0;
+  animation: wheelSpin var(--spin-duration) linear infinite;
+  transform-origin: 320px 320px;
+  will-change: transform;
+  z-index: 5;
+}
+
+@keyframes wheelSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Pause turntable on hover or when department is locked */
+.viewport:has(.nodeWrap:hover) .turntable,
+.viewport:has(.nodeWrap:hover) .nodeWrap,
+.viewport:has(.centerHub:hover) .turntable,
+.viewport:has(.centerHub:hover) .nodeWrap,
+.paused .turntable,
+.paused .nodeWrap {
+  animation-play-state: paused !important;
+}
+
+/* SVG Radar Background Tracks */
+.radarSvg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Radial Spoke Anchor */
+.nodeRadial {
+  position: absolute;
+  top: 320px;
+  left: 320px;
+  width: 0;
+  height: 0;
+  transform: rotate(var(--rot, 0deg));
+  transform-origin: 0 0;
+  z-index: 10;
+}
+
+/* Spoke Line physically inside nodeRadial, connecting center hub edge (-108px) to node (-201px) */
+.spokeLine {
+  position: absolute;
+  left: -0.5px;
+  top: -201px;
+  width: 1px;
+  height: 93px;
+  background: linear-gradient(to bottom, rgba(32, 168, 171, 0.5), rgba(15, 35, 70, 0.15));
+  pointer-events: none;
+  transition: all 0.25s ease;
+  z-index: 2;
+}
+
+.spokeLineActive {
+  width: 2px;
+  left: -1px;
+  background: linear-gradient(to bottom, #2dd4bf, rgba(45, 212, 191, 0.25));
+  box-shadow: 0 0 12px rgba(45, 212, 191, 0.9);
+  z-index: 15;
+}
+
+/* Node Wrapper with Counter-Rotation to keep labels and pills upright */
+.nodeWrap {
+  position: absolute;
+  left: -59px;
+  top: -218px;
+  width: 118px;
+  cursor: pointer;
+  animation: counterSpin var(--spin-duration) linear infinite;
+  transform-origin: center center;
+  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  z-index: 20;
+}
+
+@keyframes counterSpin {
+  from {
+    transform: rotate(var(--baseRot, 0deg)) rotate(0deg);
+  }
+  to {
+    transform: rotate(var(--baseRot, 0deg)) rotate(-360deg);
+  }
+}
+
+/* Node Capsule styling */
+.nodeCard {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 20px;
+  background: rgba(8, 20, 44, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(14px) saturate(1.4);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+  transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.nodeCard:hover,
+.nodeCardActive {
+  background: rgba(14, 38, 78, 0.98);
+  border-color: rgba(32, 168, 171, 0.95);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.65), 0 0 16px rgba(32, 168, 171, 0.55);
+  transform: scale(1.12);
+  z-index: 25;
+}
+
+.nodeIconBox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: rgba(32, 168, 171, 0.2);
+  border: 1px solid rgba(32, 168, 171, 0.4);
+  color: #2dd4bf;
+}
+
+.nodeIconBoxTeal {
+  background: rgba(32, 168, 171, 0.22);
+  border-color: rgba(32, 168, 171, 0.5);
+  color: #5eead4;
+}
+
+.nodeIconBoxBlue {
+  background: rgba(59, 130, 246, 0.22);
+  border-color: rgba(59, 130, 246, 0.5);
+  color: #93c5fd;
+}
+
+.nodeIconBoxIndigo {
+  background: rgba(99, 102, 241, 0.22);
+  border-color: rgba(99, 102, 241, 0.5);
+  color: #c7d2fe;
+}
+
+.nodeInfo {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.nodeDept {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: rgba(255, 255, 255, 0.78);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nodeMetric {
+  font-size: 11.5px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.metricUp {
+  color: #34d399;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+/* Central Hub (Fixed Core, never rotates) */
+.centerHub {
+  position: absolute;
+  top: 320px;
+  left: 320px;
+  transform: translate(-50%, -50%);
+  width: 216px;
+  height: 216px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #0e2246 0%, #051329 70%, #020916 100%);
+  border: 1.5px solid rgba(255, 255, 255, 0.22);
+  box-shadow:
+    inset 0 0 32px rgba(32, 168, 171, 0.28),
+    inset 0 0 18px rgba(59, 130, 246, 0.22),
+    0 12px 38px rgba(0, 0, 0, 0.8),
+    0 0 28px rgba(32, 168, 171, 0.25);
+  backdrop-filter: blur(20px);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 16px;
+  pointer-events: auto;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+/* Subtle rotating radar sweep border around the hub */
+.hubRing {
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0deg, rgba(32, 168, 171, 0.5) 60deg, transparent 120deg);
+  animation: radarSweep 6s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes radarSweep {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.hubInner {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Idle Default Pulse View */
+.idleTitle {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #2dd4bf;
+  margin-bottom: 3px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.idleMetricBig {
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  color: #ffffff;
+  line-height: 1.1;
+  margin-bottom: 2px;
+  text-shadow: 0 0 18px rgba(255, 255, 255, 0.3);
+}
+
+.idleSubLabel {
+  font-size: 10px;
+  color: #94a3b8;
+  margin-bottom: 8px;
+}
+
+.idleStatsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  width: 100%;
+  margin-bottom: 6px;
+}
+
+.idleStatBox {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 3px 5px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.idleStatVal {
+  font-size: 11px;
+  font-weight: 800;
+  color: #f1f5f9;
+}
+
+.idleStatKey {
+  font-size: 8.5px;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.idleHint {
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.5);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Inspected Department View */
+.inspectHeader {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 3px;
+}
+
+.inspectIconBadge {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(32, 168, 171, 0.3);
+  color: #2dd4bf;
+}
+
+.inspectDeptName {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #e2e8f0;
+}
+
+.inspectBigVal {
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: #38bdf8;
+  line-height: 1.15;
+  margin-bottom: 3px;
+  text-shadow: 0 0 14px rgba(56, 189, 248, 0.35);
+}
+
+.inspectDesc {
+  font-size: 10px;
+  line-height: 1.3;
+  color: #cbd5e1;
+  margin-bottom: 6px;
+  padding: 0 2px;
+  max-width: 185px;
+}
+
+.inspectPillRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 8.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: rgba(32, 168, 171, 0.15);
+  border: 1px solid rgba(32, 168, 171, 0.35);
+  color: #5eead4;
+  padding: 2.5px 7px;
+  border-radius: 10px;
+}

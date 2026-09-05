@@ -1,0 +1,51 @@
+/* Auto-scrolling showcase animation for F&B (Restaurant POS + Kitchen KDS) Dashboard */
+@keyframes smoothScrollFb {
+  0%, 8% {
+    transform: translateY(0);
+  }
+  46%, 54% {
+    /* Scrolls until the bottom of the F&B dashboard is in view */
+    transform: translateY(calc(-100% + 480px));
+  }
+  92%, 100% {
+    transform: translateY(0);
+  }
+}
+
+.scrollContainer {
+  position: relative;
+  width: 100%;
+  height: 480px;
+  overflow: hidden;
+  background-color: #f8fafc;
+  cursor: default;
+}
+
+@media (min-width: 768px) {
+  .scrollContainer {
+    height: 520px;
+  }
+  @keyframes smoothScrollFb {
+    0%, 8% {
+      transform: translateY(0);
+    }
+    46%, 54% {
+      transform: translateY(calc(-100% + 520px));
+    }
+    92%, 100% {
+      transform: translateY(0);
+    }
+  }
+}
+
+.scrollTrack {
+  width: 100%;
+  animation: smoothScrollFb 26s cubic-bezier(0.42, 0, 0.58, 1) infinite;
+  will-change: transform;
+}
+
+/* Pause automatically when user hovers to inspect or interact */
+.scrollContainer:hover .scrollTrack,
+.paused {
+  animation-play-state: paused !important;
+}

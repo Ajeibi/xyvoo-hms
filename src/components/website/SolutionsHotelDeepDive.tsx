@@ -28,6 +28,11 @@ import {
   type SolutionsHotelStackModule,
 } from "@/constants/solutions-hotel";
 import { SolutionsHotelWhyOneSystem } from "@/components/website/SolutionsHotelWhyOneSystem";
+import { SolutionsHotelWorkflow } from "@/components/website/SolutionsHotelWorkflow";
+import { FrontDeskInteractiveMockup } from "@/components/website/FrontDeskInteractiveMockup";
+import { FolioFinanceInteractiveMockup } from "@/components/website/FolioFinanceInteractiveMockup";
+import { FbPosInteractiveMockup } from "@/components/website/FbPosInteractiveMockup";
+import { OperationalTruthWheelMockup } from "@/components/website/OperationalTruthWheelMockup";
 import type { FadeInSectionProps } from "@/types";
 
 /** Glass palette — a bare hint of the hero wheel's navy/teal frosted glass,
@@ -52,10 +57,10 @@ const STACK_ICON_BY_ID: Record<string, LucideIcon> = {
 const STACK_ROW_GROUPS: string[][] = [
   ["pms", "crs"],
   ["front-office"],
-  ["housekeeping", "fb-pos"],
+  ["housekeeping", "hr"],
+  ["fb-pos"],
   ["billing"],
   ["cmms", "procurement"],
-  ["hr"],
   ["analytics"],
 ];
 
@@ -183,93 +188,115 @@ function ModuleStackCard({
         </Link>
       </div>
 
-      <div className="relative flex items-center justify-center px-5 pb-9 pt-3 sm:px-8 sm:pb-11 md:px-[36px] md:py-12">
-        <div
-          className="pointer-events-none absolute left-1/2 top-1/2 z-0 h-[260px] w-[260px] -translate-x-1/2 -translate-y-1/2 rounded-full blur-[52px]"
-          style={{ background: "var(--xyvoo-hms-features-glow-a)" }}
-        />
-        <div
-          className="pointer-events-none absolute bottom-4 right-4 z-0 h-[150px] w-[150px] rounded-full blur-[32px]"
-          style={{ background: "var(--xyvoo-hms-features-glow-b)" }}
-        />
-        <div
-          className="relative z-[1] w-full overflow-hidden rounded-[14px] border"
-          style={{
-            background: "var(--xyvoo-hms-features-visual-card-bg)",
-            borderColor: "var(--xyvoo-hms-features-visual-card-border)",
-            boxShadow:
-              "var(--xyvoo-hms-features-visual-card-shadow-a), var(--xyvoo-hms-features-visual-card-shadow-b)",
-          }}
-        >
-          <div
-            className="flex items-center gap-1.5 border-b px-3.5 py-2.5"
-            style={{
-              background: "var(--xyvoo-hms-features-chrome-bg)",
-              borderColor: "var(--xyvoo-hms-features-chrome-border)",
-            }}
-          >
-            <span
-              className="h-2.5 w-2.5 rounded-full"
-              style={{ background: "var(--xyvoo-hms-features-dot-red)" }}
-            />
-            <span
-              className="h-2.5 w-2.5 rounded-full"
-              style={{ background: "var(--xyvoo-hms-features-dot-yellow)" }}
-            />
-            <span
-              className="h-2.5 w-2.5 rounded-full"
-              style={{ background: "var(--xyvoo-hms-features-dot-green)" }}
+      <div
+        className={
+          module.id === "analytics"
+            ? "relative flex w-full items-center justify-center p-0"
+            : "relative flex items-center justify-center px-5 pb-9 pt-3 sm:px-8 sm:pb-11 md:px-[36px] md:py-12"
+        }
+      >
+        {module.id === "analytics" ? (
+          <div className="relative z-[1] flex w-full items-center justify-center p-0">
+            <OperationalTruthWheelMockup />
+          </div>
+        ) : (
+          <>
+            <div
+              className="pointer-events-none absolute left-1/2 top-1/2 z-0 h-[260px] w-[260px] -translate-x-1/2 -translate-y-1/2 rounded-full blur-[52px]"
+              style={{ background: "var(--xyvoo-hms-features-glow-a)" }}
             />
             <div
-              className="mx-2 flex h-[22px] flex-1 items-center gap-1.5 rounded-[5px] border px-2.5"
+              className="pointer-events-none absolute bottom-4 right-4 z-0 h-[150px] w-[150px] rounded-full blur-[32px]"
+              style={{ background: "var(--xyvoo-hms-features-glow-b)" }}
+            />
+            <div
+              className="relative z-[1] w-full overflow-hidden rounded-[14px] border"
               style={{
-                borderColor: "var(--xyvoo-hms-features-chrome-url-border)",
+                background: "var(--xyvoo-hms-features-visual-card-bg)",
+                borderColor: "var(--xyvoo-hms-features-visual-card-border)",
+                boxShadow:
+                  "var(--xyvoo-hms-features-visual-card-shadow-a), var(--xyvoo-hms-features-visual-card-shadow-b)",
               }}
             >
-              <span
-                className="h-[9px] w-[8px] rounded-[2px] border-[1.5px]"
-                style={{ borderColor: "var(--xyvoo-hms-features-lock)" }}
-              />
-              <span
-                className="text-[10px]"
-                style={{ color: "var(--xyvoo-hms-features-chrome-url-text)" }}
+              <div
+                className="flex items-center gap-1.5 border-b px-3.5 py-2.5"
+                style={{
+                  background: "var(--xyvoo-hms-features-chrome-bg)",
+                  borderColor: "var(--xyvoo-hms-features-chrome-border)",
+                }}
               >
-                {module.urlLabel}
-              </span>
-            </div>
-          </div>
+                <span
+                  className="h-2.5 w-2.5 rounded-full"
+                  style={{ background: "var(--xyvoo-hms-features-dot-red)" }}
+                />
+                <span
+                  className="h-2.5 w-2.5 rounded-full"
+                  style={{ background: "var(--xyvoo-hms-features-dot-yellow)" }}
+                />
+                <span
+                  className="h-2.5 w-2.5 rounded-full"
+                  style={{ background: "var(--xyvoo-hms-features-dot-green)" }}
+                />
+                <div
+                  className="mx-2 flex h-[22px] flex-1 items-center gap-1.5 rounded-[5px] border px-2.5"
+                  style={{
+                    borderColor: "var(--xyvoo-hms-features-chrome-url-border)",
+                  }}
+                >
+                  <span
+                    className="h-[9px] w-[8px] rounded-[2px] border-[1.5px]"
+                    style={{ borderColor: "var(--xyvoo-hms-features-lock)" }}
+                  />
+                  <span
+                    className="text-[10px]"
+                    style={{ color: "var(--xyvoo-hms-features-chrome-url-text)" }}
+                  >
+                    {module.urlLabel}
+                  </span>
+                </div>
+              </div>
 
-          <div
-            className="relative flex aspect-[16/10] w-full flex-col items-center justify-center gap-3 overflow-hidden"
-            style={{ background: phVar }}
-          >
-            <div
-              className="pointer-events-none absolute inset-0"
-              style={{
-                backgroundImage:
-                  "radial-gradient(circle, var(--xyvoo-hms-features-ph-dot) 1px, transparent 1px)",
-                backgroundSize: "22px 22px",
-              }}
-            />
-            <div
-              className="relative z-[1] flex h-[52px] w-[52px] items-center justify-center rounded-[14px] border"
-              style={{
-                background: "var(--xyvoo-white)",
-                borderColor: "var(--xyvoo-hms-features-ph-icon-border)",
-              }}
-            >
-              <Icon className="h-[22px] w-[22px] text-xyvoo-blue" aria-hidden />
+              {module.id === "front-office" ? (
+                <FrontDeskInteractiveMockup />
+              ) : module.id === "fb-pos" ? (
+                <FbPosInteractiveMockup />
+              ) : module.id === "billing" ? (
+                <FolioFinanceInteractiveMockup />
+              ) : (
+                <div
+                  className="relative flex aspect-[16/10] w-full flex-col items-center justify-center gap-3 overflow-hidden"
+                  style={{ background: phVar }}
+                >
+                  <div
+                    className="pointer-events-none absolute inset-0"
+                    style={{
+                      backgroundImage:
+                        "radial-gradient(circle, var(--xyvoo-hms-features-ph-dot) 1px, transparent 1px)",
+                      backgroundSize: "22px 22px",
+                    }}
+                  />
+                  <div
+                    className="relative z-[1] flex h-[52px] w-[52px] items-center justify-center rounded-[14px] border"
+                    style={{
+                      background: "var(--xyvoo-white)",
+                      borderColor: "var(--xyvoo-hms-features-ph-icon-border)",
+                    }}
+                  >
+                    <Icon className="h-[22px] w-[22px] text-xyvoo-blue" aria-hidden />
+                  </div>
+                  <span
+                    className="relative z-[1] text-center text-xs leading-[1.55]"
+                    style={{ color: "var(--xyvoo-hms-features-ph-label)" }}
+                  >
+                    {module.title.replace("\n", " ")}
+                    <br />
+                    module preview
+                  </span>
+                </div>
+              )}
             </div>
-            <span
-              className="relative z-[1] text-center text-xs leading-[1.55]"
-              style={{ color: "var(--xyvoo-hms-features-ph-label)" }}
-            >
-              {module.title.replace("\n", " ")}
-              <br />
-              module preview
-            </span>
-          </div>
-        </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -373,7 +400,7 @@ export function SolutionsHotelDeepDive() {
 
       {/* Sticky stack — matches HomeWhyChoose scroll behaviour */}
       <section
-        className="px-3 pb-10 md:px-6 md:pb-16"
+        className="px-3 pb-4 md:px-6 md:pb-6"
         style={{ background: "var(--xyvoo-white)" }}
         aria-label="XYVOO HMS module overview"
       >
@@ -391,7 +418,7 @@ export function SolutionsHotelDeepDive() {
             </div>
           </FadeIn>
 
-          <div className="flex flex-col gap-6 md:pb-[20vh]">
+          <div className="flex flex-col gap-6">
             {STACK_ROWS.map((row, rowPos) => (
               <StackRow
                 key={
@@ -424,6 +451,8 @@ export function SolutionsHotelDeepDive() {
           </div>
         </div>
       </section>
+
+      <SolutionsHotelWorkflow />
 
       {/* Integrations + onboarding — 2 col lg */}
       <section
