@@ -1,4 +1,4 @@
-/* XYVOO brand tokens — single source for marketing/app colors */
+/* XYVOO brand tokens â€” single source for marketing/app colors */
 
 :root {
   --xyvoo-blue: #007edf;
@@ -112,98 +112,98 @@
   --xyvoo-hms-pricing-hero-accent: rgb(255 255 255 / 0.88);
   --xyvoo-hms-pricing-hero-accent-soft: rgb(255 255 255 / 0.72);
 
-  --xyvoo-store-section-bg: #000000;
-  --xyvoo-store-section-title: var(--xyvoo-white);
-  --xyvoo-store-section-body: var(--xyvoo-navy-muted-text);
-  --xyvoo-store-tile-bg: linear-gradient(
+  --xyvoo-storefront-section-bg: #000000;
+  --xyvoo-storefront-section-title: var(--xyvoo-white);
+  --xyvoo-storefront-section-body: var(--xyvoo-navy-muted-text);
+  --xyvoo-storefront-tile-bg: linear-gradient(
     145deg,
     rgb(var(--xyvoo-blue-rgb) / 0.2) 0%,
     rgb(var(--xyvoo-blue-rgb) / 0.08) 100%
   );
-  --xyvoo-store-tile-border: rgb(var(--xyvoo-blue-rgb) / 0.3);
-  --xyvoo-store-tile-icon-bg: linear-gradient(
+  --xyvoo-storefront-tile-border: rgb(var(--xyvoo-blue-rgb) / 0.3);
+  --xyvoo-storefront-tile-icon-bg: linear-gradient(
     135deg,
     rgb(var(--xyvoo-mint-rgb) / 0.3),
     rgb(var(--xyvoo-blue-rgb) / 0.24)
   );
-  --xyvoo-store-tile-icon: var(--xyvoo-products-navy-alt);
-  --xyvoo-store-tile-title: var(--xyvoo-products-navy-alt);
-  --xyvoo-store-tile-text: var(--xyvoo-navy-muted-text);
-  --xyvoo-store-features-eyebrow-bg: rgb(var(--xyvoo-mint-rgb) / 0.14);
-  --xyvoo-store-features-eyebrow-border: rgb(var(--xyvoo-teal-product-rgb, 77 208 196) / 0.35);
-  --xyvoo-store-features-eyebrow-text: var(--xyvoo-teal-product);
-  --xyvoo-store-features-headline: var(--xyvoo-white);
-  --xyvoo-store-features-subtext: rgb(255 255 255 / 0.72);
-  --xyvoo-store-features-row-1: linear-gradient(
+  --xyvoo-storefront-tile-icon: var(--xyvoo-products-navy-alt);
+  --xyvoo-storefront-tile-title: var(--xyvoo-products-navy-alt);
+  --xyvoo-storefront-tile-text: var(--xyvoo-navy-muted-text);
+  --xyvoo-storefront-features-eyebrow-bg: rgb(var(--xyvoo-mint-rgb) / 0.14);
+  --xyvoo-storefront-features-eyebrow-border: rgb(var(--xyvoo-teal-product-rgb, 77 208 196) / 0.35);
+  --xyvoo-storefront-features-eyebrow-text: var(--xyvoo-teal-product);
+  --xyvoo-storefront-features-headline: var(--xyvoo-white);
+  --xyvoo-storefront-features-subtext: rgb(255 255 255 / 0.72);
+  --xyvoo-storefront-features-row-1: linear-gradient(
     145deg,
     rgb(13 27 42) 0%,
     rgb(17 34 54) 100%
   );
-  --xyvoo-store-features-row-2: linear-gradient(
+  --xyvoo-storefront-features-row-2: linear-gradient(
     145deg,
     rgb(17 34 54) 0%,
     rgb(21 48 84) 100%
   );
-  --xyvoo-store-features-row-3: linear-gradient(
+  --xyvoo-storefront-features-row-3: linear-gradient(
     145deg,
     rgb(14 35 63) 0%,
     rgb(20 56 96) 100%
   );
-  --xyvoo-store-features-row-4: linear-gradient(
+  --xyvoo-storefront-features-row-4: linear-gradient(
     145deg,
     rgb(12 30 54) 0%,
     rgb(16 42 76) 100%
   );
-  --xyvoo-store-features-row-border: rgb(var(--xyvoo-blue-rgb) / 0.32);
-  --xyvoo-store-features-row-shadow-lg: 0 4px 20px rgb(var(--xyvoo-navy-rgb) / 0.08);
-  --xyvoo-store-features-row-shadow-sm: 0 1px 3px rgb(var(--xyvoo-navy-rgb) / 0.04);
-  --xyvoo-store-features-number: rgb(var(--xyvoo-blue-rgb) / 0.72);
-  --xyvoo-store-features-title: rgb(255 255 255 / 0.95);
-  --xyvoo-store-features-desc: rgb(255 255 255 / 0.76);
-  --xyvoo-store-features-bullet: rgb(255 255 255 / 0.8);
-  --xyvoo-store-features-primary-bg: var(--xyvoo-blue-mid);
-  --xyvoo-store-features-primary-text: var(--xyvoo-white);
-  --xyvoo-store-features-secondary-text: var(--xyvoo-blue);
-  --xyvoo-store-features-secondary-border: rgb(var(--xyvoo-blue-rgb) / 0.3);
-  --xyvoo-store-features-visual-card-bg: var(--xyvoo-white);
-  --xyvoo-store-features-visual-card-border: rgb(var(--xyvoo-blue-rgb) / 0.14);
-  --xyvoo-store-features-visual-card-shadow-a: 0 2px 8px rgb(var(--xyvoo-navy-rgb) / 0.06);
-  --xyvoo-store-features-visual-card-shadow-b: 0 12px 32px rgb(var(--xyvoo-navy-rgb) / 0.1);
-  --xyvoo-store-features-chrome-bg: #f0f2f5;
-  --xyvoo-store-features-chrome-border: rgb(var(--xyvoo-navy-rgb) / 0.07);
-  --xyvoo-store-features-chrome-url-border: rgb(var(--xyvoo-navy-rgb) / 0.1);
-  --xyvoo-store-features-chrome-url-text: rgb(var(--xyvoo-navy-rgb) / 0.36);
-  --xyvoo-store-features-lock: rgb(var(--xyvoo-navy-rgb) / 0.2);
-  --xyvoo-store-features-dot-red: rgb(255 95 86 / 0.65);
-  --xyvoo-store-features-dot-yellow: rgb(255 189 46 / 0.65);
-  --xyvoo-store-features-dot-green: rgb(39 201 63 / 0.65);
-  --xyvoo-store-features-ph-1: linear-gradient(
+  --xyvoo-storefront-features-row-border: rgb(var(--xyvoo-blue-rgb) / 0.32);
+  --xyvoo-storefront-features-row-shadow-lg: 0 4px 20px rgb(var(--xyvoo-navy-rgb) / 0.08);
+  --xyvoo-storefront-features-row-shadow-sm: 0 1px 3px rgb(var(--xyvoo-navy-rgb) / 0.04);
+  --xyvoo-storefront-features-number: rgb(var(--xyvoo-blue-rgb) / 0.72);
+  --xyvoo-storefront-features-title: rgb(255 255 255 / 0.95);
+  --xyvoo-storefront-features-desc: rgb(255 255 255 / 0.76);
+  --xyvoo-storefront-features-bullet: rgb(255 255 255 / 0.8);
+  --xyvoo-storefront-features-primary-bg: var(--xyvoo-blue-mid);
+  --xyvoo-storefront-features-primary-text: var(--xyvoo-white);
+  --xyvoo-storefront-features-secondary-text: var(--xyvoo-blue);
+  --xyvoo-storefront-features-secondary-border: rgb(var(--xyvoo-blue-rgb) / 0.3);
+  --xyvoo-storefront-features-visual-card-bg: var(--xyvoo-white);
+  --xyvoo-storefront-features-visual-card-border: rgb(var(--xyvoo-blue-rgb) / 0.14);
+  --xyvoo-storefront-features-visual-card-shadow-a: 0 2px 8px rgb(var(--xyvoo-navy-rgb) / 0.06);
+  --xyvoo-storefront-features-visual-card-shadow-b: 0 12px 32px rgb(var(--xyvoo-navy-rgb) / 0.1);
+  --xyvoo-storefront-features-chrome-bg: #f0f2f5;
+  --xyvoo-storefront-features-chrome-border: rgb(var(--xyvoo-navy-rgb) / 0.07);
+  --xyvoo-storefront-features-chrome-url-border: rgb(var(--xyvoo-navy-rgb) / 0.1);
+  --xyvoo-storefront-features-chrome-url-text: rgb(var(--xyvoo-navy-rgb) / 0.36);
+  --xyvoo-storefront-features-lock: rgb(var(--xyvoo-navy-rgb) / 0.2);
+  --xyvoo-storefront-features-dot-red: rgb(255 95 86 / 0.65);
+  --xyvoo-storefront-features-dot-yellow: rgb(255 189 46 / 0.65);
+  --xyvoo-storefront-features-dot-green: rgb(39 201 63 / 0.65);
+  --xyvoo-storefront-features-ph-1: linear-gradient(
     135deg,
     rgb(var(--xyvoo-blue-rgb) / 0.06) 0%,
     rgb(var(--xyvoo-blue-rgb) / 0.02) 100%
   );
-  --xyvoo-store-features-ph-2: linear-gradient(
+  --xyvoo-storefront-features-ph-2: linear-gradient(
     135deg,
     rgb(var(--xyvoo-mint-rgb) / 0.1) 0%,
     rgb(var(--xyvoo-blue-rgb) / 0.04) 100%
   );
-  --xyvoo-store-features-ph-3: linear-gradient(
+  --xyvoo-storefront-features-ph-3: linear-gradient(
     135deg,
     rgb(var(--xyvoo-blue-rgb) / 0.07) 0%,
     rgb(var(--xyvoo-mint-rgb) / 0.05) 100%
   );
-  --xyvoo-store-features-ph-4: linear-gradient(
+  --xyvoo-storefront-features-ph-4: linear-gradient(
     135deg,
     rgb(var(--xyvoo-mint-rgb) / 0.07) 0%,
     rgb(var(--xyvoo-blue-rgb) / 0.03) 100%
   );
-  --xyvoo-store-features-ph-dot: rgb(var(--xyvoo-blue-rgb) / 0.14);
-  --xyvoo-store-features-ph-icon-border: rgb(var(--xyvoo-blue-rgb) / 0.15);
-  --xyvoo-store-features-ph-label: rgb(var(--xyvoo-navy-rgb) / 0.3);
-  --xyvoo-store-features-badge-bg: var(--xyvoo-products-navy-alt);
-  --xyvoo-store-features-badge-text: var(--xyvoo-teal-product);
-  --xyvoo-store-features-glow-a: rgb(var(--xyvoo-blue-rgb) / 0.07);
-  --xyvoo-store-features-glow-b: rgb(var(--xyvoo-mint-rgb) / 0.09);
+  --xyvoo-storefront-features-ph-dot: rgb(var(--xyvoo-blue-rgb) / 0.14);
+  --xyvoo-storefront-features-ph-icon-border: rgb(var(--xyvoo-blue-rgb) / 0.15);
+  --xyvoo-storefront-features-ph-label: rgb(var(--xyvoo-navy-rgb) / 0.3);
+  --xyvoo-storefront-features-badge-bg: var(--xyvoo-products-navy-alt);
+  --xyvoo-storefront-features-badge-text: var(--xyvoo-teal-product);
+  --xyvoo-storefront-features-glow-a: rgb(var(--xyvoo-blue-rgb) / 0.07);
+  --xyvoo-storefront-features-glow-b: rgb(var(--xyvoo-mint-rgb) / 0.09);
   --xyvoo-hms-features-bg: var(--xyvoo-white);
   --xyvoo-hms-features-eyebrow-bg: rgb(var(--xyvoo-blue-rgb) / 0.06);
   --xyvoo-hms-features-eyebrow-border: rgb(var(--xyvoo-blue-rgb) / 0.2);
@@ -266,6 +266,69 @@
   --xyvoo-hms-features-glow-a: rgb(var(--xyvoo-blue-rgb) / 0.07);
   --xyvoo-hms-features-glow-b: rgb(var(--xyvoo-mint-rgb) / 0.09);
 
+  /* Storefront solutions-page deep dive — same light-card structure as HMS,
+     teal accent instead of blue to match the Storefront brand identity */
+  --xyvoo-storefront-deepdive-bg: var(--xyvoo-white);
+  --xyvoo-storefront-deepdive-eyebrow-bg: rgb(77 208 196 / 0.08);
+  --xyvoo-storefront-deepdive-eyebrow-border: rgb(77 208 196 / 0.25);
+  --xyvoo-storefront-deepdive-eyebrow-text: var(--xyvoo-teal-product-hover);
+  --xyvoo-storefront-deepdive-headline: var(--xyvoo-navy);
+  --xyvoo-storefront-deepdive-subtext: rgb(var(--xyvoo-navy-rgb) / 0.5);
+  --xyvoo-storefront-deepdive-row-1: var(--xyvoo-white);
+  --xyvoo-storefront-deepdive-row-2: #f0fdfb;
+  --xyvoo-storefront-deepdive-row-3: #f0f9ff;
+  --xyvoo-storefront-deepdive-row-4: #f5fdfc;
+  --xyvoo-storefront-deepdive-row-border: rgb(77 208 196 / 0.22);
+  --xyvoo-storefront-deepdive-row-shadow-lg: 0 4px 20px rgb(var(--xyvoo-navy-rgb) / 0.08);
+  --xyvoo-storefront-deepdive-row-shadow-sm: 0 1px 3px rgb(var(--xyvoo-navy-rgb) / 0.04);
+  --xyvoo-storefront-deepdive-number: rgb(56 178 168 / 0.85);
+  --xyvoo-storefront-deepdive-title: var(--xyvoo-navy);
+  --xyvoo-storefront-deepdive-desc: rgb(var(--xyvoo-navy-rgb) / 0.58);
+  --xyvoo-storefront-deepdive-bullet: rgb(var(--xyvoo-navy-rgb) / 0.68);
+  --xyvoo-storefront-deepdive-primary-bg: var(--xyvoo-navy);
+  --xyvoo-storefront-deepdive-primary-text: var(--xyvoo-white);
+  --xyvoo-storefront-deepdive-secondary-text: var(--xyvoo-teal-product-hover);
+  --xyvoo-storefront-deepdive-secondary-border: rgb(77 208 196 / 0.35);
+  --xyvoo-storefront-deepdive-visual-card-bg: var(--xyvoo-white);
+  --xyvoo-storefront-deepdive-visual-card-border: rgb(77 208 196 / 0.18);
+  --xyvoo-storefront-deepdive-visual-card-shadow-a: 0 2px 8px rgb(var(--xyvoo-navy-rgb) / 0.06);
+  --xyvoo-storefront-deepdive-visual-card-shadow-b: 0 12px 32px rgb(var(--xyvoo-navy-rgb) / 0.1);
+  --xyvoo-storefront-deepdive-chrome-bg: #f0f2f5;
+  --xyvoo-storefront-deepdive-chrome-border: rgb(var(--xyvoo-navy-rgb) / 0.07);
+  --xyvoo-storefront-deepdive-chrome-url-border: rgb(var(--xyvoo-navy-rgb) / 0.1);
+  --xyvoo-storefront-deepdive-chrome-url-text: rgb(var(--xyvoo-navy-rgb) / 0.36);
+  --xyvoo-storefront-deepdive-lock: rgb(var(--xyvoo-navy-rgb) / 0.2);
+  --xyvoo-storefront-deepdive-dot-red: rgb(255 95 86 / 0.65);
+  --xyvoo-storefront-deepdive-dot-yellow: rgb(255 189 46 / 0.65);
+  --xyvoo-storefront-deepdive-dot-green: rgb(39 201 63 / 0.65);
+  --xyvoo-storefront-deepdive-ph-1: linear-gradient(
+    135deg,
+    rgb(77 208 196 / 0.08) 0%,
+    rgb(77 208 196 / 0.02) 100%
+  );
+  --xyvoo-storefront-deepdive-ph-2: linear-gradient(
+    135deg,
+    rgb(33 150 243 / 0.08) 0%,
+    rgb(77 208 196 / 0.03) 100%
+  );
+  --xyvoo-storefront-deepdive-ph-3: linear-gradient(
+    135deg,
+    rgb(77 208 196 / 0.06) 0%,
+    rgb(33 150 243 / 0.04) 100%
+  );
+  --xyvoo-storefront-deepdive-ph-4: linear-gradient(
+    135deg,
+    rgb(33 150 243 / 0.05) 0%,
+    rgb(77 208 196 / 0.05) 100%
+  );
+  --xyvoo-storefront-deepdive-ph-dot: rgb(77 208 196 / 0.16);
+  --xyvoo-storefront-deepdive-ph-icon-border: rgb(77 208 196 / 0.2);
+  --xyvoo-storefront-deepdive-ph-label: rgb(var(--xyvoo-navy-rgb) / 0.3);
+  --xyvoo-storefront-deepdive-badge-bg: var(--xyvoo-navy);
+  --xyvoo-storefront-deepdive-badge-text: var(--xyvoo-teal-product);
+  --xyvoo-storefront-deepdive-glow-a: rgb(77 208 196 / 0.09);
+  --xyvoo-storefront-deepdive-glow-b: rgb(33 150 243 / 0.07);
+
   --xyvoo-shadow-column: -16px 0 32px -16px rgb(var(--xyvoo-navy-rgb) / 0.12),
     16px 0 32px -16px rgb(var(--xyvoo-navy-rgb) / 0.12);
   --xyvoo-shadow-header-scrolled: 0 8px 24px -12px
@@ -294,7 +357,7 @@
     rgb(33 150 243 / 0.18) 0%,
     rgb(33 150 243 / 0.06) 100%
   );
-  --xyvoo-product-card-store-bg: linear-gradient(
+  --xyvoo-product-card-storefront-bg: linear-gradient(
     145deg,
     rgb(77 208 196 / 0.18) 0%,
     rgb(77 208 196 / 0.06) 100%
@@ -305,7 +368,7 @@
     rgb(33 150 243 / 0.15) 0%,
     transparent 70%
   );
-  --xyvoo-product-glow-store: radial-gradient(
+  --xyvoo-product-glow-storefront: radial-gradient(
     circle,
     rgb(77 208 196 / 0.12) 0%,
     transparent 70%

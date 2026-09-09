@@ -1,0 +1,271 @@
+/* Arc-cycle card stack: three cards swing off one at a time as the section
+   scrolls past, pivoting from a point off to the right of the card so the
+   exit reads as a turn rather than a straight fade. Motion is driven from
+   React (scroll-scrubbed, no CSS transition) — see StorefrontGrowthStack.tsx.
+   Background matches the hero's dark-tab grid — same faint 0.01 line
+   opacity as getGridImage(isDark) in HomeHero.tsx — but without the
+   travelling glow-dots (GridPulses), which read as too busy here. */
+.wrap {
+  --void: #04140f;
+  --panel: #0b241d;
+  --ink: #eef3fa;
+  --ink-dim: rgba(238, 243, 250, 0.62);
+  --ink-faint: rgba(238, 243, 250, 0.4);
+  --line: rgba(238, 243, 250, 0.12);
+  --teal: #34e0c4;
+  --teal-rgb: 52, 224, 196;
+  position: relative;
+  background-color: var(--void);
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.01) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.01) 1px, transparent 1px);
+  background-size: 40px 40px;
+  /* overflow must NOT be set here — .wrap is an ancestor of the sticky
+     .pinInner below, and any overflow value other than visible on an
+     ancestor silently breaks `position: sticky`. The card-clip protection
+     lives on .stack instead, which is a descendant of the sticky element. */
+}
+
+.pinWrap {
+  /* height is set inline from PER_TRANSITION_VH/DWELL_VH in
+     StorefrontGrowthStack.tsx, computed from the module count — this is
+     just a fallback in case JS hasn't run yet. */
+  position: relative;
+  height: 310vh;
+}
+
+.pinInner {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+  /* padding-top matches the preceding sticky-stack section's own
+     padding-bottom (`md:pb-[60px]` in SolutionsStorefrontDeepDive.tsx)
+     so the two sections meet without an uneven gap. */
+  padding: 60px 0 clamp(28px, 6vh, 64px);
+}
+
+/* ---------- top strip: names the three cards up front, before any scroll ---------- */
+.topStrip {
+  position: relative;
+  z-index: 1;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 24px;
+  width: 100%;
+  display: flex;
+  align-items: baseline;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.topStrip .eyebrow {
+  margin: 0;
+}
+
+.topStripLine {
+  font-size: clamp(1.05rem, 2.6vw, 1.6rem);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+}
+
+.topStripLine .dot {
+  color: var(--ink-faint);
+  font-weight: 600;
+  margin: 0 10px;
+}
+
+/* ---------- bottom tagline: closes out the section, before release ---------- */
+.tagline {
+  position: relative;
+  z-index: 1;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 24px;
+  width: 100%;
+  font-size: clamp(0.95rem, 1.8vw, 1.15rem);
+  font-weight: 600;
+  color: var(--ink-dim);
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+}
+
+.tagline strong {
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.grid {
+  position: relative;
+  z-index: 1;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 24px;
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 64px;
+  align-items: center;
+}
+
+.eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--teal);
+  margin: 0 0 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.eyebrow::before {
+  content: "";
+  width: 18px;
+  height: 1px;
+  background: var(--teal);
+  display: inline-block;
+}
+
+.copy h2 {
+  font-size: clamp(1.9rem, 3.2vw, 2.6rem);
+  font-weight: 800;
+  line-height: 1.14;
+  margin: 0 0 20px;
+  color: var(--ink);
+}
+
+.copy p {
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--ink-dim);
+  max-width: 44ch;
+  margin: 0 0 32px;
+}
+
+.ticks {
+  display: flex;
+  gap: 10px;
+}
+
+.tick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-faint);
+  transition: color 0.4s ease;
+}
+
+.tick .bar {
+  width: 26px;
+  height: 2px;
+  background: var(--line);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.tick .bar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--teal);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tick.isDone .bar::after,
+.tick.isActive .bar::after {
+  transform: scaleX(1);
+}
+
+.tick.isActive {
+  color: var(--ink);
+}
+
+.tick.isDone {
+  color: var(--ink-dim);
+}
+
+/* overflow stays visible (not hidden) — the resting fan peeks up and to the
+   right of the front card, and clipping here would cut that peek off. The
+   exit swing still reads fine without a hard clip, since it already fades
+   to opacity 0. margin-top gives the peek room before it would otherwise
+   run into the ticks above. */
+.stack {
+  position: relative;
+  height: 340px;
+  margin-top: 48px;
+  overflow: visible;
+}
+
+.card {
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(160deg, rgba(var(--teal-rgb), 0.1), transparent 60%),
+    var(--panel);
+  padding: 30px 32px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.55);
+  will-change: transform, opacity;
+  /* No CSS transition on purpose — transform is recomputed every scroll
+     frame in JS, so it must track scroll position 1:1. transform-origin is
+     also set from JS, switching between the resting stack's own centre and
+     an off-card pivot once a card starts its exit swing. */
+}
+
+.card .num {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--teal);
+  position: absolute;
+  top: 26px;
+  left: 32px;
+  letter-spacing: 0.04em;
+}
+
+.card h3 {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0 0 10px;
+  color: var(--ink);
+  white-space: pre-line;
+}
+
+.card p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink-dim);
+  max-width: 40ch;
+}
+
+/* The pin + arc-cycle animation runs the same way on every screen size —
+   only the two-column grid collapses to one column, and the copy stays
+   first in DOM/visual order so the heading sits above the cards rather
+   than the cards appearing first. */
+@media (max-width: 860px) {
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 36px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tick .bar::after {
+    transition: none;
+  }
+}

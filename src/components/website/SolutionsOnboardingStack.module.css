@@ -1,0 +1,149 @@
+/* Scroll-morphing 65/35 block. `.startSlot` and `.endSlot` are invisible
+   layout placeholders — their measured rects are the FLIP animation's
+   start (small stacked deck, in the right column) and end (full-width row
+   below the heading) points; see the .tsx file for the scroll-driven
+   interpolation between them. `.floatStage` (the actual visible cards) is
+   `position: fixed` and re-measures both slots every scroll frame, so
+   before/after the transition window it just tracks whichever slot is
+   relevant — no separate "activate/deactivate" step needed.
+   `--accent`/`--accent-rgb` are set inline per instance (see the .tsx
+   file's `accentColor`/`accentRgb` props), so this one component can carry
+   each solution's own brand colour. */
+.wrap {
+  --panel: #fafbfa;
+  --ink: var(--xyvoo-products-navy-alt, #0d1b2a);
+  --ink-dim: rgba(13, 27, 42, 0.62);
+  --line: rgba(13, 27, 42, 0.1);
+  position: relative;
+  background:
+    linear-gradient(160deg, rgba(var(--accent-rgb), 0.07), transparent 60%),
+    var(--panel);
+  padding: 48px 24px;
+}
+
+.container {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 65fr 35fr;
+  gap: 40px;
+  align-items: center;
+}
+
+.heading {
+  margin: 0;
+  font-size: clamp(2.4rem, 4.2vw, 3.4rem);
+  font-weight: 800;
+  line-height: 1.12;
+  color: var(--ink);
+}
+
+/* Invisible — occupies the right column's space at the deck's starting
+   size, so its rect is a stand-in for "where the stacked deck starts". */
+.startSlot {
+  visibility: hidden;
+  width: 100%;
+  height: 400px;
+}
+
+/* Invisible — occupies the full-width space the expanded row settles
+   into, right below the heading row. */
+.endSlot {
+  visibility: hidden;
+  width: 100%;
+  height: 460px;
+  margin-top: 40px;
+}
+
+.floatStage {
+  position: fixed;
+  z-index: 30;
+}
+
+.card {
+  position: absolute;
+  top: 50%;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(160deg, rgba(var(--accent-rgb), 0.07), transparent 60%),
+    var(--panel);
+  padding: 30px 30px 32px;
+  box-shadow: 0 24px 48px -20px rgba(13, 27, 42, 0.22);
+  will-change: transform, width, min-height;
+}
+
+.card .num {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.06em;
+  margin-bottom: 16px;
+}
+
+.card h3 {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 10px;
+  color: var(--ink);
+  line-height: 1.3;
+}
+
+.card p {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--ink-dim);
+}
+
+.card .explanation {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-size: 14.5px;
+  overflow: hidden;
+  will-change: opacity, transform, max-height;
+}
+
+/* Below this width the JS scroll-morph bails out early (see the .tsx
+   file's MOBILE_BREAKPOINT) and clears its inline styles, so this plain
+   static layout is what actually renders: heading, then the 4 cards
+   stacked full-width beneath it, always fully readable — no fanning,
+   no scroll-linked movement, nothing to "mash together". */
+@media (max-width: 860px) {
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .startSlot,
+  .endSlot {
+    display: none;
+  }
+
+  .floatStage {
+    position: static;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    margin-top: 8px;
+  }
+
+  .card {
+    position: static;
+    width: 100%;
+    transform: none;
+    min-height: auto;
+  }
+
+  .card .explanation {
+    opacity: 1;
+    max-height: none;
+    transform: none;
+    border-top-color: var(--line);
+  }
+}

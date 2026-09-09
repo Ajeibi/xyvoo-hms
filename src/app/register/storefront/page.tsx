@@ -2,19 +2,19 @@ import Link from "next/link";
 import WebsiteLayout from "@/components/website/WebsiteLayout";
 import { XYVOO_AUTH_ROUTES } from "@/constants/auth-links";
 
-export default function StoreRegisterPage() {
+export default function StorefrontRegisterPage() {
   return (
     <WebsiteLayout>
       <div className="min-h-screen bg-slate-50 px-4 pb-16 pt-28">
         <div className="mx-auto max-w-lg rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wider text-xyvoo-blue">
-            XYVOO Store
+            XYVOO Storefront
           </p>
           <h1 className="mt-2 text-2xl font-bold text-slate-900">
-            Store signup is almost here
+            Storefront signup is almost here
           </h1>
           <p className="mt-3 text-sm leading-relaxed text-slate-600">
-            Self-serve registration for XYVOO Store will live on this page. For now, reach out
+            Self-serve registration for XYVOO Storefront will live on this page. For now, reach out
             for early access or start with the hotel management product.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">

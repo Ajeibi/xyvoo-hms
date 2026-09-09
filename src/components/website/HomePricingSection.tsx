@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ArrowRight, Check, CheckCircle2, X, Zap } from "lucide-react";
 import { SectionEyebrow } from "@/components/website/SectionEyebrow";
 import { Button } from "@/components/ui/button";
-import { HMS_CYCLES, HMS_FEATURES, STORE_FEATURE_COMPARISON_ROWS, STORE_PLANS } from "@/constants/pricing";
+import { HMS_CYCLES, HMS_FEATURES, STOREFRONT_FEATURE_COMPARISON_ROWS, STOREFRONT_PLANS } from "@/constants/pricing";
 import type { HomePricingTab } from "@/types";
 
 type HomePricingSectionProps = {
@@ -19,19 +19,19 @@ type HomePricingSectionProps = {
 
 export function HomePricingSection({
   standalonePage = false,
-  defaultTab = "store",
+  defaultTab = "storefront",
   animateHmsCycles,
 }: HomePricingSectionProps = {}) {
   const shouldAnimateHms = animateHmsCycles ?? !standalonePage;
   const [activeTab, setActiveTab] = useState<HomePricingTab>(defaultTab);
-  const [showStoreComparison, setShowStoreComparison] = useState(false);
+  const [showStorefrontComparison, setShowStorefrontComparison] = useState(false);
   const hmsInitialIndex =
     HMS_CYCLES.findIndex((cycle) => cycle.featured) >= 0
       ? HMS_CYCLES.findIndex((cycle) => cycle.featured)
       : HMS_CYCLES.length - 1;
   const [hmsIndex, setHmsIndex] = useState<number>(hmsInitialIndex);
   const [hmsDirection, setHmsDirection] = useState<1 | -1>(-1); // start by moving away from yearly
-  const shouldPinTabs = activeTab === "store" && showStoreComparison;
+  const shouldPinTabs = activeTab === "storefront" && showStorefrontComparison;
 
   const selectedHmsCycle =
     HMS_CYCLES[hmsIndex] ?? HMS_CYCLES[HMS_CYCLES.length - 1];
@@ -100,15 +100,15 @@ export function HomePricingSection({
           <div className="inline-flex rounded-2xl border p-1.5" style={{ borderColor: "rgb(var(--xyvoo-blue-rgb) / 0.18)", background: "rgb(var(--xyvoo-blue-rgb) / 0.04)" }}>
             <button
               type="button"
-              onClick={() => setActiveTab("store")}
+              onClick={() => setActiveTab("storefront")}
               className="cursor-pointer rounded-xl px-5 py-2.5 text-sm font-semibold transition"
               style={{
-                background: activeTab === "store" ? "var(--xyvoo-white)" : "transparent",
+                background: activeTab === "storefront" ? "var(--xyvoo-white)" : "transparent",
                 color: "var(--xyvoo-products-navy-alt)",
-                boxShadow: activeTab === "store" ? "0 2px 10px rgb(var(--xyvoo-navy-rgb) / 0.08)" : "none",
+                boxShadow: activeTab === "storefront" ? "0 2px 10px rgb(var(--xyvoo-navy-rgb) / 0.08)" : "none",
               }}
             >
-              Store Pricing
+              Storefront Pricing
             </button>
             <button
               type="button"
@@ -125,11 +125,11 @@ export function HomePricingSection({
           </div>
         </div>
 
-        {activeTab === "store" ? (
+        {activeTab === "storefront" ? (
           <div className="mt-10">
-            {!showStoreComparison ? (
+            {!showStorefrontComparison ? (
               <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-                {STORE_PLANS.map((plan) => (
+                {STOREFRONT_PLANS.map((plan) => (
                   <article
                     key={plan.name}
                     className="flex h-full flex-col rounded-2xl border p-6"
@@ -215,7 +215,7 @@ export function HomePricingSection({
                     Feature Comparison
                   </h3>
                   <p className="mt-1 text-sm" style={{ color: "var(--xyvoo-navy-muted-text)" }}>
-                    See what&apos;s included in each store plan
+                    See what&apos;s included in each storefront plan
                   </p>
                 </div>
                 <div className="overflow-x-auto">
@@ -229,7 +229,7 @@ export function HomePricingSection({
                       </tr>
                     </thead>
                     <tbody>
-                      {STORE_FEATURE_COMPARISON_ROWS.map((row, index) =>
+                      {STOREFRONT_FEATURE_COMPARISON_ROWS.map((row, index) =>
                         "section" in row ? (
                           <tr key={`section-${index}`} style={{ background: "rgb(var(--xyvoo-blue-rgb) / 0.04)" }}>
                             <td colSpan={4} className="px-4 py-2.5 font-semibold" style={{ color: "var(--xyvoo-products-navy-alt)" }}>
@@ -357,15 +357,15 @@ export function HomePricingSection({
           </div>
         )}
 
-        {activeTab === "store" && (
+        {activeTab === "storefront" && (
           <div className="mt-8 text-center">
             <button
               type="button"
-              onClick={() => setShowStoreComparison((prev) => !prev)}
+              onClick={() => setShowStorefrontComparison((prev) => !prev)}
               className="cursor-pointer text-sm font-semibold"
               style={{ color: "var(--xyvoo-blue)" }}
             >
-              {showStoreComparison
+              {showStorefrontComparison
                 ? "Hide full pricing comparison"
                 : "View full pricing comparison"}
             </button>

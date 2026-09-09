@@ -12,21 +12,21 @@ export const XYVOO_FAQS: XyvooFaq[] = [
     question: "What is XYVOO?",
     keywords: ["what is xyvoo", "about xyvoo", "xyvoo platform", "what does xyvoo do", "overview", "introduction"],
     answer:
-      "XYVOO is a multi-product business platform built for African businesses. It has two products: a Hotel Management System (HMS) for hospitality businesses, and a Store platform for online merchants. Both products are white-label - your business runs entirely under your own brand, not XYVOO's.",
+      "XYVOO is a multi-product business platform built for African businesses. It has two products: a Hotel Management System (HMS) for hospitality businesses, and a Storefront platform for online merchants. Both products are white-label - your business runs entirely under your own brand, not XYVOO's.",
   },
   {
     category: "General / About XYVOO",
     question: "Who is XYVOO built for?",
     keywords: ["who is xyvoo for", "target audience", "what kind of business", "suitable for", "right for me", "ideal customer"],
     answer:
-      "XYVOO is built for two types of businesses. Hospitality operators - independent hotels, boutique hotels, resorts, serviced apartments, hotel chains, and multi-property groups. And online merchants - retailers, product businesses, and SMBs that want a branded online store with a full operational dashboard.",
+      "XYVOO is built for two types of businesses. Hospitality operators - independent hotels, boutique hotels, resorts, serviced apartments, hotel chains, and multi-property groups. And online merchants - retailers, product businesses, and SMBs that want a branded online storefront with a full operational dashboard.",
   },
   {
     category: "General / About XYVOO",
-    question: "Does XYVOO offer both a hotel system and an online store?",
-    keywords: ["hotel and store", "both products", "hms and store", "two products", "what can xyvoo do", "products offered"],
+    question: "Does XYVOO offer both a hotel system and an online storefront?",
+    keywords: ["hotel and storefront", "hotel and store", "both products", "hms and storefront", "two products", "what can xyvoo do", "products offered"],
     answer:
-      "Yes. XYVOO has two separate products built on the same platform infrastructure. The HMS is built for hotels and hospitality operators. The Store is built for online merchants and retailers. You can use one or both depending on your business needs.",
+      "Yes. XYVOO has two separate products built on the same platform infrastructure. The HMS is built for hotels and hospitality operators. The Storefront is built for online merchants and retailers. You can use one or both depending on your business needs.",
   },
   {
     category: "General / About XYVOO",
@@ -37,10 +37,10 @@ export const XYVOO_FAQS: XyvooFaq[] = [
   },
   {
     category: "General / About XYVOO",
-    question: "Can I use XYVOO for both my hotel and my online store?",
-    keywords: ["hotel and store together", "both products", "hospitality and retail", "combined", "gift shop", "resort boutique", "use both"],
+    question: "Can I use XYVOO for both my hotel and my online storefront?",
+    keywords: ["hotel and storefront together", "hotel and store together", "both products", "hospitality and retail", "combined", "gift shop", "resort boutique", "use both"],
     answer:
-      "Yes. If you operate a hotel that also sells products - a gift shop, a resort boutique, or branded merchandise - you can run both on XYVOO. The HMS handles your hotel operations and the Store handles your retail side. Both operate under your brand.",
+      "Yes. If you operate a hotel that also sells products - a gift shop, a resort boutique, or branded merchandise - you can run both on XYVOO. The HMS handles your hotel operations and the Storefront handles your retail side. Both operate under your brand.",
   },
   {
     category: "General / About XYVOO",
@@ -75,7 +75,7 @@ export const XYVOO_FAQS: XyvooFaq[] = [
     question: "Can I customise how my system looks?",
     keywords: ["customise", "branding", "logo", "colours", "custom look", "white label", "design", "brand colours", "typography"],
     answer:
-      "Yes. Every XYVOO tenant can configure their system with their own logo, primary brand colour, and hotel or store identity. The entire interface - dashboard, emails, receipts, PWA install icon, and guest-facing outputs - reflects your brand. XYVOO is never visible to your users.",
+      "Yes. Every XYVOO tenant can configure their system with their own logo, primary brand colour, and hotel or storefront identity. The entire interface - dashboard, emails, receipts, PWA install icon, and guest-facing outputs - reflects your brand. XYVOO is never visible to your users.",
   },
   {
     category: "General / About XYVOO",
@@ -248,111 +248,111 @@ export const XYVOO_FAQS: XyvooFaq[] = [
       "Yes. XYVOO includes a loyalty points system. Guests accumulate points across stays and can redeem them during checkout. The loyalty programme is managed from the admin settings and is fully branded under your hotel's identity.",
   },
 
-  // Category 3 — XYVOO Store
+  // Category 3 — XYVOO Storefront
   {
-    category: "XYVOO Store",
-    question: "What is the XYVOO Store?",
-    keywords: ["store", "online store", "ecommerce", "sell online", "what is the store", "merchant", "shop", "online shop"],
+    category: "XYVOO Storefront",
+    question: "What is the XYVOO Storefront?",
+    keywords: ["storefront", "store", "online store", "online storefront", "ecommerce", "sell online", "what is the storefront", "merchant", "shop", "online shop"],
     answer:
-      "The XYVOO Store is a multi-tenant e-commerce platform. Merchants sign up and get a fully branded online storefront on their own subdomain - your store, your name, your products. The dashboard covers everything: product management, inventory, orders, customers, payments, shipping, analytics, and marketing tools.",
+      "The XYVOO Storefront is a multi-tenant e-commerce platform. Merchants sign up and get a fully branded online storefront on their own subdomain - your storefront, your name, your products. The dashboard covers everything: product management, inventory, orders, customers, payments, shipping, analytics, and marketing tools.",
   },
   {
-    category: "XYVOO Store",
-    question: "How much does the XYVOO Store cost?",
-    keywords: ["store pricing", "store cost", "free plan", "standard plan", "enterprise", "store subscription", "how much", "store price"],
+    category: "XYVOO Storefront",
+    question: "How much does the XYVOO Storefront cost?",
+    keywords: ["storefront pricing", "store pricing", "storefront cost", "free plan", "standard plan", "enterprise", "storefront subscription", "how much", "storefront price"],
     answer:
-      "The Store has three plans. The Free plan costs nothing but charges a 4% platform fee per order. The Standard plan costs N10,000 per month with zero platform fees. The Enterprise plan has custom pricing with custom transaction fees and dedicated support for larger businesses.",
+      "The Storefront has three plans. The Free plan costs nothing but charges a 4% platform fee per order. The Standard plan costs N10,000 per month with zero platform fees. The Enterprise plan has custom pricing with custom transaction fees and dedicated support for larger businesses.",
   },
   {
-    category: "XYVOO Store",
-    question: "Do I need to build a website to use the XYVOO Store?",
-    keywords: ["no website", "build website", "storefront", "website builder", "launch store", "no coding", "ready made store"],
+    category: "XYVOO Storefront",
+    question: "Do I need to build a website to use the XYVOO Storefront?",
+    keywords: ["no website", "build website", "storefront", "website builder", "launch storefront", "launch store", "no coding", "ready made storefront"],
     answer:
       "No. When you sign up, XYVOO gives you a ready-to-use storefront on your own subdomain. You add your products, set your prices, and start selling. No coding, no design work, and no hosting setup is required.",
   },
   {
-    category: "XYVOO Store",
-    question: "What payment methods does the XYVOO Store support?",
-    keywords: ["store payment", "paystack", "checkout", "accept payment", "payment gateway", "store payment integration", "online payment"],
+    category: "XYVOO Storefront",
+    question: "What payment methods does the XYVOO Storefront support?",
+    keywords: ["storefront payment", "store payment", "paystack", "checkout", "accept payment", "payment gateway", "storefront payment integration", "online payment"],
     answer:
-      "The XYVOO Store integrates with Paystack as the primary payment gateway, enabling Nigerian merchants to accept card payments at checkout. Additional payment gateways are on the roadmap.",
+      "The XYVOO Storefront integrates with Paystack as the primary payment gateway, enabling Nigerian merchants to accept card payments at checkout. Additional payment gateways are on the roadmap.",
   },
   {
-    category: "XYVOO Store",
-    question: "Can I manage my staff on the XYVOO Store?",
-    keywords: ["staff", "team", "staff access", "store staff", "permissions", "roles", "multiple users", "team members"],
+    category: "XYVOO Storefront",
+    question: "Can I manage my staff on the XYVOO Storefront?",
+    keywords: ["staff", "team", "staff access", "storefront staff", "store staff", "permissions", "roles", "multiple users", "team members"],
     answer:
-      "Yes. The Store dashboard includes staff management. You can add team members, assign roles, and control what each person can access within your store's dashboard.",
+      "Yes. The Storefront dashboard includes staff management. You can add team members, assign roles, and control what each person can access within your storefront's dashboard.",
   },
   {
-    category: "XYVOO Store",
-    question: "Can my store be installed as an app on customers' phones?",
-    keywords: ["pwa store", "install store", "mobile store", "app store", "customer app", "progressive web app", "phone app"],
+    category: "XYVOO Storefront",
+    question: "Can my storefront be installed as an app on customers' phones?",
+    keywords: ["pwa storefront", "pwa store", "install storefront", "mobile storefront", "app store", "customer app", "progressive web app", "phone app"],
     answer:
-      "Yes. The XYVOO Store is a PWA. Customers can add your store to their home screen from their browser. It behaves like a native app with your store's name and branding. No app store submission is required.",
+      "Yes. The XYVOO Storefront is a PWA. Customers can add your storefront to their home screen from their browser. It behaves like a native app with your storefront's name and branding. No app store submission is required.",
   },
   {
-    category: "XYVOO Store",
+    category: "XYVOO Storefront",
     question: "Can I import products in bulk?",
     keywords: ["import products", "bulk upload", "csv import", "product import", "mass upload", "bulk products"],
     answer:
-      "Yes. The Store dashboard includes a product import tool. You can upload products in bulk via a structured file, saving significant time when migrating from another platform or adding a large catalogue at once.",
+      "Yes. The Storefront dashboard includes a product import tool. You can upload products in bulk via a structured file, saving significant time when migrating from another platform or adding a large catalogue at once.",
   },
   {
-    category: "XYVOO Store",
-    question: "Does the XYVOO Store support product variants?",
+    category: "XYVOO Storefront",
+    question: "Does the XYVOO Storefront support product variants?",
     keywords: ["variants", "sizes", "colours", "product options", "variations", "sku", "product variants"],
     answer:
-      "Yes. Products in the XYVOO Store support variants - different sizes, colours, or configurations of the same item - each with their own price, stock level, and SKU.",
+      "Yes. Products in the XYVOO Storefront support variants - different sizes, colours, or configurations of the same item - each with their own price, stock level, and SKU.",
   },
   {
-    category: "XYVOO Store",
-    question: "Can I run discounts and promotions on my store?",
+    category: "XYVOO Storefront",
+    question: "Can I run discounts and promotions on my storefront?",
     keywords: ["discount", "promo code", "promotion", "sale", "coupon", "offer", "percentage off", "discount code"],
     answer:
-      "Yes. The Store includes a discounts module where you can create percentage or fixed-amount discount codes, set validity periods, and apply them to specific products or your entire catalogue.",
+      "Yes. The Storefront includes a discounts module where you can create percentage or fixed-amount discount codes, set validity periods, and apply them to specific products or your entire catalogue.",
   },
   {
-    category: "XYVOO Store",
-    question: "Does the XYVOO Store have SEO tools?",
+    category: "XYVOO Storefront",
+    question: "Does the XYVOO Storefront have SEO tools?",
     keywords: ["seo", "search engine", "google", "meta tags", "seo manager", "search ranking", "visibility", "organic traffic"],
     answer:
-      "Yes. The Store dashboard includes an SEO manager where you can configure meta titles, descriptions, and other SEO settings for your store and individual product pages to improve visibility on search engines.",
+      "Yes. The Storefront dashboard includes an SEO manager where you can configure meta titles, descriptions, and other SEO settings for your storefront and individual product pages to improve visibility on search engines.",
   },
   {
-    category: "XYVOO Store",
+    category: "XYVOO Storefront",
     question: "Can I send marketing emails to my customers?",
     keywords: ["email marketing", "newsletter", "customer email", "marketing", "campaigns", "email campaign", "mailing list"],
     answer:
-      "Yes. The Store includes an email marketing tool. You can build customer mailing lists, create campaigns, and send targeted emails - all from within your store dashboard without needing a separate email marketing tool.",
+      "Yes. The Storefront includes an email marketing tool. You can build customer mailing lists, create campaigns, and send targeted emails - all from within your storefront dashboard without needing a separate email marketing tool.",
   },
   {
-    category: "XYVOO Store",
-    question: "Does the XYVOO Store track my inventory automatically?",
+    category: "XYVOO Storefront",
+    question: "Does the XYVOO Storefront track my inventory automatically?",
     keywords: ["inventory tracking", "stock tracking", "out of stock", "stock level", "inventory management", "auto stock"],
     answer:
-      "Yes. The Store tracks inventory levels automatically. When a product sells, its stock count updates immediately. You can set stock levels per product and variant, and the system will show items as out of stock when inventory runs out.",
+      "Yes. The Storefront tracks inventory levels automatically. When a product sells, its stock count updates immediately. You can set stock levels per product and variant, and the system will show items as out of stock when inventory runs out.",
   },
   {
-    category: "XYVOO Store",
-    question: "Can I manage shipping on the XYVOO Store?",
+    category: "XYVOO Storefront",
+    question: "Can I manage shipping on the XYVOO Storefront?",
     keywords: ["shipping", "delivery", "shipping rates", "logistics", "delivery options", "shipping management"],
     answer:
-      "Yes. The Store dashboard includes shipping management where you can configure delivery options, set shipping rates by zone or weight, and manage fulfilment from a single place.",
+      "Yes. The Storefront dashboard includes shipping management where you can configure delivery options, set shipping rates by zone or weight, and manage fulfilment from a single place.",
   },
   {
-    category: "XYVOO Store",
-    question: "Can customers create accounts on my store?",
-    keywords: ["customer account", "guest checkout", "login store", "customer profile", "returning customer", "customer login"],
+    category: "XYVOO Storefront",
+    question: "Can customers create accounts on my storefront?",
+    keywords: ["customer account", "guest checkout", "login storefront", "login store", "customer profile", "returning customer", "customer login"],
     answer:
-      "Yes. Customers can create accounts on your store, which allows them to track orders, save their details for faster checkout, and build a purchase history. Guest checkout is also available for customers who prefer not to register.",
+      "Yes. Customers can create accounts on your storefront, which allows them to track orders, save their details for faster checkout, and build a purchase history. Guest checkout is also available for customers who prefer not to register.",
   },
   {
-    category: "XYVOO Store",
-    question: "What analytics does the XYVOO Store provide?",
-    keywords: ["store analytics", "sales data", "revenue tracking", "store reports", "performance", "insights", "store dashboard"],
+    category: "XYVOO Storefront",
+    question: "What analytics does the XYVOO Storefront provide?",
+    keywords: ["storefront analytics", "store analytics", "sales data", "revenue tracking", "storefront reports", "performance", "insights", "storefront dashboard"],
     answer:
-      "The Store provides a revenue and analytics dashboard covering sales performance, order volumes, top-selling products, customer data, and traffic insights. All data is scoped to your store and presented in your dashboard - not shared with other merchants.",
+      "The Storefront provides a revenue and analytics dashboard covering sales performance, order volumes, top-selling products, customer data, and traffic insights. All data is scoped to your storefront and presented in your dashboard - not shared with other merchants.",
   },
 
   // Category 4 — Pricing & Billing
@@ -396,7 +396,7 @@ export const XYVOO_FAQS: XyvooFaq[] = [
     question: "Are there any hidden fees?",
     keywords: ["hidden fees", "extra charges", "additional cost", "transaction fee", "setup fee", "onboarding fee", "extra cost"],
     answer:
-      "No hidden fees for the HMS. The price you see is the price you pay. There are no setup fees, onboarding fees, or per-transaction charges on the HMS. For the Store, the Free plan charges a 4% platform fee per order - the Standard plan has zero platform fees.",
+      "No hidden fees for the HMS. The price you see is the price you pay. There are no setup fees, onboarding fees, or per-transaction charges on the HMS. For the Storefront, the Free plan charges a 4% platform fee per order - the Standard plan has zero platform fees.",
   },
   {
     category: "Pricing & Billing",

@@ -51,7 +51,7 @@ const HMS_STATS = [
   { value: "14-Day", label: "Free Trial" },
 ];
 
-const STORE_STATS = [
+const STOREFRONT_STATS = [
   {
     value: (
       <InfinityIcon
@@ -180,13 +180,13 @@ export function HomeProductsSection() {
                 "hover:-translate-y-1.5 hover:border-[rgb(77_208_196_/_0.55)] hover:shadow-[0_20px_64px_rgb(77_208_196_/_0.18)]",
               )}
               style={{
-                background: "var(--xyvoo-product-card-store-bg)",
+                background: "var(--xyvoo-product-card-storefront-bg)",
                 transition: "var(--xyvoo-products-transition)",
               }}
             >
               <div
                 className="pointer-events-none absolute -right-[60px] -top-[60px] h-[200px] w-[200px] rounded-full"
-                style={{ background: "var(--xyvoo-product-glow-store)" }}
+                style={{ background: "var(--xyvoo-product-glow-storefront)" }}
                 aria-hidden
               />
               <CardHeader className="relative z-[1] shrink-0 space-y-4 px-8 pb-0 pt-10 md:px-12 md:pt-12">
@@ -207,26 +207,26 @@ export function HomeProductsSection() {
                   style={{ fontFamily: "var(--font-products-sans), sans-serif" }}
                 >
                   A fully branded online storefront — products, orders, payments,
-                  and customer tools — under your store&apos;s identity. Built to
+                  and customer tools — under your storefront&apos;s identity. Built to
                   sell.
                 </CardDescription>
               </CardHeader>
               <CardContent className="relative z-[1] px-8 pb-0 pt-6 md:px-12">
                 <div className="grid grid-cols-2 gap-3">
-                  {STORE_STATS.map((s) => (
+                  {STOREFRONT_STATS.map((s) => (
                     <StatCell key={s.label} value={s.value} label={s.label} />
                   ))}
                 </div>
               </CardContent>
               <CardFooter className="relative z-[1] mt-auto shrink-0 border-0 bg-transparent px-8 pb-10 pt-8 md:px-12 md:pb-12">
                 <Button
-                  variant="productStore"
+                  variant="productStorefront"
                   size="product"
                   className="[transition:var(--xyvoo-products-transition)]"
                   asChild
                 >
-                  <Link href={XYVOO_AUTH_ROUTES.store.register}>
-                    Explore Store
+                  <Link href={XYVOO_AUTH_ROUTES.storefront.register}>
+                    Explore Storefront
                     <InfinityIcon
                       className="size-4"
                       data-icon="inline-end"

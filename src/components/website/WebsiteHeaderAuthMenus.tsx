@@ -100,7 +100,13 @@ function AuthProductMenuRows({
   });
 }
 
-export function DesktopHeaderAuthMenus({ isHeroDark = false }: { isHeroDark?: boolean }) {
+export function DesktopHeaderAuthMenus({
+  isHeroDark = false,
+  isStorefront = false,
+}: {
+  isHeroDark?: boolean;
+  isStorefront?: boolean;
+}) {
   return (
     <>
       <DropdownMenu modal={false}>
@@ -112,7 +118,9 @@ export function DesktopHeaderAuthMenus({ isHeroDark = false }: { isHeroDark?: bo
               "rounded-xl gap-1 px-5 font-semibold transition-all duration-200",
               isHeroDark
                 ? "border-white/20 text-white hover:text-white hover:bg-white/10 bg-transparent"
-                : "border-border text-foreground hover:bg-muted/80 hover:text-xyvoo-blue"
+                : isStorefront
+                  ? "border-border text-foreground hover:bg-muted/80 hover:text-xyvoo-teal-product-hover"
+                  : "border-border text-foreground hover:bg-muted/80 hover:text-xyvoo-blue"
             )}
           >
             Sign in
@@ -128,7 +136,7 @@ export function DesktopHeaderAuthMenus({ isHeroDark = false }: { isHeroDark?: bo
           <AuthProductMenuRows mode="signin" />
         </DropdownMenuContent>
       </DropdownMenu>
- 
+
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <Button
@@ -138,7 +146,9 @@ export function DesktopHeaderAuthMenus({ isHeroDark = false }: { isHeroDark?: bo
               "group rounded-xl px-5 font-semibold shadow-sm gap-1 data-[state=open]:shadow-md transition-all duration-200",
               isHeroDark
                 ? "bg-white text-[#07162c] hover:bg-slate-50 hover:text-[#07162c] border border-transparent"
-                : "bg-primary text-primary-foreground hover:bg-primary/92 border border-transparent"
+                : isStorefront
+                  ? "bg-xyvoo-teal-product-hover text-white hover:opacity-92 border border-transparent"
+                  : "bg-primary text-primary-foreground hover:bg-primary/92 border border-transparent"
             )}
           >
             Get started

@@ -39,7 +39,7 @@
   left: 50%;
   width: 640px;
   height: 640px;
-  transform: translate(-50%, -50%) scale(calc(min(560px, 98cqi) / 640px));
+  transform: translate(-50%, -50%) scale(calc(min(490px, 98cqi) / 560px));
   transform-origin: center center;
   display: flex;
   align-items: center;

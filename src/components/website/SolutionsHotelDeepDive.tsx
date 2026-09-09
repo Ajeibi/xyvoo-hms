@@ -8,7 +8,6 @@ import {
   BarChart2,
   BedDouble,
   CalendarRange,
-  Check,
   ClipboardList,
   Package,
   Receipt,
@@ -22,8 +21,8 @@ import {
   SOLUTIONS_HOTEL_INTEGRATIONS_INTRO,
   SOLUTIONS_HOTEL_INTEGRATIONS_ITEMS,
   SOLUTIONS_HOTEL_INTEGRATIONS_TITLE,
-  SOLUTIONS_HOTEL_ONBOARDING_ITEMS,
-  SOLUTIONS_HOTEL_ONBOARDING_TITLE,
+  SOLUTIONS_HOTEL_ONBOARDING_CARDS,
+  SOLUTIONS_HOTEL_ONBOARDING_HEADING,
   SOLUTIONS_HOTEL_STACK_MODULES,
   type SolutionsHotelStackModule,
 } from "@/constants/solutions-hotel";
@@ -33,6 +32,7 @@ import { FrontDeskInteractiveMockup } from "@/components/website/FrontDeskIntera
 import { FolioFinanceInteractiveMockup } from "@/components/website/FolioFinanceInteractiveMockup";
 import { FbPosInteractiveMockup } from "@/components/website/FbPosInteractiveMockup";
 import { OperationalTruthWheelMockup } from "@/components/website/OperationalTruthWheelMockup";
+import { SolutionsOnboardingStack } from "@/components/website/SolutionsOnboardingStack";
 import type { FadeInSectionProps } from "@/types";
 
 /** Glass palette — a bare hint of the hero wheel's navy/teal frosted glass,
@@ -136,7 +136,7 @@ function ModuleStackCard({
     <div
       className={`grid min-h-[480px] grid-cols-1 items-center overflow-hidden rounded-[20px] border backdrop-blur-md md:min-h-[520px] md:grid-cols-2 ${
         reverse ? "md:[&>*:first-child]:order-2" : ""
-      }`}
+      } ${module.id === "analytics" ? "-mx-3 md:mx-0" : ""}`}
       style={{
         background: `linear-gradient(${glassTint}, ${glassTint}), var(--xyvoo-white)`,
         borderColor: "var(--xyvoo-hms-features-row-border)",
@@ -454,61 +454,70 @@ export function SolutionsHotelDeepDive() {
 
       <SolutionsHotelWorkflow />
 
-      {/* Integrations + onboarding — 2 col lg */}
+      {/* Getting started — plain heading on the left, a scroll-morphing
+          deck of cards on the right. HMS's brand blue. */}
+      <SolutionsOnboardingStack
+        heading={SOLUTIONS_HOTEL_ONBOARDING_HEADING}
+        cards={SOLUTIONS_HOTEL_ONBOARDING_CARDS}
+        accentColor="rgb(0, 126, 223)"
+        accentRgb="0, 126, 223"
+      />
+
+      {/* Integrations — sticky title/intro on the left, a numbered list on
+          the right that scrolls past it; each row's number + heading pick
+          up the brand blue on hover (the aienai.co "How We Work" pattern,
+          matching the storefront solution page). */}
       <section
         className="border-t border-slate-100 bg-white px-6 py-16 md:py-24"
         aria-labelledby="hotel-integrations-heading"
       >
-        <div className="mx-auto grid max-w-[1200px] grid-cols-1 gap-14 lg:grid-cols-2 lg:gap-16">
-          <FadeIn>
-            <div>
-              <h2
-                id="hotel-integrations-heading"
-                className="mb-3 text-2xl font-extrabold text-[var(--xyvoo-products-navy-alt)] md:text-[1.65rem]"
+        <div className="mx-auto grid max-w-[1200px] grid-cols-1 gap-12 lg:grid-cols-2 lg:gap-16 lg:items-start">
+          {/* The sticky element itself must have no animated ancestor: a
+              Framer Motion wrapper leaves a non-"none" transform in place
+              even at rest, and any transform on an ancestor gives
+              `position: sticky` a new (non-viewport) containing block,
+              which silently stops it from sticking at all. FadeIn goes
+              inside the sticky box instead, where it's safe. */}
+          <div className="lg:sticky lg:top-28">
+            <FadeIn>
+              <div>
+                <h2
+                  id="hotel-integrations-heading"
+                  className="mb-3 text-2xl font-extrabold text-[var(--xyvoo-products-navy-alt)] md:text-[1.65rem]"
+                >
+                  {SOLUTIONS_HOTEL_INTEGRATIONS_TITLE}
+                </h2>
+                <p
+                  className="max-w-[36ch] text-[15px] leading-relaxed"
+                  style={{ color: "var(--xyvoo-navy-muted-text)" }}
+                >
+                  {SOLUTIONS_HOTEL_INTEGRATIONS_INTRO}
+                </p>
+              </div>
+            </FadeIn>
+          </div>
+
+          <ul className="flex flex-col">
+            {SOLUTIONS_HOTEL_INTEGRATIONS_ITEMS.map((item, i) => (
+              <li
+                key={item.title}
+                className="group border-t border-slate-100 py-8 first:border-t-0 last:pb-0 lg:py-10 lg:last:pb-0"
               >
-                {SOLUTIONS_HOTEL_INTEGRATIONS_TITLE}
-              </h2>
-              <p
-                className="mb-8 text-[15px] leading-relaxed"
-                style={{ color: "var(--xyvoo-navy-muted-text)" }}
-              >
-                {SOLUTIONS_HOTEL_INTEGRATIONS_INTRO}
-              </p>
-              <ul className="flex flex-col gap-3">
-                {SOLUTIONS_HOTEL_INTEGRATIONS_ITEMS.map((item) => (
-                  <li key={item} className="flex gap-3 text-[15px] leading-relaxed">
-                    <Check
-                      className="mt-0.5 h-5 w-5 shrink-0 text-xyvoo-blue"
-                      aria-hidden
-                    />
-                    <span style={{ color: "var(--xyvoo-navy-muted-text)" }}>
-                      {item}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </FadeIn>
-          <FadeIn delay={0.06}>
-            <div>
-              <h2 className="mb-8 text-2xl font-extrabold text-[var(--xyvoo-products-navy-alt)] md:text-[1.65rem]">
-                {SOLUTIONS_HOTEL_ONBOARDING_TITLE}
-              </h2>
-              <ul className="flex flex-col gap-3">
-                {SOLUTIONS_HOTEL_ONBOARDING_ITEMS.map((item) => (
-                  <li key={item} className="flex gap-3 text-[15px] leading-relaxed">
-                    <Check
-                      className="mt-0.5 h-5 w-5 shrink-0 text-xyvoo-teal-product"
-                      aria-hidden
-                    />
-                    <span style={{ color: "var(--xyvoo-navy-muted-text)" }}>
-                      {item}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </FadeIn>
+                <span className="mb-2 block font-mono text-sm font-semibold tracking-wide text-[rgb(var(--xyvoo-navy-rgb)/0.32)] transition-colors duration-300 group-hover:text-[rgb(0_126_223)]">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <span className="block text-[19px] font-semibold leading-snug text-[var(--xyvoo-products-navy-alt)] transition-colors duration-300 group-hover:text-[rgb(0_126_223)] md:text-[21px]">
+                  {item.title}
+                </span>
+                <p
+                  className="mt-2 max-w-[46ch] text-[15px] leading-relaxed"
+                  style={{ color: "var(--xyvoo-navy-muted-text)" }}
+                >
+                  {item.description}
+                </p>
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
     </>

@@ -140,7 +140,7 @@ const SEGMENTS: Segment[] = [
       "Preventive upkeep and repairs that keep facilities safe, comfortable and running smoothly.",
   },
   {
-    key: "sales-banquets",
+    key: "hr",
     tint: "navy",
     rotDeg: 196.36,
     path: "M 389.53 685.81 A 14 14 0 0 1 375.05 698.96 A 300 300 0 0 1 259.39 665.01 A 14 14 0 0 1 254.32 646.11 L 311.37 549.73 A 14 14 0 0 1 330.84 544.28 A 160 160 0 0 0 380.19 558.77 A 14 14 0 0 1 393.63 573.88 Z",
@@ -154,59 +154,62 @@ const SEGMENTS: Segment[] = [
     ),
     label: (
       <>
-        Sales & Banquets
-        <br />
-        (Events/MICE)
+        HR &<br />
+        Scheduling
       </>
     ),
     descTitle: (
       <>
-        Sales & Banquets
-        <br />
-        (Events/MICE)
+        HR &<br />
+        Scheduling
       </>
     ),
     descText:
-      "Conferences, weddings and group events — managed from first enquiry to final execution.",
+      "Rosters, clock-ins and leave requests, with payroll-ready exports for every shift and team member.",
   },
   {
-    key: "crm-loyalty",
+    key: "procurement",
     tint: "navy",
     rotDeg: 229.09,
     path: "M 236.66 634.77 A 14 14 0 0 1 217.37 638.00 A 300 300 0 0 1 138.43 546.91 A 14 14 0 0 1 144.38 528.27 L 244.48 478.04 A 14 14 0 0 1 263.81 483.98 A 160 160 0 0 0 297.50 522.85 A 14 14 0 0 1 300.63 542.83 Z",
-    icon: <path d="M12 3l2.47 5.11 5.53.8-4 3.98.94 5.61L12 15.9l-4.94 2.6.94-5.61-4-3.98 5.53-.8z" />,
-    label: "CRM & Loyalty",
-    descTitle: "CRM & Loyalty",
+    icon: (
+      <>
+        <rect x="6" y="3" width="12" height="18" rx="2" />
+        <path d="M9 3V2a1 1 0 011-1h4a1 1 0 011 1v1" />
+        <path d="M9 10h6M9 14h6M9 18h3" />
+      </>
+    ),
+    label: (
+      <>
+        Procurement &<br />
+        Inventory
+      </>
+    ),
+    descTitle: (
+      <>
+        Procurement &<br />
+        Inventory
+      </>
+    ),
     descText:
-      "Guest profiles, rewards and repeat-stay programmes that turn visitors into regulars.",
+      "Vendors, purchase orders and stock levels, with approvals that route automatically once they pass your threshold.",
   },
   {
-    key: "rate-revenue",
+    key: "accounts",
     tint: "navy",
     rotDeg: 261.82,
     path: "M 135.66 509.18 A 14 14 0 0 1 117.68 501.47 A 300 300 0 0 1 100.53 382.16 A 14 14 0 0 1 115.61 369.69 L 226.98 381.56 A 14 14 0 0 1 240.03 397.01 A 160 160 0 0 0 247.35 447.92 A 14 14 0 0 1 239.18 466.43 Z",
     icon: (
       <>
-        <path d="M3 17l5-5 4 4 8-9" />
-        <path d="M15 6h5v5" />
+        <rect x="3" y="6" width="18" height="14" rx="2" />
+        <path d="M16 6V5a2 2 0 00-2-2H7a2 2 0 00-2 2v1" />
+        <circle cx="16" cy="13" r="1.6" fill="#fff" stroke="none" />
       </>
     ),
-    label: (
-      <>
-        Rate & Revenue
-        <br />
-        Management
-      </>
-    ),
-    descTitle: (
-      <>
-        Rate & Revenue
-        <br />
-        Management
-      </>
-    ),
+    label: "Accounts",
+    descTitle: "Accounts",
     descText:
-      "Dynamic pricing and demand forecasting to get the most value from every room, every night.",
+      "Chart of accounts, vendor bills, customer invoices and night audit — the ledger behind every folio.",
   },
   {
     key: "channel-management",

@@ -80,7 +80,7 @@ const NAV_DROPDOWN_ITEM_VISUAL: Record<
     iconWellStyle: { background: "rgb(var(--xyvoo-blue-rgb) / 0.12)" },
     iconColor: "rgb(var(--xyvoo-blue-rgb) / 0.88)",
   },
-  "/solutions/store": {
+  "/solution/storefront": {
     Icon: ShoppingBag,
     iconWellStyle: { background: "rgb(var(--xyvoo-mint-rgb) / 0.22)" },
     iconColor: "var(--xyvoo-teal-product)",
@@ -123,8 +123,8 @@ const NAV: NavItem[] = [
           "Front desk, housekeeping, F&B, and finance — one dashboard for your property.",
       },
       {
-        label: "XYVOO Store",
-        href: "/solutions/store",
+        label: "XYVOO Storefront",
+        href: "/solution/storefront",
         description:
           "Branded storefront, catalog, checkout, and fulfilment without bolt-ons.",
       },
@@ -365,6 +365,7 @@ function NavGroupDropdown({
   useEffect(() => () => cancelScheduledClose(), []);
 
   const childActive = item.children.some((c) => pathname === c.href);
+  const isStorefront = pathname?.startsWith("/solution/storefront") ?? false;
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen} modal={false}>
@@ -377,7 +378,11 @@ function NavGroupDropdown({
               ? "bg-white/10 text-white hover:bg-white/20"
               : "text-white/80 hover:bg-white/10 hover:text-white data-[state=open]:bg-white/10 data-[state=open]:text-white"
             : childActive
-              ? "bg-blue-50 text-xyvoo-blue hover:bg-blue-100/90"
+              ? isStorefront
+                // Teal background, but deep green (not teal) text/chevron —
+                // reusing the same #04140f as the storefront hero/footer.
+                ? "bg-teal-50 text-[#04140f] hover:bg-teal-100/90"
+                : "bg-blue-50 text-xyvoo-blue hover:bg-blue-100/90"
               : "text-foreground hover:bg-muted/80 hover:text-xyvoo-blue data-[state=open]:bg-muted/70"
         )}
         onPointerEnter={() => {
@@ -495,9 +500,12 @@ function WebsiteHeader({ pathname }: { pathname: string }) {
     return () => window.removeEventListener("heroThemeChange", handleThemeChange);
   }, []);
 
+  const isStorefront = pathname?.startsWith("/solution/storefront") ?? false;
+
   const isHeroDark = !scrolled && (
     (pathname === "/" && !!heroTheme?.isDark) ||
-    pathname === "/solution/hms"
+    pathname === "/solution/hms" ||
+    pathname === "/solution/storefront"
   );
 
   return (
@@ -507,7 +515,7 @@ function WebsiteHeader({ pathname }: { pathname: string }) {
         visible ? "translate-y-0" : "-translate-y-full",
         scrolled
           ? "bg-white/95 backdrop-blur-md shadow-sm"
-          : (pathname === "/" && heroTheme) || pathname === "/solution/hms"
+          : (pathname === "/" && heroTheme) || pathname === "/solution/hms" || pathname === "/solution/storefront"
             ? "bg-transparent"
             : "bg-white/90 backdrop-blur-sm"
       )}
@@ -560,7 +568,7 @@ function WebsiteHeader({ pathname }: { pathname: string }) {
           </nav>
           <div className="flex shrink-0 items-center gap-2">
             <div className="hidden min-[700px]:flex items-center gap-2">
-              <DesktopHeaderAuthMenus isHeroDark={isHeroDark} />
+              <DesktopHeaderAuthMenus isHeroDark={isHeroDark} isStorefront={isStorefront} />
             </div>
             <button
               type="button"
@@ -592,6 +600,7 @@ export default function WebsiteLayout({
   compactMain?: boolean;
 }) {
   const pathname = usePathname();
+  const isStorefront = pathname?.startsWith("/solution/storefront") ?? false;
 
   return (
     <SidebarProvider className="min-h-screen w-full min-w-0 flex-col overflow-x-clip bg-background font-sans text-foreground">
@@ -602,7 +611,15 @@ export default function WebsiteLayout({
 
       {!compactMain && <BrandCtaSection />}
 
-      <footer className="bg-xyvoo-navy mt-0 px-6 py-16 text-white">
+      <footer
+        className={cn(
+          "mt-0 px-6 py-16 text-white",
+          // Same dark teal-green as the storefront hero and growth-stack
+          // section (#04140f), so the footer reads as part of the same
+          // product rather than borrowing HMS's navy.
+          isStorefront ? "bg-[#04140f]" : "bg-xyvoo-navy"
+        )}
+      >
         <div className="mx-auto grid max-w-[1800px] grid-cols-1 gap-10 md:grid-cols-5">
           <div className="md:col-span-2">
             <Image
@@ -621,7 +638,10 @@ export default function WebsiteLayout({
               {["𝕏", "in", "f"].map((s) => (
                 <div
                   key={s}
-                  className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-xs font-bold text-slate-300 cursor-pointer transition-colors hover:bg-xyvoo-blue"
+                  className={cn(
+                    "w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-xs font-bold text-slate-300 cursor-pointer transition-colors",
+                    isStorefront ? "hover:bg-xyvoo-teal-product-hover" : "hover:bg-xyvoo-blue"
+                  )}
                 >
                   {s}
                 </div>
@@ -634,10 +654,10 @@ export default function WebsiteLayout({
               title: "Product",
               links: [
                 ["Solution — HMS", "/solution/hms"],
-                ["Solution — Storefront", "/solutions/store"],
+                ["Solution — Storefront", "/solution/storefront"],
                 ["Pricing", "/pricing"],
                 ["Get started — HMS", XYVOO_AUTH_ROUTES.hms.register],
-                ["Get started — Store", XYVOO_AUTH_ROUTES.store.register],
+                ["Get started — Storefront", XYVOO_AUTH_ROUTES.storefront.register],
               ],
             },
             {
@@ -706,10 +726,35 @@ export default function WebsiteLayout({
   );
 }
 
+/** Parallax matches the "Call to Action Background Strip" component from
+ * the senior-umbraco Litho theme: background drifts at half scroll speed
+ * (ratio 0.5) via a transform (not background-position, since this is a
+ * Next <Image>), disabled below the same 1050px breakpoint. The reveal is
+ * a plain CSS fade-in-on-mount (see the <style> block below) rather than
+ * an IntersectionObserver gate — that avoids a hard failure mode where a
+ * JS/observer hiccup would leave the whole section stuck at opacity 0. */
+const PARALLAX_RATIO = 0.5;
+const PARALLAX_MIN_WIDTH = 1050;
+const PARALLAX_MAX_PX = 80;
+
+/** Each product's own dark shade for the CTA strip's fallback background
+ * and overlay tint — HMS's hero navy vs storefront's hero teal-green —
+ * so the two keep reading as separate products rather than sharing one
+ * generic dark colour. */
+const CTA_BG_COLOR: Record<"hms" | "storefront", string> = {
+  hms: "#000d1f",
+  storefront: "#04140f",
+};
+
 function BrandCtaSection() {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const parallaxRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const isHms = pathname?.startsWith("/solution/hms") ?? false;
+  const isStorefront = pathname?.startsWith("/solution/storefront") ?? false;
+  const isImageBg = isHms || isStorefront;
+  const bgColor = isHms ? CTA_BG_COLOR.hms : CTA_BG_COLOR.storefront;
+  const [imageOk, setImageOk] = useState(true);
 
   useEffect(() => {
     if (videoRef.current) {
@@ -720,48 +765,157 @@ function BrandCtaSection() {
     }
   }, []);
 
+  // Reset the "did the image fail" flag when switching between HMS and
+  // Storefront (they share the (home) layout, so client-side nav between
+  // them doesn't remount this component). Deferred to a callback rather
+  // than calling setState synchronously in the effect body.
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setImageOk(true));
+    return () => cancelAnimationFrame(id);
+  }, [isHms, isStorefront]);
+
+  // Background parallax: the image drifts at half scroll speed relative to
+  // the foreground, disabled on narrow viewports — same mechanics as the
+  // Litho `.parallax` plugin, ported to a transform on an oversized image
+  // wrapper instead of an inline `background-position`.
+  useEffect(() => {
+    if (!isImageBg) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let ticking = false;
+
+    function update() {
+      const el = parallaxRef.current;
+      if (!el) return;
+      if (window.innerWidth <= PARALLAX_MIN_WIDTH) {
+        el.style.transform = "";
+        return;
+      }
+      const rect = el.getBoundingClientRect();
+      const centerOffset = rect.top + rect.height / 2 - window.innerHeight / 2;
+      const y = Math.max(-PARALLAX_MAX_PX, Math.min(PARALLAX_MAX_PX, -centerOffset * PARALLAX_RATIO));
+      el.style.transform = `translateY(${y}px)`;
+    }
+
+    function onScroll() {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        update();
+        ticking = false;
+      });
+    }
+
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, [isImageBg]);
+
   return (
-    <section className="relative overflow-hidden w-full text-white py-16 md:py-20 px-6 lg:px-12 border-t border-white/5">
-      {/* Background Video */}
-      <video
-        ref={videoRef}
-        loop
-        muted
-        playsInline
-        className="absolute inset-0 w-full h-full object-cover z-0"
-      >
-        <source
-          src="/images/background%20images/animated_brandCTA_1920x350_h264.mp4"
-          type="video/mp4"
-        />
-      </video>
+    <section
+      className={cn(
+        "relative overflow-hidden w-full text-white py-16 md:py-20 px-6 lg:px-12 border-t border-white/5",
+        isImageBg && "cta-bg-strip-fade-in"
+      )}
+      style={isImageBg ? { backgroundColor: bgColor } : undefined}
+    >
+      {/* HMS and Storefront each get a still image background with a
+          parallax drift and a dark overlay tint in their own product
+          colour (the Umbraco CTA strip's effect); every other page keeps
+          the original shared video, unchanged. */}
+      {isImageBg ? (
+        <>
+          {imageOk && (
+            <div
+              ref={parallaxRef}
+              className="absolute -inset-y-24 inset-x-0 z-0 will-change-transform"
+            >
+              <Image
+                src={
+                  isHms
+                    ? "/images/background%20images/receptionBg.png"
+                    : "/images/background%20images/storefront-background%20strip.png"
+                }
+                alt=""
+                fill
+                sizes="100vw"
+                className="object-cover"
+                priority={false}
+                onError={() => setImageOk(false)}
+              />
+            </div>
+          )}
+          <div
+            className="absolute inset-0 z-[1]"
+            style={{ backgroundColor: bgColor, opacity: 0.55 }}
+            aria-hidden
+          />
+          <style>{`
+            @keyframes ctaBgStripFadeIn {
+              from { opacity: 0; transform: translateY(14px); }
+              to { opacity: 1; transform: translateY(0); }
+            }
+            .cta-bg-strip-fade-in {
+              animation: ctaBgStripFadeIn 0.8s ease-out both;
+            }
+            @media (prefers-reduced-motion: reduce) {
+              .cta-bg-strip-fade-in { animation: none; opacity: 1; }
+            }
+          `}</style>
+        </>
+      ) : (
+        <video
+          ref={videoRef}
+          loop
+          muted
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover z-0"
+        >
+          <source
+            src="/images/background%20images/animated_brandCTA_1920x350_h264.mp4"
+            type="video/mp4"
+          />
+        </video>
+      )}
 
       <div className="relative z-10 mx-auto max-w-[1200px] w-full flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div className="flex flex-col text-left max-w-2xl">
           <h2 className="text-xl md:text-2xl lg:text-[1.625rem] font-bold tracking-tight text-white leading-tight">
             {isHms
               ? "Ready to run your property on XYVOO?"
-              : "Ready to run your business on your own system?"}
+              : isStorefront
+                ? "Ready to run your business on your own storefront?"
+                : "Ready to run your business on your own system?"}
           </h2>
           <p className="mt-2 text-[13.5px] md:text-[14.5px] text-slate-300 leading-relaxed">
             {isHms
               ? "Start free or compare HMS plans — our team can help you migrate without downtime."
-              : "14-day free trial for HMS. Free plan available for Storefront. No credit card required to start."}
+              : isStorefront
+                ? "Free plan available for Storefront. No credit card required to start."
+                : "14-day free trial for HMS. Free plan available for Storefront. No credit card required to start."}
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto shrink-0">
           <Link
-            href="/register"
-            className="inline-flex items-center justify-center gap-1 rounded-lg bg-xyvoo-blue hover:bg-xyvoo-blue/90 text-white px-6 py-3 text-[14.5px] font-semibold transition-all duration-200 hover:-translate-y-0.5 shadow-sm w-full sm:w-auto text-center"
+            href={isStorefront ? "/register/storefront" : "/register"}
+            className={cn(
+              "inline-flex items-center justify-center gap-1 rounded-lg text-white px-6 py-3 text-[14.5px] font-semibold transition-all duration-200 hover:-translate-y-0.5 shadow-sm w-full sm:w-auto text-center",
+              isStorefront
+                ? "bg-xyvoo-teal-product-hover hover:opacity-92"
+                : "bg-xyvoo-blue hover:bg-xyvoo-blue/90"
+            )}
           >
-            {isHms ? "Get started →" : "Launch your HMS →"}
+            {isHms || isStorefront ? "Get started →" : "Launch your HMS →"}
           </Link>
-          {!isHms && (
+          {!isHms && !isStorefront && (
             <Link
-              href="/register/store"
+              href="/register/storefront"
               className="inline-flex items-center justify-center gap-1 rounded-lg border border-white/30 bg-white/10 hover:bg-white/20 text-white px-6 py-3 text-[14.5px] font-semibold transition-all duration-200 hover:-translate-y-0.5 shadow-sm w-full sm:w-auto text-center"
             >
-              Start your online store →
+              Start your online storefront →
             </Link>
           )}
         </div>

@@ -6,6 +6,7 @@ import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { XYVOO_AUTH_ROUTES } from "@/constants/auth-links";
+import { GridPulses } from "@/components/website/GridPulses";
 
 const XYVOO_SHIELD = "/images/XYVOO%20Shield.png" as const;
 /** Shared placeholder until Company/Storefront get their own dedicated photos. */
@@ -13,13 +14,13 @@ const GENERIC_HERO_IMAGE =
   "/images/background%20images/xyvoo.png" as const;
 const HMS_HERO_IMAGE =
   "/images/background%20images/receptionBg.png" as const;
-const STORE_HERO_IMAGE =
+const STOREFRONT_HERO_IMAGE =
   "/images/background%20images/storefront-bg3.png" as const;
 
 const HERO_IMAGE_WIDTH = 2400;
 const HERO_IMAGE_HEIGHT = 1600;
 
-type HeroTabId = "company" | "hms" | "store";
+type HeroTabId = "company" | "hms" | "storefront";
 
 type HeroTab = {
   id: HeroTabId;
@@ -92,23 +93,23 @@ const HERO_TABS: HeroTab[] = [
     secondaryCta: { label: "Explore HMS", href: "/solution/hms" },
   },
   {
-    id: "store",
+    id: "storefront",
     pillLabel: "Storefront",
     bg: "#0b3d38",
     pillActiveText: "#0b3d38",
     accentText: "#4dd0c4",
     layout: "stacked",
     eyebrow: "For Retailers & Merchants",
-    headline: "Your online store, built to sell.",
+    headline: "Your online storefront, built to sell.",
     subhead:
       "A fully branded storefront with catalogue, checkout and fulfilment — live in minutes, not months.",
-    image: STORE_HERO_IMAGE,
+    image: STOREFRONT_HERO_IMAGE,
     imageAlt: "XYVOO Storefront preview",
     primaryCta: {
-      label: "Start your online store",
-      href: XYVOO_AUTH_ROUTES.store.register,
+      label: "Start your online storefront",
+      href: XYVOO_AUTH_ROUTES.storefront.register,
     },
-    secondaryCta: { label: "Explore Storefront", href: "/solutions/store" },
+    secondaryCta: { label: "Explore Storefront", href: "/solution/storefront" },
   },
 ];
 
@@ -230,10 +231,10 @@ function HeroCopy({
   align,
 }: {
   tab: HeroTab;
-  align: "center" | "left" | "store-custom";
+  align: "center" | "left" | "storefront-custom";
 }) {
   const isCenter = align === "center";
-  const isStoreCustom = align === "store-custom";
+  const isStorefrontCustom = align === "storefront-custom";
   const isDark = tab.isDarkTheme !== false;
 
   return (
@@ -241,7 +242,7 @@ function HeroCopy({
       className={
         isCenter
           ? "mx-auto max-w-4xl text-center"
-          : isStoreCustom
+          : isStorefrontCustom
             ? "mx-auto max-w-2xl text-center md:max-w-lg md:ml-auto md:mr-0 md:text-left"
             : "text-left"
       }
@@ -264,7 +265,7 @@ function HeroCopy({
           (isDark ? "text-white" : "text-[#334155]") + " " +
           (isCenter
             ? "mx-auto max-w-2xl"
-            : isStoreCustom
+            : isStorefrontCustom
               ? "mx-auto max-w-2xl md:max-w-none"
               : "max-w-lg")
         }
@@ -276,7 +277,7 @@ function HeroCopy({
           "flex flex-col items-stretch gap-3 sm:flex-row sm:items-center " +
           (isCenter
             ? "justify-center"
-            : isStoreCustom
+            : isStorefrontCustom
               ? "justify-center md:justify-start"
               : "")
         }
@@ -334,110 +335,6 @@ function FadeSwap({
   );
 }
 
-function GridPulses({ active }: { active: HeroTab }) {
-  const pulseColor = active.pulseColor ?? active.accentText;
-  // Plain CSS drop-shadow instead of an SVG <filter> reference: if an SVG
-  // filter fails to resolve (browser quirks, timing), the whole element it's
-  // attached to renders invisible rather than just losing the glow — that
-  // silent-invisibility failure mode is what was making these pulses vanish
-  // entirely. drop-shadow degrades gracefully instead.
-  const glowStyle: CSSProperties = {
-    filter: `drop-shadow(0 0 4px ${pulseColor}) drop-shadow(0 0 1.5px ${pulseColor})`,
-  };
-
-  // Comet trail built from plain filled circles at shrinking size/opacity
-  // (not an SVG <linearGradient> reference) — same reasoning as the glow
-  // above: url(#...) references in this environment have shown a
-  // fail-invisible failure mode, so the trail avoids that mechanism too.
-  const TRAIL = [
-    { offset: 6, r: 1.6, opacity: 0.45 },
-    { offset: 12, r: 1.1, opacity: 0.25 },
-    { offset: 18, r: 0.7, opacity: 0.12 },
-  ];
-
-  // Small glowing dot ("light bulb"), moving slowly along the full length
-  // of its track via a CSS transform, trailed by the comet dots above.
-  // Spread across the full section (not clustered in one corner) so there's
-  // enough of them on screen at once to read as "alive" rather than sparse.
-  const hLocations = [
-    { y: 80, duration: 24, delay: 0 },
-    { y: 160, duration: 31, delay: 4 },
-    { y: 240, duration: 20, delay: 9 },
-    { y: 320, duration: 35, delay: 13 },
-    { y: 400, duration: 26, delay: 18 },
-    { y: 480, duration: 22, delay: 1 },
-    { y: 560, duration: 33, delay: 7 },
-    { y: 640, duration: 28, delay: 12 },
-    { y: 720, duration: 24, delay: 16 },
-    { y: 800, duration: 37, delay: 3 },
-    { y: 880, duration: 21, delay: 19 },
-    { y: 960, duration: 30, delay: 8 },
-  ];
-  const vLocations = [
-    { x: 80, duration: 27, delay: 2 },
-    { x: 240, duration: 33, delay: 6 },
-    { x: 400, duration: 22, delay: 11 },
-    { x: 560, duration: 36, delay: 15 },
-    { x: 720, duration: 25, delay: 20 },
-    { x: 880, duration: 29, delay: 5 },
-    { x: 1040, duration: 23, delay: 14 },
-    { x: 1200, duration: 34, delay: 0 },
-    { x: 1360, duration: 20, delay: 10 },
-    { x: 1520, duration: 31, delay: 17 },
-    { x: 1680, duration: 26, delay: 21 },
-    { x: 1840, duration: 38, delay: 9 },
-  ];
-
-  return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
-      <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-        {hLocations.map((h, i) => (
-          <g key={`h-${i}`} className={`animate-grid-dot-h-${i}`}>
-            {TRAIL.map((t, ti) => (
-              <circle key={ti} cx={-t.offset} cy={h.y} r={t.r} fill={pulseColor} opacity={t.opacity} />
-            ))}
-            <circle cx="0" cy={h.y} r="2.5" fill={pulseColor} style={glowStyle} />
-          </g>
-        ))}
-        {vLocations.map((v, i) => (
-          <g key={`v-${i}`} className={`animate-grid-dot-v-${i}`}>
-            {TRAIL.map((t, ti) => (
-              <circle key={ti} cx={v.x} cy={-t.offset} r={t.r} fill={pulseColor} opacity={t.opacity} />
-            ))}
-            <circle cx={v.x} cy="0" r="2.5" fill={pulseColor} style={glowStyle} />
-          </g>
-        ))}
-      </svg>
-      <style>{`
-        @keyframes gridDotH {
-          0% { transform: translateX(0); opacity: 0; }
-          8% { opacity: 1; }
-          92% { opacity: 1; }
-          100% { transform: translateX(3000px); opacity: 0; }
-        }
-        @keyframes gridDotV {
-          0% { transform: translateY(0); opacity: 0; }
-          8% { opacity: 1; }
-          92% { opacity: 1; }
-          100% { transform: translateY(3000px); opacity: 0; }
-        }
-        ${hLocations
-          .map(
-            (h, i) =>
-              `.animate-grid-dot-h-${i} { animation: gridDotH ${h.duration}s linear infinite; animation-delay: ${h.delay}s; }`
-          )
-          .join("\n")}
-        ${vLocations
-          .map(
-            (v, i) =>
-              `.animate-grid-dot-v-${i} { animation: gridDotV ${v.duration}s linear infinite; animation-delay: ${v.delay}s; }`
-          )
-          .join("\n")}
-      `}</style>
-    </div>
-  );
-}
-
 const HERO_AUTOPLAY_MS = 10000;
 
 export function HomeHero() {
@@ -492,14 +389,14 @@ export function HomeHero() {
     <section
       className={
         "relative isolate w-full overflow-hidden pb-0 transition-all duration-300 " +
-        (activeId === "store" || activeId === "hms" ? "pt-20" : "pt-28")
+        (activeId === "storefront" || activeId === "hms" ? "pt-20" : "pt-28")
       }
       style={sectionStyle}
     >
-      <GridPulses active={active} />
+      <GridPulses color={active.pulseColor ?? active.accentText} />
       <div className={
         "relative z-10 w-full pb-4 transition-all duration-300 " +
-        (activeId === "store" || activeId === "hms" ? "pt-10 lg:pt-16" : "pt-2")
+        (activeId === "storefront" || activeId === "hms" ? "pt-10 lg:pt-16" : "pt-2")
       }>
         <div className="mx-auto max-w-4xl px-6">
           <TabsRow activeId={activeId} onSelect={setActiveId} align="center" isDarkTheme={isDark} />
@@ -514,7 +411,7 @@ export function HomeHero() {
       <div
         className={
           "relative z-0 transition-all duration-300 " +
-          (active.id === "store" || active.id === "hms" ? "lg:-mt-[400px]" : "lg:-mt-[150px]")
+          (active.id === "storefront" || active.id === "hms" ? "lg:-mt-[400px]" : "lg:-mt-[150px]")
         }
       >
         <Image
@@ -551,7 +448,7 @@ export function HomeHero() {
               </div>
             </FloatingCard>
 
-            {/* Left Card 2 - Store Order (Emerald) */}
+            {/* Left Card 2 - Storefront Order (Emerald) */}
             <FloatingCard
               className="absolute left-[4%] top-[25%] hidden xl:flex items-center gap-3"
               yOffset={14}
@@ -566,7 +463,7 @@ export function HomeHero() {
               <div className="text-left">
                 <p className="text-[11px] font-bold text-emerald-600 uppercase tracking-wider">Luxe Threads</p>
                 <h4 className="text-[14px] font-extrabold text-[#07162c] leading-tight">New Order #5102</h4>
-                <p className="text-[11px] font-medium text-slate-500">$189.50 • Live Store</p>
+                <p className="text-[11px] font-medium text-slate-500">$189.50 • Live Storefront</p>
               </div>
             </FloatingCard>
 
@@ -589,7 +486,7 @@ export function HomeHero() {
               </div>
             </FloatingCard>
 
-            {/* Left Card 4 - Store SEO (Violet) */}
+            {/* Left Card 4 - Storefront SEO (Violet) */}
             <FloatingCard
               className="absolute left-[18%] top-[72%] hidden xl:flex items-center gap-3"
               yOffset={15}
@@ -610,7 +507,7 @@ export function HomeHero() {
 
             {/* --- RIGHT SIDE CARDS --- */}
 
-            {/* Right Card 1 - Store Order (Emerald) - Stray outside to text */}
+            {/* Right Card 1 - Storefront Order (Emerald) - Stray outside to text */}
             <FloatingCard
               className="absolute right-[12%] top-[-8%] hidden xl:flex items-center gap-3"
               yOffset={15}
@@ -625,7 +522,7 @@ export function HomeHero() {
               <div className="text-left">
                 <p className="text-[11px] font-bold text-emerald-600 uppercase tracking-wider">Velo Bike Shop</p>
                 <h4 className="text-[14px] font-extrabold text-[#07162c] leading-tight">New Order #4802</h4>
-                <p className="text-[11px] font-medium text-slate-500">$1,240.00 • Live Store</p>
+                <p className="text-[11px] font-medium text-slate-500">$1,240.00 • Live Storefront</p>
               </div>
             </FloatingCard>
 
@@ -648,7 +545,7 @@ export function HomeHero() {
               </div>
             </FloatingCard>
 
-            {/* Right Card 3 - Store SEO (Fuchsia) */}
+            {/* Right Card 3 - Storefront SEO (Fuchsia) */}
             <FloatingCard
               className="absolute right-[5%] top-[48%] hidden xl:flex items-center gap-3"
               yOffset={13}
@@ -768,7 +665,7 @@ export function HomeHero() {
           </>
         )}
 
-        {active.id === "store" && (
+        {active.id === "storefront" && (
           <>
             {/* Left Card - Cart Addition (Emerald) */}
             <FloatingCard

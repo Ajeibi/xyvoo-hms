@@ -23,12 +23,12 @@ const buttonVariants = cva(
         /** Home products HMS card — Material blue, white label (pair with size `product`) */
         productHms:
           "border-2 border-[var(--xyvoo-blue-mid)] bg-[var(--xyvoo-blue-mid)] text-white shadow-none hover:-translate-y-0.5 hover:border-[var(--xyvoo-blue-deep)] hover:bg-[var(--xyvoo-blue-deep)] hover:shadow-[0_8px_24px_rgb(33_150_243_/_0.4)] active:translate-y-0 active:shadow-sm motion-reduce:hover:translate-y-0",
-        /** Home products Store card — teal fill, navy label (pair with size `product`) */
-        productStore:
+        /** Home products Storefront card — teal fill, navy label (pair with size `product`) */
+        productStorefront:
           "border-2 border-[var(--xyvoo-teal-product)] bg-[var(--xyvoo-teal-product)] text-[var(--xyvoo-products-navy-alt)] shadow-none hover:-translate-y-0.5 hover:border-[var(--xyvoo-teal-product-hover)] hover:bg-[var(--xyvoo-teal-product-hover)] hover:shadow-[0_8px_24px_rgb(77_208_196_/_0.4)] active:translate-y-0 active:shadow-sm motion-reduce:hover:translate-y-0",
       },
       size: {
-        /** Marketing product CTAs — use with variant `productHms` or `productStore` */
+        /** Marketing product CTAs — use with variant `productHms` or `productStorefront` */
         product:
           "!h-auto min-h-11 gap-2 rounded-lg px-7 py-3.5 text-[15px] font-semibold has-data-[icon=inline-end]:pr-6 has-data-[icon=inline-start]:pl-6 [&_svg:not([class*='size-'])]:size-4",
         default:

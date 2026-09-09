@@ -1,6 +1,6 @@
-export type HomePricingTab = "store" | "hms";
+export type HomePricingTab = "storefront" | "hms";
 
-export type HomeStorePlan = {
+export type HomeStorefrontPlan = {
   name: string;
   description: string;
   priceDisplay: string;

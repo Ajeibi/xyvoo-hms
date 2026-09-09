@@ -47,8 +47,8 @@
   inset: 60px;
   border-radius: 50%;
   background:
-    radial-gradient(circle at 30% 30%, rgba(58, 116, 196, 0.5), transparent 60%),
-    radial-gradient(circle at 74% 68%, rgba(32, 168, 171, 0.45), transparent 60%);
+    radial-gradient(circle at 30% 30%, rgba(32, 168, 171, 0.5), transparent 60%),
+    radial-gradient(circle at 74% 68%, rgba(58, 116, 196, 0.45), transparent 60%);
   filter: blur(46px);
   opacity: 0.85;
   pointer-events: none;
@@ -92,8 +92,7 @@
   overflow: visible;
 }
 
-/* glass wedges: true rounded-corner geometry (no stroke hack),
-   a dark frosted base + a translucent hue on top, one crisp 1px edge line */
+/* glass wedges: a dark frosted base + a translucent hue on top, one crisp 1px edge line */
 .glassBase {
   fill: var(--glass-base);
 }
@@ -134,7 +133,7 @@
   position: absolute;
   inset: 240px;
   border-radius: 50%;
-  background: radial-gradient(circle at 38% 32%, #1a2740, #0a101c 72%);
+  background: radial-gradient(circle at 38% 32%, #123128, #0a1c17 72%);
   box-shadow:
     inset 0 0 0 1px var(--line),
     inset 0 10px 30px rgba(0, 0, 0, 0.55),
@@ -271,7 +270,7 @@
 .labelWrap span {
   display: block;
   width: 100%;
-  font-size: 12.5px;
+  font-size: 13.5px;
   font-weight: 600;
   line-height: 1.28;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
@@ -564,133 +563,5 @@
   transform: translateY(0) scale(1);
 }
 .wheel:has(.t6:hover) .hint {
-  opacity: 0;
-}
-
-.wheel:has(.t7:hover) .s7 {
-  transform: scale(1.16);
-  filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.65)) brightness(1.28) saturate(1.3);
-}
-.wheel:has(.t7:hover) .segGroup:not(.s7) {
-  opacity: 0.3;
-  filter: saturate(0.4) brightness(0.7);
-}
-.wheel:has(.t7:hover) .rl7 {
-  --rs: 1.16;
-  z-index: 5;
-}
-.wheel:has(.t7:hover) .labelWrap:not(.t7) {
-  opacity: 0.3;
-}
-.wheel:has(.t7:hover) .badge:not(.t7) {
-  opacity: 0.35;
-}
-.wheel:has(.t7:hover) .badge.t7 {
-  --bs: 1.1;
-}
-.wheel:has(.t7:hover) .c7 {
-  opacity: 0;
-}
-.wheel:has(.t7:hover) .desc7 {
-  opacity: 1;
-  transform: translateY(0) scale(1);
-}
-.wheel:has(.t7:hover) .hint {
-  opacity: 0;
-}
-
-.wheel:has(.t8:hover) .s8 {
-  transform: scale(1.16);
-  filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.65)) brightness(1.28) saturate(1.3);
-}
-.wheel:has(.t8:hover) .segGroup:not(.s8) {
-  opacity: 0.3;
-  filter: saturate(0.4) brightness(0.7);
-}
-.wheel:has(.t8:hover) .rl8 {
-  --rs: 1.16;
-  z-index: 5;
-}
-.wheel:has(.t8:hover) .labelWrap:not(.t8) {
-  opacity: 0.3;
-}
-.wheel:has(.t8:hover) .badge:not(.t8) {
-  opacity: 0.35;
-}
-.wheel:has(.t8:hover) .badge.t8 {
-  --bs: 1.1;
-}
-.wheel:has(.t8:hover) .c8 {
-  opacity: 0;
-}
-.wheel:has(.t8:hover) .desc8 {
-  opacity: 1;
-  transform: translateY(0) scale(1);
-}
-.wheel:has(.t8:hover) .hint {
-  opacity: 0;
-}
-
-.wheel:has(.t9:hover) .s9 {
-  transform: scale(1.16);
-  filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.65)) brightness(1.28) saturate(1.3);
-}
-.wheel:has(.t9:hover) .segGroup:not(.s9) {
-  opacity: 0.3;
-  filter: saturate(0.4) brightness(0.7);
-}
-.wheel:has(.t9:hover) .rl9 {
-  --rs: 1.16;
-  z-index: 5;
-}
-.wheel:has(.t9:hover) .labelWrap:not(.t9) {
-  opacity: 0.3;
-}
-.wheel:has(.t9:hover) .badge:not(.t9) {
-  opacity: 0.35;
-}
-.wheel:has(.t9:hover) .badge.t9 {
-  --bs: 1.1;
-}
-.wheel:has(.t9:hover) .c9 {
-  opacity: 0;
-}
-.wheel:has(.t9:hover) .desc9 {
-  opacity: 1;
-  transform: translateY(0) scale(1);
-}
-.wheel:has(.t9:hover) .hint {
-  opacity: 0;
-}
-
-.wheel:has(.t10:hover) .s10 {
-  transform: scale(1.16);
-  filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.65)) brightness(1.28) saturate(1.3);
-}
-.wheel:has(.t10:hover) .segGroup:not(.s10) {
-  opacity: 0.3;
-  filter: saturate(0.4) brightness(0.7);
-}
-.wheel:has(.t10:hover) .rl10 {
-  --rs: 1.16;
-  z-index: 5;
-}
-.wheel:has(.t10:hover) .labelWrap:not(.t10) {
-  opacity: 0.3;
-}
-.wheel:has(.t10:hover) .badge:not(.t10) {
-  opacity: 0.35;
-}
-.wheel:has(.t10:hover) .badge.t10 {
-  --bs: 1.1;
-}
-.wheel:has(.t10:hover) .c10 {
-  opacity: 0;
-}
-.wheel:has(.t10:hover) .desc10 {
-  opacity: 1;
-  transform: translateY(0) scale(1);
-}
-.wheel:has(.t10:hover) .hint {
   opacity: 0;
 }

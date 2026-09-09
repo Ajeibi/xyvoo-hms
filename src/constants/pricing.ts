@@ -1,10 +1,10 @@
-import type { HomeHmsCycle, HomeStorePlan } from "@/types";
+import type { HomeHmsCycle, HomeStorefrontPlan } from "@/types";
 
-export type StoreComparisonRow =
+export type StorefrontComparisonRow =
   | { section: string }
   | { feature: string; free: boolean; standard: boolean; enterprise: boolean };
 
-export const STORE_PLANS: HomeStorePlan[] = [
+export const STOREFRONT_PLANS: HomeStorefrontPlan[] = [
   {
     name: "Free",
     description: "For new businesses getting started.",
@@ -53,7 +53,7 @@ export const STORE_PLANS: HomeStorePlan[] = [
   },
 ];
 
-export const STORE_FEATURE_COMPARISON_ROWS: StoreComparisonRow[] = [
+export const STOREFRONT_FEATURE_COMPARISON_ROWS: StorefrontComparisonRow[] = [
   { section: "Core & platform" },
   { feature: "Unlimited products", free: true, standard: true, enterprise: true },
   { feature: "Business website + PWA", free: true, standard: true, enterprise: true },
