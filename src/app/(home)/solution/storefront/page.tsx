@@ -4,7 +4,7 @@ import type { CSSProperties } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
-import { StorefrontOpsWheel } from "@/components/website/StorefrontOpsWheel";
+import { StorefrontModuleCarousel } from "@/components/website/StorefrontModuleCarousel";
 import { SolutionsStorefrontDeepDive } from "@/components/website/SolutionsStorefrontDeepDive";
 import { SOLUTIONS_STOREFRONT_HERO } from "@/constants/solutions-storefront";
 
@@ -69,16 +69,19 @@ export default function SolutionsStorefrontPage() {
             </div>
           </motion.div>
 
-          {/* Interactive storefront-ops wheel: below the text on mobile, 50% width beside it on desktop.
-              Below 801px it bleeds past the section's px-6 gutter so it can render bigger. */}
+          {/* Three-line auto-scrolling module carousel: below the text on
+              mobile, beside it on desktop. Below 801px it bleeds past the
+              section's px-6 gutter AND has no max-width, so it runs edge
+              to edge — only on mobile; at 801px+ it's back to a capped,
+              centred width sitting beside the text. */}
           <div className="flex justify-center items-center -mx-6 min-[801px]:mx-0">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.65, ease: "easeOut", delay: 0.06 }}
-              className="w-full max-w-[480px] aspect-square min-[801px]:max-w-[650px]"
+              className="w-full min-[801px]:max-w-[650px]"
             >
-              <StorefrontOpsWheel />
+              <StorefrontModuleCarousel />
             </motion.div>
           </div>
         </div>
