@@ -150,23 +150,25 @@ export function StorefrontGrowthStack({
           </div>
 
           <div className={styles.grid}>
-            <div className={styles.copy}>
-              <h2>{SOLUTIONS_STOREFRONT_GROWTH_STACK_HEADING.title}</h2>
-              <p>{SOLUTIONS_STOREFRONT_GROWTH_STACK_HEADING.subtitle}</p>
-              <div className={styles.ticks}>
-                {modules.map((module, i) => (
-                  <div
-                    key={module.id}
-                    ref={(el) => {
-                      tickRefs.current[i] = el;
-                    }}
-                    className={styles.tick}
-                  >
-                    <span className={styles.bar} />
-                    {String(i + 1).padStart(2, "0")}
-                  </div>
-                ))}
-              </div>
+            {/* Four direct grid children (not two wrapper divs) so mobile
+                can independently reorder just the subtitle to come after
+                the card stack — via grid-area, not DOM order — while
+                desktop keeps heading/subtitle/ticks stacked as before. */}
+            <h2 className={styles.heading}>{SOLUTIONS_STOREFRONT_GROWTH_STACK_HEADING.title}</h2>
+
+            <div className={styles.ticks}>
+              {modules.map((module, i) => (
+                <div
+                  key={module.id}
+                  ref={(el) => {
+                    tickRefs.current[i] = el;
+                  }}
+                  className={styles.tick}
+                >
+                  <span className={styles.bar} />
+                  {String(i + 1).padStart(2, "0")}
+                </div>
+              ))}
             </div>
 
             <div className={styles.stack}>
@@ -186,6 +188,8 @@ export function StorefrontGrowthStack({
                 </article>
               ))}
             </div>
+
+            <p className={styles.subtitle}>{SOLUTIONS_STOREFRONT_GROWTH_STACK_HEADING.subtitle}</p>
           </div>
 
           <p className={styles.tagline}>

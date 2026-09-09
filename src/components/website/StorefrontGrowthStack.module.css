@@ -108,6 +108,10 @@
   width: 100%;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-areas:
+    "heading stack"
+    "subtitle stack"
+    "ticks stack";
   gap: 64px;
   align-items: center;
 }
@@ -132,7 +136,8 @@
   display: inline-block;
 }
 
-.copy h2 {
+.heading {
+  grid-area: heading;
   font-size: clamp(1.9rem, 3.2vw, 2.6rem);
   font-weight: 800;
   line-height: 1.14;
@@ -140,7 +145,8 @@
   color: var(--ink);
 }
 
-.copy p {
+.subtitle {
+  grid-area: subtitle;
   font-size: 16px;
   line-height: 1.7;
   color: var(--ink-dim);
@@ -149,6 +155,7 @@
 }
 
 .ticks {
+  grid-area: ticks;
   display: flex;
   gap: 10px;
 }
@@ -201,6 +208,7 @@
    to opacity 0. margin-top gives the peek room before it would otherwise
    run into the ticks above. */
 .stack {
+  grid-area: stack;
   position: relative;
   height: 340px;
   margin-top: 48px;
@@ -254,13 +262,59 @@
 }
 
 /* The pin + arc-cycle animation runs the same way on every screen size —
-   only the two-column grid collapses to one column, and the copy stays
-   first in DOM/visual order so the heading sits above the cards rather
-   than the cards appearing first. */
+   only the layout tightens up: heading and tick markers stay above the
+   card stack, but the subtitle paragraph moves to *after* the stack (its
+   own grid area, reordered via grid-template-areas — not DOM order) so it
+   isn't eating into the vertical budget the card stack needs to actually
+   fit inside the pinned 100vh box. Font sizes and spacing shrink to match. */
 @media (max-width: 860px) {
+  .pinInner {
+    /* `justify-content: space-between` (the desktop default) spreads
+       topStrip / .grid / .tagline apart to fill the full 100vh box —
+       fine on desktop, where content is intentionally shorter than the
+       pin. On mobile, now that everything's been tightened up, that left
+       a large, scroll-position-dependent gap between topStrip and the
+       heading, into which the resting card fan's upward peek could
+       intrude and cover the topStrip text above it. `center`, with a
+       fixed `gap` between items, splits the leftover space evenly above
+       topStrip and below the tagline instead — predictable either way,
+       and it settles the whole block a bit lower rather than pinned to
+       the very top with all the slack left dangling underneath. */
+    justify-content: center;
+    gap: 28px;
+    padding: 32px 0 clamp(20px, 4vh, 40px);
+  }
+
   .grid {
     grid-template-columns: 1fr;
-    gap: 36px;
+    grid-template-areas:
+      "heading"
+      "ticks"
+      "stack"
+      "subtitle";
+    gap: 16px;
+  }
+
+  .heading {
+    font-size: clamp(1.5rem, 6vw, 1.8rem);
+    margin-bottom: 4px;
+  }
+
+  .subtitle {
+    margin: 0;
+  }
+
+  .stack {
+    height: 280px;
+    margin-top: 56px;
+  }
+
+  .card {
+    padding: 22px 24px;
+  }
+
+  .card h3 {
+    font-size: 20px;
   }
 }
 
