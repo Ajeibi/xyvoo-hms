@@ -60,14 +60,14 @@ const BASE_PARAMS = {
   paymentDate: "2026-08-03",
   bankAccountId: "acct-bank",
   apAccountId: "acct-ap",
-  billIds: ["bill-1", "bill-2"],
+  bills: [{ billId: "bill-1" }, { billId: "bill-2" }],
   createdBy: "user-1",
 };
 
 describe("createPaymentRun — validation", () => {
   it("requires at least one bill", async () => {
     const { service } = createMockService();
-    const result = await createPaymentRun(service, { ...BASE_PARAMS, billIds: [] });
+    const result = await createPaymentRun(service, { ...BASE_PARAMS, bills: [] });
     expect(result).toEqual({ ok: false, error: "Select at least one bill to pay.", paidBillIds: [] });
   });
 
@@ -156,6 +156,98 @@ describe("createPaymentRun — happy path", () => {
 
     expect(writeAuditLog).toHaveBeenCalledWith(expect.objectContaining({ action: "vendor_bill_payment_run_created" }));
     expect(emitNotification).toHaveBeenCalledWith(expect.objectContaining({ type: "vendor_bill_payment_recorded" }));
+  });
+});
+
+describe("createPaymentRun — partial payments (P2 fix)", () => {
+  it("records a partial amount, keeps the bill approved (not paid), and totals the run to just what was paid", async () => {
+    const { service, calls } = createMockService({
+      chart_of_accounts: [
+        { data: { id: "acct-bank", is_active: true }, error: null },
+        { data: [{ id: "acct-ap", is_active: true }, { id: "acct-bank", is_active: true }], error: null },
+      ],
+      vendor_bills: [
+        { data: [{ id: "bill-1", status: "approved", department: "Kitchen", total: 500, bill_reference: "INV-1", bill_date: "2026-08-01" }], error: null },
+      ],
+      vendor_bill_payment_lines: [{ data: [], error: null }], // nothing paid yet
+      vendor_bill_payments: [{ data: { id: "pay-1" }, error: null }],
+      journal_entries: [{ data: { id: "je-1" }, error: null }],
+    });
+
+    const result = await createPaymentRun(service, {
+      ...BASE_PARAMS,
+      bills: [{ billId: "bill-1", amount: 200 }],
+    });
+
+    expect(result).toEqual({ ok: true, id: "pay-1", paidBillIds: ["bill-1"] });
+
+    const paymentInsert = calls.find((c) => c.table === "vendor_bill_payments" && c.op === "insert");
+    expect(paymentInsert?.payload).toMatchObject({ total: 200 });
+
+    const lineInsert = calls.find((c) => c.table === "journal_entry_lines" && c.op === "insert");
+    const lines = lineInsert?.payload as { account_id: string; debit: number; credit: number }[];
+    expect(lines.find((l) => l.account_id === "acct-ap")).toMatchObject({ debit: 200, credit: 0 });
+
+    const statusUpdate = calls.find((c) => c.table === "vendor_bills" && c.op === "update");
+    expect(statusUpdate).toBeUndefined(); // still approved — not fully paid yet
+  });
+
+  it("marks the bill paid once a second payment covers the remaining balance", async () => {
+    const { service, calls } = createMockService({
+      chart_of_accounts: [
+        { data: { id: "acct-bank", is_active: true }, error: null },
+        { data: [{ id: "acct-ap", is_active: true }, { id: "acct-bank", is_active: true }], error: null },
+      ],
+      vendor_bills: [
+        { data: [{ id: "bill-1", status: "approved", department: "Kitchen", total: 500, bill_reference: "INV-1", bill_date: "2026-08-01" }], error: null },
+      ],
+      vendor_bill_payment_lines: [{ data: [{ vendor_bill_id: "bill-1", amount: 200 }], error: null }], // 200 already paid
+      vendor_bill_payments: [{ data: { id: "pay-2" }, error: null }],
+      journal_entries: [{ data: { id: "je-2" }, error: null }],
+    });
+
+    const result = await createPaymentRun(service, {
+      ...BASE_PARAMS,
+      bills: [{ billId: "bill-1", amount: 300 }], // covers the remaining 300 of 500
+    });
+
+    expect(result).toEqual({ ok: true, id: "pay-2", paidBillIds: ["bill-1"] });
+    const statusUpdate = calls.find(
+      (c) => c.table === "vendor_bills" && c.op === "update" && (c.payload as { status?: string }).status === "paid",
+    );
+    expect(statusUpdate).toBeTruthy();
+  });
+
+  it("rejects a payment amount larger than the remaining balance", async () => {
+    const { service } = createMockService({
+      chart_of_accounts: [{ data: { id: "acct-bank", is_active: true }, error: null }],
+      vendor_bills: [
+        { data: [{ id: "bill-1", status: "approved", department: "Kitchen", total: 500, bill_reference: "INV-1", bill_date: "2026-08-01" }], error: null },
+      ],
+      vendor_bill_payment_lines: [{ data: [{ vendor_bill_id: "bill-1", amount: 400 }], error: null }], // only 100 left
+    });
+
+    const result = await createPaymentRun(service, {
+      ...BASE_PARAMS,
+      bills: [{ billId: "bill-1", amount: 250 }],
+    });
+
+    expect(result.ok).toBe(false);
+    expect((result as { error: string }).error).toMatch(/exceeds the remaining balance/);
+  });
+
+  it("refuses to pay a bill that's already fully paid off", async () => {
+    const { service } = createMockService({
+      chart_of_accounts: [{ data: { id: "acct-bank", is_active: true }, error: null }],
+      vendor_bills: [
+        { data: [{ id: "bill-1", status: "approved", department: "Kitchen", total: 500, bill_reference: "INV-1", bill_date: "2026-08-01" }], error: null },
+      ],
+      vendor_bill_payment_lines: [{ data: [{ vendor_bill_id: "bill-1", amount: 500 }], error: null }],
+    });
+
+    const result = await createPaymentRun(service, { ...BASE_PARAMS, bills: [{ billId: "bill-1" }] });
+    expect(result.ok).toBe(false);
+    expect((result as { error: string }).error).toMatch(/already fully paid/);
   });
 });
 

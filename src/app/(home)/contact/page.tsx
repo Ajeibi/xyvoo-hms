@@ -88,21 +88,21 @@ export default function ContactPage() {
                   <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1.5">Full Name *</label>
-                        <input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Amara Okafor" required className={inputCls} />
+                        <label htmlFor="contact-name" className="block text-xs font-medium text-slate-600 mb-1.5">Full Name *</label>
+                        <input id="contact-name" name="name" autoComplete="name" value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Amara Okafor" required className={inputCls} />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-slate-600 mb-1.5">Email *</label>
-                        <input type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="amara@hotel.com" required className={inputCls} />
+                        <label htmlFor="contact-email" className="block text-xs font-medium text-slate-600 mb-1.5">Email *</label>
+                        <input id="contact-email" name="email" type="email" autoComplete="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="amara@hotel.com" required className={inputCls} />
                       </div>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Hotel / Company</label>
-                      <input value={form.company} onChange={(e) => set("company", e.target.value)} placeholder="Grand Meridian Hotel" className={inputCls} />
+                      <label htmlFor="contact-company" className="block text-xs font-medium text-slate-600 mb-1.5">Hotel / Company</label>
+                      <input id="contact-company" name="company" autoComplete="organization" value={form.company} onChange={(e) => set("company", e.target.value)} placeholder="Grand Meridian Hotel" className={inputCls} />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-slate-600 mb-1.5">Message *</label>
-                      <textarea value={form.message} onChange={(e) => set("message", e.target.value)} rows={5} required placeholder="Tell us what you're looking for..." className={`${inputCls} resize-none`} />
+                      <label htmlFor="contact-message" className="block text-xs font-medium text-slate-600 mb-1.5">Message *</label>
+                      <textarea id="contact-message" name="message" value={form.message} onChange={(e) => set("message", e.target.value)} rows={5} required placeholder="Tell us what you're looking for..." className={`${inputCls} resize-none`} />
                     </div>
                     <button
                       type="submit"

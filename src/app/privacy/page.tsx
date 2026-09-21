@@ -1,4 +1,11 @@
+import type { Metadata } from "next";
 import WebsiteLayout from "@/components/website/WebsiteLayout";
+
+export const metadata: Metadata = {
+  title: "Privacy Policy",
+  description: "How XYVOO collects, uses, and protects your data.",
+  alternates: { canonical: "/privacy" },
+};
 
 export default function PrivacyPage() {
   return (

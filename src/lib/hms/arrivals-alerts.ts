@@ -7,7 +7,7 @@ import type { PaymentDisplayStatus } from "@/lib/hms/front-desk-board";
 import type { RoomReadinessStatus } from "@/lib/hms/arrivals-workbench";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
 
-async function hasRecentNotification(
+export async function hasRecentNotification(
   supabase: SupabaseClient,
   tenantId: string,
   type: string,

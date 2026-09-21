@@ -86,7 +86,7 @@ export function StorefrontGrowthStack({
           card.style.transformOrigin = "50% 50%";
           card.style.transform = `translate(${x}px,${y}px) rotate(${rot}deg) scale(${scale})`;
           card.style.opacity = String(op);
-          card.style.zIndex = String(100 - Math.round(dist * 10));
+          card.style.zIndex = String(20 - Math.round(dist * 10));
           card.style.pointerEvents = dist < 0.02 ? "auto" : "none";
         } else {
           // Exit swing, driven 1:1 by scroll — t is exactly how far through
@@ -98,7 +98,7 @@ export function StorefrontGrowthStack({
           card.style.transformOrigin = EXIT_ORIGIN;
           card.style.transform = `rotate(${angle}deg) scale(${scale2})`;
           card.style.opacity = String(op2);
-          card.style.zIndex = "120";
+          card.style.zIndex = "22";
           card.style.pointerEvents = "none";
         }
       });

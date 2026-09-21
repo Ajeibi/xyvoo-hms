@@ -5,12 +5,19 @@ vi.mock("@/lib/hms/front-desk-ops", () => ({
   emitNotification: vi.fn(),
 }));
 
+vi.mock("@/lib/hms/journal-entries", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/hms/journal-entries")>("@/lib/hms/journal-entries");
+  return { ...actual, reverseJournalEntry: vi.fn() };
+});
+
 import { writeAuditLog, emitNotification } from "@/lib/hms/front-desk-ops";
-import { approveVendorBill, createVendorBill, rejectVendorBill } from "./vendor-bills";
+import { reverseJournalEntry } from "@/lib/hms/journal-entries";
+import { approveVendorBill, createVendorBill, getApAccountId, rejectVendorBill, voidVendorBill } from "./vendor-bills";
 
 afterEach(() => {
   vi.mocked(writeAuditLog).mockClear();
   vi.mocked(emitNotification).mockClear();
+  vi.mocked(reverseJournalEntry).mockClear();
 });
 
 type CannedResponse = { data: unknown; error: unknown };
@@ -27,6 +34,7 @@ function createMockService(responses: Record<string, CannedResponse[]> = {}) {
       eq: () => chain,
       in: () => chain,
       order: () => chain,
+      limit: () => chain,
       insert: (payload: unknown) => {
         calls.push({ table, op: "insert", payload });
         return chain;
@@ -241,5 +249,84 @@ describe("rejectVendorBill", () => {
     const update = calls.find((c) => c.table === "vendor_bills" && c.op === "update");
     expect(update?.payload).toMatchObject({ status: "rejected", rejection_reason: "Wrong amount" });
     expect(writeAuditLog).toHaveBeenCalledWith(expect.objectContaining({ action: "vendor_bill_rejected" }));
+  });
+});
+
+describe("getApAccountId", () => {
+  it("resolves the active code-2000 account", async () => {
+    const { service } = createMockService({ chart_of_accounts: [{ data: { id: "acct-ap" }, error: null }] });
+    const result = await getApAccountId(service, "t1");
+    expect(result).toBe("acct-ap");
+  });
+
+  it("returns null when no active AP account exists", async () => {
+    const { service } = createMockService({ chart_of_accounts: [{ data: null, error: null }] });
+    const result = await getApAccountId(service, "t1");
+    expect(result).toBeNull();
+  });
+});
+
+describe("voidVendorBill", () => {
+  it("refuses to void a bill that's still pending approval", async () => {
+    const { service } = createMockService({
+      vendor_bills: [{ data: { id: "bill-1", status: "pending_approval" }, error: null }],
+    });
+    const result = await voidVendorBill(service, { tenantId: "t1", billId: "bill-1", voidedBy: "user-1" });
+    expect(result).toEqual({ ok: false, error: "This bill hasn't been posted yet — reject it instead of voiding." });
+    expect(reverseJournalEntry).not.toHaveBeenCalled();
+  });
+
+  it("refuses to void a bill in any other non-approved status", async () => {
+    const { service } = createMockService({
+      vendor_bills: [{ data: { id: "bill-1", status: "cancelled" }, error: null }],
+    });
+    const result = await voidVendorBill(service, { tenantId: "t1", billId: "bill-1", voidedBy: "user-1" });
+    expect(result).toEqual({ ok: false, error: "Only an approved (posted) bill can be voided (currently cancelled)." });
+  });
+
+  it("refuses to void an approved bill with no linked journal entry", async () => {
+    const { service } = createMockService({
+      vendor_bills: [{ data: { id: "bill-1", status: "approved", journal_entry_id: null }, error: null }],
+    });
+    const result = await voidVendorBill(service, { tenantId: "t1", billId: "bill-1", voidedBy: "user-1" });
+    expect(result).toEqual({ ok: false, error: "This bill has no linked journal entry to reverse." });
+  });
+
+  it("refuses to void a bill that already has payments recorded", async () => {
+    const { service } = createMockService({
+      vendor_bills: [{ data: { id: "bill-1", status: "approved", journal_entry_id: "je-1" }, error: null }],
+      vendor_bill_payment_lines: [{ data: [{ id: "pay-line-1" }], error: null }],
+    });
+    const result = await voidVendorBill(service, { tenantId: "t1", billId: "bill-1", voidedBy: "user-1" });
+    expect(result).toEqual({ ok: false, error: "This bill has payments recorded against it — reverse the payments first." });
+    expect(reverseJournalEntry).not.toHaveBeenCalled();
+  });
+
+  it("surfaces the reversal's own error instead of cancelling the bill", async () => {
+    vi.mocked(reverseJournalEntry).mockResolvedValueOnce({ ok: false, error: "This entry has already been reversed." });
+    const { service, calls } = createMockService({
+      vendor_bills: [{ data: { id: "bill-1", status: "approved", journal_entry_id: "je-1" }, error: null }],
+      vendor_bill_payment_lines: [{ data: [], error: null }],
+    });
+    const result = await voidVendorBill(service, { tenantId: "t1", billId: "bill-1", voidedBy: "user-1" });
+    expect(result).toEqual({ ok: false, error: "This entry has already been reversed." });
+    expect(calls.some((c) => c.table === "vendor_bills" && c.op === "update")).toBe(false);
+  });
+
+  it("reverses the journal entry and cancels the bill on the happy path", async () => {
+    vi.mocked(reverseJournalEntry).mockResolvedValueOnce({ ok: true, id: "je-reversal-1" });
+    const { service, calls } = createMockService({
+      vendor_bills: [{ data: { id: "bill-1", status: "approved", journal_entry_id: "je-1", bill_reference: "GRN-ABC123" }, error: null }],
+      vendor_bill_payment_lines: [{ data: [], error: null }],
+    });
+    const result = await voidVendorBill(service, { tenantId: "t1", billId: "bill-1", voidedBy: "user-1" });
+    expect(result).toEqual({ ok: true });
+    expect(reverseJournalEntry).toHaveBeenCalledWith(
+      service,
+      expect.objectContaining({ tenantId: "t1", journalEntryId: "je-1", actorUserId: "user-1" }),
+    );
+    const update = calls.find((c) => c.table === "vendor_bills" && c.op === "update");
+    expect(update?.payload).toMatchObject({ status: "cancelled" });
+    expect(writeAuditLog).toHaveBeenCalledWith(expect.objectContaining({ action: "vendor_bill_voided" }));
   });
 });

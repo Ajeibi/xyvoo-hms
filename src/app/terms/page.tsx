@@ -1,4 +1,11 @@
+import type { Metadata } from "next";
 import WebsiteLayout from "@/components/website/WebsiteLayout";
+
+export const metadata: Metadata = {
+  title: "Terms and Conditions",
+  description: "The terms that govern your use of XYVOO services.",
+  alternates: { canonical: "/terms" },
+};
 
 export default function TermsPage() {
   return (

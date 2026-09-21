@@ -3,8 +3,17 @@ import type { GuestProfileData } from "@/lib/hms/guest-profile";
 import { formatGuestProfileRevenue } from "@/lib/hms/guest-profile";
 import { formatBoardDateTime } from "@/lib/hms/front-desk-board";
 import { GuestDetailRows } from "@/components/hms/frontdesk/board/guest-details";
+import { GuestFlagsAndNotes } from "@/components/hms/guests/GuestFlagsAndNotes";
 
-export function GuestProfileView({ slug, data }: { slug: string; data: GuestProfileData }) {
+export function GuestProfileView({
+  slug,
+  data,
+  canEdit,
+}: {
+  slug: string;
+  data: GuestProfileData;
+  canEdit: boolean;
+}) {
   return (
     <div className="w-full px-4 py-8 sm:px-6 lg:px-8">
       <Link href={`/hms/${slug}/guests`} className="text-sm text-blue-600 hover:underline">
@@ -13,9 +22,20 @@ export function GuestProfileView({ slug, data }: { slug: string; data: GuestProf
       <header className="mt-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Guest profile</p>
         <h1 className="mt-2 text-2xl font-semibold text-slate-900">{data.guest.displayName}</h1>
-        {data.guest.tags.length > 0 ? (
-          <p className="mt-3 flex flex-wrap gap-1.5">
-            {data.guest.tags.map((tag) => (
+        <p className="mt-3 flex flex-wrap gap-1.5">
+          {data.isVip ? (
+            <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold uppercase text-amber-900">
+              VIP
+            </span>
+          ) : null}
+          {data.isDoNotWalk ? (
+            <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold uppercase text-red-800">
+              Do Not Walk
+            </span>
+          ) : null}
+          {data.guest.tags
+            .filter((tag) => !["vip", "do_not_walk"].includes(tag.toLowerCase()))
+            .map((tag) => (
               <span
                 key={tag}
                 className="rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-semibold uppercase text-violet-800"
@@ -23,12 +43,20 @@ export function GuestProfileView({ slug, data }: { slug: string; data: GuestProf
                 {tag}
               </span>
             ))}
-          </p>
-        ) : null}
+        </p>
         <dl className="mt-4">
           <GuestDetailRows guest={data.guest} />
         </dl>
       </header>
+
+      <GuestFlagsAndNotes
+        slug={slug}
+        guestId={data.guestId}
+        isVip={data.isVip}
+        isDoNotWalk={data.isDoNotWalk}
+        notes={data.notes}
+        canEdit={canEdit}
+      />
 
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
         <div className="rounded-xl border border-slate-200 bg-white p-4">

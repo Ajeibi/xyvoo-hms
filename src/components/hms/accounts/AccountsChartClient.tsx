@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -157,6 +158,9 @@ export function AccountsChartClient({
                       <div className="flex items-center gap-3">
                         <code className="w-14 shrink-0 font-mono text-xs text-slate-500">{a.code}</code>
                         <span className={a.isActive ? "text-slate-900" : "text-slate-400 line-through"}>{a.name}</span>
+                        <Link href={`/hms/${slug}/accounts/ledger/${a.id}`} className="text-xs text-blue-600 hover:underline">
+                          View ledger
+                        </Link>
                       </div>
                       {canManage ? (
                         <Button

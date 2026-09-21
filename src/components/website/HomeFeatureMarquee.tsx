@@ -1,5 +1,7 @@
 "use client";
 
+import { useRef } from "react";
+import { motion, useInView } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 const FEATURE_LABELS = [
@@ -64,6 +66,9 @@ function MarqueeTrack({ labels }: { labels: readonly string[] }) {
 }
 
 export function HomeFeatureMarquee() {
+  const ref = useRef<HTMLDivElement>(null);
+  const isInView = useInView(ref, { once: false, margin: "-80px" });
+
   return (
     <section
       className="w-full bg-background"
@@ -72,9 +77,13 @@ export function HomeFeatureMarquee() {
       <h2 id="xyvoo-feature-marquee-title" className="sr-only">
         XYVOO platform features
       </h2>
-      <div
+      <motion.div
+        ref={ref}
         className="mx-auto w-full max-w-full px-4 py-1 lg:w-[70%] lg:px-0"
         aria-hidden="true"
+        initial={{ opacity: 0, y: 36, scale: 0.85 }}
+        animate={isInView ? { opacity: 1, y: 0, scale: 1 } : { opacity: 0, y: 36, scale: 0.85 }}
+        transition={{ duration: 0.7, ease: "easeOut" }}
       >
         <div className="relative overflow-hidden rounded-xl bg-muted/10 py-3">
           <MarqueeTrack labels={FEATURE_LABELS} />
@@ -87,7 +96,7 @@ export function HomeFeatureMarquee() {
             aria-hidden
           />
         </div>
-      </div>
+      </motion.div>
     </section>
   );
 }

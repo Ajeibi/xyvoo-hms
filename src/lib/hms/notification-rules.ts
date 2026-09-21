@@ -269,6 +269,34 @@ export async function notifyLowStock(
   });
 }
 
+export async function notifyWaitlistMatch(
+  base: Base & { guestName: string; roomTypeName: string | null },
+) {
+  await emitNotification({
+    ...base,
+    type: "waitlist_match",
+    title: "Waitlisted guest matches an opening",
+    body: `${base.guestName}${base.roomTypeName ? ` (${base.roomTypeName})` : ""} — a room just opened up for their dates`,
+    severity: "info",
+    entityType: "waitlist_entry",
+    entityId: base.entityId,
+  });
+}
+
+export async function notifySlaBreach(
+  base: Base & { requestType: string; roomCode: string | null; minutesOverdue: number },
+) {
+  await emitNotification({
+    ...base,
+    type: "guest_request_sla_breach",
+    title: "Guest request past SLA",
+    body: `${base.requestType}${base.roomCode ? ` — Room ${base.roomCode}` : ""} is ${base.minutesOverdue}m overdue`,
+    severity: "warning",
+    entityType: "guest_request",
+    entityId: base.entityId,
+  });
+}
+
 export async function notifyCommissionDue(
   base: Base & { guestName: string; amount: number },
 ) {

@@ -49,3 +49,31 @@ export async function getUserHotelDashboardPath(userId: string): Promise<string 
 
   return `/hms/${slug}/notifications`;
 }
+
+export async function getUserStoreDashboardPath(userId: string): Promise<string | null> {
+  const supabase = createServerSupabaseClient();
+
+  const { data: memberships } = await supabase
+    .schema("store")
+    .from("memberships")
+    .select("tenant_id")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: true })
+    .limit(1);
+
+  const tenantId = (memberships as Array<{ tenant_id: string }> | null)?.[0]?.tenant_id;
+  if (!tenantId) return null;
+
+  const { data: tenant } = await supabase
+    .from("tenants")
+    .select("id, subdomain, name")
+    .eq("id", tenantId)
+    .eq("product", "store")
+    .maybeSingle();
+
+  const tenantData = tenant as { id: string; subdomain: string | null; name: string | null } | null;
+  if (!tenantData) return null;
+
+  const slug = tenantData.subdomain || tenantData.name || tenantData.id;
+  return `/storefront/${slug}/dashboard`;
+}

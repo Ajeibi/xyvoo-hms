@@ -12,7 +12,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const auth = await requireHotelApiMember(body.slug);
     if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
-    const { error } = await approvePurchaseOrder(auth.service, auth.tenant.id, id, auth.user.id);
+    const { error } = await approvePurchaseOrder(auth.service, auth.tenant.id, id, auth.user.id, {
+      membershipRole: auth.role,
+      departmentRole: auth.departmentRole,
+    });
     if (error) return NextResponse.json({ error }, { status: 400 });
     return NextResponse.json({ ok: true });
   } catch (e) {

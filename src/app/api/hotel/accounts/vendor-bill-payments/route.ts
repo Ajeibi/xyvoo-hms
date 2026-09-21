@@ -9,7 +9,7 @@ const PostBody = z.object({
   paymentDate: z.string().min(1),
   bankAccountId: z.string().uuid(),
   reference: z.string().max(80).optional(),
-  billIds: z.array(z.string().uuid()).min(1),
+  bills: z.array(z.object({ billId: z.string().uuid(), amount: z.number().positive().optional() })).min(1),
 });
 
 async function findApAccountId(auth: { service: import("@supabase/supabase-js").SupabaseClient; tenant: { id: string } }) {
@@ -67,7 +67,7 @@ export async function POST(req: Request) {
       bankAccountId: body.bankAccountId,
       apAccountId,
       reference: body.reference ?? null,
-      billIds: body.billIds,
+      bills: body.bills,
       createdBy: auth.user.id,
     });
 

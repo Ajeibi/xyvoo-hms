@@ -6,6 +6,7 @@ import { getAccountsCapabilities } from "@/lib/hms/accounts-rbac";
 import { listChartOfAccounts } from "@/lib/hms/chart-of-accounts";
 import { listVendorBills } from "@/lib/hms/vendor-bills";
 import { listVendors } from "@/lib/hms/procurement-vendors";
+import { normalizePricingSetup } from "@/lib/hms/room-pricing";
 import { AccountsVendorBillsClient } from "@/components/hms/accounts/AccountsVendorBillsClient";
 
 export default async function AccountsVendorBillsPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -42,6 +43,7 @@ export default async function AccountsVendorBillsPage({ params }: { params: Prom
         canApprove={caps.canApproveVendorBill}
         canRecordPayment={caps.canRecordPayment}
         canAccessAllDepartments={access.canAccessAllDepartments}
+        defaultCurrency={normalizePricingSetup(tenant.pricing_setup).currency}
       />
     </HMSLayout>
   );

@@ -1,12 +1,37 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { AnimatePresence, motion, useInView } from "framer-motion";
 import { ArrowRight, Check, CheckCircle2, X, Zap } from "lucide-react";
 import { SectionEyebrow } from "@/components/website/SectionEyebrow";
 import { Button } from "@/components/ui/button";
 import { HMS_CYCLES, HMS_FEATURES, STOREFRONT_FEATURE_COMPARISON_ROWS, STOREFRONT_PLANS } from "@/constants/pricing";
 import type { HomePricingTab } from "@/types";
+
+function FadeIn({
+  children,
+  delay = 0,
+  className,
+}: {
+  children: React.ReactNode;
+  delay?: number;
+  className?: string;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const inView = useInView(ref, { once: false, margin: "-80px" });
+  return (
+    <motion.div
+      ref={ref}
+      className={className}
+      initial={{ opacity: 0, y: 56 }}
+      animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 56 }}
+      transition={{ duration: 0.7, delay, ease: "easeOut" }}
+    >
+      {children}
+    </motion.div>
+  );
+}
 
 type HomePricingSectionProps = {
   /** Fixed header offset + tighter rhythm on `/pricing` */
@@ -57,33 +82,36 @@ export function HomePricingSection({
 
         return next;
       });
-    }, 2000);
+    }, 5000);
 
     return () => window.clearInterval(interval);
   }, [activeTab, hmsDirection, shouldAnimateHms]);
 
   return (
     <section
+      aria-labelledby="home-pricing-heading"
       className={standalonePage ? "bg-white pt-28 pb-24" : "py-24"}
       style={{ background: "var(--xyvoo-white)" }}
     >
       <div className="mx-auto max-w-[1200px] px-6">
-        <div className="mx-auto max-w-[1200px] text-center">
-          <SectionEyebrow
-            eyebrow="Pricing"
-            title="Simple plans that scale with your business"
-            titleId="home-pricing-heading"
-            titleClassName="text-[clamp(1.625rem,4.4vw,2.75rem)] font-extrabold leading-[1.12]"
-            className="[&>h2]:[color:var(--xyvoo-products-navy-alt)] [&>p]:[color:var(--xyvoo-blue)]"
-          />
-          <p
-            className="mx-auto mt-5 max-w-[720px] text-[16px] leading-[1.75]"
-            style={{ color: "var(--xyvoo-navy-muted-text)" }}
-          >
-            Start free, grow at your pace, and move to advanced support only when
-            you need it. No hidden lock-ins.
-          </p>
-        </div>
+        <FadeIn>
+          <div className="mx-auto max-w-[1200px] text-center">
+            <SectionEyebrow
+              eyebrow="Pricing"
+              title="Simple plans that scale with your business"
+              titleId="home-pricing-heading"
+              titleClassName="text-[clamp(1.625rem,4.4vw,2.75rem)] font-extrabold leading-[1.12]"
+              className="[&>h2]:[color:var(--xyvoo-products-navy-alt)] [&>p]:[color:var(--xyvoo-blue)]"
+            />
+            <p
+              className="mx-auto mt-5 max-w-[720px] text-[16px] leading-[1.75]"
+              style={{ color: "var(--xyvoo-navy-muted-text)" }}
+            >
+              Start free, grow at your pace, and move to advanced support only when
+              you need it. No hidden lock-ins.
+            </p>
+          </div>
+        </FadeIn>
 
         <div
           className={`flex justify-center ${
@@ -97,41 +125,43 @@ export function HomePricingSection({
               : undefined
           }
         >
-          <div className="inline-flex rounded-2xl border p-1.5" style={{ borderColor: "rgb(var(--xyvoo-blue-rgb) / 0.18)", background: "rgb(var(--xyvoo-blue-rgb) / 0.04)" }}>
-            <button
-              type="button"
-              onClick={() => setActiveTab("storefront")}
-              className="cursor-pointer rounded-xl px-5 py-2.5 text-sm font-semibold transition"
-              style={{
-                background: activeTab === "storefront" ? "var(--xyvoo-white)" : "transparent",
-                color: "var(--xyvoo-products-navy-alt)",
-                boxShadow: activeTab === "storefront" ? "0 2px 10px rgb(var(--xyvoo-navy-rgb) / 0.08)" : "none",
-              }}
-            >
-              Storefront Pricing
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("hms")}
-              className="cursor-pointer rounded-xl px-5 py-2.5 text-sm font-semibold transition"
-              style={{
-                background: activeTab === "hms" ? "var(--xyvoo-white)" : "transparent",
-                color: "var(--xyvoo-products-navy-alt)",
-                boxShadow: activeTab === "hms" ? "0 2px 10px rgb(var(--xyvoo-navy-rgb) / 0.08)" : "none",
-              }}
-            >
-              HMS Pricing
-            </button>
-          </div>
+          <FadeIn delay={shouldPinTabs ? 0 : 0.1}>
+            <div className="inline-flex rounded-2xl border p-1.5" style={{ borderColor: "rgb(var(--xyvoo-blue-rgb) / 0.18)", background: "rgb(var(--xyvoo-blue-rgb) / 0.04)" }}>
+              <button
+                type="button"
+                onClick={() => setActiveTab("storefront")}
+                className="cursor-pointer rounded-xl px-5 py-2.5 text-sm font-semibold transition"
+                style={{
+                  background: activeTab === "storefront" ? "var(--xyvoo-white)" : "transparent",
+                  color: "var(--xyvoo-products-navy-alt)",
+                  boxShadow: activeTab === "storefront" ? "0 2px 10px rgb(var(--xyvoo-navy-rgb) / 0.08)" : "none",
+                }}
+              >
+                Storefront Pricing
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("hms")}
+                className="cursor-pointer rounded-xl px-5 py-2.5 text-sm font-semibold transition"
+                style={{
+                  background: activeTab === "hms" ? "var(--xyvoo-white)" : "transparent",
+                  color: "var(--xyvoo-products-navy-alt)",
+                  boxShadow: activeTab === "hms" ? "0 2px 10px rgb(var(--xyvoo-navy-rgb) / 0.08)" : "none",
+                }}
+              >
+                HMS Pricing
+              </button>
+            </div>
+          </FadeIn>
         </div>
 
         {activeTab === "storefront" ? (
           <div className="mt-10">
             {!showStorefrontComparison ? (
               <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-                {STOREFRONT_PLANS.map((plan) => (
+                {STOREFRONT_PLANS.map((plan, planIndex) => (
+                  <FadeIn key={plan.name} delay={planIndex * 0.1}>
                   <article
-                    key={plan.name}
                     className="flex h-full flex-col rounded-2xl border p-6"
                     style={{
                       background: plan.featured
@@ -206,6 +236,7 @@ export function HomePricingSection({
                       <Link href={plan.ctaHref}>{plan.ctaLabel}</Link>
                     </Button>
                   </article>
+                  </FadeIn>
                 ))}
               </div>
             ) : (
@@ -271,10 +302,13 @@ export function HomePricingSection({
           </div>
         ) : (
           <div className="mt-10">
-            <div
-              key={selectedHmsCycle.id}
-              className="relative mb-8 overflow-hidden rounded-3xl p-10 text-white shadow-2xl"
+            <motion.div
+              className="relative mb-8 overflow-hidden rounded-3xl p-6 text-white shadow-2xl sm:p-8 md:p-10"
               style={{ background: "var(--xyvoo-hms-pricing-hero-gradient)" }}
+              initial={{ opacity: 0, x: -110 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: false, margin: "-80px" }}
+              transition={{ duration: 0.7, ease: "easeOut" }}
             >
               <div
                 className="absolute -right-20 -top-20 h-64 w-64 rounded-full blur-3xl"
@@ -286,26 +320,36 @@ export function HomePricingSection({
               />
 
               <div className="relative grid items-center gap-10 md:grid-cols-2">
-                <div>
-                  {selectedHmsCycle.badge && (
-                    <div className="mb-5 inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-400/20 px-3 py-1.5 text-xs font-bold text-amber-300">
-                      <Zap className="h-3 w-3" /> {selectedHmsCycle.badge}
-                    </div>
-                  )}
-                  <div className="mb-2 flex items-end gap-2">
-                    <span className="text-6xl font-black">
-                      {formatNaira(selectedHmsCycle.priceDisplay)}
-                    </span>
-                    <span className="pb-2 text-lg" style={{ color: "var(--xyvoo-hms-pricing-hero-accent)" }}>
-                      {selectedHmsCycle.period}
-                    </span>
-                  </div>
-                  <p className="mb-1 text-sm" style={{ color: "var(--xyvoo-hms-pricing-hero-accent)" }}>
-                    {selectedHmsCycle.feeDisplay}
-                  </p>
-                  <p className="text-xs" style={{ color: "var(--xyvoo-hms-pricing-hero-accent-soft)" }}>
-                    Effective rate: {selectedHmsCycle.total ? formatNaira(selectedHmsCycle.total) : ""}
-                  </p>
+                <div className="min-w-0">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={selectedHmsCycle.id}
+                      initial={{ opacity: 0, scale: 1.15 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.85 }}
+                      transition={{ duration: 0.4, ease: "easeOut" }}
+                    >
+                      {selectedHmsCycle.badge && (
+                        <div className="mb-5 inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-400/20 px-3 py-1.5 text-xs font-bold text-amber-300">
+                          <Zap className="h-3 w-3" /> {selectedHmsCycle.badge}
+                        </div>
+                      )}
+                      <div className="mb-2 flex flex-wrap items-end gap-2">
+                        <span className="text-4xl font-black sm:text-5xl md:text-6xl">
+                          {formatNaira(selectedHmsCycle.priceDisplay)}
+                        </span>
+                        <span className="pb-2 text-lg" style={{ color: "var(--xyvoo-hms-pricing-hero-accent)" }}>
+                          {selectedHmsCycle.period}
+                        </span>
+                      </div>
+                      <p className="mb-1 text-sm" style={{ color: "var(--xyvoo-hms-pricing-hero-accent)" }}>
+                        {selectedHmsCycle.feeDisplay}
+                      </p>
+                      <p className="text-xs" style={{ color: "var(--xyvoo-hms-pricing-hero-accent-soft)" }}>
+                        Effective rate: {selectedHmsCycle.total ? formatNaira(selectedHmsCycle.total) : ""}
+                      </p>
+                    </motion.div>
+                  </AnimatePresence>
                   <div className="mt-8 flex flex-col gap-3">
                     <Link
                       href="/register"
@@ -336,9 +380,15 @@ export function HomePricingSection({
                   ))}
                 </div>
               </div>
-            </div>
+            </motion.div>
 
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-8">
+            <motion.div
+              className="rounded-2xl border border-slate-200 bg-slate-50 p-8"
+              initial={{ opacity: 0, x: 110 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: false, margin: "-80px" }}
+              transition={{ duration: 0.7, delay: 0.1, ease: "easeOut" }}
+            >
               <p className="mb-5 text-xs font-semibold uppercase tracking-widest text-slate-400">
                 All Features Included
               </p>
@@ -353,7 +403,7 @@ export function HomePricingSection({
                   </div>
                 ))}
               </div>
-            </div>
+            </motion.div>
           </div>
         )}
 

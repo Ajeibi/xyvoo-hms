@@ -22,7 +22,7 @@ export function SectionEyebrow({
     <div className={className}>
       <p
         className={cn(
-          "mb-4 inline-block text-[11px] font-bold uppercase tracking-[0.22em] text-xyvoo-blue",
+          "mb-4 inline-block text-[11px] font-bold uppercase tracking-[0.22em] text-xyvoo-blue-deep",
           eyebrowClassName,
         )}
       >

@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { isDebitNormal, type AccountType } from "@/lib/hms/chart-of-accounts";
+import { isDebitNormal, type AccountType, type CashFlowCategory } from "@/lib/hms/chart-of-accounts";
 
 /** Same cost-centre vocabulary as Procurement's purchase-order form (Kitchen/Bar/Housekeeping/
  * Front Desk/Engineering/Procurement/Other), plus Accounts itself as a valid cost centre. Kept as
@@ -15,6 +15,14 @@ export const ACCOUNTS_DEPARTMENTS = [
   "Accounts",
   "Other",
 ] as const;
+
+/** Cost-centre tags elsewhere (e.g. Inventory's free-text `requesting_department`) aren't
+ * validated against this list — normalize case-insensitively for a journal line's `department`
+ * rather than inventing a value that wasn't provided. */
+export function normalizeAccountsDepartment(value: string | null | undefined): (typeof ACCOUNTS_DEPARTMENTS)[number] {
+  const match = ACCOUNTS_DEPARTMENTS.find((d) => d.toLowerCase() === (value ?? "").trim().toLowerCase());
+  return match ?? "Other";
+}
 
 export type JournalEntryLineInput = {
   accountId: string;
@@ -48,6 +56,8 @@ export type TrialBalanceRow = {
   code: string;
   name: string;
   type: AccountType;
+  isCashEquivalent: boolean;
+  cashFlowCategory: CashFlowCategory;
   debit: number;
   credit: number;
   /** Signed net balance in the account's own normal-balance direction. */
@@ -282,30 +292,46 @@ export async function getJournalEntryDetail(
 export async function getTrialBalance(
   service: SupabaseClient,
   tenantId: string,
-  opts?: { asOfDate?: string },
+  opts?: { asOfDate?: string; dateFrom?: string },
 ): Promise<TrialBalanceRow[]> {
   const accounts = await service
     .schema("hotel")
     .from("chart_of_accounts")
-    .select("id,code,name,type")
+    .select("id,code,name,type,is_cash_equivalent,cash_flow_category")
     .eq("tenant_id", tenantId);
-  const accountRows = (accounts.data ?? []) as { id: string; code: string; name: string; type: AccountType }[];
+  const accountRows = (accounts.data ?? []) as {
+    id: string;
+    code: string;
+    name: string;
+    type: AccountType;
+    is_cash_equivalent: boolean | null;
+    cash_flow_category: CashFlowCategory | null;
+  }[];
   if (accountRows.length === 0) return [];
 
+  const emptyRows = () =>
+    accountRows
+      .map((a) => ({
+        accountId: a.id,
+        code: a.code,
+        name: a.name,
+        type: a.type,
+        isCashEquivalent: a.is_cash_equivalent ?? false,
+        cashFlowCategory: a.cash_flow_category ?? ("operating" as CashFlowCategory),
+        debit: 0,
+        credit: 0,
+        balance: 0,
+      }))
+      .sort((a, b) => a.code.localeCompare(b.code));
+
   let entryIdsFilter: string[] | null = null;
-  if (opts?.asOfDate) {
-    const { data: entries } = await service
-      .schema("hotel")
-      .from("journal_entries")
-      .select("id")
-      .eq("tenant_id", tenantId)
-      .lte("entry_date", opts.asOfDate);
+  if (opts?.asOfDate || opts?.dateFrom) {
+    let entryQuery = service.schema("hotel").from("journal_entries").select("id").eq("tenant_id", tenantId);
+    if (opts.asOfDate) entryQuery = entryQuery.lte("entry_date", opts.asOfDate);
+    if (opts.dateFrom) entryQuery = entryQuery.gte("entry_date", opts.dateFrom);
+    const { data: entries } = await entryQuery;
     entryIdsFilter = (entries ?? []).map((e) => e.id as string);
-    if (entryIdsFilter.length === 0) {
-      return accountRows
-        .map((a) => ({ accountId: a.id, code: a.code, name: a.name, type: a.type, debit: 0, credit: 0, balance: 0 }))
-        .sort((a, b) => a.code.localeCompare(b.code));
-    }
+    if (entryIdsFilter.length === 0) return emptyRows();
   }
 
   let lineQuery = service
@@ -329,7 +355,17 @@ export async function getTrialBalance(
       const debit = debitByAccount.get(a.id) ?? 0;
       const credit = creditByAccount.get(a.id) ?? 0;
       const balance = isDebitNormal(a.type) ? debit - credit : credit - debit;
-      return { accountId: a.id, code: a.code, name: a.name, type: a.type, debit, credit, balance };
+      return {
+        accountId: a.id,
+        code: a.code,
+        name: a.name,
+        type: a.type,
+        isCashEquivalent: a.is_cash_equivalent ?? false,
+        cashFlowCategory: a.cash_flow_category ?? ("operating" as CashFlowCategory),
+        debit,
+        credit,
+        balance,
+      };
     })
     .sort((a, b) => a.code.localeCompare(b.code));
 }

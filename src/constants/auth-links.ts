@@ -1,4 +1,4 @@
-/** Canonical register / login URLs per product (Storefront routes are scaffolded for upcoming flows). */
+/** Canonical register / login URLs per product. */
 export const XYVOO_AUTH_ROUTES = {
   hms: {
     register: "/register",
@@ -10,7 +10,7 @@ export const XYVOO_AUTH_ROUTES = {
     register: "/register/storefront",
     login: "/auth/login/storefront",
     title: "XYVOO Storefront",
-    subtitle: "Branded storefront, catalog, and checkout.",
+    subtitle: "Branded catalog and order management for your store.",
   },
 } as const;
 

@@ -262,10 +262,15 @@ export function ReservationsListClient({
                 {pageRows.map((row) => (
                   <tr key={row.id} className="border-t border-slate-100 hover:bg-slate-50/80">
                     <td className="whitespace-nowrap px-6 py-3">
-                      <p className="font-medium text-slate-900">{row.guestName}</p>
+                      <Link
+                        href={`/hms/${slug}/reservations/${row.id}`}
+                        className="font-medium text-slate-900 hover:text-blue-600 hover:underline"
+                      >
+                        {row.guestName}
+                      </Link>
                       <button
                         type="button"
-                        className="text-xs text-slate-500 hover:text-slate-700 hover:underline"
+                        className="block text-xs text-slate-500 hover:text-slate-700 hover:underline"
                         onClick={() => {
                           void navigator.clipboard.writeText(row.confirmationCode);
                           toastSuccess("Confirmation code copied");

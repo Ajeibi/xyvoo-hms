@@ -60,11 +60,41 @@ export async function listPaymentRuns(service: SupabaseClient, tenantId: string)
   });
 }
 
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+/** Sum of everything already paid against each bill, from every prior payment run —
+ * needed so a second payment on a previously-partially-paid bill knows what's left. */
+async function getAlreadyPaidByBillId(
+  service: SupabaseClient,
+  tenantId: string,
+  billIds: string[],
+): Promise<Map<string, number>> {
+  const { data } = await service
+    .schema("hotel")
+    .from("vendor_bill_payment_lines")
+    .select("vendor_bill_id,amount")
+    .eq("tenant_id", tenantId)
+    .in("vendor_bill_id", billIds);
+  const byBill = new Map<string, number>();
+  for (const row of data ?? []) {
+    const id = row.vendor_bill_id as string;
+    byBill.set(id, (byBill.get(id) ?? 0) + (Number(row.amount) || 0));
+  }
+  return byBill;
+}
+
 /**
  * Pays one or more already-approved bills in a single batch. Each bill still gets its
  * own journal entry (Dr Accounts Payable, Cr the paying bank/cash account) so the
  * ledger stays traceable per bill, not just per batch — mirroring how a single
  * approval already posts one entry per bill rather than a combined one.
+ *
+ * A bill can now be paid in more than one run — omit `amount` to pay whatever remains
+ * on the bill (the common case, and what fully clears it in one run same as before);
+ * pass a smaller `amount` for a partial payment, which leaves the bill "approved"
+ * (still open) rather than "paid" until the remaining balance reaches zero.
  *
  * Not wrapped in a database transaction: if a later bill's posting fails, earlier
  * bills in the same run are already paid and posted. Acceptable for this milestone's
@@ -79,11 +109,12 @@ export async function createPaymentRun(
     bankAccountId: string;
     apAccountId: string;
     reference?: string | null;
-    billIds: string[];
+    bills: { billId: string; amount?: number }[];
     createdBy: string;
   },
 ): Promise<{ ok: true; id: string; paidBillIds: string[] } | { ok: false; error: string; paidBillIds: string[] }> {
-  if (params.billIds.length === 0) return { ok: false, error: "Select at least one bill to pay.", paidBillIds: [] };
+  if (params.bills.length === 0) return { ok: false, error: "Select at least one bill to pay.", paidBillIds: [] };
+  const billIds = params.bills.map((b) => b.billId);
 
   const { data: bankAccount } = await service
     .schema("hotel")
@@ -100,7 +131,7 @@ export async function createPaymentRun(
     .from("vendor_bills")
     .select("id,status,department,total,bill_reference,bill_date")
     .eq("tenant_id", params.tenantId)
-    .in("id", params.billIds);
+    .in("id", billIds);
   const billRows = (bills ?? []) as {
     id: string;
     status: string;
@@ -110,12 +141,33 @@ export async function createPaymentRun(
     bill_date: string;
   }[];
 
-  if (billRows.length !== params.billIds.length) return { ok: false, error: "One or more bills were not found.", paidBillIds: [] };
+  if (billRows.length !== billIds.length) return { ok: false, error: "One or more bills were not found.", paidBillIds: [] };
   if (billRows.some((b) => b.status !== "approved")) {
     return { ok: false, error: "Only approved, unpaid bills can be paid.", paidBillIds: [] };
   }
 
-  const total = billRows.reduce((sum, b) => sum + (Number(b.total) || 0), 0);
+  const alreadyPaidByBill = await getAlreadyPaidByBillId(service, params.tenantId, billIds);
+  const amountByBill = new Map(params.bills.map((b) => [b.billId, b.amount]));
+
+  const paymentPlans: { bill: (typeof billRows)[number]; amount: number; remaining: number }[] = [];
+  for (const bill of billRows) {
+    const billTotal = round2(Number(bill.total) || 0);
+    const remaining = round2(billTotal - (alreadyPaidByBill.get(bill.id) ?? 0));
+    const requested = amountByBill.get(bill.id);
+    const amount = requested !== undefined ? round2(requested) : remaining;
+    if (remaining <= 0) return { ok: false, error: `${bill.bill_reference ?? bill.id} is already fully paid.`, paidBillIds: [] };
+    if (amount <= 0) return { ok: false, error: `Payment amount for ${bill.bill_reference ?? bill.id} must be greater than zero.`, paidBillIds: [] };
+    if (amount > remaining + 0.01) {
+      return {
+        ok: false,
+        error: `Payment amount for ${bill.bill_reference ?? bill.id} (${amount}) exceeds the remaining balance (${remaining}).`,
+        paidBillIds: [],
+      };
+    }
+    paymentPlans.push({ bill, amount, remaining });
+  }
+
+  const total = round2(paymentPlans.reduce((sum, p) => sum + p.amount, 0));
 
   const { data: payment, error } = await service
     .schema("hotel")
@@ -134,8 +186,8 @@ export async function createPaymentRun(
   const paymentId = payment.id as string;
 
   const paidBillIds: string[] = [];
-  for (const bill of billRows) {
-    const billTotal = Number(bill.total) || 0;
+  for (const plan of paymentPlans) {
+    const { bill, amount, remaining } = plan;
     const posted = await postJournalEntry(service, {
       tenantId: params.tenantId,
       entryDate: params.paymentDate,
@@ -143,20 +195,22 @@ export async function createPaymentRun(
       reference: paymentId,
       createdBy: params.createdBy,
       lines: [
-        { accountId: params.apAccountId, department: bill.department, debit: billTotal, credit: 0 },
-        { accountId: params.bankAccountId, department: bill.department, debit: 0, credit: billTotal },
+        { accountId: params.apAccountId, department: bill.department, debit: amount, credit: 0 },
+        { accountId: params.bankAccountId, department: bill.department, debit: 0, credit: amount },
       ],
     });
-    if (!posted.ok) return { ok: false, error: `Paid ${paidBillIds.length} of ${billRows.length} bills, then failed: ${posted.error}`, paidBillIds };
+    if (!posted.ok) return { ok: false, error: `Paid ${paidBillIds.length} of ${paymentPlans.length} bills, then failed: ${posted.error}`, paidBillIds };
 
     await service.schema("hotel").from("vendor_bill_payment_lines").insert({
       tenant_id: params.tenantId,
       payment_id: paymentId,
       vendor_bill_id: bill.id,
-      amount: billTotal,
+      amount,
       journal_entry_id: posted.id,
     });
-    await service.schema("hotel").from("vendor_bills").update({ status: "paid" }).eq("id", bill.id);
+    if (round2(remaining - amount) <= 0) {
+      await service.schema("hotel").from("vendor_bills").update({ status: "paid" }).eq("id", bill.id);
+    }
     paidBillIds.push(bill.id);
   }
 
@@ -193,22 +247,30 @@ export type ApAgingRow = {
 };
 
 /** Buckets every approved-but-unpaid bill by how overdue it is against its due date
- * (falling back to bill date when no due date was set), grouped by vendor. */
+ * (falling back to bill date when no due date was set), grouped by vendor. A bill that's
+ * been partially paid stays "approved" (see createPaymentRun) so this ages the *remaining*
+ * balance, not the original total — otherwise a bill 90% paid off would still show as fully
+ * outstanding. */
 export async function getApAgingReport(service: SupabaseClient, tenantId: string): Promise<ApAgingRow[]> {
   const { data } = await service
     .schema("hotel")
     .from("vendor_bills")
-    .select("vendor_id,total,due_date,bill_date,vendors(name)")
+    .select("id,vendor_id,total,due_date,bill_date,vendors(name)")
     .eq("tenant_id", tenantId)
     .eq("status", "approved");
 
   const rows = (data ?? []) as {
+    id: string;
     vendor_id: string;
     total: number;
     due_date: string | null;
     bill_date: string;
     vendors: { name: string } | { name: string }[] | null;
   }[];
+
+  const alreadyPaidByBill =
+    rows.length > 0 ? await getAlreadyPaidByBillId(service, tenantId, rows.map((r) => r.id)) : new Map<string, number>();
+
   const now = Date.now();
   const byVendor = new Map<string, ApAgingRow>();
 
@@ -217,7 +279,8 @@ export async function getApAgingReport(service: SupabaseClient, tenantId: string
     const v = Array.isArray(vendorEmbed) ? vendorEmbed[0] : vendorEmbed;
     const dueDate = r.due_date ?? r.bill_date;
     const daysOverdue = Math.floor((now - new Date(dueDate).getTime()) / 86_400_000);
-    const total = Number(r.total) || 0;
+    const total = round2((Number(r.total) || 0) - (alreadyPaidByBill.get(r.id) ?? 0));
+    if (total <= 0) continue;
 
     const existing: ApAgingRow = byVendor.get(r.vendor_id) ?? {
       vendorId: r.vendor_id,

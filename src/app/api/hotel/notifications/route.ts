@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
 import { notificationVisibilityFilter } from "@/lib/hms/front-desk-ops";
+import { getReadNotificationIds, markNotificationRead } from "@/lib/hms/notification-reads";
 
 export async function GET(req: Request) {
   const slug = new URL(req.url).searchParams.get("slug");
@@ -13,7 +14,7 @@ export async function GET(req: Request) {
   let query = auth.service
     .schema("hotel")
     .from("notifications")
-    .select("id,type,title,body,severity,created_at,read_at")
+    .select("id,type,title,body,severity,created_at")
     .eq("tenant_id", auth.tenant.id);
 
   const scopeFilter = notificationVisibilityFilter(auth.departmentRole);
@@ -23,14 +24,22 @@ export async function GET(req: Request) {
 
   if (error) return NextResponse.json({ error: "Could not load notifications." }, { status: 500 });
 
-  const notifications = (data ?? []).map((n) => ({
+  const rows = data ?? [];
+  const readIds = await getReadNotificationIds(
+    auth.service,
+    auth.tenant.id,
+    auth.user.id,
+    rows.map((n) => n.id),
+  );
+
+  const notifications = rows.map((n) => ({
     id: n.id,
     type: n.type,
     title: n.title,
     body: n.body,
     severity: n.severity,
     createdAt: n.created_at,
-    read: Boolean(n.read_at),
+    read: readIds.has(n.id),
   }));
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -48,14 +57,8 @@ export async function PATCH(req: Request) {
     const auth = await requireHotelApiMember(body.slug);
     if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
-    const { error } = await auth.service
-      .schema("hotel")
-      .from("notifications")
-      .update({ read_at: new Date().toISOString() })
-      .eq("id", body.id)
-      .eq("tenant_id", auth.tenant.id);
-
-    if (error) return NextResponse.json({ error: "Update failed." }, { status: 500 });
+    const result = await markNotificationRead(auth.service, auth.tenant.id, auth.user.id, body.id);
+    if (!result.ok) return NextResponse.json({ error: "Update failed." }, { status: 500 });
     return NextResponse.json({ ok: true });
   } catch (e) {
     if (e instanceof z.ZodError) {

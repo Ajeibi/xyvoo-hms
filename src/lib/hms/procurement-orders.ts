@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { resolveInventoryItemDisplay } from "@/lib/hms/inventory-stock";
+import { isAdminLikeRole } from "@/lib/hms/department-access";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { notifyPoApprovalNeeded, notifyPoApproved, notifyPoRejected } from "@/lib/hms/notification-rules";
 import { checkAndNotifyBudgetThreshold } from "@/lib/hms/procurement-budgets";
@@ -437,7 +438,37 @@ export async function createPurchaseOrder(
   return { order: full, error: null };
 }
 
-export async function approvePurchaseOrder(supabase: SupabaseClient, tenantId: string, poId: string, approvedBy: string) {
+/**
+ * Only an admin-like caller (owner/admin) may approve a PO — matches the UI's own gating
+ * (canAccessAllDepartments) and the identical model documented on Accounts' vendor-bill
+ * approval. The "finance" approver tier configured on a threshold is a routing label (who
+ * gets notified / what the UI shows as required) rather than a distinct enforced role yet —
+ * same open gap noted there. Without this check the API endpoint enforced nothing beyond
+ * tenant membership, so any staff member could call it directly regardless of the UI gate.
+ */
+export async function approvePurchaseOrder(
+  supabase: SupabaseClient,
+  tenantId: string,
+  poId: string,
+  approvedBy: string,
+  approver: { membershipRole: string; departmentRole?: string | null },
+) {
+  if (!isAdminLikeRole(approver.membershipRole)) {
+    return { error: "Only an owner or admin can approve a purchase order." };
+  }
+
+  const { data: existing } = await supabase
+    .schema("hotel")
+    .from("purchase_orders")
+    .select("status")
+    .eq("id", poId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  if (!existing) return { error: "Purchase order not found." };
+  if (existing.status !== "pending_approval") {
+    return { error: `Only a purchase order awaiting approval can be approved (currently ${existing.status}).` };
+  }
+
   const { data, error } = await supabase
     .schema("hotel")
     .from("purchase_orders")

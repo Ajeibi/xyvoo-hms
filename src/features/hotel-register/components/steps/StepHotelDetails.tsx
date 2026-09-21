@@ -22,38 +22,38 @@ export default function StepHotelDetails() {
       <p className="text-slate-500 text-sm mb-6">Start your free 14-day trial. No credit card required.</p>
       <div className="space-y-4">
         <div>
-          <label className="text-xs font-semibold text-slate-500 mb-1 block">Hotel Name *</label>
-          <input value={hotel.hotel_name} onChange={(e) => setHotelField("hotel_name", e.target.value)} className={INPUT_CLASS} placeholder="Grand Palace Hotel" />
+          <label htmlFor="hotel-name" className="text-xs font-semibold text-slate-500 mb-1 block">Hotel Name *</label>
+          <input id="hotel-name" value={hotel.hotel_name} onChange={(e) => setHotelField("hotel_name", e.target.value)} className={INPUT_CLASS} placeholder="Grand Palace Hotel" />
         </div>
         <div>
-          <label className="text-xs font-semibold text-slate-500 mb-1 block">Hotel Email *</label>
-          <input type="email" value={hotel.contact_email} onChange={(e) => setHotelField("contact_email", e.target.value)} className={INPUT_CLASS} placeholder="admin@grandpalace.com" />
+          <label htmlFor="hotel-email" className="text-xs font-semibold text-slate-500 mb-1 block">Hotel Email *</label>
+          <input id="hotel-email" type="email" autoComplete="email" value={hotel.contact_email} onChange={(e) => setHotelField("contact_email", e.target.value)} className={INPUT_CLASS} placeholder="admin@grandpalace.com" />
           <p className="text-xs text-slate-400 mt-1">This becomes your login and appears on guest-facing outputs.</p>
         </div>
         <div>
-          <label className="text-xs font-semibold text-slate-500 mb-1 block">Phone Number *</label>
-          <PhoneInput international defaultCountry="NG" value={hotel.contact_phone} onChange={(val) => setHotelField("contact_phone", val || "")} className="phone-input-wrapper" style={{ ["--PhoneInputCountryFlag-height" as string]: "1em" }} />
+          <label htmlFor="hotel-phone" className="text-xs font-semibold text-slate-500 mb-1 block">Phone Number *</label>
+          <PhoneInput numberInputProps={{ id: "hotel-phone" }} international defaultCountry="NG" value={hotel.contact_phone} onChange={(val) => setHotelField("contact_phone", val || "")} className="phone-input-wrapper" style={{ ["--PhoneInputCountryFlag-height" as string]: "1em" }} />
         </div>
         <div>
-          <label className="text-xs font-semibold text-slate-500 mb-1 block">Country *</label>
-          <CountryDropdown value={hotel.country} onChange={(v) => { setHotelField("country", v); setHotelField("city", ""); }} />
+          <label htmlFor="hotel-country" className="text-xs font-semibold text-slate-500 mb-1 block">Country *</label>
+          <CountryDropdown id="hotel-country" value={hotel.country} onChange={(v) => { setHotelField("country", v); setHotelField("city", ""); }} />
         </div>
         <div>
-          <label className="text-xs font-semibold text-slate-500 mb-1 block">City *</label>
-          <CityAutocomplete value={hotel.city} onChange={(v) => setHotelField("city", v)} country={hotel.country} />
+          <label htmlFor="hotel-city" className="text-xs font-semibold text-slate-500 mb-1 block">City *</label>
+          <CityAutocomplete id="hotel-city" value={hotel.city} onChange={(v) => setHotelField("city", v)} country={hotel.country} />
         </div>
         <div>
-          <label className="text-xs font-semibold text-slate-500 mb-1 block">Hotel Address *</label>
-          <AddressAutocomplete value={hotel.address} onChange={(v) => setHotelField("address", v)} country={hotel.country} />
+          <label htmlFor="hotel-address" className="text-xs font-semibold text-slate-500 mb-1 block">Hotel Address *</label>
+          <AddressAutocomplete id="hotel-address" value={hotel.address} onChange={(v) => setHotelField("address", v)} country={hotel.country} />
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="text-xs font-semibold text-slate-500 mb-1 block">Number of Rooms *</label>
-            <input type="number" min="1" value={hotel.room_count} onChange={(e) => setHotelField("room_count", e.target.value)} className={INPUT_CLASS} placeholder="50" />
+            <label htmlFor="hotel-room-count" className="text-xs font-semibold text-slate-500 mb-1 block">Number of Rooms *</label>
+            <input id="hotel-room-count" type="number" min="1" value={hotel.room_count} onChange={(e) => setHotelField("room_count", e.target.value)} className={INPUT_CLASS} placeholder="50" />
           </div>
           <div>
-            <label className="text-xs font-semibold text-slate-500 mb-1 block">Hotel Type *</label>
-            <select className={INPUT_CLASS} value={hotel.hotel_type} onChange={(e) => setHotelField("hotel_type", e.target.value)}>
+            <label htmlFor="hotel-type" className="text-xs font-semibold text-slate-500 mb-1 block">Hotel Type *</label>
+            <select id="hotel-type" className={INPUT_CLASS} value={hotel.hotel_type} onChange={(e) => setHotelField("hotel_type", e.target.value)}>
               <option value="">Select type...</option>
               {HOTEL_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
             </select>

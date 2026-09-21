@@ -12,6 +12,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -1009,6 +1019,7 @@ function WaitlistPanel({
   const [page, setPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<WaitlistEntryRow | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -1184,7 +1195,7 @@ function WaitlistPanel({
                               variant="outline"
                               className="text-red-700 hover:bg-red-50"
                               disabled={busyId === row.id}
-                              onClick={() => void transition(row, "cancelled")}
+                              onClick={() => setCancelTarget(row)}
                             >
                               Cancel
                             </Button>
@@ -1229,6 +1240,28 @@ function WaitlistPanel({
       ) : null}
 
       <CreateWaitlistDialog slug={slug} roomTypes={roomTypes} open={createOpen} onOpenChange={setCreateOpen} onCreated={() => void refresh()} />
+
+      <AlertDialog open={Boolean(cancelTarget)} onOpenChange={(open) => { if (!open) setCancelTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel this waitlist entry?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {cancelTarget ? `${cancelTarget.guestName} will be removed from the waitlist for ${cancelTarget.desiredArrivalDate} — ${cancelTarget.desiredDepartureDate}.` : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep it</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (cancelTarget) void transition(cancelTarget, "cancelled");
+                setCancelTarget(null);
+              }}
+            >
+              Cancel entry
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { GuestServicesRoleCapabilities } from "@/lib/hms/guest-services-rbac";
+import { hasRecentNotification } from "@/lib/hms/arrivals-alerts";
+import { notifySlaBreach } from "@/lib/hms/notification-rules";
 
 export const GUEST_SERVICE_CATEGORIES = [
   "housekeeping",
@@ -381,7 +383,30 @@ export async function listGuestRequestsForTenant(
 
   const summary = computeSummary(mapped, now, startOfDay.getTime());
 
+  // Best-effort, non-blocking — pushes a notification for requests that are currently past
+  // their SLA, the same "check lazily whenever the list is fetched, dedupe via a recent-alert
+  // window" approach maybeEmitArrivalAlerts already uses. No cron/Edge Function exists in this
+  // codebase to do it any other way (see slaMinutesForDepartment's comment on this being deferred).
+  void maybeEmitSlaBreachAlerts(service, tenantId, mapped);
+
   return { requests: mapped, summary };
+}
+
+async function maybeEmitSlaBreachAlerts(service: SupabaseClient, tenantId: string, rows: GuestRequestRow[]) {
+  for (const row of rows) {
+    if (!isDelayedRow(row.expectedCompletedAt, row.status)) continue;
+    const alreadyAlerted = await hasRecentNotification(service, tenantId, "guest_request_sla_breach", row.id, 2);
+    if (alreadyAlerted) continue;
+    const minutesOverdue = Math.round((Date.now() - new Date(row.expectedCompletedAt!).getTime()) / 60000);
+    await notifySlaBreach({
+      tenantId,
+      entityId: row.id,
+      department: row.department,
+      requestType: row.requestType,
+      roomCode: row.roomCode,
+      minutesOverdue,
+    });
+  }
 }
 
 function computeSummary(rows: GuestRequestRow[], _now: number, startOfDayMs: number): GuestServicesSummary {

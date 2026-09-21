@@ -15,6 +15,7 @@ const BodySchema = z.object({
   fxRate: z.coerce.number().positive(),
   method: z.enum(["cash", "card", "split", "direct_bill"]).default("cash"),
   reference: z.string().max(120).optional(),
+  splitLeg: z.enum(["guest", "company"]).optional(),
 });
 
 export async function POST(req: Request) {
@@ -38,6 +39,7 @@ export async function POST(req: Request) {
       fxRate: body.fxRate,
       originalAmount: body.originalAmount,
       originalCurrency: body.originalCurrency,
+      splitLeg: body.splitLeg,
     });
     if (error || !line) return NextResponse.json({ error: error ?? "Could not post payment." }, { status: 500 });
 

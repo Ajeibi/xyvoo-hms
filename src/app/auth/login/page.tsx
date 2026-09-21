@@ -77,10 +77,16 @@ export default function LoginPage() {
           <h1 className="text-2xl font-bold text-slate-900">Sign in</h1>
           <p className="text-sm text-slate-500">Use the hotel owner account created during registration.</p>
           <form onSubmit={handleSubmit} className="space-y-3">
+            <label htmlFor="login-email" className="sr-only">
+              Email address
+            </label>
             <input
+              id="login-email"
+              name="email"
               className="w-full px-4 py-3 text-sm bg-white border border-slate-200 rounded-xl"
               type="email"
               placeholder="Email address"
+              autoComplete="email"
               value={email}
               onChange={(e) => {
                 clearError();
@@ -89,10 +95,16 @@ export default function LoginPage() {
               required
             />
             <div className="relative">
+              <label htmlFor="login-password" className="sr-only">
+                Password
+              </label>
               <input
+                id="login-password"
+                name="password"
                 className="w-full px-4 py-3 pr-11 text-sm bg-white border border-slate-200 rounded-xl"
                 type={showPassword ? "text" : "password"}
                 placeholder="Password"
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => {
                   clearError();

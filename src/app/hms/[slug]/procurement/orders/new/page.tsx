@@ -1,5 +1,5 @@
 import HMSLayout from "@/components/hms/HMSLayout";
-import { ProcurementOrderFormClient } from "@/components/hms/procurement/ProcurementOrderFormClient";
+import { ProcurementOrderFormClient, type PrefillManualLine } from "@/components/hms/procurement/ProcurementOrderFormClient";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { normalizePricingSetup } from "@/lib/hms/room-pricing";
@@ -11,10 +11,34 @@ export default async function NewPurchaseOrderPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ lines?: string }>;
+  searchParams: Promise<{
+    lines?: string;
+    reorderItemId?: string;
+    reorderItemName?: string;
+    reorderSku?: string;
+    reorderQty?: string;
+    reorderUnitCost?: string;
+  }>;
 }) {
   const { slug } = await params;
-  const { lines: preselectedParam } = await searchParams;
+  const {
+    lines: preselectedParam,
+    reorderItemId,
+    reorderItemName,
+    reorderSku,
+    reorderQty,
+    reorderUnitCost,
+  } = await searchParams;
+
+  const prefillManualLine: PrefillManualLine | undefined =
+    reorderItemId && reorderItemName
+      ? {
+          itemId: reorderItemId,
+          description: reorderSku ? `${reorderItemName} (${reorderSku})` : reorderItemName,
+          quantity: Number(reorderQty) || 1,
+          unitCost: Number(reorderUnitCost) || 0,
+        }
+      : undefined;
 
   let vendors: Awaited<ReturnType<typeof listVendors>> = [];
   let sourceableLines: Awaited<ReturnType<typeof listSourceableRequisitionLines>> = [];
@@ -43,6 +67,7 @@ export default async function NewPurchaseOrderPage({
           sourceableLines={sourceableLines}
           preselectedLineIds={preselectedLineIds}
           defaultCurrency={currency}
+          prefillManualLine={prefillManualLine}
         />
       </div>
     </HMSLayout>

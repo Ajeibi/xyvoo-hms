@@ -14,7 +14,10 @@ const PostSchema = z.object({
 const PatchSchema = z.object({
   slug: z.string().min(1),
   requestId: z.string().uuid(),
-  status: z.enum(["pending", "assigned", "in_progress", "waiting", "completed", "cancelled", "escalated"]),
+  status: z.enum(["pending", "assigned", "in_progress", "waiting", "completed", "cancelled", "escalated"]).optional(),
+  confirmed: z.literal(true).optional(),
+}).refine((body) => body.status !== undefined || body.confirmed !== undefined, {
+  message: "status or confirmed is required",
 });
 
 export async function GET(
@@ -33,7 +36,7 @@ export async function GET(
     const { data, error } = await auth.service
       .schema("hotel")
       .from("guest_requests")
-      .select("id,request_type,department,status,notes,completed_at,created_at")
+      .select("id,request_type,department,status,notes,completed_at,confirmed_at,created_at")
       .eq("tenant_id", auth.tenant.id)
       .eq("reservation_id", id)
       .order("created_at", { ascending: false });
@@ -51,6 +54,7 @@ export async function GET(
         status: r.status,
         notes: r.notes,
         completedAt: r.completed_at,
+        confirmedAt: r.confirmed_at,
         createdAt: r.created_at,
       })),
     });
@@ -159,8 +163,12 @@ export async function PATCH(
     const auth = await requireHotelApiMember(body.slug);
     if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
-    const updates: Record<string, unknown> = { status: body.status, updated_at: new Date().toISOString() };
-    if (body.status === "completed") updates.completed_at = new Date().toISOString();
+    const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (body.status !== undefined) {
+      updates.status = body.status;
+      if (body.status === "completed") updates.completed_at = new Date().toISOString();
+    }
+    if (body.confirmed) updates.confirmed_at = new Date().toISOString();
 
     const { error } = await auth.service
       .schema("hotel")

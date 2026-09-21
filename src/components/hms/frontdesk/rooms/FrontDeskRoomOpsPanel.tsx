@@ -9,6 +9,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import type { RoomsRoleCapabilities } from "@/lib/hms/rooms-rbac";
 import type { FrontDeskRoomBoardItem } from "@/lib/hms/front-desk-board";
@@ -24,6 +34,26 @@ import { ManagerPinField } from "./ops/ManagerPinField";
 import { ROOM_OPS_TITLES, type RoomOpsAction, type RoomOption } from "./ops/types";
 
 export type { RoomOpsAction } from "./ops/types";
+
+/** These three change something a guest will notice immediately (locks out or blocks a room) —
+ * everything else here (move, priority-clean, connecting) already gets a review screen of its
+ * own via the panel fields, so a second are-you-sure step would just be friction. */
+const CONFIRM_STEP_ACTIONS = new Set<RoomOpsAction>(["block", "unlock", "key-reissue"]);
+
+const CONFIRM_STEP_COPY: Partial<Record<RoomOpsAction, { title: string; description: string }>> = {
+  block: {
+    title: "Block this room?",
+    description: "The room will be marked out of order and unavailable for new assignments until it's unblocked.",
+  },
+  unlock: {
+    title: "Send a remote unlock?",
+    description: "This sends an unlock signal to the room's lock right now — only do this for a guest waiting at the door.",
+  },
+  "key-reissue": {
+    title: "Reissue the key?",
+    description: "Any previously issued keys for this room will be deactivated once the new one is issued.",
+  },
+};
 
 export function FrontDeskRoomOpsPanel({
   capabilities,
@@ -118,6 +148,7 @@ export function FrontDeskRoomOpsDialog({
   const [blockEnd, setBlockEnd] = useState("");
   const [dueBy, setDueBy] = useState("");
   const [providerMessage, setProviderMessage] = useState<string | null>(null);
+  const [confirmStepOpen, setConfirmStepOpen] = useState(false);
   const [activeBlocks, setActiveBlocks] = useState<{ id: string; reason: string; block_type: string }[]>([]);
   const mutation = useRoomsMutation();
   const { loading, error, requiresPin, managerPin, setManagerPin, setError, run } = mutation;
@@ -126,6 +157,7 @@ export function FrontDeskRoomOpsDialog({
     if (!open) return;
     setError(null);
     setProviderMessage(null);
+    setConfirmStepOpen(false);
     if (room?.stay?.reservationId) setReservationId(room.stay.reservationId);
     if (room?.reservedStay?.reservationId) setReservationId(room.reservedStay.reservationId);
     fetch(`/api/hotel/frontdesk/rooms/connecting?slug=${encodeURIComponent(slug)}`)
@@ -302,6 +334,7 @@ export function FrontDeskRoomOpsDialog({
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
@@ -397,7 +430,11 @@ export function FrontDeskRoomOpsDialog({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="button" onClick={submit} disabled={loading}>
+            <Button
+              type="button"
+              onClick={() => (action && CONFIRM_STEP_ACTIONS.has(action) ? setConfirmStepOpen(true) : submit())}
+              disabled={loading}
+            >
               {loading ? "Saving…" : "Confirm"}
             </Button>
           </DialogFooter>
@@ -410,5 +447,26 @@ export function FrontDeskRoomOpsDialog({
         )}
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={confirmStepOpen} onOpenChange={setConfirmStepOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{action ? CONFIRM_STEP_COPY[action]?.title ?? "Are you sure?" : "Are you sure?"}</AlertDialogTitle>
+          <AlertDialogDescription>{action ? CONFIRM_STEP_COPY[action]?.description : null}</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => {
+              setConfirmStepOpen(false);
+              void submit();
+            }}
+          >
+            Yes, continue
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

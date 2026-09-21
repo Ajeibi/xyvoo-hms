@@ -53,14 +53,14 @@ const BASE_PARAMS = {
   tenantId: "t1",
   paymentDate: "2026-08-04",
   bankAccountId: "acct-bank",
-  invoiceIds: ["inv-1", "inv-2"],
+  invoices: [{ invoiceId: "inv-1" }, { invoiceId: "inv-2" }],
   createdBy: "user-1",
 };
 
 describe("createReceiptRun — validation", () => {
   it("requires at least one invoice", async () => {
     const { service } = createMockService();
-    const result = await createReceiptRun(service, { ...BASE_PARAMS, invoiceIds: [] });
+    const result = await createReceiptRun(service, { ...BASE_PARAMS, invoices: [] });
     expect(result).toEqual({ ok: false, error: "Select at least one invoice to receive.", paidInvoiceIds: [] });
   });
 
@@ -155,5 +155,149 @@ describe("createReceiptRun — happy path", () => {
 
     expect(writeAuditLog).toHaveBeenCalledWith(expect.objectContaining({ action: "customer_invoice_payment_run_created" }));
     expect(emitNotification).toHaveBeenCalledWith(expect.objectContaining({ type: "customer_invoice_payment_recorded" }));
+  });
+});
+
+describe("createReceiptRun — partial payments (P2 fix)", () => {
+  it("records a partial amount, keeps the invoice open (not paid), and totals the run to just what was received", async () => {
+    const { service, calls } = createMockService({
+      chart_of_accounts: [
+        { data: { id: "acct-bank", is_active: true }, error: null },
+        { data: [{ id: "acct-bank", is_active: true }, { id: "acct-city-ledger", is_active: true }], error: null },
+      ],
+      customer_invoices: [
+        {
+          data: [
+            {
+              id: "inv-1",
+              status: "open",
+              department: "Front Desk",
+              total: 500,
+              invoice_number: "INV-1",
+              invoice_date: "2026-08-01",
+              ar_account_id: "acct-city-ledger",
+            },
+          ],
+          error: null,
+        },
+      ],
+      customer_invoice_payment_lines: [{ data: [], error: null }], // nothing received yet
+      customer_invoice_payments: [{ data: { id: "receipt-1" }, error: null }],
+      journal_entries: [{ data: { id: "je-1" }, error: null }],
+    });
+
+    const result = await createReceiptRun(service, {
+      ...BASE_PARAMS,
+      invoices: [{ invoiceId: "inv-1", amount: 200 }],
+    });
+
+    expect(result).toEqual({ ok: true, id: "receipt-1", paidInvoiceIds: ["inv-1"] });
+
+    const paymentInsert = calls.find((c) => c.table === "customer_invoice_payments" && c.op === "insert");
+    expect(paymentInsert?.payload).toMatchObject({ total: 200 });
+
+    const lineInsert = calls.find((c) => c.table === "journal_entry_lines" && c.op === "insert");
+    const lines = lineInsert?.payload as { account_id: string; debit: number; credit: number }[];
+    expect(lines.find((l) => l.account_id === "acct-city-ledger")).toMatchObject({ debit: 0, credit: 200 });
+
+    const statusUpdate = calls.find((c) => c.table === "customer_invoices" && c.op === "update");
+    expect(statusUpdate).toBeUndefined(); // still open — not fully received yet
+  });
+
+  it("marks the invoice paid once a second receipt covers the remaining balance", async () => {
+    const { service, calls } = createMockService({
+      chart_of_accounts: [
+        { data: { id: "acct-bank", is_active: true }, error: null },
+        { data: [{ id: "acct-bank", is_active: true }, { id: "acct-city-ledger", is_active: true }], error: null },
+      ],
+      customer_invoices: [
+        {
+          data: [
+            {
+              id: "inv-1",
+              status: "open",
+              department: "Front Desk",
+              total: 500,
+              invoice_number: "INV-1",
+              invoice_date: "2026-08-01",
+              ar_account_id: "acct-city-ledger",
+            },
+          ],
+          error: null,
+        },
+      ],
+      customer_invoice_payment_lines: [{ data: [{ customer_invoice_id: "inv-1", amount: 200 }], error: null }], // 200 already received
+      customer_invoice_payments: [{ data: { id: "receipt-2" }, error: null }],
+      journal_entries: [{ data: { id: "je-2" }, error: null }],
+    });
+
+    const result = await createReceiptRun(service, {
+      ...BASE_PARAMS,
+      invoices: [{ invoiceId: "inv-1", amount: 300 }], // covers the remaining 300 of 500
+    });
+
+    expect(result).toEqual({ ok: true, id: "receipt-2", paidInvoiceIds: ["inv-1"] });
+    const statusUpdate = calls.find(
+      (c) => c.table === "customer_invoices" && c.op === "update" && (c.payload as { status?: string }).status === "paid",
+    );
+    expect(statusUpdate).toBeTruthy();
+  });
+
+  it("rejects a receipt amount larger than the remaining balance", async () => {
+    const { service } = createMockService({
+      chart_of_accounts: [{ data: { id: "acct-bank", is_active: true }, error: null }],
+      customer_invoices: [
+        {
+          data: [
+            {
+              id: "inv-1",
+              status: "open",
+              department: "Front Desk",
+              total: 500,
+              invoice_number: "INV-1",
+              invoice_date: "2026-08-01",
+              ar_account_id: "acct-city-ledger",
+            },
+          ],
+          error: null,
+        },
+      ],
+      customer_invoice_payment_lines: [{ data: [{ customer_invoice_id: "inv-1", amount: 400 }], error: null }], // only 100 left
+    });
+
+    const result = await createReceiptRun(service, {
+      ...BASE_PARAMS,
+      invoices: [{ invoiceId: "inv-1", amount: 250 }],
+    });
+
+    expect(result.ok).toBe(false);
+    expect((result as { error: string }).error).toMatch(/exceeds the remaining balance/);
+  });
+
+  it("refuses to receive an invoice that's already fully received", async () => {
+    const { service } = createMockService({
+      chart_of_accounts: [{ data: { id: "acct-bank", is_active: true }, error: null }],
+      customer_invoices: [
+        {
+          data: [
+            {
+              id: "inv-1",
+              status: "open",
+              department: "Front Desk",
+              total: 500,
+              invoice_number: "INV-1",
+              invoice_date: "2026-08-01",
+              ar_account_id: "acct-city-ledger",
+            },
+          ],
+          error: null,
+        },
+      ],
+      customer_invoice_payment_lines: [{ data: [{ customer_invoice_id: "inv-1", amount: 500 }], error: null }],
+    });
+
+    const result = await createReceiptRun(service, { ...BASE_PARAMS, invoices: [{ invoiceId: "inv-1" }] });
+    expect(result.ok).toBe(false);
+    expect((result as { error: string }).error).toMatch(/already fully received/);
   });
 });

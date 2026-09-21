@@ -83,7 +83,7 @@ describe("seedHospitalityChartOfAccounts", () => {
       "1000", "1010", "1020", "1100", "1200", "1300", "1400", "1500", "1590",
       "2000", "2100", "2200", "2300", "2400", "3000", "3100",
       "4000", "4100", "4200", "4300",
-      "5000", "5100", "5200", "5300", "5400", "5500", "5600", "5700",
+      "5000", "5010", "5100", "5200", "5300", "5400", "5500", "5600", "5700",
     ].map((code) => ({ id: code, code, name: code, type: "asset", parent_id: null, is_active: true }));
 
     const { service, chainsByTable } = makeService({
@@ -100,9 +100,28 @@ describe("seedHospitalityChartOfAccounts", () => {
       chart_of_accounts: { data: existing, error: null },
     });
     const result = await seedHospitalityChartOfAccounts(service, "t1");
-    expect(result.inserted).toBe(27);
+    expect(result.inserted).toBe(28);
     const insertedRows = (chainsByTable.chart_of_accounts as { __inserted: { code: string }[][] }).__inserted[0];
     expect(insertedRows.some((r) => r.code === "1000")).toBe(false);
     expect(insertedRows.some((r) => r.code === "4000")).toBe(true);
+  });
+
+  it("marks cash accounts and cash-flow categories on insert (regression: a tenant seeding after the migration must not get every account defaulted to non-cash/operating)", async () => {
+    const { service, chainsByTable } = makeService({
+      chart_of_accounts: { data: [], error: null },
+    });
+    await seedHospitalityChartOfAccounts(service, "t1");
+    const insertedRows = (chainsByTable.chart_of_accounts as {
+      __inserted: { code: string; is_cash_equivalent: boolean; cash_flow_category: string }[][];
+    }).__inserted[0];
+
+    const byCode = new Map(insertedRows.map((r) => [r.code, r]));
+    expect(byCode.get("1000")).toMatchObject({ is_cash_equivalent: true, cash_flow_category: "operating" });
+    expect(byCode.get("1010")).toMatchObject({ is_cash_equivalent: true });
+    expect(byCode.get("1020")).toMatchObject({ is_cash_equivalent: true });
+    expect(byCode.get("1500")).toMatchObject({ is_cash_equivalent: false, cash_flow_category: "investing" });
+    expect(byCode.get("3000")).toMatchObject({ is_cash_equivalent: false, cash_flow_category: "financing" });
+    expect(byCode.get("1590")).toMatchObject({ is_cash_equivalent: false, cash_flow_category: "operating" });
+    expect(byCode.get("4000")).toMatchObject({ is_cash_equivalent: false, cash_flow_category: "operating" });
   });
 });

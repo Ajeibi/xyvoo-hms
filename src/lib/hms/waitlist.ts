@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { notifyWaitlistMatch } from "@/lib/hms/notification-rules";
 
 export const WAITLIST_STATUSES = ["waiting", "notified", "converted", "expired", "cancelled"] as const;
 export type WaitlistStatus = (typeof WAITLIST_STATUSES)[number];
@@ -132,4 +133,59 @@ export async function listWaitlistEntries(
   };
 
   return { rows: mapped, summary };
+}
+
+/**
+ * Called after a cancellation/no-show frees up a room. Matching against openings is
+ * deliberately manual per the original migration comment (no auto-booking, no guest
+ * auto-messaging — there's no messaging platform to do that with yet); this closes the smaller
+ * gap of staff having to remember to go check the waitlist at all. Picks the single
+ * earliest-created 'waiting' entry whose room type (or "any") and date range overlap the
+ * opening, marks it 'notified', and alerts staff — it does not notify the guest directly.
+ */
+export async function matchWaitlistForOpening(
+  service: SupabaseClient,
+  tenantId: string,
+  opening: { roomTypeCode: string | null; arrivalAt: string; departureAt: string; roomTypeNameByCode?: Map<string, string> },
+): Promise<boolean> {
+  const { data: rows } = await service
+    .schema("hotel")
+    .from("waitlist_entries")
+    .select("id,guest_name,desired_room_type_code,desired_arrival_date,desired_departure_date,created_at")
+    .eq("tenant_id", tenantId)
+    .eq("status", "waiting")
+    .order("created_at", { ascending: true });
+
+  if (!rows?.length) return false;
+
+  const openArrival = new Date(opening.arrivalAt).getTime();
+  const openDeparture = new Date(opening.departureAt).getTime();
+
+  const match = rows.find((r) => {
+    const roomTypeOk = !r.desired_room_type_code || r.desired_room_type_code === opening.roomTypeCode;
+    if (!roomTypeOk) return false;
+    const desiredArrival = new Date(r.desired_arrival_date as string).getTime();
+    const desiredDeparture = new Date(r.desired_departure_date as string).getTime();
+    return desiredArrival < openDeparture && desiredDeparture > openArrival;
+  });
+
+  if (!match) return false;
+
+  const notifiedAt = new Date().toISOString();
+  await service
+    .schema("hotel")
+    .from("waitlist_entries")
+    .update({ status: "notified", notified_at: notifiedAt, updated_at: notifiedAt })
+    .eq("id", match.id)
+    .eq("tenant_id", tenantId);
+
+  const roomTypeCode = match.desired_room_type_code as string | null;
+  await notifyWaitlistMatch({
+    tenantId,
+    entityId: match.id as string,
+    guestName: match.guest_name as string,
+    roomTypeName: roomTypeCode ? (opening.roomTypeNameByCode?.get(roomTypeCode) ?? roomTypeCode) : null,
+  });
+
+  return true;
 }

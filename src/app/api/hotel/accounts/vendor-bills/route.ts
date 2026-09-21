@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
 import { getAccountsCapabilities } from "@/lib/hms/accounts-rbac";
-import { createVendorBill, listVendorBills, VENDOR_BILL_STATUSES } from "@/lib/hms/vendor-bills";
+import { createVendorBill, getApAccountId, listVendorBills, VENDOR_BILL_STATUSES } from "@/lib/hms/vendor-bills";
 import { ACCOUNTS_DEPARTMENTS } from "@/lib/hms/journal-entries";
 
 const ListQuery = z.object({
@@ -25,18 +25,6 @@ const PostBody = z.object({
   tax: z.number().optional(),
   notes: z.string().max(1000).optional(),
 });
-
-async function findApAccountId(auth: { service: import("@supabase/supabase-js").SupabaseClient; tenant: { id: string } }) {
-  const { data } = await auth.service
-    .schema("hotel")
-    .from("chart_of_accounts")
-    .select("id")
-    .eq("tenant_id", auth.tenant.id)
-    .eq("code", "2000")
-    .eq("is_active", true)
-    .maybeSingle();
-  return (data?.id as string | undefined) ?? null;
-}
 
 export async function GET(req: Request) {
   try {
@@ -71,7 +59,7 @@ export async function POST(req: Request) {
     const caps = getAccountsCapabilities({ membershipRole: auth.role, departmentRole: auth.departmentRole });
     if (!caps.canCreateVendorBill) return NextResponse.json({ error: "Not allowed." }, { status: 403 });
 
-    const apAccountId = await findApAccountId(auth);
+    const apAccountId = await getApAccountId(auth.service, auth.tenant.id);
     if (!apAccountId) {
       return NextResponse.json(
         { error: "No active 'Accounts Payable' account (code 2000) found. Add one in Chart of accounts first." },

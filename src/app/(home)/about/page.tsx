@@ -70,10 +70,10 @@ export default function AboutPage() {
               XYVOO levels the playing field. From a 10-room guesthouse in Ibadan to a 200-room resort in Accra, every property deserves world-class management tools.
             </p>
             <Link
-              href="/team"
+              href="/contact"
               className="inline-flex items-center gap-2 font-semibold text-xyvoo-blue transition-all hover:gap-3"
             >
-              Meet our team <ArrowRight className="w-4 h-4" />
+              Get in touch <ArrowRight className="w-4 h-4" />
             </Link>
           </motion.div>
           <motion.div initial="offscreen" whileInView="onscreen" viewport={{ once: true }} variants={fadeUp}

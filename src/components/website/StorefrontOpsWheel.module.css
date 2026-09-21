@@ -169,7 +169,7 @@
     transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
   pointer-events: none;
 }
-.desc h4 {
+.desc .descTitle {
   margin: 0 0 10px;
   font-size: 18px;
   font-weight: 700;
@@ -189,7 +189,7 @@
   .desc {
     padding: 0 10px;
   }
-  .desc h4 {
+  .desc .descTitle {
     font-size: 21px;
   }
   .desc p {

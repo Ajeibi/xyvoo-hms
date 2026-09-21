@@ -24,6 +24,7 @@ export type HotelTenantBySlugRow = HotelTenantCore & {
   /** When true, HMS dashboard tour is off for every user (tenant-wide "Never show again"). */
   hms_dashboard_tour_hidden?: boolean | null;
   paystack_setup?: unknown;
+  smart_lock_setup?: unknown;
 };
 
 /** Platform tenant listing select (no logo in query) */

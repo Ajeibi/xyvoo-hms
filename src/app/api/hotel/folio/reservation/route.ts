@@ -10,6 +10,8 @@ const PatchSchema = z.object({
   billToAccount: z.string().max(200).optional().nullable(),
   poNumber: z.string().max(80).optional().nullable(),
   folioSplitNotes: z.string().max(500).optional().nullable(),
+  commissionPlan: z.string().max(120).optional().nullable(),
+  commissionValue: z.number().min(0).optional().nullable(),
 });
 
 export async function PATCH(req: Request) {
@@ -22,6 +24,8 @@ export async function PATCH(req: Request) {
     if (body.billToAccount !== undefined) patch.bill_to_account = body.billToAccount;
     if (body.poNumber !== undefined) patch.po_number = body.poNumber;
     if (body.folioSplitNotes !== undefined) patch.folio_split_notes = body.folioSplitNotes;
+    if (body.commissionPlan !== undefined) patch.commission_plan = body.commissionPlan;
+    if (body.commissionValue !== undefined) patch.commission_value = body.commissionValue;
 
     const { error } = await auth.service
       .schema("hotel")

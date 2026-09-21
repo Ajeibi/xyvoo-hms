@@ -42,6 +42,7 @@ type GuestRequest = {
   department: string;
   status: string;
   notes: string | null;
+  confirmedAt?: string | null;
   createdAt: string;
 };
 
@@ -228,6 +229,22 @@ export function FrontDeskArrivalDetailSheet({
     }
     toastSuccess("Request added");
     setNewRequestType("");
+    load();
+  }
+
+  async function confirmRequest(requestId: string) {
+    if (!reservationId) return;
+    const res = await fetch(`/api/hotel/frontdesk/arrivals/${reservationId}/requests`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ slug, requestId, confirmed: true }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toastError("Could not confirm request", data.error ?? "Try again.");
+      return;
+    }
+    toastSuccess("Confirmed with guest");
     load();
   }
 
@@ -592,18 +609,28 @@ export function FrontDeskArrivalDetailSheet({
                             <p className="font-medium text-slate-900">{req.requestType}</p>
                             <p className="text-xs text-slate-500">
                               {req.department.replace(/_/g, " ")} · {req.status}
+                              {req.confirmedAt ? (
+                                <span className="ml-1.5 text-emerald-600">· confirmed with guest</span>
+                              ) : null}
                             </p>
                           </div>
-                          {req.status !== "completed" && req.status !== "cancelled" ? (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={() => fulfillRequest(req.id)}
-                            >
-                              Mark complete
-                            </Button>
-                          ) : null}
+                          <div className="flex shrink-0 items-center gap-2">
+                            {!req.confirmedAt ? (
+                              <Button type="button" size="sm" variant="outline" onClick={() => confirmRequest(req.id)}>
+                                Confirmed with guest
+                              </Button>
+                            ) : null}
+                            {req.status !== "completed" && req.status !== "cancelled" ? (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => fulfillRequest(req.id)}
+                              >
+                                Mark complete
+                              </Button>
+                            ) : null}
+                          </div>
                         </li>
                       ))
                     )}

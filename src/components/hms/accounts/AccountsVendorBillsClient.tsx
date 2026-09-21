@@ -24,14 +24,15 @@ const STATUS_LABEL: Record<string, string> = {
   paid: "Paid",
 };
 
-function emptyForm(defaultDepartment: string) {
+function emptyForm(defaultDepartment: string, defaultCurrency: string) {
   return {
     vendorId: "",
     department: defaultDepartment,
     billReference: "",
     billDate: new Date().toISOString().slice(0, 10),
     dueDate: "",
-    currency: "NGN",
+    currency: defaultCurrency,
+    fxRate: "1",
     expenseAccountId: "",
     subtotal: "",
     tax: "",
@@ -56,6 +57,7 @@ export function AccountsVendorBillsClient({
   canApprove,
   canRecordPayment,
   canAccessAllDepartments,
+  defaultCurrency = "NGN",
 }: {
   slug: string;
   bills: VendorBillRow[];
@@ -65,10 +67,11 @@ export function AccountsVendorBillsClient({
   canApprove: boolean;
   canRecordPayment: boolean;
   canAccessAllDepartments: boolean;
+  defaultCurrency?: string;
 }) {
   const router = useRouter();
   const [createOpen, setCreateOpen] = useState(false);
-  const [form, setForm] = useState(() => emptyForm(ACCOUNTS_DEPARTMENTS[0]));
+  const [form, setForm] = useState(() => emptyForm(ACCOUNTS_DEPARTMENTS[0], defaultCurrency));
   const [saving, setSaving] = useState(false);
   const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
   const [rejectTarget, setRejectTarget] = useState<string | null>(null);
@@ -88,7 +91,10 @@ export function AccountsVendorBillsClient({
     });
 
   const selectedBills = bills.filter((b) => selectedIds.has(b.id));
-  const selectedTotal = selectedBills.reduce((sum, b) => sum + b.total, 0);
+  const remainingFor = (b: VendorBillRow) => Math.max(0, Math.round((b.total - b.amountPaid) * 100) / 100);
+  const [paymentAmounts, setPaymentAmounts] = useState<Record<string, string>>({});
+  const amountFor = (b: VendorBillRow) => Number(paymentAmounts[b.id] ?? remainingFor(b)) || 0;
+  const selectedTotal = selectedBills.reduce((sum, b) => sum + amountFor(b), 0);
 
   const startBusy = (id: string) => setBusyIds((prev) => new Set(prev).add(id));
   const stopBusy = (id: string) =>
@@ -128,6 +134,7 @@ export function AccountsVendorBillsClient({
           billDate: form.billDate,
           dueDate: form.dueDate || undefined,
           currency: form.currency,
+          fxRate: Number(form.fxRate) || 1,
           expenseAccountId: form.expenseAccountId,
           subtotal,
           tax,
@@ -141,7 +148,7 @@ export function AccountsVendorBillsClient({
       }
       toastSuccess(data.status === "approved" ? "Bill created and posted to the ledger." : "Bill created, awaiting approval.");
       setCreateOpen(false);
-      setForm(emptyForm(ACCOUNTS_DEPARTMENTS[0]));
+      setForm(emptyForm(ACCOUNTS_DEPARTMENTS[0], defaultCurrency));
       router.refresh();
     } finally {
       setSaving(false);
@@ -210,7 +217,7 @@ export function AccountsVendorBillsClient({
           paymentDate: paymentForm.paymentDate,
           bankAccountId: paymentForm.bankAccountId,
           reference: paymentForm.reference.trim() || undefined,
-          billIds: selectedBills.map((b) => b.id),
+          bills: selectedBills.map((b) => ({ billId: b.id, amount: amountFor(b) })),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -239,7 +246,14 @@ export function AccountsVendorBillsClient({
         </div>
         <div className="flex gap-2">
           {canRecordPayment && selectedIds.size > 0 ? (
-            <Button type="button" variant="outline" onClick={() => setPayOpen(true)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setPaymentAmounts(Object.fromEntries(selectedBills.map((b) => [b.id, String(remainingFor(b))])));
+                setPayOpen(true);
+              }}
+            >
               Pay selected ({selectedIds.size})
             </Button>
           ) : null}
@@ -305,6 +319,9 @@ export function AccountsVendorBillsClient({
                       </td>
                       <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums text-slate-700">
                         {b.total.toFixed(2)} {b.currency}
+                        {b.amountPaid > 0 && b.status !== "paid" ? (
+                          <p className="text-[11px] font-normal text-amber-600">{remainingFor(b).toFixed(2)} remaining</p>
+                        ) : null}
                       </td>
                       <td className="px-4 py-2.5">
                         <span
@@ -446,6 +463,24 @@ export function AccountsVendorBillsClient({
                 <Input value={form.currency} onChange={(e) => setForm((s) => ({ ...s, currency: e.target.value }))} />
               </div>
             </div>
+            {form.currency.trim().toUpperCase() !== defaultCurrency.toUpperCase() ? (
+              <div>
+                <p className="mb-1 text-xs font-medium text-slate-600">
+                  FX rate (1 {form.currency || "?"} → {defaultCurrency})
+                </p>
+                <Input
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={form.fxRate}
+                  onChange={(e) => setForm((s) => ({ ...s, fxRate: e.target.value }))}
+                />
+                <p className="mt-1 text-xs text-slate-400">
+                  Posts to the ledger as {(total * (Number(form.fxRate) || 1)).toFixed(2)} {defaultCurrency} — the ledger has
+                  no separate currency of its own, so this is what hits the trial balance.
+                </p>
+              </div>
+            ) : null}
             <div>
               <p className="mb-1 text-xs font-medium text-slate-600">Notes (optional)</p>
               <textarea
@@ -498,18 +533,34 @@ export function AccountsVendorBillsClient({
             <DialogTitle>Pay {selectedBills.length} vendor bill{selectedBills.length === 1 ? "" : "s"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2">
+            <div className="max-h-52 space-y-2 overflow-y-auto rounded-lg border border-slate-200 p-2">
               {selectedBills.map((b) => (
-                <div key={b.id} className="flex items-center justify-between text-xs">
-                  <span className="text-slate-700">
-                    {b.vendorName} {b.billReference ? `· ${b.billReference}` : ""}
-                  </span>
-                  <span className="tabular-nums text-slate-600">
-                    {b.total.toFixed(2)} {b.currency}
-                  </span>
+                <div key={b.id} className="flex items-center justify-between gap-2 text-xs">
+                  <div className="min-w-0">
+                    <p className="truncate text-slate-700">
+                      {b.vendorName} {b.billReference ? `· ${b.billReference}` : ""}
+                    </p>
+                    <p className="text-[11px] text-slate-400">
+                      {b.amountPaid > 0
+                        ? `${remainingFor(b).toFixed(2)} remaining of ${b.total.toFixed(2)} ${b.currency}`
+                        : `${b.total.toFixed(2)} ${b.currency}`}
+                    </p>
+                  </div>
+                  <Input
+                    type="number"
+                    min="0.01"
+                    max={remainingFor(b)}
+                    step="0.01"
+                    className="h-8 w-28 text-right"
+                    value={paymentAmounts[b.id] ?? String(remainingFor(b))}
+                    onChange={(e) => setPaymentAmounts((s) => ({ ...s, [b.id]: e.target.value }))}
+                  />
                 </div>
               ))}
             </div>
+            <p className="text-[11px] text-slate-400">
+              Defaults to the full remaining balance — lower it for a partial payment. The bill stays open until fully paid.
+            </p>
             <div>
               <p className="mb-1 text-xs font-medium text-slate-600">Pay from</p>
               <select

@@ -12,8 +12,13 @@ export default function MissingFieldsModal() {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
       <button type="button" aria-label="Close missing fields modal" className="absolute inset-0 bg-black/40" onClick={close} />
-      <div className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl border border-slate-200 p-6">
-        <h3 className="text-lg font-bold text-slate-900 mb-2">Incomplete registration form</h3>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="missing-fields-modal-title"
+        className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl border border-slate-200 p-6"
+      >
+        <h3 id="missing-fields-modal-title" className="text-lg font-bold text-slate-900 mb-2">Incomplete registration form</h3>
         <p className="text-sm text-slate-600 mb-4">Please complete the following required fields before continuing:</p>
         <ul className="space-y-2 mb-5 max-h-64 overflow-y-auto">
           {fields.map((field) => (

@@ -4,6 +4,8 @@ import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { notifyGoodsReceivedDiscrepancy } from "@/lib/hms/notification-rules";
 import { listPurchaseOrders } from "@/lib/hms/procurement-orders";
 import type { PurchaseOrderStatus, ProcurementReceiptLineInput, DiscrepancyType } from "@/lib/hms/procurement-types";
+import { getAccountIdByCode } from "@/lib/hms/chart-of-accounts";
+import { createVendorBill, getApAccountId } from "@/lib/hms/vendor-bills";
 
 function num(v: unknown): number {
   const n = typeof v === "number" ? v : Number.parseFloat(String(v));
@@ -167,19 +169,62 @@ export async function receiveAgainstPurchaseOrder(
     notes?: string;
     lines: ProcurementReceiptLineInput[];
   },
-) {
+): Promise<{ receipt: ProcurementReceipt | null; error: string | null; billNote?: string | null }> {
   if (!params.lines.length) return { receipt: null, error: "Add at least one item received." };
+
+  // A line that fails its quality checklist can't silently post to stock in full — the
+  // receiver must account for the failure as a rejected quantity. Without this, qtyAccepted
+  // (qtyReceived - qtyRejected) ignores qualityPassed entirely, so leaving qtyRejected at 0
+  // let a fully-failed line into stock with only a notification firing.
+  const failedWithNoRejection = params.lines.find((l) => !l.qualityPassed && l.qtyRejected <= 0);
+  if (failedWithNoRejection) {
+    return {
+      receipt: null,
+      error:
+        "One or more lines failed the quality check but show zero rejected quantity — enter the quantity being rejected before submitting.",
+    };
+  }
 
   const { data: po } = await supabase
     .schema("hotel")
     .from("purchase_orders")
-    .select("id,po_number,vendor_id,status")
+    .select("id,po_number,vendor_id,status,currency,fx_rate,department")
     .eq("id", params.poId)
     .eq("tenant_id", params.tenantId)
     .maybeSingle();
   if (!po) return { receipt: null, error: "Purchase order not found." };
   if (!["ordered", "partially_received"].includes(po.status as string)) {
     return { receipt: null, error: "Purchase order must be marked as ordered before receiving goods." };
+  }
+
+  // Computable purely from the request, before any write — lets the missing-required-accounts
+  // check below run (and potentially fail the whole call) before stock actually moves, so a
+  // misconfigured chart of accounts never leaves goods received with no ledger trail possible.
+  const totalAcceptedValue = params.lines.reduce((sum, l) => sum + Math.max(l.qtyReceived - l.qtyRejected, 0) * l.unitCost, 0);
+  const poFxRate = num(po.fx_rate) || 1;
+  let billAccounts: { inventoryAccountId: string; apAccountId: string } | null = null;
+  let billSkipReason: string | null = null;
+  if (totalAcceptedValue > 0) {
+    if (poFxRate !== 1) {
+      // Receiving still succeeds and stock still moves — only the auto-bill is skipped.
+      // Auto-posting a correctly fx-converted GL entry against unconverted stock valuation
+      // (procurement-receiving overwrites unit_cost in the PO's own currency, not base
+      // currency) would create a new, silent GL-vs-stock mismatch that can't happen today.
+      billSkipReason = "This purchase order is in a foreign currency — create the vendor bill manually in Accounts.";
+    } else {
+      const [inventoryAccountId, apAccountId] = await Promise.all([
+        getAccountIdByCode(supabase, params.tenantId, "1400"),
+        getApAccountId(supabase, params.tenantId),
+      ]);
+      const missing = [
+        ["Inventory (1400)", inventoryAccountId],
+        ["Accounts Payable (2000)", apAccountId],
+      ].filter(([, id]) => !id);
+      if (missing.length > 0) {
+        return { receipt: null, error: `Missing required accounts: ${missing.map(([label]) => label).join(", ")}.` };
+      }
+      billAccounts = { inventoryAccountId: inventoryAccountId as string, apAccountId: apAccountId as string };
+    }
   }
 
   const { data: vendor } = await supabase.schema("hotel").from("vendors").select("name").eq("id", po.vendor_id).maybeSingle();
@@ -264,6 +309,48 @@ export async function receiveAgainstPurchaseOrder(
 
   await refreshPurchaseOrderStatus(supabase, params.tenantId, params.poId);
 
+  let billNote: string | null = null;
+  if (billSkipReason) {
+    billNote = billSkipReason;
+  } else if (billAccounts) {
+    const billCreated = await createVendorBill(supabase, {
+      tenantId: params.tenantId,
+      vendorId: po.vendor_id as string,
+      purchaseOrderId: params.poId,
+      department: (po.department as string) || "Procurement",
+      billReference: receipt.receipt_number as string,
+      billDate: new Date().toISOString().slice(0, 10),
+      currency: (po.currency as string) || "NGN",
+      fxRate: poFxRate,
+      expenseAccountId: billAccounts.inventoryAccountId,
+      apAccountId: billAccounts.apAccountId,
+      subtotal: totalAcceptedValue,
+      createdBy: params.receivedBy,
+    });
+    if (billCreated.ok) {
+      const { data: newBill } = await supabase
+        .schema("hotel")
+        .from("vendor_bills")
+        .select("journal_entry_id")
+        .eq("id", billCreated.id)
+        .maybeSingle();
+      await supabase
+        .schema("hotel")
+        .from("inventory_receipts")
+        .update({ journal_entry_id: (newBill?.journal_entry_id as string | null) ?? null })
+        .eq("id", receipt.id);
+      billNote =
+        billCreated.status === "approved"
+          ? `Vendor bill ${receipt.receipt_number} auto-created and posted to the ledger.`
+          : `Vendor bill ${receipt.receipt_number} auto-created — awaiting approval before it posts.`;
+    } else {
+      // Stock has already moved (the physical event is real and recorded) — a downstream
+      // billing hiccup shouldn't erase that. Surfaced to the caller instead of thrown so
+      // receiving still succeeds; the receipt's journal_entry_id simply stays null.
+      billNote = `Goods received, but the vendor bill could not be auto-created: ${billCreated.error}`;
+    }
+  }
+
   await writeAuditLog({
     tenantId: params.tenantId,
     actorUserId: params.receivedBy,
@@ -283,5 +370,5 @@ export async function receiveAgainstPurchaseOrder(
   }
 
   const [full] = await mapReceiptsWithLines(supabase, params.tenantId, [receipt as Record<string, unknown>]);
-  return { receipt: full ?? null, error: null };
+  return { receipt: full ?? null, error: null, billNote };
 }

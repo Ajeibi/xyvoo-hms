@@ -302,7 +302,9 @@ export function FrontDeskCheckoutDialog({
       }
       toastSuccess(
         roomCode ? `Room ${roomCode} checked out` : "Guest checked out successfully",
-        "Room released and marked for housekeeping.",
+        data.receiptSent
+          ? `Room released, marked for housekeeping, and a receipt was emailed to ${data.receiptEmail}.`
+          : "Room released and marked for housekeeping.",
       );
       onOpenChange(false);
       router.refresh();

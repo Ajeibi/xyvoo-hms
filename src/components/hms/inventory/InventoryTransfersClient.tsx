@@ -226,7 +226,7 @@ export function InventoryTransfersClient({
                         Confirm receipt
                       </Button>
                     ) : null}
-                    {t.status === "pending" ? (
+                    {t.status === "pending" || t.status === "in_transit" ? (
                       <Button
                         type="button"
                         size="sm"
@@ -418,7 +418,7 @@ export function InventoryTransfersClient({
                     Confirm receipt
                   </Button>
                 ) : null}
-                {viewTarget.status === "pending" ? (
+                {viewTarget.status === "pending" || viewTarget.status === "in_transit" ? (
                   <Button
                     type="button"
                     size="sm"

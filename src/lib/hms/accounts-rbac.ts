@@ -26,6 +26,9 @@ export type AccountsRoleCapabilities = {
   /** Posts real revenue for the whole property — trusted to the same "Accounts owns its own
    * ledger" model as everything else here, not gated to admin-only. */
   canRunNightAudit: boolean;
+  /** Importing/matching/completing a bank reconciliation — same trusted-department model as
+   * everything else except vendor-bill approval. */
+  canReconcileBankAccounts: boolean;
 };
 
 /**
@@ -56,5 +59,6 @@ export function getAccountsCapabilities(params: {
     canCreateCustomerInvoice: access,
     canReceivePayment: access,
     canRunNightAudit: access,
+    canReconcileBankAccounts: access,
   };
 }

@@ -61,7 +61,7 @@ const HERO_TABS: HeroTab[] = [
     pillLabel: "XYVOO",
     bg: "#f8fafc",
     pillActiveText: "#07162c",
-    accentText: "#007edf",
+    accentText: "#1565c0",
     pulseColor: "#90caf9",
     layout: "stacked",
     eyebrow: "One company. Two platforms.",
@@ -95,8 +95,8 @@ const HERO_TABS: HeroTab[] = [
   {
     id: "storefront",
     pillLabel: "Storefront",
-    bg: "#0b3d38",
-    pillActiveText: "#0b3d38",
+    bg: "#04140f",
+    pillActiveText: "#04140f",
     accentText: "#4dd0c4",
     layout: "stacked",
     eyebrow: "For Retailers & Merchants",
@@ -253,7 +253,7 @@ function HeroCopy({
       >
         {tab.eyebrow}
       </p>
-      <h1 className={
+      <h1 id="home-hero-heading" className={
         "mb-5 text-balance text-4xl font-black leading-[1.08] tracking-tight md:text-5xl lg:text-[2.75rem] lg:leading-[1.12] " +
         (isDark ? "text-white" : "text-[#07162c]")
       }>
@@ -387,6 +387,7 @@ export function HomeHero() {
 
   return (
     <section
+      aria-labelledby="home-hero-heading"
       className={
         "relative isolate w-full overflow-hidden pb-0 transition-all duration-300 " +
         (activeId === "storefront" || activeId === "hms" ? "pt-20" : "pt-28")
@@ -443,7 +444,7 @@ export function HomeHero() {
               </div>
               <div className="text-left">
                 <p className="text-[11px] font-bold text-blue-600 uppercase tracking-wider">Solas Boutique Hotel</p>
-                <h4 className="text-[14px] font-extrabold text-[#07162c] leading-tight">Room 102 Checked In</h4>
+                <p className="text-[14px] font-extrabold text-[#07162c] leading-tight">Room 102 Checked In</p>
                 <p className="text-[11px] font-medium text-slate-500">XYVOO HMS • Live</p>
               </div>
             </FloatingCard>
@@ -462,7 +463,7 @@ export function HomeHero() {
               </div>
               <div className="text-left">
                 <p className="text-[11px] font-bold text-emerald-600 uppercase tracking-wider">Luxe Threads</p>
-                <h4 className="text-[14px] font-extrabold text-[#07162c] leading-tight">New Order #5102</h4>
+                <p className="text-[14px] font-extrabold text-[#07162c] leading-tight">New Order #5102</p>
                 <p className="text-[11px] font-medium text-slate-500">$189.50 • Live Storefront</p>
               </div>
             </FloatingCard>
@@ -481,7 +482,7 @@ export function HomeHero() {
               </div>
               <div className="text-left">
                 <p className="text-[11px] font-bold text-cyan-600 uppercase tracking-wider">Grand Plaza Resort</p>
-                <h4 className="text-[14px] font-extrabold text-[#07162c] leading-tight">Reservation Confirmed</h4>
+                <p className="text-[14px] font-extrabold text-[#07162c] leading-tight">Reservation Confirmed</p>
                 <p className="text-[11px] font-medium text-slate-500">XYVOO HMS • Live</p>
               </div>
             </FloatingCard>
@@ -500,7 +501,7 @@ export function HomeHero() {
               </div>
               <div className="text-left">
                 <p className="text-[11px] font-bold text-violet-600 uppercase tracking-wider">Apex Goods</p>
-                <h4 className="text-[14px] font-extrabold text-[#07162c] leading-tight">SEO Keyword Ranked #1</h4>
+                <p className="text-[14px] font-extrabold text-[#07162c] leading-tight">SEO Keyword Ranked #1</p>
                 <p className="text-[11px] font-medium text-slate-500">Google Search • Live</p>
               </div>
             </FloatingCard>
@@ -521,7 +522,7 @@ export function HomeHero() {
               </div>
               <div className="text-left">
                 <p className="text-[11px] font-bold text-emerald-600 uppercase tracking-wider">Velo Bike Shop</p>
-                <h4 className="text-[14px] font-extrabold text-[#07162c] leading-tight">New Order #4802</h4>
+                <p className="text-[14px] font-extrabold text-[#07162c] leading-tight">New Order #4802</p>
                 <p className="text-[11px] font-medium text-slate-500">$1,240.00 • Live Storefront</p>
               </div>
             </FloatingCard>
@@ -540,7 +541,7 @@ export function HomeHero() {
               </div>
               <div className="text-left">
                 <p className="text-[11px] font-bold text-indigo-600 uppercase tracking-wider">Valeria Resort</p>
-                <h4 className="text-[14px] font-extrabold text-[#07162c] leading-tight">Invoice Paid: $1,420.00</h4>
+                <p className="text-[14px] font-extrabold text-[#07162c] leading-tight">Invoice Paid: $1,420.00</p>
                 <p className="text-[11px] font-medium text-slate-500">XYVOO HMS • Live</p>
               </div>
             </FloatingCard>
@@ -559,7 +560,7 @@ export function HomeHero() {
               </div>
               <div className="text-left">
                 <p className="text-[11px] font-bold text-fuchsia-600 uppercase tracking-wider">Nova Cosmetics</p>
-                <h4 className="text-[14px] font-extrabold text-[#07162c] leading-tight">Sitemap Indexed by Google</h4>
+                <p className="text-[14px] font-extrabold text-[#07162c] leading-tight">Sitemap Indexed by Google</p>
                 <p className="text-[11px] font-medium text-slate-500">SEO Health: 100%</p>
               </div>
             </FloatingCard>
@@ -578,7 +579,7 @@ export function HomeHero() {
               </div>
               <div className="text-left">
                 <p className="text-[11px] font-bold text-amber-600 uppercase tracking-wider">Siren Cove Resort</p>
-                <h4 className="text-[14px] font-extrabold text-[#07162c] leading-tight">Procurement Order Approved</h4>
+                <p className="text-[14px] font-extrabold text-[#07162c] leading-tight">Procurement Order Approved</p>
                 <p className="text-[11px] font-medium text-slate-500">PO #8109 • Pending Delivery</p>
               </div>
             </FloatingCard>
@@ -601,7 +602,7 @@ export function HomeHero() {
               </div>
               <div className="text-left">
                 <p className="text-[11px] font-bold text-blue-600 uppercase tracking-wider">Solas Boutique Hotel</p>
-                <h4 className="text-[14px] font-extrabold text-[#07162c] leading-tight">Room 102 Checked In</h4>
+                <p className="text-[14px] font-extrabold text-[#07162c] leading-tight">Room 102 Checked In</p>
                 <p className="text-[11px] font-medium text-slate-500">XYVOO HMS • Live</p>
               </div>
             </FloatingCard>
@@ -620,7 +621,7 @@ export function HomeHero() {
               </div>
               <div className="text-left">
                 <p className="text-[11px] font-bold text-cyan-600 uppercase tracking-wider">Grand Plaza Resort</p>
-                <h4 className="text-[14px] font-extrabold text-[#07162c] leading-tight">Reservation Confirmed</h4>
+                <p className="text-[14px] font-extrabold text-[#07162c] leading-tight">Reservation Confirmed</p>
                 <p className="text-[11px] font-medium text-slate-500">XYVOO HMS • Live</p>
               </div>
             </FloatingCard>
@@ -639,7 +640,7 @@ export function HomeHero() {
               </div>
               <div className="text-left">
                 <p className="text-[11px] font-bold text-indigo-600 uppercase tracking-wider">Valeria Resort</p>
-                <h4 className="text-[14px] font-extrabold text-[#07162c] leading-tight">Invoice Paid: $1,420.00</h4>
+                <p className="text-[14px] font-extrabold text-[#07162c] leading-tight">Invoice Paid: $1,420.00</p>
                 <p className="text-[11px] font-medium text-slate-500">XYVOO HMS • Live</p>
               </div>
             </FloatingCard>
@@ -658,7 +659,7 @@ export function HomeHero() {
               </div>
               <div className="text-left">
                 <p className="text-[11px] font-bold text-amber-600 uppercase tracking-wider">Siren Cove Resort</p>
-                <h4 className="text-[14px] font-extrabold text-[#07162c] leading-tight">Procurement Order Approved</h4>
+                <p className="text-[14px] font-extrabold text-[#07162c] leading-tight">Procurement Order Approved</p>
                 <p className="text-[11px] font-medium text-slate-500">PO #8109 • Pending Delivery</p>
               </div>
             </FloatingCard>
@@ -681,7 +682,7 @@ export function HomeHero() {
               </div>
               <div className="text-left">
                 <p className="text-[11px] font-bold text-emerald-600 uppercase tracking-wider">Live Activity</p>
-                <h4 className="text-[14px] font-extrabold text-[#07162c] leading-tight">Scarf Added to Cart</h4>
+                <p className="text-[14px] font-extrabold text-[#07162c] leading-tight">Scarf Added to Cart</p>
                 <p className="text-[11px] font-medium text-slate-500">Lagos, NG • 2s ago</p>
               </div>
             </FloatingCard>
@@ -700,7 +701,7 @@ export function HomeHero() {
               </div>
               <div className="text-left">
                 <p className="text-[11px] font-bold text-amber-600 uppercase tracking-wider">Logistics</p>
-                <h4 className="text-[14px] font-extrabold text-[#07162c] leading-tight">Shipped via DHL</h4>
+                <p className="text-[14px] font-extrabold text-[#07162c] leading-tight">Shipped via DHL</p>
                 <p className="text-[11px] font-medium text-slate-500">Tracking #8920 • Handed Over</p>
               </div>
             </FloatingCard>

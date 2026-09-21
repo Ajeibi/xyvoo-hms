@@ -339,6 +339,10 @@ export function guestHasVipTag(guest?: Pick<GuestRow, "tags">) {
   return parseGuestTags(guest?.tags).some((t) => t.toLowerCase() === "vip");
 }
 
+export function guestHasDoNotWalkTag(guest?: Pick<GuestRow, "tags">) {
+  return parseGuestTags(guest?.tags).some((t) => t.toLowerCase() === "do_not_walk");
+}
+
 type ReservationGuestRow = {
   reservation_id: string;
   guest_id: string;

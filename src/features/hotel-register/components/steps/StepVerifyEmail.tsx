@@ -48,6 +48,8 @@ export default function StepVerifyEmail() {
             className="w-12 h-14 text-center text-2xl font-bold border-2 border-slate-200 rounded-xl focus:outline-none transition-all"
             maxLength={1}
             inputMode="numeric"
+            aria-label={`Verification code digit ${i + 1} of 6`}
+            autoComplete={i === 0 ? "one-time-code" : "off"}
           />
         ))}
       </div>

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
 import { writeAuditLog, emitNotification } from "@/lib/hms/front-desk-ops";
 import { insertFolioLine } from "@/lib/hms/folio";
+import { matchWaitlistForOpening } from "@/lib/hms/waitlist";
 
 const PostSchema = z.object({
   slug: z.string().min(1),
@@ -28,7 +29,7 @@ export async function POST(
     const { data: reservation, error } = await auth.service
       .schema("hotel")
       .from("reservations")
-      .select("id,confirmation_code,status,room_unit_id")
+      .select("id,confirmation_code,status,room_unit_id,room_type_code,arrival_at,departure_at")
       .eq("tenant_id", auth.tenant.id)
       .eq("id", id)
       .maybeSingle();
@@ -83,6 +84,18 @@ export async function POST(
       entityType: "reservation",
       entityId: id,
     });
+
+    if (releaseRoom) {
+      try {
+        await matchWaitlistForOpening(auth.service, auth.tenant.id, {
+          roomTypeCode: reservation.room_type_code,
+          arrivalAt: reservation.arrival_at,
+          departureAt: reservation.departure_at,
+        });
+      } catch (e) {
+        console.warn("[arrivals/no-show] waitlist match failed", e);
+      }
+    }
 
     return NextResponse.json({ ok: true });
   } catch (e) {

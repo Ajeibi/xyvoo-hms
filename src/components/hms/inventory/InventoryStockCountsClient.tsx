@@ -156,7 +156,7 @@ export function InventoryStockCountsClient({
               const expanded = expandedId === c.id;
               const editable = c.status === "in_progress" || c.status === "draft";
               const canComplete = c.status === "in_progress";
-              const canPost = c.status === "in_progress" || c.status === "completed";
+              const canPost = c.status === "completed";
               return (
                 <li key={c.id} className="px-6 py-4 text-sm">
                   <button

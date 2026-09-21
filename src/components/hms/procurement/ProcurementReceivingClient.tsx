@@ -191,8 +191,29 @@ function ReceiveDialog({
         if (l.purchaseOrderLineId !== id) return l;
         const checkedChecklistItems = { ...l.checkedChecklistItems, [item]: !l.checkedChecklistItems[item] };
         const passed = l.checklistItems.every((i) => checkedChecklistItems[i]);
-        return { ...l, checkedChecklistItems, discrepancyType: !passed && l.discrepancyType === "none" ? "failed_inspection" : l.discrepancyType };
+        return {
+          ...l,
+          checkedChecklistItems,
+          discrepancyType: !passed && l.discrepancyType === "none" ? "failed_inspection" : l.discrepancyType,
+          // A failed line can't post to stock with zero rejected — default to rejecting the
+          // whole received quantity; the receiver can still lower it for a partial accept.
+          qtyRejected: !passed && Number(l.qtyRejected) <= 0 ? l.qtyReceived : l.qtyRejected,
+        };
       }),
+    );
+  };
+
+  const setManualQualityPassed = (id: string, passed: boolean) => {
+    setLines((prev) =>
+      prev.map((l) =>
+        l.purchaseOrderLineId === id
+          ? {
+              ...l,
+              manualQualityPassed: passed,
+              qtyRejected: !passed && Number(l.qtyRejected) <= 0 ? l.qtyReceived : l.qtyRejected,
+            }
+          : l,
+      ),
     );
   };
 
@@ -228,7 +249,7 @@ function ReceiveDialog({
         toastError("Could not record receiving note", data.error ?? "Try again.");
         return;
       }
-      toastSuccess(`Goods receipt ${data.receipt?.receiptNumber ?? ""} recorded`);
+      toastSuccess(`Goods receipt ${data.receipt?.receiptNumber ?? ""} recorded`, data.billNote ?? undefined);
       onOpenChange(false);
       router.refresh();
     } finally {
@@ -336,7 +357,7 @@ function ReceiveDialog({
                       type="checkbox"
                       className="h-4 w-4 rounded border-slate-300"
                       checked={l.manualQualityPassed}
-                      onChange={(e) => updateLine(l.purchaseOrderLineId, { manualQualityPassed: e.target.checked })}
+                      onChange={(e) => setManualQualityPassed(l.purchaseOrderLineId, e.target.checked)}
                     />
                     Passed quality inspection (no checklist configured for this item type)
                   </label>

@@ -42,6 +42,11 @@ export type HmsSectionKey =
   | "accounts-chart"
   | "accounts-journal"
   | "accounts-trial-balance"
+  | "accounts-income-statement"
+  | "accounts-balance-sheet"
+  | "accounts-cash-flow"
+  | "accounts-ledger"
+  | "accounts-bank-reconciliation"
   | "accounts-bills"
   | "accounts-ap-aging"
   | "accounts-invoices"
@@ -143,6 +148,11 @@ const ADMIN_SECTIONS: HmsSectionKey[] = [
   "accounts-chart",
   "accounts-journal",
   "accounts-trial-balance",
+  "accounts-income-statement",
+  "accounts-balance-sheet",
+  "accounts-cash-flow",
+  "accounts-ledger",
+  "accounts-bank-reconciliation",
   "accounts-bills",
   "accounts-ap-aging",
   "accounts-invoices",
@@ -371,6 +381,10 @@ export const DEPARTMENT_ROLE_SCOPES: Record<string, DepartmentScopeDefinition> =
       { key: "accounts-chart", icon: "clipboardCheck", label: "Chart of accounts", path: `/hms/${slug}/accounts/chart` },
       { key: "accounts-journal", icon: "clipboardCheck", label: "Journal entries", path: `/hms/${slug}/accounts/journal` },
       { key: "accounts-trial-balance", icon: "clipboardCheck", label: "Trial balance", path: `/hms/${slug}/accounts/trial-balance` },
+      { key: "accounts-income-statement", icon: "clipboardCheck", label: "Income statement", path: `/hms/${slug}/accounts/income-statement` },
+      { key: "accounts-balance-sheet", icon: "clipboardCheck", label: "Balance sheet", path: `/hms/${slug}/accounts/balance-sheet` },
+      { key: "accounts-cash-flow", icon: "clipboardCheck", label: "Cash flow", path: `/hms/${slug}/accounts/cash-flow` },
+      { key: "accounts-bank-reconciliation", icon: "clipboardCheck", label: "Bank reconciliation", path: `/hms/${slug}/accounts/bank-reconciliation` },
       { key: "accounts-bills", icon: "clipboardCheck", label: "Vendor bills", path: `/hms/${slug}/accounts/bills` },
       { key: "accounts-ap-aging", icon: "clipboardCheck", label: "AP aging", path: `/hms/${slug}/accounts/ap-aging` },
       { key: "accounts-invoices", icon: "clipboardCheck", label: "Customer invoices", path: `/hms/${slug}/accounts/invoices` },
@@ -383,6 +397,11 @@ export const DEPARTMENT_ROLE_SCOPES: Record<string, DepartmentScopeDefinition> =
       "accounts-chart",
       "accounts-journal",
       "accounts-trial-balance",
+      "accounts-income-statement",
+      "accounts-balance-sheet",
+      "accounts-cash-flow",
+      "accounts-ledger",
+      "accounts-bank-reconciliation",
       "accounts-bills",
       "accounts-ap-aging",
       "accounts-invoices",

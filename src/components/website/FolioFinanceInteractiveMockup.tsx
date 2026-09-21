@@ -154,9 +154,9 @@ export function FolioFinanceInteractiveMockup() {
             </p>
             <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
+                <p className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
                   Folio, Billing & General Ledger
-                </h1>
+                </p>
                 <p className="mt-1 text-xs text-slate-500">
                   Branded tax invoicing, multi-leg corporate billing, automated charge posting, and audit-ready books.
                 </p>

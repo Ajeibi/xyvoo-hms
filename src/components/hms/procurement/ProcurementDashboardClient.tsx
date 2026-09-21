@@ -142,9 +142,26 @@ export function ProcurementDashboardClient({
                       {s.locationName} · {s.qtyOnHand} {s.unitOfMeasure} on hand
                     </p>
                   </div>
-                  <span className="shrink-0 text-xs tabular-nums text-amber-600">
-                    Suggest {s.suggestedQty} {s.unitOfMeasure}
-                  </span>
+                  <div className="flex shrink-0 items-center gap-3">
+                    <span className="text-xs tabular-nums text-amber-600">
+                      Suggest {s.suggestedQty} {s.unitOfMeasure}
+                    </span>
+                    <Link
+                      href={{
+                        pathname: `/hms/${slug}/procurement/orders/new`,
+                        query: {
+                          reorderItemId: s.itemId,
+                          reorderItemName: s.itemName,
+                          reorderSku: s.itemSku,
+                          reorderQty: s.suggestedQty,
+                          reorderUnitCost: s.unitCost,
+                        },
+                      }}
+                      className="text-xs font-medium text-blue-600 hover:underline"
+                    >
+                      Create PO
+                    </Link>
+                  </div>
                 </li>
               ))}
             </ul>

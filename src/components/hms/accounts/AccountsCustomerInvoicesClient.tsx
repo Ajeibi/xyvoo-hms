@@ -18,14 +18,15 @@ type InHouseGuestOption = { reservationId: string; guestName: string; roomCode: 
 
 const STATUS_LABEL: Record<string, string> = { open: "Open", paid: "Paid", cancelled: "Cancelled" };
 
-function emptyInvoiceForm(defaultDepartment: string) {
+function emptyInvoiceForm(defaultDepartment: string, defaultCurrency: string) {
   return {
     customerId: "",
     reservationId: "",
     department: defaultDepartment,
     invoiceDate: new Date().toISOString().slice(0, 10),
     dueDate: "",
-    currency: "NGN",
+    currency: defaultCurrency,
+    fxRate: "1",
     revenueAccountId: "",
     subtotal: "",
     tax: "",
@@ -50,6 +51,7 @@ export function AccountsCustomerInvoicesClient({
   canManageCustomers,
   canReceivePayment,
   canAccessAllDepartments,
+  defaultCurrency = "NGN",
 }: {
   slug: string;
   invoices: CustomerInvoiceRow[];
@@ -59,10 +61,11 @@ export function AccountsCustomerInvoicesClient({
   canManageCustomers: boolean;
   canReceivePayment: boolean;
   canAccessAllDepartments: boolean;
+  defaultCurrency?: string;
 }) {
   const router = useRouter();
   const [createOpen, setCreateOpen] = useState(false);
-  const [form, setForm] = useState(() => emptyInvoiceForm(ACCOUNTS_DEPARTMENTS[0]));
+  const [form, setForm] = useState(() => emptyInvoiceForm(ACCOUNTS_DEPARTMENTS[0], defaultCurrency));
   const [saving, setSaving] = useState(false);
 
   const [customerList, setCustomerList] = useState(customers);
@@ -78,6 +81,7 @@ export function AccountsCustomerInvoicesClient({
   const [receiveOpen, setReceiveOpen] = useState(false);
   const [receiptForm, setReceiptForm] = useState(emptyReceiptForm);
   const [receiving, setReceiving] = useState(false);
+  const [receiptAmounts, setReceiptAmounts] = useState<Record<string, string>>({});
 
   const openCreate = () => {
     setCreateOpen(true);
@@ -138,6 +142,7 @@ export function AccountsCustomerInvoicesClient({
           invoiceDate: form.invoiceDate,
           dueDate: form.dueDate || undefined,
           currency: form.currency,
+          fxRate: Number(form.fxRate) || 1,
           revenueAccountId: form.revenueAccountId,
           subtotal,
           tax,
@@ -151,7 +156,7 @@ export function AccountsCustomerInvoicesClient({
       }
       toastSuccess(`Invoice ${data.invoiceNumber} created and posted to the ledger.`);
       setCreateOpen(false);
-      setForm(emptyInvoiceForm(ACCOUNTS_DEPARTMENTS[0]));
+      setForm(emptyInvoiceForm(ACCOUNTS_DEPARTMENTS[0], defaultCurrency));
       router.refresh();
     } finally {
       setSaving(false);
@@ -204,7 +209,9 @@ export function AccountsCustomerInvoicesClient({
     });
 
   const selectedInvoices = invoices.filter((i) => selectedIds.has(i.id));
-  const selectedTotal = selectedInvoices.reduce((sum, i) => sum + i.total, 0);
+  const remainingFor = (i: CustomerInvoiceRow) => Math.max(0, Math.round((i.total - i.amountReceived) * 100) / 100);
+  const amountFor = (i: CustomerInvoiceRow) => Number(receiptAmounts[i.id] ?? remainingFor(i)) || 0;
+  const selectedTotal = selectedInvoices.reduce((sum, i) => sum + amountFor(i), 0);
 
   const submitReceive = async () => {
     if (!receiptForm.bankAccountId) {
@@ -222,7 +229,7 @@ export function AccountsCustomerInvoicesClient({
           paymentDate: receiptForm.paymentDate,
           bankAccountId: receiptForm.bankAccountId,
           reference: receiptForm.reference.trim() || undefined,
-          invoiceIds: selectedInvoices.map((i) => i.id),
+          invoices: selectedInvoices.map((i) => ({ invoiceId: i.id, amount: amountFor(i) })),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -233,6 +240,7 @@ export function AccountsCustomerInvoicesClient({
       toastSuccess(`${selectedInvoices.length} invoice(s) received.`);
       setReceiveOpen(false);
       setReceiptForm(emptyReceiptForm());
+      setReceiptAmounts({});
       setSelectedIds(new Set());
       router.refresh();
     } finally {
@@ -251,7 +259,14 @@ export function AccountsCustomerInvoicesClient({
         </div>
         <div className="flex gap-2">
           {canReceivePayment && selectedIds.size > 0 ? (
-            <Button type="button" variant="outline" onClick={() => setReceiveOpen(true)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setReceiptAmounts(Object.fromEntries(selectedInvoices.map((i) => [i.id, String(remainingFor(i))])));
+                setReceiveOpen(true);
+              }}
+            >
               Receive selected ({selectedIds.size})
             </Button>
           ) : null}
@@ -308,6 +323,9 @@ export function AccountsCustomerInvoicesClient({
                     <td className="px-4 py-2.5 text-slate-600">{i.department}</td>
                     <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums text-slate-700">
                       {i.total.toFixed(2)} {i.currency}
+                      {i.amountReceived > 0 && i.status !== "paid" ? (
+                        <p className="text-[11px] font-normal text-amber-600">{remainingFor(i).toFixed(2)} remaining</p>
+                      ) : null}
                     </td>
                     <td className="px-4 py-2.5">
                       <span
@@ -464,6 +482,24 @@ export function AccountsCustomerInvoicesClient({
                 <Input value={form.currency} onChange={(e) => setForm((s) => ({ ...s, currency: e.target.value }))} />
               </div>
             </div>
+            {form.currency.trim().toUpperCase() !== defaultCurrency.toUpperCase() ? (
+              <div>
+                <p className="mb-1 text-xs font-medium text-slate-600">
+                  FX rate (1 {form.currency || "?"} → {defaultCurrency})
+                </p>
+                <Input
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={form.fxRate}
+                  onChange={(e) => setForm((s) => ({ ...s, fxRate: e.target.value }))}
+                />
+                <p className="mt-1 text-xs text-slate-400">
+                  Posts to the ledger as {(total * (Number(form.fxRate) || 1)).toFixed(2)} {defaultCurrency} — the ledger has
+                  no separate currency of its own, so this is what hits the trial balance.
+                </p>
+              </div>
+            ) : null}
             <div>
               <p className="mb-1 text-xs font-medium text-slate-600">Notes (optional)</p>
               <textarea
@@ -495,18 +531,34 @@ export function AccountsCustomerInvoicesClient({
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2">
+            <div className="max-h-52 space-y-2 overflow-y-auto rounded-lg border border-slate-200 p-2">
               {selectedInvoices.map((i) => (
-                <div key={i.id} className="flex items-center justify-between text-xs">
-                  <span className="text-slate-700">
-                    {i.invoiceNumber} · {i.customerName}
-                  </span>
-                  <span className="tabular-nums text-slate-600">
-                    {i.total.toFixed(2)} {i.currency}
-                  </span>
+                <div key={i.id} className="flex items-center justify-between gap-2 text-xs">
+                  <div className="min-w-0">
+                    <p className="truncate text-slate-700">
+                      {i.invoiceNumber} · {i.customerName}
+                    </p>
+                    <p className="text-[11px] text-slate-400">
+                      {i.amountReceived > 0
+                        ? `${remainingFor(i).toFixed(2)} remaining of ${i.total.toFixed(2)} ${i.currency}`
+                        : `${i.total.toFixed(2)} ${i.currency}`}
+                    </p>
+                  </div>
+                  <Input
+                    type="number"
+                    min="0.01"
+                    max={remainingFor(i)}
+                    step="0.01"
+                    className="h-8 w-28 text-right"
+                    value={receiptAmounts[i.id] ?? String(remainingFor(i))}
+                    onChange={(e) => setReceiptAmounts((s) => ({ ...s, [i.id]: e.target.value }))}
+                  />
                 </div>
               ))}
             </div>
+            <p className="text-[11px] text-slate-400">
+              Defaults to the full remaining balance — lower it for a partial receipt. The invoice stays open until fully received.
+            </p>
             <div>
               <p className="mb-1 text-xs font-medium text-slate-600">Deposit into</p>
               <select

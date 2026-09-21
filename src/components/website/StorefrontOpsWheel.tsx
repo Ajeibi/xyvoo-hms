@@ -277,7 +277,7 @@ export function StorefrontOpsWheel() {
               <div className={styles.hint}>Hover a section to learn more</div>
               {SEGMENTS.map((seg, i) => (
                 <div key={seg.key} className={`${styles.desc} ${styles[`desc${i}`]}`}>
-                  <h4>{seg.descTitle}</h4>
+                  <div className={styles.descTitle}>{seg.descTitle}</div>
                   <p>{seg.descText}</p>
                 </div>
               ))}

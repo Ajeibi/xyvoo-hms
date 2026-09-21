@@ -11,11 +11,13 @@ import type { SourceableRequisitionLine, VendorWithCategory } from "@/lib/hms/pr
 
 const DEPARTMENT_OPTIONS = ["Kitchen", "Bar", "Housekeeping", "Front Desk", "Engineering", "Procurement", "Other"] as const;
 
-type ManualLine = { key: string; description: string; quantity: string; unitCost: string };
+type ManualLine = { key: string; description: string; quantity: string; unitCost: string; itemId?: string };
 
 function emptyManualLine(): ManualLine {
   return { key: crypto.randomUUID(), description: "", quantity: "1", unitCost: "0" };
 }
+
+export type PrefillManualLine = { itemId: string; description: string; quantity: number; unitCost: number };
 
 export function ProcurementOrderFormClient({
   slug,
@@ -23,15 +25,19 @@ export function ProcurementOrderFormClient({
   sourceableLines,
   preselectedLineIds,
   defaultCurrency,
+  prefillManualLine,
 }: {
   slug: string;
   vendors: VendorWithCategory[];
   sourceableLines: SourceableRequisitionLine[];
   preselectedLineIds: string[];
   defaultCurrency: string;
+  prefillManualLine?: PrefillManualLine;
 }) {
   const router = useRouter();
-  const [mode, setMode] = useState<"requisition" | "manual">(preselectedLineIds.length ? "requisition" : sourceableLines.length ? "requisition" : "manual");
+  const [mode, setMode] = useState<"requisition" | "manual">(
+    prefillManualLine ? "manual" : preselectedLineIds.length ? "requisition" : sourceableLines.length ? "requisition" : "manual",
+  );
   const [vendorId, setVendorId] = useState("");
   const [department, setDepartment] = useState<string>("");
   const [customDepartment, setCustomDepartment] = useState("");
@@ -40,7 +46,9 @@ export function ProcurementOrderFormClient({
   const [tax, setTax] = useState("0");
   const [expectedDeliveryDate, setExpectedDeliveryDate] = useState("");
   const [notes, setNotes] = useState("");
-  const [manualReason, setManualReason] = useState("");
+  const [manualReason, setManualReason] = useState(
+    prefillManualLine ? "Restocking — item at or below its reorder point" : "",
+  );
   const [submitting, setSubmitting] = useState(false);
 
   const [selectedLineIds, setSelectedLineIds] = useState<Set<string>>(new Set(preselectedLineIds));
@@ -55,7 +63,19 @@ export function ProcurementOrderFormClient({
     return draft;
   });
 
-  const [manualLines, setManualLines] = useState<ManualLine[]>([emptyManualLine()]);
+  const [manualLines, setManualLines] = useState<ManualLine[]>(() =>
+    prefillManualLine
+      ? [
+          {
+            key: crypto.randomUUID(),
+            description: prefillManualLine.description,
+            quantity: String(prefillManualLine.quantity),
+            unitCost: String(prefillManualLine.unitCost),
+            itemId: prefillManualLine.itemId,
+          },
+        ]
+      : [emptyManualLine()],
+  );
 
   // Pre-fill sourced lines with the vendor's agreed price catalog whenever a vendor is picked.
   useEffect(() => {
@@ -121,7 +141,12 @@ export function ProcurementOrderFormClient({
             }))
           : manualLines
               .filter((l) => l.description.trim() && Number(l.quantity) > 0)
-              .map((l) => ({ description: l.description.trim(), quantity: Number(l.quantity), unitCost: Number(l.unitCost) || 0 }));
+              .map((l) => ({
+                description: l.description.trim(),
+                quantity: Number(l.quantity),
+                unitCost: Number(l.unitCost) || 0,
+                itemId: l.itemId,
+              }));
 
       const res = await fetch("/api/hotel/procurement/orders", {
         method: "POST",

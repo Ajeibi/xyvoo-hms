@@ -8,6 +8,9 @@ import { normalizePricingSetup } from "@/lib/hms/room-pricing";
 import { notifyCheckoutCompleted, notifyCommissionDue, notifyOverdueCheckout } from "@/lib/hms/notification-rules";
 import { openOrEscalateHousekeepingTask } from "@/lib/hms/housekeeping-tasks";
 import { setRoomStatus } from "@/lib/hms/room-status";
+import { executeKeyRevoke } from "@/lib/hms/integrations/smart-lock";
+import { buildCheckoutReceiptEmail } from "@/lib/hms/receipts";
+import { sendCheckoutReceiptEmail } from "@/lib/mail/mailtrap";
 
 const CheckoutSchema = z
   .object({
@@ -31,7 +34,7 @@ export async function POST(req: Request) {
       .schema("hotel")
       .from("reservations")
       .select(
-        "id,confirmation_code,arrival_at,departure_at,nights,checked_in_at,rate_per_night,total_room_charges,room_unit_id,status,tenant_id,commission_plan,commission_value",
+        "id,confirmation_code,arrival_at,departure_at,nights,checked_in_at,rate_per_night,total_room_charges,room_unit_id,status,tenant_id,commission_plan,commission_value,folio_number",
       )
       .eq("tenant_id", auth.tenant.id)
       .eq("status", "checked_in");
@@ -158,20 +161,56 @@ export async function POST(req: Request) {
         taskType: "checkout_clean",
         reservationId: reservation.id,
       });
+
+      try {
+        await executeKeyRevoke({
+          supabase: auth.service,
+          tenantId: auth.tenant.id,
+          tenant: { smart_lock_setup: auth.tenant.smart_lock_setup },
+          roomUnitId: reservation.room_unit_id,
+          roomCode,
+          reservationId: reservation.id,
+          staffUserId: auth.user.id,
+        });
+      } catch (e) {
+        console.warn("[checkout] key revoke failed", e);
+      }
     }
 
     const { data: rg } = await auth.service
       .schema("hotel")
       .from("reservation_guests")
-      .select("guests(first_name,last_name)")
+      .select("guests(first_name,last_name,email)")
       .eq("reservation_id", reservation.id)
       .eq("is_primary", true)
       .maybeSingle();
 
-    type GuestEmbed = { first_name: string; last_name: string } | { first_name: string; last_name: string }[];
+    type GuestEmbed =
+      | { first_name: string; last_name: string; email: string | null }
+      | { first_name: string; last_name: string; email: string | null }[];
     const raw = rg?.guests as GuestEmbed | null;
     const guest = Array.isArray(raw) ? raw[0] : raw;
     const guestName = guest ? `${guest.first_name} ${guest.last_name}`.trim() : "Guest";
+
+    let receiptSent = false;
+    if (guest?.email) {
+      try {
+        const { subject, text, html } = buildCheckoutReceiptEmail({
+          hotelName: auth.tenant.display_name || auth.tenant.name || "Your hotel",
+          guestName,
+          confirmationCode: reservation.confirmation_code,
+          roomCode: roomCode === "—" ? null : roomCode,
+          folioNumber: reservation.folio_number,
+          currency,
+          lines: folio.lines,
+          checkedOutAt: nowIso,
+        });
+        await sendCheckoutReceiptEmail({ to: guest.email, subject, text, html });
+        receiptSent = true;
+      } catch (e) {
+        console.warn("[checkout] receipt email failed", e);
+      }
+    }
 
     await writeAuditLog({
       tenantId: auth.tenant.id,
@@ -215,6 +254,8 @@ export async function POST(req: Request) {
       roomCode,
       earlyCheckoutCredit: earlyCheckoutCredit > 0 ? earlyCheckoutCredit : undefined,
       actualNights: actualStayNights ?? undefined,
+      receiptSent,
+      receiptEmail: receiptSent ? guest?.email : undefined,
     });
   } catch (e) {
     if (e instanceof z.ZodError) {

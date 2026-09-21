@@ -37,11 +37,16 @@ const SETTLE_AT = 0.15;
  * shrinking at the same time. */
 const STACKED_HEIGHT = 400;
 
-/** Below this width the whole scroll-morph is skipped — there's no room
- * for a fanned deck or a 4-across row, so the cards just render as a
- * plain static stacked list instead (see the .module.css media query).
- * Matches the .grid single-column breakpoint. */
+/** Below this width — or below this height — the whole scroll-morph is
+ * skipped, and the cards just render as a plain static stacked list
+ * instead (see the .module.css media query, which matches both
+ * conditions too). Width alone isn't enough: a short/landscape phone can
+ * easily be wider than 860px while still only being ~400px tall, and the
+ * fully-open deck (well over 400px tall at rest) would then overflow the
+ * viewport — the fixed box just spills out above the top of the screen,
+ * cutting into where the header sits. */
 const MOBILE_BREAKPOINT = 860;
+const MOBILE_HEIGHT_BREAKPOINT = 500;
 
 function clamp01(n: number): number {
   return Math.max(0, Math.min(1, n));
@@ -90,7 +95,7 @@ export function SolutionsOnboardingStack({
       const float = floatRef.current;
       if (!wrap || !heading || !startSlot || !endSlot || !float) return;
 
-      if (window.innerWidth <= MOBILE_BREAKPOINT) {
+      if (window.innerWidth <= MOBILE_BREAKPOINT || window.innerHeight <= MOBILE_HEIGHT_BREAKPOINT) {
         // Clear every inline style the desktop animation may have set on
         // a wider viewport, so the mobile media query's plain static
         // layout applies cleanly instead of fighting leftover values.
@@ -261,7 +266,7 @@ export function SolutionsOnboardingStack({
           <article
             key={card.id}
             className={styles.card}
-            style={{ zIndex: 100 + i }}
+            style={{ zIndex: 10 + i }}
             ref={(el) => {
               cardRefs.current[i] = el;
             }}

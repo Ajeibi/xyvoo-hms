@@ -9,11 +9,12 @@ import { Button } from "@/components/ui/button";
 
 export function HomeAbout() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const isInView = useInView(containerRef, { once: true, margin: "-100px" });
+  const isInView = useInView(containerRef, { once: false, margin: "-120px" });
 
   return (
     <section
       ref={containerRef}
+      id="about-xyvoo"
       className="w-full bg-white py-16 lg:py-24"
       aria-labelledby="about-section-title"
     >
@@ -23,9 +24,9 @@ export function HomeAbout() {
           {/* Left Column: Image (40% width on desktop) */}
           <motion.div
             className="w-full lg:w-[40%]"
-            initial={{ opacity: 0, y: 20 }}
-            animate={isInView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.6, ease: "easeOut" }}
+            initial={{ opacity: 0, x: -120 }}
+            animate={isInView ? { opacity: 1, x: 0 } : { opacity: 0, x: -120 }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
           >
             <div className="relative overflow-hidden rounded-2xl border border-slate-100 shadow-[0_16px_36px_rgba(0,13,31,0.06)]">
               <Image
@@ -42,9 +43,9 @@ export function HomeAbout() {
           {/* Right Column: Text Content (60% width on desktop) */}
           <motion.div
             className="w-full lg:w-[60%]"
-            initial={{ opacity: 0, y: 20 }}
-            animate={isInView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.6, delay: 0.15, ease: "easeOut" }}
+            initial={{ opacity: 0, x: 120 }}
+            animate={isInView ? { opacity: 1, x: 0 } : { opacity: 0, x: 120 }}
+            transition={{ duration: 0.8, delay: 0.15, ease: "easeOut" }}
           >
             <div className="flex flex-col">
               

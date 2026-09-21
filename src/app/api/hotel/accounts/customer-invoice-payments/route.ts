@@ -9,7 +9,7 @@ const PostBody = z.object({
   paymentDate: z.string().min(1),
   bankAccountId: z.string().uuid(),
   reference: z.string().max(80).optional(),
-  invoiceIds: z.array(z.string().uuid()).min(1),
+  invoices: z.array(z.object({ invoiceId: z.string().uuid(), amount: z.number().positive().optional() })).min(1),
 });
 
 export async function POST(req: Request) {
@@ -26,7 +26,7 @@ export async function POST(req: Request) {
       paymentDate: body.paymentDate,
       bankAccountId: body.bankAccountId,
       reference: body.reference ?? null,
-      invoiceIds: body.invoiceIds,
+      invoices: body.invoices,
       createdBy: auth.user.id,
     });
 

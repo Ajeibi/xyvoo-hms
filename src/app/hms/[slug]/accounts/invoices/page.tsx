@@ -6,6 +6,7 @@ import { getAccountsCapabilities } from "@/lib/hms/accounts-rbac";
 import { listChartOfAccounts } from "@/lib/hms/chart-of-accounts";
 import { listCustomerInvoices } from "@/lib/hms/customer-invoices";
 import { listArCustomers } from "@/lib/hms/ar-customers";
+import { normalizePricingSetup } from "@/lib/hms/room-pricing";
 import { AccountsCustomerInvoicesClient } from "@/components/hms/accounts/AccountsCustomerInvoicesClient";
 
 export default async function AccountsCustomerInvoicesPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -42,6 +43,7 @@ export default async function AccountsCustomerInvoicesPage({ params }: { params:
         canManageCustomers={caps.canManageArCustomers}
         canReceivePayment={caps.canReceivePayment}
         canAccessAllDepartments={access.canAccessAllDepartments}
+        defaultCurrency={normalizePricingSetup(tenant.pricing_setup).currency}
       />
     </HMSLayout>
   );

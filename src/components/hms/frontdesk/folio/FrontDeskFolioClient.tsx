@@ -8,6 +8,7 @@ import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import { PAYMENT_STATUS_LABEL } from "@/components/hms/frontdesk/board/payment-styles";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -181,6 +182,7 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
         amount: Number(fd.get("amount")),
         method: fd.get("method"),
         reference: fd.get("reference") || undefined,
+        splitLeg: fd.get("splitLeg") || undefined,
       }),
     });
     const data = await res.json().catch(() => ({}));
@@ -192,6 +194,118 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
     e.currentTarget.reset();
     void loadFolio(reservationId);
     void loadActiveList();
+    router.refresh();
+  };
+
+  const applyDiscount = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!reservationId) return;
+    const fd = new FormData(e.currentTarget);
+    const res = await fetch("/api/hotel/folio/discounts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        slug,
+        reservationId,
+        amount: Number(fd.get("amount")),
+        description: fd.get("description"),
+        splitLeg: fd.get("splitLeg") || undefined,
+        managerPin: fd.get("managerPin") || undefined,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toastError("Could not apply discount", data.error ?? "Try again.");
+      return;
+    }
+    toastSuccess("Discount applied");
+    e.currentTarget.reset();
+    void loadFolio(reservationId);
+    void loadActiveList();
+    router.refresh();
+  };
+
+  const postFxPayment = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!reservationId) return;
+    const fd = new FormData(e.currentTarget);
+    const originalAmount = Number(fd.get("originalAmount"));
+    const fxRate = Number(fd.get("fxRate"));
+    const res = await fetch("/api/hotel/folio/fx-payment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        slug,
+        reservationId,
+        originalAmount,
+        originalCurrency: (fd.get("originalCurrency") as string)?.toUpperCase(),
+        fxRate,
+        amountLocal: Math.round(originalAmount * fxRate * 100) / 100,
+        method: fd.get("method"),
+        reference: fd.get("reference") || undefined,
+        splitLeg: fd.get("splitLeg") || undefined,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toastError("Could not post FX payment", data.error ?? "Try again.");
+      return;
+    }
+    toastSuccess("FX payment posted");
+    e.currentTarget.reset();
+    void loadFolio(reservationId);
+    void loadActiveList();
+    router.refresh();
+  };
+
+  const transferCharge = async (lineId: string) => {
+    const targetCode = prompt("Confirmation code of the folio to transfer this charge to:");
+    if (!targetCode?.trim()) return;
+    const searchRes = await fetch(
+      `/api/hotel/folio/search?slug=${encodeURIComponent(slug)}&q=${encodeURIComponent(targetCode.trim())}`,
+    );
+    const searchData = (await searchRes.json().catch(() => ({}))) as { results?: SearchHit[] };
+    const target = searchData.results?.find(
+      (r) => r.confirmationCode.toLowerCase() === targetCode.trim().toLowerCase(),
+    );
+    if (!target) {
+      toastError("Could not find that folio", "Check the confirmation code and try again.");
+      return;
+    }
+    if (target.reservationId === reservationId) {
+      toastError("Could not transfer charge", "Pick a different folio to transfer to.");
+      return;
+    }
+    const res = await fetch("/api/hotel/folio/transfer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ slug, lineId, targetReservationId: target.reservationId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toastError("Could not transfer charge", data.error ?? "Try again.");
+      return;
+    }
+    toastSuccess(`Charge transferred to ${target.confirmationCode}`);
+    void loadFolio(reservationId);
+    void loadActiveList();
+    router.refresh();
+  };
+
+  const reassignSplitLeg = async (lineIds: string[], splitLeg: "guest" | "company") => {
+    if (!reservationId || lineIds.length === 0) return;
+    const res = await fetch("/api/hotel/folio/lines/split-leg", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ slug, reservationId, lineIds, splitLeg }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      toastError("Could not move charges", data.error ?? "Try again.");
+      return;
+    }
+    toastSuccess(`Moved ${data.count} line${data.count === 1 ? "" : "s"} to the ${splitLeg} leg`);
+    void loadFolio(reservationId);
     router.refresh();
   };
 
@@ -313,23 +427,40 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
                   currency={currency}
                   slug={slug}
                   onVoid={() => void loadFolio(reservationId)}
+                  onTransfer={(lineId) => void transferCharge(lineId)}
+                  onReassignSplitLeg={(lineIds, leg) => void reassignSplitLeg(lineIds, leg)}
                 />
               </section>
 
               <CorporateBillingForm slug={slug} reservationId={reservationId} payload={payload} onSaved={() => void loadFolio(reservationId)} />
 
               <div className="grid gap-6 lg:grid-cols-2">
-                <form onSubmit={postCharge} className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3">
-                  <h3 className="font-semibold text-slate-900">Post charge</h3>
-                  <Input name="description" placeholder="Description" required />
-                  <Input name="amount" type="number" step="0.01" min="0.01" placeholder="Amount" required />
-                  <Input name="department" placeholder="Department (optional)" />
-                  <select name="splitLeg" className="h-10 w-full rounded-md border border-slate-200 px-3 text-sm">
-                    <option value="guest">Guest leg</option>
-                    <option value="company">Company leg</option>
-                  </select>
-                  <Button type="submit">Post charge</Button>
-                </form>
+                <div className="space-y-4">
+                  <form onSubmit={postCharge} className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3">
+                    <h3 className="font-semibold text-slate-900">Post charge</h3>
+                    <Input name="description" placeholder="Description" required />
+                    <Input name="amount" type="number" step="0.01" min="0.01" placeholder="Amount" required />
+                    <Input name="department" placeholder="Department (optional)" />
+                    <select name="splitLeg" className="h-10 w-full rounded-md border border-slate-200 px-3 text-sm">
+                      <option value="guest">Guest leg</option>
+                      <option value="company">Company leg</option>
+                    </select>
+                    <Button type="submit">Post charge</Button>
+                  </form>
+                  <form onSubmit={applyDiscount} className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3">
+                    <h3 className="font-semibold text-slate-900">Apply discount</h3>
+                    <Input name="description" placeholder="Reason for discount" required />
+                    <Input name="amount" type="number" step="0.01" min="0.01" placeholder="Amount" required />
+                    <select name="splitLeg" className="h-10 w-full rounded-md border border-slate-200 px-3 text-sm">
+                      <option value="guest">Guest leg</option>
+                      <option value="company">Company leg</option>
+                    </select>
+                    <Input name="managerPin" type="password" placeholder="Manager PIN (if required)" />
+                    <Button type="submit" variant="outline">
+                      Apply discount
+                    </Button>
+                  </form>
+                </div>
                 <div className="space-y-4">
                   <form onSubmit={postPayment} className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3">
                     <h3 className="font-semibold text-slate-900">Post payment</h3>
@@ -341,8 +472,34 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
                       <option value="split">Split</option>
                       <option value="direct_bill">Direct bill</option>
                     </select>
+                    <select name="splitLeg" className="h-10 w-full rounded-md border border-slate-200 px-3 text-sm">
+                      <option value="guest">Settles guest leg</option>
+                      <option value="company">Settles company leg</option>
+                    </select>
                     <Input name="reference" placeholder="Receipt / reference (optional)" />
                     <Button type="submit">Post payment</Button>
+                  </form>
+                  <form onSubmit={postFxPayment} className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3">
+                    <h3 className="font-semibold text-slate-900">Post foreign-currency payment</h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input name="originalAmount" type="number" step="0.01" min="0.01" placeholder="Amount received" required />
+                      <Input name="originalCurrency" placeholder="Currency (e.g. USD)" maxLength={3} required />
+                    </div>
+                    <Input name="fxRate" type="number" step="0.0001" min="0.0001" placeholder={`Rate to ${currency}`} required />
+                    <select name="method" className="h-10 w-full rounded-md border border-slate-200 px-3 text-sm" required>
+                      <option value="cash">Cash</option>
+                      <option value="card">Card (manual reference)</option>
+                      <option value="split">Split</option>
+                      <option value="direct_bill">Direct bill</option>
+                    </select>
+                    <select name="splitLeg" className="h-10 w-full rounded-md border border-slate-200 px-3 text-sm">
+                      <option value="guest">Settles guest leg</option>
+                      <option value="company">Settles company leg</option>
+                    </select>
+                    <Input name="reference" placeholder="Receipt / reference (optional)" />
+                    <Button type="submit" variant="outline">
+                      Post FX payment
+                    </Button>
                   </form>
                 </div>
               </div>
@@ -552,35 +709,91 @@ function FolioLineTable({
   currency,
   slug,
   onVoid,
+  onTransfer,
+  onReassignSplitLeg,
 }: {
   lines: FolioLineRow[];
   currency: string;
   slug: string;
   onVoid: () => void;
+  onTransfer: (lineId: string) => void;
+  onReassignSplitLeg: (lineIds: string[], splitLeg: "guest" | "company") => void;
 }) {
-  const voidLine = async (lineId: string) => {
-    const reason = prompt("Reason for void:");
-    if (!reason) return;
-    const pin = prompt("Manager PIN (if required):");
-    const res = await fetch("/api/hotel/folio/lines/void", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ slug, lineId, reason, managerPin: pin || undefined }),
+  const [voidTarget, setVoidTarget] = useState<FolioLineRow | null>(null);
+  const [voidReason, setVoidReason] = useState("");
+  const [voidPin, setVoidPin] = useState("");
+  const [voiding, setVoiding] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const movable = lines.filter((l) => !l.voided_at && (l.kind === "charge" || l.kind === "discount"));
+  const toggleSelected = (id: string) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
     });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      toastError("Could not void line", data.error ?? "Try again.");
-      return;
+  const moveSelected = (leg: "guest" | "company") => {
+    onReassignSplitLeg([...selectedIds], leg);
+    setSelectedIds(new Set());
+  };
+
+  const closeVoidDialog = () => {
+    setVoidTarget(null);
+    setVoidReason("");
+    setVoidPin("");
+  };
+
+  const submitVoid = async () => {
+    if (!voidTarget || !voidReason.trim()) return;
+    setVoiding(true);
+    try {
+      const res = await fetch("/api/hotel/folio/lines/void", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug, lineId: voidTarget.id, reason: voidReason.trim(), managerPin: voidPin.trim() || undefined }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toastError("Could not void line", data.error ?? "Try again.");
+        return;
+      }
+      toastSuccess("Charge voided");
+      closeVoidDialog();
+      onVoid();
+    } finally {
+      setVoiding(false);
     }
-    toastSuccess("Charge voided");
-    onVoid();
   };
 
   return (
-    <table className="mt-4 w-full text-sm">
+    <>
+    {selectedIds.size > 0 ? (
+      <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm">
+        <span className="text-blue-900">
+          {selectedIds.size} line{selectedIds.size === 1 ? "" : "s"} selected —
+        </span>
+        <Button type="button" size="sm" variant="outline" onClick={() => moveSelected("guest")}>
+          Move to guest leg
+        </Button>
+        <Button type="button" size="sm" variant="outline" onClick={() => moveSelected("company")}>
+          Move to company leg
+        </Button>
+        <button type="button" className="ml-auto text-xs text-blue-700 hover:underline" onClick={() => setSelectedIds(new Set())}>
+          Clear
+        </button>
+      </div>
+    ) : movable.length > 0 ? (
+      <p className="mt-4 text-xs text-slate-400">
+        Select charges below and move them to a leg to split this folio — e.g. incidentals stay with the guest while the
+        room charge bills the company.
+      </p>
+    ) : null}
+    <table className="mt-2 w-full text-sm">
       <thead className="text-left text-xs uppercase text-slate-500">
         <tr>
-          <th className="py-2">Date</th>
+          <th className="w-8 py-2" />
+          <th>Date</th>
           <th>Description</th>
           <th>Leg</th>
           <th className="text-right">Amount</th>
@@ -590,31 +803,91 @@ function FolioLineTable({
       <tbody>
         {lines.length === 0 ? (
           <tr>
-            <td colSpan={5} className="py-6 text-center text-slate-500">
+            <td colSpan={6} className="py-6 text-center text-slate-500">
               No lines yet.
             </td>
           </tr>
         ) : (
-          lines.map((l) => (
-            <tr key={l.id} className={l.voided_at ? "opacity-50 line-through" : ""}>
-              <td className="py-2 text-slate-600">{new Date(l.created_at).toLocaleString()}</td>
-              <td>{l.description ?? l.kind}</td>
-              <td className="capitalize text-slate-500">{l.split_leg}</td>
-              <td className="text-right font-medium tabular-nums">
-                {formatPricingAmount(l.amount, currency)}
-              </td>
-              <td className="text-right">
-                {!l.voided_at && l.kind === "charge" ? (
-                  <button type="button" className="text-xs text-red-600 hover:underline" onClick={() => void voidLine(l.id)}>
-                    Void
-                  </button>
-                ) : null}
-              </td>
-            </tr>
-          ))
+          lines.map((l) => {
+            const canMove = !l.voided_at && (l.kind === "charge" || l.kind === "discount");
+            return (
+              <tr key={l.id} className={l.voided_at ? "opacity-50 line-through" : ""}>
+                <td className="py-2">
+                  {canMove ? (
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.has(l.id)}
+                      onChange={() => toggleSelected(l.id)}
+                      aria-label={`Select ${l.description ?? l.kind} to move between legs`}
+                    />
+                  ) : null}
+                </td>
+                <td className="py-2 text-slate-600">{new Date(l.created_at).toLocaleString()}</td>
+                <td>{l.description ?? l.kind}</td>
+                <td className="capitalize text-slate-500">{l.split_leg}</td>
+                <td className="text-right font-medium tabular-nums">
+                  {formatPricingAmount(l.amount, currency)}
+                </td>
+                <td className="text-right">
+                  {!l.voided_at && l.kind === "charge" ? (
+                    <div className="flex justify-end gap-3">
+                      <button
+                        type="button"
+                        className="text-xs text-slate-600 hover:underline"
+                        onClick={() => onTransfer(l.id)}
+                      >
+                        Transfer
+                      </button>
+                      <button type="button" className="text-xs text-red-600 hover:underline" onClick={() => setVoidTarget(l)}>
+                        Void
+                      </button>
+                    </div>
+                  ) : null}
+                </td>
+              </tr>
+            );
+          })
         )}
       </tbody>
     </table>
+
+    <Dialog open={Boolean(voidTarget)} onOpenChange={(open) => { if (!open) closeVoidDialog(); }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Void charge</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          {voidTarget ? (
+            <p className="text-sm text-slate-600">
+              {voidTarget.description ?? voidTarget.kind} — {formatPricingAmount(voidTarget.amount, currency)}
+            </p>
+          ) : null}
+          <div>
+            <p className="mb-1 text-xs font-medium text-slate-600">Reason for void</p>
+            <textarea
+              autoFocus
+              value={voidReason}
+              onChange={(e) => setVoidReason(e.target.value)}
+              className="min-h-[64px] w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              placeholder="Why is this charge being voided?"
+            />
+          </div>
+          <div>
+            <p className="mb-1 text-xs font-medium text-slate-600">Manager PIN (if required)</p>
+            <Input type="password" value={voidPin} onChange={(e) => setVoidPin(e.target.value)} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={closeVoidDialog} disabled={voiding}>
+            Cancel
+          </Button>
+          <Button type="button" variant="destructive" disabled={voiding || !voidReason.trim()} onClick={() => void submitVoid()}>
+            {voiding ? "Voiding…" : "Void charge"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 
@@ -641,6 +914,8 @@ function CorporateBillingForm({
         billToAccount: fd.get("billToAccount") || null,
         poNumber: fd.get("poNumber") || null,
         folioSplitNotes: fd.get("folioSplitNotes") || null,
+        commissionPlan: fd.get("commissionPlan") || null,
+        commissionValue: fd.get("commissionValue") ? Number(fd.get("commissionValue")) : null,
       }),
     });
     const data = await res.json().catch(() => ({}));
@@ -658,6 +933,17 @@ function CorporateBillingForm({
       <Input name="billToAccount" defaultValue={payload.reservation.billToAccount ?? ""} placeholder="Bill to account" />
       <Input name="poNumber" defaultValue={payload.reservation.poNumber ?? ""} placeholder="PO number" />
       <Input name="folioSplitNotes" defaultValue={payload.reservation.folioSplitNotes ?? ""} placeholder="Split folio notes" />
+      <div className="grid grid-cols-2 gap-2">
+        <Input name="commissionPlan" defaultValue={payload.reservation.commissionPlan ?? ""} placeholder="Travel agent / commission plan" />
+        <Input
+          name="commissionValue"
+          type="number"
+          min="0"
+          step="0.01"
+          defaultValue={payload.reservation.commissionValue ?? ""}
+          placeholder="Commission amount"
+        />
+      </div>
       <Button type="submit" variant="outline">
         Save billing details
       </Button>

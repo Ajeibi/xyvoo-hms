@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { postStockMovement, resolveInventoryItemDisplay } from "@/lib/hms/inventory-stock";
+import { getAccountIdByCode } from "@/lib/hms/chart-of-accounts";
+import { postJournalEntry } from "@/lib/hms/journal-entries";
 import type {
   InventoryStockCountRow,
   InventoryStockCountStatus,
@@ -174,11 +176,51 @@ export async function updateCountLine(
   return { error: null };
 }
 
-/** Posts count_variance movements for every counted line whose tally differs from the system snapshot. */
+/** Posts count_variance movements for every counted line whose tally differs from the system
+ * snapshot, then posts one NET journal entry for the whole count (not one per SKU — the
+ * per-item audit trail already lives in inventory_stock_movements via
+ * referenceType:"stock_count", referenceId: countId; the net JE just needs to carry the same
+ * countId as its own reference to trace back to it). */
 export async function postStockCount(supabase: SupabaseClient, tenantId: string, countId: string, postedBy: string) {
   const stockCount = await getStockCountById(supabase, tenantId, countId);
   if (!stockCount) return { error: "Stock count not found." };
   if (stockCount.status === "posted") return { error: "This count has already been posted." };
+  if (stockCount.status !== "completed") {
+    return { error: "Only a completed count can be posted — finish counting every line first." };
+  }
+
+  const varyingLines = stockCount.lines.filter(
+    (l) => l.counted_qty != null && Math.round((l.counted_qty - l.system_qty) * 1000) / 1000 !== 0,
+  );
+  const itemCosts = await resolveInventoryItemDisplay(
+    supabase,
+    tenantId,
+    varyingLines.map((l) => l.item_id),
+  );
+  // Positive = found more than the system expected, negative = shrinkage. Resolved and
+  // validated before any stock movement, same "no partial state" guarantee used elsewhere in
+  // this phase.
+  const netValue = varyingLines.reduce((sum, l) => {
+    const variance = Math.round((l.counted_qty! - l.system_qty) * 1000) / 1000;
+    return sum + variance * (itemCosts.get(l.item_id)?.unit_cost ?? 0);
+  }, 0);
+  const roundedNet = Math.round(netValue * 100) / 100;
+
+  let varianceAccounts: { inventoryAccountId: string; shrinkageAccountId: string } | null = null;
+  if (roundedNet !== 0) {
+    const [inventoryAccountId, shrinkageAccountId] = await Promise.all([
+      getAccountIdByCode(supabase, tenantId, "1400"),
+      getAccountIdByCode(supabase, tenantId, "5010"),
+    ]);
+    const missing = [
+      ["Inventory (1400)", inventoryAccountId],
+      ["Inventory Shrinkage & Adjustments (5010)", shrinkageAccountId],
+    ].filter(([, id]) => !id);
+    if (missing.length > 0) {
+      return { error: `Missing required accounts: ${missing.map(([label]) => label).join(", ")}.` };
+    }
+    varianceAccounts = { inventoryAccountId: inventoryAccountId as string, shrinkageAccountId: shrinkageAccountId as string };
+  }
 
   for (const line of stockCount.lines) {
     if (line.counted_qty == null) continue;
@@ -199,12 +241,45 @@ export async function postStockCount(supabase: SupabaseClient, tenantId: string,
     if (result.error) return { error: result.error };
   }
 
-  await supabase
+  let journalEntryId: string | null = null;
+  if (varianceAccounts) {
+    const absNet = Math.abs(roundedNet);
+    // Net positive (found more) increases Inventory; net negative (shrinkage) decreases it —
+    // signed by position, matching the account's own asset-normal balance.
+    const [debitAccountId, creditAccountId] =
+      roundedNet > 0
+        ? [varianceAccounts.inventoryAccountId, varianceAccounts.shrinkageAccountId]
+        : [varianceAccounts.shrinkageAccountId, varianceAccounts.inventoryAccountId];
+    const posted = await postJournalEntry(supabase, {
+      tenantId,
+      entryDate: new Date().toISOString().slice(0, 10),
+      memo: `Stock count variance — ${stockCount.location_name}`,
+      reference: countId,
+      createdBy: postedBy,
+      lines: [
+        { accountId: debitAccountId, department: "Other", debit: absNet, credit: 0 },
+        { accountId: creditAccountId, department: "Other", debit: 0, credit: absNet },
+      ],
+    });
+    if (posted.ok) journalEntryId = posted.id;
+  }
+
+  const { data: flipped, error: flipError } = await supabase
     .schema("hotel")
     .from("inventory_stock_counts")
-    .update({ status: "posted", posted_by: postedBy, posted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+    .update({
+      status: "posted",
+      posted_by: postedBy,
+      posted_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      journal_entry_id: journalEntryId,
+    })
     .eq("id", countId)
-    .eq("tenant_id", tenantId);
+    .eq("tenant_id", tenantId)
+    .eq("status", "completed")
+    .select("id")
+    .maybeSingle();
+  if (flipError || !flipped) return { error: flipError?.message ?? "Could not mark this count as posted." };
 
   return { error: null };
 }

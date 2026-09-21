@@ -3,6 +3,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export const ACCOUNT_TYPES = ["asset", "liability", "equity", "revenue", "expense"] as const;
 export type AccountType = (typeof ACCOUNT_TYPES)[number];
 
+export const CASH_FLOW_CATEGORIES = ["operating", "investing", "financing"] as const;
+export type CashFlowCategory = (typeof CASH_FLOW_CATEGORIES)[number];
+
 /** Debit-normal account types increase with a debit; credit-normal types increase with a credit.
  * Used to sign trial-balance/statement figures correctly without a redundant stored column. */
 export function isDebitNormal(type: AccountType): boolean {
@@ -16,6 +19,8 @@ export type ChartOfAccountRow = {
   type: AccountType;
   parentId: string | null;
   isActive: boolean;
+  isCashEquivalent: boolean;
+  cashFlowCategory: CashFlowCategory;
 };
 
 /** Resolves a well-known control account by its starter-chart code (e.g. "1000" Cash on
@@ -46,7 +51,7 @@ export async function listChartOfAccounts(
   let q = service
     .schema("hotel")
     .from("chart_of_accounts")
-    .select("id,code,name,type,parent_id,is_active")
+    .select("id,code,name,type,parent_id,is_active,is_cash_equivalent,cash_flow_category")
     .eq("tenant_id", tenantId)
     .order("code", { ascending: true });
   if (opts?.activeOnly) q = q.eq("is_active", true);
@@ -61,6 +66,8 @@ export async function listChartOfAccounts(
     type: r.type as AccountType,
     parentId: (r.parent_id as string | null) ?? null,
     isActive: r.is_active as boolean,
+    isCashEquivalent: (r.is_cash_equivalent as boolean | null) ?? false,
+    cashFlowCategory: (r.cash_flow_category as CashFlowCategory | null) ?? "operating",
   }));
 }
 
@@ -113,29 +120,43 @@ export async function updateAccount(
 }
 
 /** A real, usable starting chart for a hotel — not exhaustive USALI-department detail
- * (that's Phase 3), just enough for a property to start posting balanced entries on day one. */
-const HOSPITALITY_STARTER_ACCOUNTS: { code: string; name: string; type: AccountType }[] = [
-  { code: "1000", name: "Cash on Hand", type: "asset" },
-  { code: "1010", name: "Bank Account", type: "asset" },
-  { code: "1020", name: "Card & POS Clearing", type: "asset" },
+ * (that's Phase 3), just enough for a property to start posting balanced entries on day one.
+ *
+ * isCashEquivalent/cashFlowCategory are set here for the same accounts the
+ * 20260916130000_cash_flow_categorization.sql migration backfills by code — that backfill only
+ * ever touches accounts that already existed at the moment it ran, so any tenant who seeds this
+ * starter chart *after* the migration (i.e. every tenant going forward) would otherwise get
+ * every account at the column defaults (not cash, 'operating'), silently breaking the Cash Flow
+ * Statement's beginning/ending cash for them. Keep the two lists in sync. */
+const HOSPITALITY_STARTER_ACCOUNTS: {
+  code: string;
+  name: string;
+  type: AccountType;
+  isCashEquivalent?: boolean;
+  cashFlowCategory?: CashFlowCategory;
+}[] = [
+  { code: "1000", name: "Cash on Hand", type: "asset", isCashEquivalent: true },
+  { code: "1010", name: "Bank Account", type: "asset", isCashEquivalent: true },
+  { code: "1020", name: "Card & POS Clearing", type: "asset", isCashEquivalent: true },
   { code: "1100", name: "Accounts Receivable", type: "asset" },
   { code: "1200", name: "Guest Ledger", type: "asset" },
   { code: "1300", name: "City Ledger", type: "asset" },
   { code: "1400", name: "Inventory", type: "asset" },
-  { code: "1500", name: "Fixed Assets", type: "asset" },
+  { code: "1500", name: "Fixed Assets", type: "asset", cashFlowCategory: "investing" },
   { code: "1590", name: "Accumulated Depreciation", type: "asset" },
   { code: "2000", name: "Accounts Payable", type: "liability" },
   { code: "2100", name: "Accrued Expenses", type: "liability" },
   { code: "2200", name: "Taxes Payable", type: "liability" },
   { code: "2300", name: "Advance Guest Deposits", type: "liability" },
   { code: "2400", name: "Deferred Revenue", type: "liability" },
-  { code: "3000", name: "Owner's Equity", type: "equity" },
+  { code: "3000", name: "Owner's Equity", type: "equity", cashFlowCategory: "financing" },
   { code: "3100", name: "Retained Earnings", type: "equity" },
   { code: "4000", name: "Room Revenue", type: "revenue" },
   { code: "4100", name: "Food & Beverage Revenue", type: "revenue" },
   { code: "4200", name: "Other Operated Departments Revenue", type: "revenue" },
   { code: "4300", name: "Miscellaneous Income", type: "revenue" },
-  { code: "5000", name: "Cost of Goods Sold — F&B", type: "expense" },
+  { code: "5000", name: "Cost of Goods Sold", type: "expense" },
+  { code: "5010", name: "Inventory Shrinkage & Adjustments", type: "expense" },
   { code: "5100", name: "Payroll & Related Expenses", type: "expense" },
   { code: "5200", name: "Utilities", type: "expense" },
   { code: "5300", name: "Repairs & Maintenance", type: "expense" },
@@ -159,7 +180,16 @@ export async function seedHospitalityChartOfAccounts(
   const { error } = await service
     .schema("hotel")
     .from("chart_of_accounts")
-    .insert(toInsert.map((a) => ({ tenant_id: tenantId, code: a.code, name: a.name, type: a.type })));
+    .insert(
+      toInsert.map((a) => ({
+        tenant_id: tenantId,
+        code: a.code,
+        name: a.name,
+        type: a.type,
+        is_cash_equivalent: a.isCashEquivalent ?? false,
+        cash_flow_category: a.cashFlowCategory ?? "operating",
+      })),
+    );
 
   if (error) throw new Error(error.message);
   return { inserted: toInsert.length };

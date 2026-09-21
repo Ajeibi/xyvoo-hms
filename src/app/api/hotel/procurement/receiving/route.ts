@@ -48,7 +48,7 @@ export async function POST(req: Request) {
     const auth = await requireHotelApiMember(body.slug);
     if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
-    const { receipt, error } = await receiveAgainstPurchaseOrder(auth.service, {
+    const { receipt, error, billNote } = await receiveAgainstPurchaseOrder(auth.service, {
       tenantId: auth.tenant.id,
       poId: body.poId,
       locationId: body.locationId,
@@ -57,7 +57,7 @@ export async function POST(req: Request) {
       lines: body.lines,
     });
     if (error || !receipt) return NextResponse.json({ error: error ?? "Could not record receiving note." }, { status: 400 });
-    return NextResponse.json({ receipt });
+    return NextResponse.json({ receipt, billNote: billNote ?? null });
   } catch (e) {
     if (e instanceof z.ZodError) return NextResponse.json({ error: e.issues[0]?.message }, { status: 400 });
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });

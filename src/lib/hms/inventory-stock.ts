@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { notifyLowStock } from "@/lib/hms/notification-rules";
+import { getAccountIdByCode } from "@/lib/hms/chart-of-accounts";
+import { normalizeAccountsDepartment, postJournalEntry } from "@/lib/hms/journal-entries";
 import type {
   InventoryMovementType,
   InventoryMovementWithDetails,
@@ -263,9 +265,24 @@ export async function recordWaste(
     reason: string;
     performedBy: string;
     note?: string;
+    department?: string | null;
   },
 ) {
-  return postStockMovement(supabase, {
+  // Resolved before the stock movement — a missing account means nothing gets posted at all,
+  // stock included, same "no partial state" guarantee as receiving/requisition-issue.
+  const [shrinkageAccountId, inventoryAccountId] = await Promise.all([
+    getAccountIdByCode(supabase, params.tenantId, "5010"),
+    getAccountIdByCode(supabase, params.tenantId, "1400"),
+  ]);
+  const missing = [
+    ["Inventory Shrinkage & Adjustments (5010)", shrinkageAccountId],
+    ["Inventory (1400)", inventoryAccountId],
+  ].filter(([, id]) => !id);
+  if (missing.length > 0) {
+    return { error: `Missing required accounts: ${missing.map(([label]) => label).join(", ")}.`, movement: null, qtyOnHand: null };
+  }
+
+  const result = await postStockMovement(supabase, {
     tenantId: params.tenantId,
     itemId: params.itemId,
     locationId: params.locationId,
@@ -275,6 +292,34 @@ export async function recordWaste(
     performedBy: params.performedBy,
     note: params.note,
   });
+  if (result.error || !result.movement) return result;
+
+  const value = Math.round(Math.abs(params.qty) * num(result.movement.unit_cost_at_movement) * 100) / 100;
+  if (value > 0) {
+    await postJournalEntry(supabase, {
+      tenantId: params.tenantId,
+      entryDate: new Date().toISOString().slice(0, 10),
+      memo: `Inventory waste — ${params.reason}`,
+      reference: result.movement.id as string,
+      createdBy: params.performedBy,
+      lines: [
+        {
+          accountId: shrinkageAccountId as string,
+          department: normalizeAccountsDepartment(params.department),
+          debit: value,
+          credit: 0,
+        },
+        {
+          accountId: inventoryAccountId as string,
+          department: normalizeAccountsDepartment(params.department),
+          debit: 0,
+          credit: value,
+        },
+      ],
+    });
+  }
+
+  return result;
 }
 
 export async function upsertParReorder(
@@ -529,6 +574,7 @@ export type ReorderSuggestion = {
   reorderPoint: number;
   suggestedQty: number;
   unitOfMeasure: string;
+  unitCost: number;
 };
 
 /** Data seam for a future Procurement module — items at/under reorder point. */
@@ -544,5 +590,6 @@ export async function getReorderSuggestions(supabase: SupabaseClient, tenantId: 
     reorderPoint: l.reorder_point,
     suggestedQty: l.reorder_qty > 0 ? l.reorder_qty : Math.max(l.par_level - l.qty_on_hand, 0),
     unitOfMeasure: l.unit_of_measure,
+    unitCost: l.unit_cost,
   }));
 }

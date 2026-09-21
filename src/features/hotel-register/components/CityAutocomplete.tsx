@@ -7,10 +7,12 @@ import { INPUT_CLASS } from "@/features/hotel-register/constants";
 import type { LocationCityOption } from "@/types";
 
 export default function CityAutocomplete({
+  id,
   value,
   onChange,
   country,
 }: {
+  id?: string;
   value: string;
   onChange: (value: string) => void;
   country: string;
@@ -71,6 +73,7 @@ export default function CityAutocomplete({
       <div className="relative">
         <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
         <input
+          id={id}
           value={query}
           onChange={(e) => search(e.target.value)}
           onFocus={() => results.length > 0 && setOpen(true)}

@@ -1,7 +1,13 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { formatGuestDisplayName, toGuestInfo, type FrontDeskGuestInfo } from "@/lib/hms/front-desk-board";
+import {
+  guestHasDoNotWalkTag,
+  guestHasVipTag,
+  toGuestInfo,
+  type FrontDeskGuestInfo,
+} from "@/lib/hms/front-desk-board";
 import { computeFolioBalance, mapFolioLineRow } from "@/lib/hms/folio";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
+import { listGuestNotes, type GuestNoteRow } from "@/lib/hms/guest-management";
 
 export type GuestStayRow = {
   id: string;
@@ -26,6 +32,8 @@ export type GuestServiceRequestSummary = {
 export type GuestProfileData = {
   guest: FrontDeskGuestInfo;
   guestId: string;
+  isVip: boolean;
+  isDoNotWalk: boolean;
   visitCount: number;
   totalRevenue: number;
   openBalance: number;
@@ -33,6 +41,7 @@ export type GuestProfileData = {
   preferences: string | null;
   currency: string;
   serviceRequests: GuestServiceRequestSummary[];
+  notes: GuestNoteRow[];
 };
 
 export async function getGuestProfileData(params: {
@@ -67,6 +76,8 @@ export async function getGuestProfileData(params: {
     return {
       guest: toGuestInfo(guestRow as Parameters<typeof toGuestInfo>[0]),
       guestId,
+      isVip: guestHasVipTag(guestRow as Parameters<typeof guestHasVipTag>[0]),
+      isDoNotWalk: guestHasDoNotWalkTag(guestRow as Parameters<typeof guestHasDoNotWalkTag>[0]),
       visitCount: 0,
       totalRevenue: 0,
       openBalance: 0,
@@ -74,6 +85,7 @@ export async function getGuestProfileData(params: {
       preferences: null,
       currency,
       serviceRequests: [],
+      notes: await listGuestNotes(supabase, tenantId, guestId),
     };
   }
 
@@ -186,6 +198,8 @@ export async function getGuestProfileData(params: {
   return {
     guest: toGuestInfo(guestRow as Parameters<typeof toGuestInfo>[0]),
     guestId,
+    isVip: guestHasVipTag(guestRow as Parameters<typeof guestHasVipTag>[0]),
+    isDoNotWalk: guestHasDoNotWalkTag(guestRow as Parameters<typeof guestHasDoNotWalkTag>[0]),
     visitCount: completed,
     totalRevenue,
     openBalance,
@@ -193,6 +207,7 @@ export async function getGuestProfileData(params: {
     preferences,
     currency,
     serviceRequests,
+    notes: await listGuestNotes(supabase, tenantId, guestId),
   };
 }
 

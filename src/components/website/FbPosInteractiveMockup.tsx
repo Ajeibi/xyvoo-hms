@@ -100,9 +100,9 @@ export function FbPosInteractiveMockup() {
             </p>
             <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
+                <p className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
                   Restaurant POS & Kitchen KDS
-                </h1>
+                </p>
                 <p className="mt-1 text-xs text-slate-500">
                   Tableside and bar ordering seamlessly synchronized with live kitchen display screens and guest room folios.
                 </p>

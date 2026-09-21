@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { notifyReservationCancelled } from "@/lib/hms/notification-rules";
+import { matchWaitlistForOpening } from "@/lib/hms/waitlist";
 
 const PostSchema = z.object({
   slug: z.string().min(1),
@@ -20,7 +21,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       .schema("hotel")
       .from("reservations")
       .select(
-        "id,confirmation_code,status,room_unit_id,reservation_guests(is_primary,guests(first_name,last_name))",
+        "id,confirmation_code,status,room_unit_id,room_type_code,arrival_at,departure_at,reservation_guests(is_primary,guests(first_name,last_name))",
       )
       .eq("tenant_id", auth.tenant.id)
       .eq("id", id)
@@ -73,6 +74,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       confirmationCode: reservation.confirmation_code,
       entityId: id,
     });
+
+    try {
+      await matchWaitlistForOpening(auth.service, auth.tenant.id, {
+        roomTypeCode: reservation.room_type_code,
+        arrivalAt: reservation.arrival_at,
+        departureAt: reservation.departure_at,
+      });
+    } catch (e) {
+      console.warn("[reservations/cancel] waitlist match failed", e);
+    }
 
     return NextResponse.json({ ok: true });
   } catch (e) {

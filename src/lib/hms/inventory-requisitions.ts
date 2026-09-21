@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { findFixedAssetItem, postStockMovement, resolveInventoryItemDisplay } from "@/lib/hms/inventory-stock";
+import { getAccountIdByCode } from "@/lib/hms/chart-of-accounts";
+import { normalizeAccountsDepartment, postJournalEntry } from "@/lib/hms/journal-entries";
 import type {
   InventoryRequisitionRow,
   InventoryRequisitionStatus,
@@ -205,6 +207,30 @@ export async function issueRequisition(
     return { error: `${fixedAssetName} is a fixed asset — record it on your asset register, not through requisitions.` };
   }
 
+  // Resolved and validated up front — before any stock moves — so a misconfigured chart of
+  // accounts can never leave this issue partially posted to stock with no possible ledger
+  // entry, mirroring the same guard used for Procurement receiving.
+  const willIssueAnything = lineIssues.some((issue) => {
+    const line = requisition.lines.find((l) => l.id === issue.lineId);
+    return line && issue.qtyIssued > 0 && line.qty_requested - line.qty_issued > 0;
+  });
+  let cogsAccounts: { cogsAccountId: string; inventoryAccountId: string } | null = null;
+  if (willIssueAnything) {
+    const [cogsAccountId, inventoryAccountId] = await Promise.all([
+      getAccountIdByCode(supabase, tenantId, "5000"),
+      getAccountIdByCode(supabase, tenantId, "1400"),
+    ]);
+    const missing = [
+      ["Cost of Goods Sold (5000)", cogsAccountId],
+      ["Inventory (1400)", inventoryAccountId],
+    ].filter(([, id]) => !id);
+    if (missing.length > 0) {
+      return { error: `Missing required accounts: ${missing.map(([label]) => label).join(", ")}.` };
+    }
+    cogsAccounts = { cogsAccountId: cogsAccountId as string, inventoryAccountId: inventoryAccountId as string };
+  }
+
+  let issuedValue = 0;
   for (const issue of lineIssues) {
     if (issue.qtyIssued <= 0) continue;
     const line = requisition.lines.find((l) => l.id === issue.lineId);
@@ -225,12 +251,41 @@ export async function issueRequisition(
       note: `Issued to ${requisition.requesting_department}`,
     });
     if (result.error) return { error: result.error };
+    issuedValue += qtyToIssue * num(result.movement?.unit_cost_at_movement);
 
     await supabase
       .schema("hotel")
       .from("inventory_requisition_lines")
       .update({ qty_issued: line.qty_issued + qtyToIssue })
       .eq("id", line.id);
+  }
+
+  // One entry per issueRequisition call (not per requisition) — a requisition can legitimately
+  // be issued across several partial calls, each a distinct real issuance event, the same way
+  // partial PO receiving works. `reference: requisitionId` still ties every entry back to it.
+  if (cogsAccounts && issuedValue > 0) {
+    const rounded = Math.round(issuedValue * 100) / 100;
+    await postJournalEntry(supabase, {
+      tenantId,
+      entryDate: new Date().toISOString().slice(0, 10),
+      memo: `Inventory issued — ${requisition.requisition_number}`,
+      reference: requisitionId,
+      createdBy: performedBy,
+      lines: [
+        {
+          accountId: cogsAccounts.cogsAccountId,
+          department: normalizeAccountsDepartment(requisition.requesting_department),
+          debit: rounded,
+          credit: 0,
+        },
+        {
+          accountId: cogsAccounts.inventoryAccountId,
+          department: normalizeAccountsDepartment(requisition.requesting_department),
+          debit: 0,
+          credit: rounded,
+        },
+      ],
+    });
   }
 
   const refreshed = await getRequisitionById(supabase, tenantId, requisitionId);

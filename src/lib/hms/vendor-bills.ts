@@ -2,7 +2,26 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { writeAuditLog, emitNotification } from "@/lib/hms/front-desk-ops";
 import { resolveRequiredApproverRole } from "@/lib/hms/procurement-orders";
 import type { ApproverRole } from "@/lib/hms/procurement-types";
-import { postJournalEntry } from "@/lib/hms/journal-entries";
+import { postJournalEntry, reverseJournalEntry } from "@/lib/hms/journal-entries";
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+/** Resolves the tenant's Accounts Payable control account (starter-chart code "2000").
+ * Shared by the manual vendor-bill API route and any auto-posting caller (e.g. Procurement
+ * receiving) so both use the exact same lookup instead of duplicating it. */
+export async function getApAccountId(service: SupabaseClient, tenantId: string): Promise<string | null> {
+  const { data } = await service
+    .schema("hotel")
+    .from("chart_of_accounts")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("code", "2000")
+    .eq("is_active", true)
+    .maybeSingle();
+  return (data?.id as string | undefined) ?? null;
+}
 
 export const VENDOR_BILL_STATUSES = [
   "draft",
@@ -31,6 +50,9 @@ export type VendorBillRow = {
   subtotal: number;
   tax: number;
   total: number;
+  /** Sum of every payment line recorded against this bill so far — 0 unless it's been
+   * partially paid. A bill stays "approved" (not "paid") until this reaches `total`. */
+  amountPaid: number;
   status: VendorBillStatus;
   notes: string | null;
   createdBy: string;
@@ -68,6 +90,7 @@ function mapRow(r: Record<string, unknown>): VendorBillRow {
     subtotal: Number(r.subtotal) || 0,
     tax: Number(r.tax) || 0,
     total: Number(r.total) || 0,
+    amountPaid: 0,
     status: r.status as VendorBillStatus,
     notes: (r.notes as string | null) ?? null,
     createdBy: r.created_by as string,
@@ -97,7 +120,25 @@ export async function listVendorBills(
 
   const { data, error } = await q;
   if (error) throw new Error(error.message);
-  return (data ?? []).map((r) => mapRow(r as Record<string, unknown>));
+  const rows = (data ?? []).map((r) => mapRow(r as Record<string, unknown>));
+
+  const billIds = rows.map((r) => r.id);
+  if (billIds.length > 0) {
+    const { data: paymentLines } = await service
+      .schema("hotel")
+      .from("vendor_bill_payment_lines")
+      .select("vendor_bill_id,amount")
+      .eq("tenant_id", tenantId)
+      .in("vendor_bill_id", billIds);
+    const paidByBill = new Map<string, number>();
+    for (const line of paymentLines ?? []) {
+      const id = line.vendor_bill_id as string;
+      paidByBill.set(id, (paidByBill.get(id) ?? 0) + (Number(line.amount) || 0));
+    }
+    for (const row of rows) row.amountPaid = round2(paidByBill.get(row.id) ?? 0);
+  }
+
+  return rows;
 }
 
 /** The required-approver check + auto-approve/pending decision mirrors
@@ -195,6 +236,7 @@ export async function createVendorBill(
       expenseAccountId: params.expenseAccountId,
       apAccountId: params.apAccountId,
       total,
+      fxRate: params.fxRate ?? 1,
       billReference: params.billReference ?? null,
       billDate: params.billDate,
       postedBy: params.createdBy,
@@ -229,11 +271,16 @@ async function postBillToLedger(
     expenseAccountId: string;
     apAccountId: string;
     total: number;
+    fxRate: number;
     billReference: string | null;
     billDate: string;
     postedBy: string;
   },
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  // The ledger has no per-line currency — everything posts in the tenant's base currency.
+  // `total` is in the bill's own currency, so it's converted using the rate captured on the
+  // bill at entry time before it ever reaches the chart of accounts / trial balance.
+  const baseAmount = round2(params.total * (params.fxRate || 1));
   const memo = params.billReference ? `Vendor bill ${params.billReference}` : "Vendor bill";
   const result = await postJournalEntry(service, {
     tenantId: params.tenantId,
@@ -242,8 +289,8 @@ async function postBillToLedger(
     reference: params.billId,
     createdBy: params.postedBy,
     lines: [
-      { accountId: params.expenseAccountId, department: params.department, debit: params.total, credit: 0 },
-      { accountId: params.apAccountId, department: params.department, debit: 0, credit: params.total },
+      { accountId: params.expenseAccountId, department: params.department, debit: baseAmount, credit: 0 },
+      { accountId: params.apAccountId, department: params.department, debit: 0, credit: baseAmount },
     ],
   });
   if (!result.ok) return result;
@@ -264,7 +311,7 @@ export async function approveVendorBill(
   const { data: bill } = await service
     .schema("hotel")
     .from("vendor_bills")
-    .select("id,status,department,expense_account_id,total,bill_reference,bill_date")
+    .select("id,status,department,expense_account_id,total,fx_rate,bill_reference,bill_date")
     .eq("tenant_id", params.tenantId)
     .eq("id", params.billId)
     .maybeSingle();
@@ -281,6 +328,7 @@ export async function approveVendorBill(
     expenseAccountId: bill.expense_account_id as string,
     apAccountId: params.apAccountId,
     total: Number(bill.total) || 0,
+    fxRate: Number(bill.fx_rate) || 1,
     billReference: (bill.bill_reference as string | null) ?? null,
     billDate: bill.bill_date as string,
     postedBy: params.approvedBy,
@@ -358,6 +406,69 @@ export async function rejectVendorBill(
     entityType: "vendor_bill",
     entityId: params.billId,
     department: bill.department as string,
+  });
+
+  return { ok: true };
+}
+
+/** Voids an already-posted (approved) bill by reversing its journal entry and marking it
+ * cancelled. A `pending_approval` bill was never posted — use `rejectVendorBill` for that case
+ * instead. Required now that receiving auto-creates a bill per receipt: wrong-cost/wrong-line
+ * corrections will happen regularly and previously had no supported fix (nothing in this
+ * codebase ever set a bill to "cancelled" before this function existed). */
+export async function voidVendorBill(
+  service: SupabaseClient,
+  params: { tenantId: string; billId: string; voidedBy: string },
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { data: bill } = await service
+    .schema("hotel")
+    .from("vendor_bills")
+    .select("id,status,journal_entry_id,department,bill_reference")
+    .eq("tenant_id", params.tenantId)
+    .eq("id", params.billId)
+    .maybeSingle();
+  if (!bill) return { ok: false, error: "Bill not found." };
+  if (bill.status !== "approved") {
+    return {
+      ok: false,
+      error:
+        bill.status === "pending_approval"
+          ? "This bill hasn't been posted yet — reject it instead of voiding."
+          : `Only an approved (posted) bill can be voided (currently ${bill.status}).`,
+    };
+  }
+  if (!bill.journal_entry_id) {
+    return { ok: false, error: "This bill has no linked journal entry to reverse." };
+  }
+
+  const { data: paymentLines } = await service
+    .schema("hotel")
+    .from("vendor_bill_payment_lines")
+    .select("id")
+    .eq("tenant_id", params.tenantId)
+    .eq("vendor_bill_id", params.billId)
+    .limit(1);
+  if (paymentLines && paymentLines.length > 0) {
+    return { ok: false, error: "This bill has payments recorded against it — reverse the payments first." };
+  }
+
+  const reversal = await reverseJournalEntry(service, {
+    tenantId: params.tenantId,
+    journalEntryId: bill.journal_entry_id as string,
+    actorUserId: params.voidedBy,
+    memo: `Void of vendor bill ${(bill.bill_reference as string | null) ?? params.billId.slice(0, 8)}`,
+  });
+  if (!reversal.ok) return reversal;
+
+  const { error } = await service.schema("hotel").from("vendor_bills").update({ status: "cancelled" }).eq("id", params.billId);
+  if (error) return { ok: false, error: error.message };
+
+  await writeAuditLog({
+    tenantId: params.tenantId,
+    actorUserId: params.voidedBy,
+    action: "vendor_bill_voided",
+    entityType: "vendor_bill",
+    entityId: params.billId,
   });
 
   return { ok: true };

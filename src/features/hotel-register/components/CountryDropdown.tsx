@@ -5,9 +5,11 @@ import { Search } from "lucide-react";
 import { COUNTRY_LIST, INPUT_CLASS } from "@/features/hotel-register/constants";
 
 export default function CountryDropdown({
+  id,
   value,
   onChange,
 }: {
+  id?: string;
   value: string;
   onChange: (value: string) => void;
 }) {
@@ -26,7 +28,7 @@ export default function CountryDropdown({
 
   return (
     <div ref={ref} className="relative">
-      <button type="button" onClick={() => { setOpen((v) => !v); setSearch(""); }} className={`${INPUT_CLASS} text-left flex items-center justify-between cursor-pointer`}>
+      <button id={id} type="button" onClick={() => { setOpen((v) => !v); setSearch(""); }} aria-haspopup="listbox" aria-expanded={open} className={`${INPUT_CLASS} text-left flex items-center justify-between cursor-pointer`}>
         <span className={value ? "text-slate-800" : "text-slate-400"}>{value || "Select country"}</span>
         <Search className="w-4 h-4 text-slate-400" />
       </button>

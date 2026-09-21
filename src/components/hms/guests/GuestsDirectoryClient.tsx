@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { formatBoardDateTime } from "@/lib/hms/front-desk-board";
-import type { GuestDirectoryPayload, GuestDirectoryRow } from "@/lib/hms/guests-directory";
+import type { GuestDirectoryPayload } from "@/lib/hms/guests-directory";
 
 const GUESTS_PAGE_SIZE = 5;
 
@@ -19,37 +19,40 @@ function SummaryCard({ label, value, subtitle }: { label: string; value: number;
   );
 }
 
-function matchesSearch(row: GuestDirectoryRow, q: string) {
-  const needle = q.toLowerCase();
-  return (
-    row.displayName.toLowerCase().includes(needle) ||
-    row.phone.toLowerCase().includes(needle) ||
-    row.email.toLowerCase().includes(needle) ||
-    row.tags.some((t) => t.toLowerCase().includes(needle))
-  );
-}
-
 export function GuestsDirectoryClient({ slug, initial }: { slug: string; initial: GuestDirectoryPayload }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [vipOnly, setVipOnly] = useState(false);
   const [page, setPage] = useState(1);
+  const [payload, setPayload] = useState(initial);
+  const [loading, setLoading] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const filteredRows = useMemo(() => {
-    const q = search.trim();
-    return initial.rows.filter((r) => {
-      if (vipOnly && !r.isVip) return false;
-      if (q && !matchesSearch(r, q)) return false;
-      return true;
-    });
-  }, [initial.rows, search, vipOnly]);
+  useEffect(() => {
+    // Skip the very first render — `initial` already reflects page 1 with no filters.
+    if (page === 1 && !search.trim() && !vipOnly && payload === initial) return;
 
-  const totalPages = Math.max(1, Math.ceil(filteredRows.length / GUESTS_PAGE_SIZE));
-  const currentPage = Math.min(page, totalPages);
-  const pageRows = useMemo(
-    () => filteredRows.slice((currentPage - 1) * GUESTS_PAGE_SIZE, currentPage * GUESTS_PAGE_SIZE),
-    [filteredRows, currentPage],
-  );
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setLoading(true);
+      const params = new URLSearchParams({ slug, page: String(page), pageSize: String(GUESTS_PAGE_SIZE) });
+      if (search.trim()) params.set("q", search.trim());
+      if (vipOnly) params.set("vipOnly", "true");
+      fetch(`/api/hotel/guests?${params}`)
+        .then((r) => r.json())
+        .then((data: GuestDirectoryPayload & { error?: string }) => {
+          if (!data.error) setPayload(data);
+        })
+        .finally(() => setLoading(false));
+    }, 300);
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `initial`/`payload` are reference checks, not dependencies to react to
+  }, [slug, search, vipOnly, page]);
+
+  const totalPages = Math.max(1, Math.ceil(payload.total / GUESTS_PAGE_SIZE));
 
   return (
     <div className="w-full px-4 py-8 sm:px-6 lg:px-8">
@@ -57,10 +60,10 @@ export function GuestsDirectoryClient({ slug, initial }: { slug: string; initial
       <p className="mt-0.5 text-sm text-slate-500">Guest profiles and stay history</p>
 
       <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <SummaryCard label="Total guests" value={initial.summary.totalGuests} />
-        <SummaryCard label="VIP" value={initial.summary.vipGuests} />
-        <SummaryCard label="With open requests" value={initial.summary.withOpenRequests} />
-        <SummaryCard label="Repeat guests" value={initial.summary.repeatGuests} subtitle="More than one stay" />
+        <SummaryCard label="Total guests" value={payload.summary.totalGuests} />
+        <SummaryCard label="VIP" value={payload.summary.vipGuests} />
+        <SummaryCard label="With open requests" value={payload.summary.withOpenRequests} />
+        <SummaryCard label="Repeat guests" value={payload.summary.repeatGuests} subtitle="More than one stay" />
       </div>
 
       <div className="mt-6 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -68,7 +71,7 @@ export function GuestsDirectoryClient({ slug, initial }: { slug: string; initial
           <p className="mb-1 text-xs font-medium text-slate-600">Search</p>
           <Input
             className="max-w-xs"
-            placeholder="Name, phone, email, tag…"
+            placeholder="Name, phone, email…"
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
@@ -87,12 +90,13 @@ export function GuestsDirectoryClient({ slug, initial }: { slug: string; initial
           />
           VIP only
         </label>
+        {loading ? <span className="mb-0.5 text-xs text-slate-400">Searching…</span> : null}
       </div>
 
       <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        {filteredRows.length === 0 ? (
+        {payload.rows.length === 0 ? (
           <p className="p-16 text-center text-sm text-slate-500">
-            {initial.rows.length === 0 ? "No guests yet." : "No guests match your filters."}
+            {payload.total === 0 && !search.trim() && !vipOnly ? "No guests yet." : "No guests match your filters."}
           </p>
         ) : (
           <table className="w-full text-left text-sm">
@@ -107,7 +111,7 @@ export function GuestsDirectoryClient({ slug, initial }: { slug: string; initial
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {pageRows.map((g) => (
+              {payload.rows.map((g) => (
                 <tr
                   key={g.id}
                   className="cursor-pointer transition-colors hover:bg-slate-50"
@@ -162,31 +166,24 @@ export function GuestsDirectoryClient({ slug, initial }: { slug: string; initial
         )}
       </div>
 
-      {filteredRows.length > 0 ? (
+      {payload.total > 0 ? (
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
           <p>
-            Showing {(currentPage - 1) * GUESTS_PAGE_SIZE + 1}–
-            {Math.min(currentPage * GUESTS_PAGE_SIZE, filteredRows.length)} of {filteredRows.length}
+            Showing {(page - 1) * GUESTS_PAGE_SIZE + 1}–{Math.min(page * GUESTS_PAGE_SIZE, payload.total)} of {payload.total}
           </p>
           <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={currentPage <= 1}
-              onClick={() => setPage(Math.max(1, currentPage - 1))}
-            >
+            <Button type="button" variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(Math.max(1, page - 1))}>
               Previous
             </Button>
             <span className="px-2 text-xs font-medium text-slate-500">
-              Page {currentPage} of {totalPages}
+              Page {page} of {totalPages}
             </span>
             <Button
               type="button"
               variant="outline"
               size="sm"
-              disabled={currentPage >= totalPages}
-              onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
+              disabled={page >= totalPages}
+              onClick={() => setPage(Math.min(totalPages, page + 1))}
             >
               Next
             </Button>

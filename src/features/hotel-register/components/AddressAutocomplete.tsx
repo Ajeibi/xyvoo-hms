@@ -6,10 +6,12 @@ import { INPUT_CLASS } from "@/features/hotel-register/constants";
 import type { LocationAddressOption } from "@/types";
 
 export default function AddressAutocomplete({
+  id,
   value,
   onChange,
   country,
 }: {
+  id?: string;
   value: string;
   onChange: (value: string) => void;
   country: string;
@@ -88,6 +90,7 @@ export default function AddressAutocomplete({
         <div className="relative">
           <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-500" />
           <input
+            id={id}
             value={manualValue}
             onChange={(e) => {
               setManualValue(e.target.value);
@@ -112,6 +115,7 @@ export default function AddressAutocomplete({
       <div className="relative">
         <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
         <input
+          id={id}
           value={query}
           onChange={(e) => search(e.target.value)}
           onFocus={() => results.length > 0 && setOpen(true)}

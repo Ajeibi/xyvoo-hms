@@ -7,8 +7,8 @@ export default async function GuestsPage({ params }: { params: Promise<{ slug: s
   const { slug } = await params;
   const tenant = await getHotelTenantBySlug(slug);
   const payload = tenant
-    ? await getGuestsDirectory(tenant.id)
-    : { rows: [], summary: { totalGuests: 0, vipGuests: 0, withOpenRequests: 0, repeatGuests: 0 } };
+    ? await getGuestsDirectory(tenant.id, { page: 1, pageSize: 5 })
+    : { rows: [], summary: { totalGuests: 0, vipGuests: 0, withOpenRequests: 0, repeatGuests: 0 }, total: 0 };
 
   return (
     <HMSLayout slug={slug} requiredSection="guests">

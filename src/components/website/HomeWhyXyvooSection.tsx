@@ -27,7 +27,7 @@ const TOP_CARDS: TopCard[] = [
   {
     id: "payments",
     icon: "/images/icons/payment.png",
-    iconBg: "var(--xyvoo-blue)",
+    iconBg: "var(--xyvoo-blue-deep)",
     title: "Payments that just work",
     description:
       "Accept payments the way your customers already pay — multiple currencies, local payment methods, no plugins or workarounds bolted on.",
@@ -47,7 +47,7 @@ const TOP_CARDS: TopCard[] = [
   {
     id: "your-brand",
     icon: "/images/icons/brand.png",
-    iconBg: "rgb(39 201 63)",
+    iconBg: "rgb(25 131 41)",
     title: "Your brand, always",
     description:
       "White-label by design. Your guests and customers see your brand — XYVOO stays invisible in the background.",
@@ -79,13 +79,13 @@ function FadeIn({
   delay?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true, margin: "-50px" });
+  const inView = useInView(ref, { once: false, margin: "-80px" });
   return (
     <motion.div
       ref={ref}
-      initial={{ opacity: 0, y: 24 }}
-      animate={inView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.6, delay, ease: "easeOut" }}
+      initial={{ opacity: 0, y: 56 }}
+      animate={inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 56 }}
+      transition={{ duration: 0.7, delay, ease: "easeOut" }}
     >
       {children}
     </motion.div>
@@ -122,9 +122,9 @@ export function HomeWhyXyvooSection() {
           {TOP_CARDS.map((card, index) => {
             return (
               <FadeIn key={card.id} delay={index * 0.08}>
-                <div className="flex h-full flex-col overflow-hidden rounded-none rounded-tr-[48px] border border-slate-100 bg-white shadow-[0_16px_36px_rgba(0,13,31,0.06)]">
+                <div className="flex h-full min-w-0 flex-col overflow-hidden rounded-none rounded-tr-[48px] border border-slate-100 bg-white shadow-[0_16px_36px_rgba(0,13,31,0.06)]">
                   <div
-                    className="relative overflow-hidden flex items-center gap-3 px-6 py-6"
+                    className="relative flex min-w-0 items-center gap-3 overflow-hidden px-6 py-6"
                     style={{ background: card.iconBg }}
                   >
                     {/* Subtle organic waves */}
@@ -155,8 +155,9 @@ export function HomeWhyXyvooSection() {
                       width={60}
                       height={60}
                       className="relative z-10 shrink-0 object-contain"
+                      style={{ width: "auto", height: "auto" }}
                     />
-                    <h3 className="relative z-10 text-[17px] font-extrabold leading-[1.25] text-white">
+                    <h3 className="relative z-10 min-w-0 text-[17px] font-extrabold leading-[1.25] text-white">
                       {card.title}
                     </h3>
                   </div>

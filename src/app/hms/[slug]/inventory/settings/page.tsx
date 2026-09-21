@@ -47,7 +47,7 @@ export default async function InventorySettingsPage({
 
         {access.canAccessAllDepartments ? (
           <Link
-            href={`/hms/${slug}/settings#inventory-setup`}
+            href={`/hms/${slug}/settings#inventory-procurement-setup`}
             className="flex items-center justify-between gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50/60 px-5 py-3 text-sm text-slate-600 transition-colors hover:border-blue-300 hover:bg-blue-50/40 hover:text-blue-700"
           >
             <span>Store locations, units of measure, item types, and store types are structural setup — manage those on the Admin hub.</span>

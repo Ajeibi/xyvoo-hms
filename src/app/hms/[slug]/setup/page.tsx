@@ -9,10 +9,23 @@ import {
   Wallet,
 } from "lucide-react";
 import HMSLayout from "@/components/hms/HMSLayout";
+import { getHotelTenantBySlug } from "@/lib/hms/data";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getSetupProgress, type SetupProgressKey } from "@/lib/hms/setup-progress";
 
 export default async function SetupWizardPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const setupGroups = [
+  const tenant = await getHotelTenantBySlug(slug);
+  const progress = tenant
+    ? await getSetupProgress(createServerSupabaseClient(), tenant.id, tenant)
+    : null;
+
+  const setupGroups: {
+    title: string;
+    description: string;
+    icon: typeof Building2;
+    items: { title: string; description: string; href: string; owner: string; checkKey?: SetupProgressKey }[];
+  }[] = [
     {
       title: "Core Admin Setup",
       description: "Hotel-wide configuration the owner or admin should complete first from the central Settings area.",
@@ -23,24 +36,28 @@ export default async function SetupWizardPage({ params }: { params: Promise<{ sl
           description: "Set the hotel name, logo, and other identity details used across the HMS.",
           href: `/hms/${slug}/settings#hotel-branding-setup`,
           owner: "Owner/Admin",
+          checkKey: "branding" as const,
         },
         {
           title: "Floors and room counts",
           description: "Map how many rooms sit on each floor so the property layout matches operations.",
           href: `/hms/${slug}/settings#floor-plan-setup`,
           owner: "Owner/Admin",
+          checkKey: "floor_plan" as const,
         },
         {
           title: "Room inventory and price setup",
           description: "Define room types, room counts, sell rates, and hotel-wide pricing rules in one place.",
           href: `/hms/${slug}/settings#rooms-pricing-setup`,
           owner: "Owner/Admin",
+          checkKey: "room_pricing" as const,
         },
         {
           title: "Staff access and department logins",
           description: "Create logins and permissions for operational teams before they start working in the system.",
           href: `/hms/${slug}/settings#department-access-setup`,
           owner: "Owner/Admin",
+          checkKey: "staff_access" as const,
         },
         {
           title: "Notifications and operational preferences",
@@ -99,12 +116,14 @@ export default async function SetupWizardPage({ params }: { params: Promise<{ sl
           description: "Review billing setup, invoice/tax rules, and accounting configuration for daily operations.",
           href: `/hms/${slug}/accounts`,
           owner: "Owner/Admin",
+          checkKey: "chart_of_accounts" as const,
         },
         {
           title: "Payment gateway and cashier checks",
           description: "Confirm payment methods, settlement handling, and cashier workflows are ready.",
           href: `/hms/${slug}/accounts`,
           owner: "Owner/Admin",
+          checkKey: "payment_gateway" as const,
         },
       ],
     },
@@ -118,6 +137,7 @@ export default async function SetupWizardPage({ params }: { params: Promise<{ sl
           description: "Configure restaurant/bar outlets, menu categories and items, kitchen flow, and charge-to-room behavior.",
           href: `/hms/${slug}/settings#menu-setup`,
           owner: "Owner/Admin",
+          checkKey: "fb_setup" as const,
         },
       ],
     },
@@ -131,6 +151,7 @@ export default async function SetupWizardPage({ params }: { params: Promise<{ sl
           description: "Review stock locations, suppliers, reorder levels, and issue/return workflows.",
           href: `/hms/${slug}/inventory`,
           owner: "Owner/Admin",
+          checkKey: "inventory_setup" as const,
         },
       ],
     },
@@ -178,33 +199,46 @@ export default async function SetupWizardPage({ params }: { params: Promise<{ sl
                 </div>
 
                 <div className="mt-5 space-y-3">
-                  {group.items.map((item, idx) => (
-                    <div
-                      key={`${group.title}-${item.title}`}
-                      className="flex items-start justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-sm font-medium text-slate-900">
-                            {idx + 1}. {item.title}
-                          </p>
-                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
-                            {item.owner}
-                          </span>
-                        </div>
-                        <p className="mt-1 text-sm leading-6 text-slate-500">{item.description}</p>
-                        <div className="mt-2 inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
-                          Pending
-                        </div>
-                      </div>
-                      <Link
-                        href={item.href}
-                        className="shrink-0 rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 transition-colors hover:bg-indigo-100"
+                  {group.items.map((item, idx) => {
+                    const isDone = item.checkKey && progress ? progress[item.checkKey] : null;
+                    return (
+                      <div
+                        key={`${group.title}-${item.title}`}
+                        className="flex items-start justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4"
                       >
-                        Open
-                      </Link>
-                    </div>
-                  ))}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-sm font-medium text-slate-900">
+                              {idx + 1}. {item.title}
+                            </p>
+                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                              {item.owner}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-sm leading-6 text-slate-500">{item.description}</p>
+                          {isDone === null ? (
+                            <div className="mt-2 inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500">
+                              Review
+                            </div>
+                          ) : isDone ? (
+                            <div className="mt-2 inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                              Done
+                            </div>
+                          ) : (
+                            <div className="mt-2 inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+                              Pending
+                            </div>
+                          )}
+                        </div>
+                        <Link
+                          href={item.href}
+                          className="shrink-0 rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 transition-colors hover:bg-indigo-100"
+                        >
+                          Open
+                        </Link>
+                      </div>
+                    );
+                  })}
                 </div>
               </section>
             );

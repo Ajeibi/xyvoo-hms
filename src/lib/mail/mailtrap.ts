@@ -13,6 +13,26 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+export async function sendCheckoutReceiptEmail({
+  to,
+  subject,
+  text,
+  html,
+}: {
+  to: string;
+  subject: string;
+  text: string;
+  html: string;
+}) {
+  await transporter.sendMail({
+    from: mailEnv.from,
+    to,
+    subject,
+    text,
+    html,
+  });
+}
+
 export async function sendRegistrationOtpEmail({
   to,
   hotelName,

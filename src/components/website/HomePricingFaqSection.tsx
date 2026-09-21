@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { motion, useInView } from "framer-motion";
 import { Search } from "lucide-react";
 import {
   Accordion,
@@ -38,13 +39,46 @@ export function HomePricingFaqSection() {
 
   const shouldShowToggle = !normalizedQuery && XYVOO_FAQS.length > 5;
 
+  const headingRef = useRef<HTMLDivElement>(null);
+  const headingInView = useInView(headingRef, { once: false, margin: "-80px" });
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const bodyInView = useInView(bodyRef, { once: false, margin: "-80px" });
+
+  const faqJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: XYVOO_FAQS.slice(0, 5).map((faq) => ({
+      "@type": "Question",
+      name: faq.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: faq.answer,
+      },
+    })),
+  };
+
   return (
-    <section className="pb-24 pt-20" style={{ background: "var(--xyvoo-blue-subtle-bg-05)" }}>
+    <section
+      aria-labelledby="home-faq-heading"
+      className="pb-24 pt-20"
+      style={{ background: "var(--xyvoo-blue-subtle-bg-05)" }}
+    >
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
       <div className="mx-auto max-w-[1200px] px-6">
-        <div className="mx-auto max-w-[840px] text-center">
+        <motion.div
+          ref={headingRef}
+          className="mx-auto max-w-[840px] text-center"
+          initial={{ opacity: 0, y: 56 }}
+          animate={headingInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 56 }}
+          transition={{ duration: 0.7, ease: "easeOut" }}
+        >
           <SectionEyebrow
             eyebrow="FAQ"
             title="Frequently Asked Questions"
+            titleId="home-faq-heading"
             className="[&>h2]:[color:var(--xyvoo-products-navy-alt)] [&>p]:[color:var(--xyvoo-blue)]"
             titleClassName="text-[clamp(1.625rem,4.4vw,2.75rem)] font-extrabold leading-[1.12]"
           />
@@ -54,9 +88,15 @@ export function HomePricingFaqSection() {
           >
             Answers to the most common questions about plans, billing, and onboarding.
           </p>
-        </div>
+        </motion.div>
 
-        <div className="mx-auto mt-10 max-w-[1200px]">
+        <motion.div
+          ref={bodyRef}
+          className="mx-auto mt-10 max-w-[1200px]"
+          initial={{ opacity: 0, y: 56 }}
+          animate={bodyInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 56 }}
+          transition={{ duration: 0.7, delay: 0.1, ease: "easeOut" }}
+        >
           <div className="relative mb-4">
             <Search
               className="pointer-events-none absolute left-5 top-1/2 h-4 w-4 -translate-y-1/2"
@@ -64,6 +104,7 @@ export function HomePricingFaqSection() {
             />
             <input
               type="text"
+              aria-label="Search for your most important questions"
               value={query}
               onChange={(event) => {
                 setQuery(event.target.value);
@@ -93,6 +134,7 @@ export function HomePricingFaqSection() {
                 style={{ borderColor: "rgb(var(--xyvoo-blue-rgb) / 0.12)" }}
               >
                 <AccordionTrigger
+                  aria-label={faq.question}
                   className="group/accordion-trigger rounded-none px-5 py-5 text-[15px] font-bold leading-[1.4] hover:no-underline sm:px-6 [&>[data-slot=accordion-trigger-icon]]:hidden"
                   style={{ color: "var(--xyvoo-products-navy-alt)" }}
                 >
@@ -126,7 +168,7 @@ export function HomePricingFaqSection() {
               </AccordionItem>
             ))}
           </Accordion>
-        </div>
+        </motion.div>
 
         {shouldShowToggle && (
           <div className="mt-8 text-center">

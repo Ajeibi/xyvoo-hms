@@ -11,16 +11,15 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
-  Briefcase,
+  ArrowUp,
+  ArrowUpRight,
   Building2,
   ChevronDown,
   ChevronUp,
   Headphones,
-  Info,
   Menu,
   Newspaper,
   ShoppingBag,
-  Users,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -59,6 +58,17 @@ function isNavGroup(item: NavItem): item is NavItemGroup {
   return "children" in item && Array.isArray(item.children);
 }
 
+/** Every marketing-site path that's part of the Storefront product flow --
+ * not just the /solution/storefront landing page, but also its own
+ * register/login pages -- so the header, brand CTA, and footer all read as
+ * "XYVOO Storefront" (teal accent, own copy/links) rather than defaulting
+ * to the generic multi-product look on those pages. */
+const STOREFRONT_PATH_PREFIXES = ["/solution/storefront", "/register/storefront", "/auth/login/storefront"];
+
+function isStorefrontPath(pathname: string | null): boolean {
+  return STOREFRONT_PATH_PREFIXES.some((prefix) => pathname?.startsWith(prefix)) ?? false;
+}
+
 /** Mobile sheet: full-width rows, light dividers, generous tap targets (Bumpa-style). */
 const MOBILE_SHEET_ROW =
   "border-b border-border/70 px-5 py-4 transition-colors hover:bg-muted/40";
@@ -84,21 +94,6 @@ const NAV_DROPDOWN_ITEM_VISUAL: Record<
     Icon: ShoppingBag,
     iconWellStyle: { background: "rgb(var(--xyvoo-mint-rgb) / 0.22)" },
     iconColor: "var(--xyvoo-teal-product)",
-  },
-  "/about": {
-    Icon: Info,
-    iconWellStyle: { background: "rgb(var(--xyvoo-blue-rgb) / 0.08)" },
-    iconColor: "rgb(var(--xyvoo-blue-rgb) / 0.82)",
-  },
-  "/team": {
-    Icon: Users,
-    iconWellStyle: { background: "rgb(var(--xyvoo-mint-rgb) / 0.16)" },
-    iconColor: "var(--xyvoo-teal-product-hover)",
-  },
-  "/careers": {
-    Icon: Briefcase,
-    iconWellStyle: { background: "rgb(var(--xyvoo-blue-rgb) / 0.1)" },
-    iconColor: "rgb(var(--xyvoo-blue-rgb) / 0.85)",
   },
   "/blog": {
     Icon: Newspaper,
@@ -130,26 +125,7 @@ const NAV: NavItem[] = [
       },
     ],
   },
-  {
-    label: "Company",
-    children: [
-      {
-        label: "About Us",
-        href: "/about",
-        description: "Our story, mission, and why we build for hoteliers.",
-      },
-      {
-        label: "Our Team",
-        href: "/team",
-        description: "Meet the people shipping XYVOO across Africa.",
-      },
-      {
-        label: "Careers",
-        href: "/careers",
-        description: "Open roles and how we work together.",
-      },
-    ],
-  },
+  { label: "About", href: "/about" },
   {
     label: "Resources",
     children: [
@@ -365,7 +341,7 @@ function NavGroupDropdown({
   useEffect(() => () => cancelScheduledClose(), []);
 
   const childActive = item.children.some((c) => pathname === c.href);
-  const isStorefront = pathname?.startsWith("/solution/storefront") ?? false;
+  const isStorefront = isStorefrontPath(pathname);
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen} modal={false}>
@@ -500,7 +476,7 @@ function WebsiteHeader({ pathname }: { pathname: string }) {
     return () => window.removeEventListener("heroThemeChange", handleThemeChange);
   }, []);
 
-  const isStorefront = pathname?.startsWith("/solution/storefront") ?? false;
+  const isStorefront = isStorefrontPath(pathname);
 
   const isHeroDark = !scrolled && (
     (pathname === "/" && !!heroTheme?.isDark) ||
@@ -600,126 +576,217 @@ export default function WebsiteLayout({
   compactMain?: boolean;
 }) {
   const pathname = usePathname();
-  const isStorefront = pathname?.startsWith("/solution/storefront") ?? false;
+  const isStorefront = isStorefrontPath(pathname);
 
   return (
     <SidebarProvider className="min-h-screen w-full min-w-0 flex-col overflow-x-clip bg-background font-sans text-foreground">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-white focus:px-4 focus:py-3 focus:text-sm focus:font-semibold focus:text-xyvoo-navy focus:shadow-lg"
+      >
+        Skip to content
+      </a>
       <WebsiteHeader key={pathname} pathname={pathname} />
       <MobileNavSidebar pathname={pathname} />
 
-      <main className={cn("min-w-0", !compactMain && "flex-1")}>{children}</main>
+      <main id="main-content" className={cn("min-w-0", !compactMain && "flex-1")}>{children}</main>
 
       {!compactMain && <BrandCtaSection />}
 
       <footer
         className={cn(
-          "mt-0 px-6 py-16 text-white",
+          "mt-0 overflow-hidden px-6 pt-16 text-white md:pt-20",
           // Same dark teal-green as the storefront hero and growth-stack
           // section (#04140f), so the footer reads as part of the same
           // product rather than borrowing HMS's navy.
           isStorefront ? "bg-[#04140f]" : "bg-xyvoo-navy"
         )}
       >
-        <div className="mx-auto grid max-w-[1800px] grid-cols-1 gap-10 md:grid-cols-5">
-          <div className="md:col-span-2">
-            <Image
-              src={LOGO_LIGHT_URL}
-              alt="XYVOO"
-              width={122}
-              height={50}
-              className="mb-4"
-              style={{ width: "auto", height: "auto" }}
-            />
-            <p className="text-sm text-slate-400 leading-relaxed max-w-xs">
-              The modern Hotel Management System built for independent
-              properties across Africa.
-            </p>
-            <div className="flex gap-3 mt-5">
-              {["𝕏", "in", "f"].map((s) => (
-                <div
-                  key={s}
+        <div className="mx-auto max-w-[1200px]">
+          {/* Heading + CTA (left) and link columns + contact (right) */}
+          <div className="grid grid-cols-1 gap-12 border-b border-white/10 pb-14 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.4fr)] lg:gap-16">
+            <div className="max-w-md">
+              <h2 className="text-3xl font-black leading-[1.08] tracking-tight text-white md:text-4xl">
+                Let&apos;s take your{" "}
+                {isStorefront ? "storefront" : "property"}{" "}
+                <span
                   className={cn(
-                    "w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-xs font-bold text-slate-300 cursor-pointer transition-colors",
-                    isStorefront ? "hover:bg-xyvoo-teal-product-hover" : "hover:bg-xyvoo-blue"
+                    "underline decoration-2 underline-offset-4",
+                    isStorefront ? "text-xyvoo-teal-product" : "text-xyvoo-blue-light"
                   )}
                 >
-                  {s}
+                  further
+                </span>
+                .
+              </h2>
+              <p className="mt-4 max-w-sm text-sm leading-relaxed text-slate-400 md:text-[15px]">
+                Whether you&apos;re opening your first property or scaling an
+                online storefront, we&apos;ll help you get set up and live —
+                fast.
+              </p>
+              <a
+                href="mailto:hello@xyvoo.com"
+                className="group mt-8 inline-flex items-center gap-2 rounded-lg bg-white px-5 py-3 text-xs font-bold uppercase tracking-widest text-xyvoo-navy transition-colors hover:bg-slate-100"
+              >
+                hello@xyvoo.com
+                <ArrowUpRight
+                  className="size-4 transition-transform duration-200 ease-out group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                  strokeWidth={2.5}
+                />
+              </a>
+              <div className="flex gap-3 mt-8">
+                {["𝕏", "in", "f"].map((s) => (
+                  <div
+                    key={s}
+                    className={cn(
+                      "w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-xs font-bold text-slate-300 cursor-pointer transition-colors",
+                      isStorefront ? "hover:bg-xyvoo-teal-product-hover" : "hover:bg-xyvoo-blue"
+                    )}
+                  >
+                    {s}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-3">
+              {[
+                {
+                  title: "Product",
+                  links: [
+                    ["Solution — HMS", "/solution/hms"],
+                    ["Solution — Storefront", "/solution/storefront"],
+                    ["Pricing", "/pricing"],
+                    ["Get started — HMS", XYVOO_AUTH_ROUTES.hms.register],
+                    ["Get started — Storefront", XYVOO_AUTH_ROUTES.storefront.register],
+                  ],
+                },
+                {
+                  title: "Resources",
+                  links: [
+                    ["About", "/about"],
+                    ["Blog", "/blog"],
+                    ["Support", "/support"],
+                    ["Contact", "/contact"],
+                  ],
+                },
+              ].map((col) => (
+                <div key={col.title}>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-4">
+                    {col.title}
+                  </p>
+                  <ul className="space-y-2.5">
+                    {col.links.map(([label, href]) => (
+                      <li key={label}>
+                        <Link
+                          href={href}
+                          className="text-sm text-slate-400 hover:text-white transition-colors"
+                        >
+                          {label}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               ))}
+
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-4">
+                  Get in touch
+                </p>
+                <ul className="space-y-2.5">
+                  <li>
+                    <a
+                      href="mailto:hello@xyvoo.com"
+                      className="text-sm text-slate-400 hover:text-white transition-colors"
+                    >
+                      hello@xyvoo.com
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      href="tel:+2348009986661"
+                      className="text-sm text-slate-400 hover:text-white transition-colors"
+                    >
+                      +234 800 998 6661
+                    </a>
+                  </li>
+                  <li className="pt-1">
+                    <Link
+                      href="/contact"
+                      className={cn(
+                        "inline-flex items-center gap-1 text-sm font-semibold transition-colors",
+                        isStorefront
+                          ? "text-xyvoo-teal-product hover:text-xyvoo-teal-product-hover"
+                          : "text-xyvoo-blue-light hover:text-xyvoo-blue"
+                      )}
+                    >
+                      Book a call
+                      <ArrowUpRight className="size-3.5" strokeWidth={2.5} />
+                    </Link>
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
 
-          {[
-            {
-              title: "Product",
-              links: [
-                ["Solution — HMS", "/solution/hms"],
-                ["Solution — Storefront", "/solution/storefront"],
-                ["Pricing", "/pricing"],
-                ["Get started — HMS", XYVOO_AUTH_ROUTES.hms.register],
-                ["Get started — Storefront", XYVOO_AUTH_ROUTES.storefront.register],
-              ],
-            },
-            {
-              title: "Company",
-              links: [
-                ["About", "/about"],
-                ["Team", "/team"],
-                ["Careers", "/careers"],
-              ],
-            },
-            {
-              title: "Resources",
-              links: [
-                ["Blog", "/blog"],
-                ["Support", "/support"],
-                ["Contact", "/contact"],
-              ],
-            },
-          ].map((col) => (
-            <div key={col.title}>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-4">
-                {col.title}
+          {/* Oversized wordmark + logo/tagline */}
+          <div className="flex flex-col items-start justify-between gap-8 py-12 md:flex-row md:items-center md:py-14">
+            <span
+              aria-hidden
+              className="select-none text-[clamp(3rem,13vw,8.5rem)] font-extrabold leading-none tracking-tight text-white/[0.06]"
+            >
+              XYVOO
+            </span>
+            <div className="flex shrink-0 items-center gap-4">
+              <Image
+                src={LOGO_LIGHT_URL}
+                alt="XYVOO"
+                width={110}
+                height={44}
+                style={{ width: "auto", height: "auto" }}
+              />
+              <p className="max-w-[220px] text-xs leading-relaxed text-slate-500">
+                One company, two platforms — built for businesses across
+                Africa.
               </p>
-              <ul className="space-y-2.5">
-                {col.links.map(([label, href]) => (
-                  <li key={label}>
-                    <Link
-                      href={href}
-                      className="text-sm text-slate-400 hover:text-white transition-colors"
-                    >
-                      {label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
             </div>
-          ))}
-        </div>
-        <div className="mx-auto mt-12 flex max-w-[1800px] flex-col items-center justify-between gap-3 border-t border-white/10 pt-6 md:flex-row">
-          <p className="text-xs text-slate-500">
-            © 2026 XYVOO Technologies Ltd. All rights reserved.
-          </p>
-          <div className="flex gap-5">
-            <Link
-              href="/privacy"
-              className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+          </div>
+
+          {/* Bottom bar */}
+          <div className="flex flex-col items-center justify-between gap-4 border-t border-white/10 py-6 md:flex-row">
+            <p className="text-xs text-slate-500">
+              © 2026 XYVOO Technologies Ltd. All rights reserved.
+            </p>
+            <div className="flex items-center gap-5">
+              <Link
+                href="/privacy"
+                className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+              >
+                Privacy Policy
+              </Link>
+              <Link
+                href="/terms"
+                className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+              >
+                Terms of Service
+              </Link>
+              <Link
+                href="/privacy"
+                className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+              >
+                Cookie Policy
+              </Link>
+            </div>
+            <button
+              type="button"
+              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest text-slate-500 transition-colors hover:text-white"
             >
-              Privacy Policy
-            </Link>
-            <Link
-              href="/terms"
-              className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
-            >
-              Terms of Service
-            </Link>
-            <Link
-              href="/support"
-              className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
-            >
-              Cookie Policy
-            </Link>
-           </div>
+              Back to top
+              <ArrowUp className="size-3.5" strokeWidth={2.5} />
+            </button>
+          </div>
         </div>
       </footer>
     </SidebarProvider>
@@ -751,7 +818,7 @@ function BrandCtaSection() {
   const parallaxRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const isHms = pathname?.startsWith("/solution/hms") ?? false;
-  const isStorefront = pathname?.startsWith("/solution/storefront") ?? false;
+  const isStorefront = isStorefrontPath(pathname);
   const isImageBg = isHms || isStorefront;
   const bgColor = isHms ? CTA_BG_COLOR.hms : CTA_BG_COLOR.storefront;
   const [imageOk, setImageOk] = useState(true);
@@ -816,6 +883,7 @@ function BrandCtaSection() {
 
   return (
     <section
+      aria-labelledby="brand-cta-heading"
       className={cn(
         "relative overflow-hidden w-full text-white py-16 md:py-20 px-6 lg:px-12 border-t border-white/5",
         isImageBg && "cta-bg-strip-fade-in"
@@ -883,7 +951,7 @@ function BrandCtaSection() {
 
       <div className="relative z-10 mx-auto max-w-[1200px] w-full flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div className="flex flex-col text-left max-w-2xl">
-          <h2 className="text-xl md:text-2xl lg:text-[1.625rem] font-bold tracking-tight text-white leading-tight">
+          <h2 id="brand-cta-heading" className="text-xl md:text-2xl lg:text-[1.625rem] font-bold tracking-tight text-white leading-tight">
             {isHms
               ? "Ready to run your property on XYVOO?"
               : isStorefront

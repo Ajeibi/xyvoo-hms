@@ -7,7 +7,7 @@ export async function getHotelTenantBySlug(slug: string) {
   const { data: tenant } = await supabase
     .from("tenants")
     .select(
-      "id, subdomain, name, display_name, logo_url, room_types, pricing_setup, floor_plan, hms_dashboard_tour_hidden, paystack_setup",
+      "id, subdomain, name, display_name, logo_url, room_types, pricing_setup, floor_plan, hms_dashboard_tour_hidden, paystack_setup, smart_lock_setup",
     )
     .eq("product", "hotel")
     .or(`subdomain.eq.${slug},name.eq.${slug}`)

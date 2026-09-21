@@ -116,6 +116,62 @@ export async function executeRemoteUnlock(params: {
   return result;
 }
 
+/** Revokes a guest's key at checkout — reuses the 'key_deactivated' event type since that's
+ * exactly what this is (no separate DB value needed for a checkout-triggered deactivation vs.
+ * a lost-key-triggered one; `metadata.trigger` distinguishes them if it matters later). */
+export async function executeKeyRevoke(params: {
+  supabase: SupabaseClient;
+  tenantId: string;
+  tenant: { smart_lock_setup?: unknown };
+  roomUnitId: string;
+  roomCode: string;
+  reservationId?: string;
+  staffUserId: string;
+}): Promise<SmartLockResult> {
+  const config = getSmartLockConfig(params.tenant);
+  const mode = config.provider ?? "audit_only";
+
+  let result: SmartLockResult;
+  if (mode === "mock") {
+    result = { mode: "mock", executed: true, message: "Mock revoke: key access ended." };
+  } else if (mode === "http_webhook" && config.apiBaseUrl) {
+    try {
+      const res = await fetch(`${config.apiBaseUrl.replace(/\/$/, "")}/revoke`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
+        },
+        body: JSON.stringify({
+          roomId: config.roomIdMap?.[params.roomUnitId] ?? params.roomCode,
+          reason: "checkout",
+        }),
+      });
+      result = {
+        mode: "http_webhook",
+        executed: res.ok,
+        message: res.ok ? "Revoke sent to lock provider." : `Provider returned ${res.status}.`,
+      };
+    } catch {
+      result = { mode: "http_webhook", executed: false, message: "Could not reach lock provider for revoke." };
+    }
+  } else {
+    result = { mode: "audit_only", executed: false, message: "Key revoke recorded (audit only)." };
+  }
+
+  await params.supabase.schema("hotel").from("room_key_events").insert({
+    tenant_id: params.tenantId,
+    room_unit_id: params.roomUnitId,
+    reservation_id: params.reservationId ?? null,
+    event_type: "key_deactivated",
+    reason: "Checked out",
+    staff_user_id: params.staffUserId,
+    metadata: { providerMode: result.mode, executed: result.executed, trigger: "checkout" },
+  });
+
+  return result;
+}
+
 export async function executeKeyReissue(params: {
   supabase: SupabaseClient;
   tenantId: string;

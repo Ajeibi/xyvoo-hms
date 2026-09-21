@@ -70,9 +70,9 @@ export function FrontDeskInteractiveMockup() {
             </p>
             <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
+                <p className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
                   Front Desk Operations
-                </h1>
+                </p>
                 <p className="mt-1 text-xs text-slate-500">
                   Live room status, rapid check-in and check-out, and on-property room controls.
                 </p>

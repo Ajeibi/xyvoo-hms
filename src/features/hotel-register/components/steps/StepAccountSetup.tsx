@@ -22,14 +22,14 @@ export default function StepAccountSetup() {
       <p className="text-slate-500 text-sm mb-6">Almost done — just a few more details.</p>
       <div className="space-y-4">
         <div>
-          <label className="text-xs font-semibold text-slate-500 mb-1 block">Contact Name <span className="text-slate-400 font-normal">(optional)</span></label>
-          <input value={account.contact_name} onChange={(e) => setAccountField("contact_name", e.target.value)} className={INPUT_CLASS} placeholder="John Doe" />
+          <label htmlFor="account-contact-name" className="text-xs font-semibold text-slate-500 mb-1 block">Contact Name <span className="text-slate-400 font-normal">(optional)</span></label>
+          <input id="account-contact-name" autoComplete="name" value={account.contact_name} onChange={(e) => setAccountField("contact_name", e.target.value)} className={INPUT_CLASS} placeholder="John Doe" />
           <p className="text-xs text-slate-400 mt-1">Primary contact name for this account (optional). Displayed where your profile appears when signed in.</p>
         </div>
         <div>
-          <label className="text-xs font-semibold text-slate-500 mb-1 block">Password *</label>
+          <label htmlFor="account-password" className="text-xs font-semibold text-slate-500 mb-1 block">Password *</label>
           <div className="relative">
-            <input type={showPw ? "text" : "password"} value={account.password} onChange={(e) => setAccountField("password", e.target.value)} className={`${INPUT_CLASS} pr-10`} placeholder="Min 8 chars, uppercase, number, symbol" />
+            <input id="account-password" type={showPw ? "text" : "password"} autoComplete="new-password" value={account.password} onChange={(e) => setAccountField("password", e.target.value)} className={`${INPUT_CLASS} pr-10`} placeholder="Min 8 chars, uppercase, number, symbol" />
             <button type="button" onClick={() => setShowPw((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer">
               {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
@@ -42,9 +42,9 @@ export default function StepAccountSetup() {
           )}
         </div>
         <div>
-          <label className="text-xs font-semibold text-slate-500 mb-1 block">Confirm Password *</label>
+          <label htmlFor="account-confirm-password" className="text-xs font-semibold text-slate-500 mb-1 block">Confirm Password *</label>
           <div className="relative">
-            <input type={showCpw ? "text" : "password"} value={account.confirm} onChange={(e) => setAccountField("confirm", e.target.value)} className={`${INPUT_CLASS} pr-10`} placeholder="Re-enter password" />
+            <input id="account-confirm-password" type={showCpw ? "text" : "password"} autoComplete="new-password" value={account.confirm} onChange={(e) => setAccountField("confirm", e.target.value)} className={`${INPUT_CLASS} pr-10`} placeholder="Re-enter password" />
             <button type="button" onClick={() => setShowCpw((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer">
               {showCpw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>

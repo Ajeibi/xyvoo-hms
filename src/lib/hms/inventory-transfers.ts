@@ -221,16 +221,48 @@ export async function receiveTransfer(
   return { error: null };
 }
 
-export async function cancelTransfer(supabase: SupabaseClient, tenantId: string, transferId: string) {
-  const { data, error } = await supabase
+/**
+ * createTransfer advances every new transfer straight to 'in_transit' in the same call (it
+ * deducts source stock immediately), so a transfer is never actually left sitting at 'pending'
+ * — cancelling only against 'pending' meant the Cancel action could never fire. Cancelling an
+ * in-transit transfer now reverses the stock it already took out of the source location, the
+ * same way receiveTransfer credits the destination — just posted back to where it came from.
+ */
+export async function cancelTransfer(
+  supabase: SupabaseClient,
+  tenantId: string,
+  transferId: string,
+  cancelledBy: string,
+) {
+  const transfer = await getTransferById(supabase, tenantId, transferId);
+  if (!transfer) return { error: "Transfer not found." };
+  if (transfer.status !== "pending" && transfer.status !== "in_transit") {
+    return { error: "Only a pending or in-transit transfer can be cancelled." };
+  }
+
+  if (transfer.status === "in_transit") {
+    for (const line of transfer.lines) {
+      const result = await postStockMovement(supabase, {
+        tenantId,
+        itemId: line.item_id,
+        locationId: transfer.from_location_id,
+        movementType: "transfer_in",
+        qty: line.qty,
+        relatedLocationId: transfer.to_location_id,
+        referenceType: "transfer",
+        referenceId: transferId,
+        performedBy: cancelledBy,
+      });
+      if (result.error) return { error: result.error };
+    }
+  }
+
+  const { error } = await supabase
     .schema("hotel")
     .from("inventory_transfers")
     .update({ status: "cancelled", updated_at: new Date().toISOString() })
     .eq("id", transferId)
-    .eq("tenant_id", tenantId)
-    .eq("status", "pending")
-    .select("id")
-    .maybeSingle();
-  if (error || !data) return { error: error?.message ?? "Only a pending transfer can be cancelled." };
+    .eq("tenant_id", tenantId);
+  if (error) return { error: error.message };
   return { error: null };
 }

@@ -3,17 +3,7 @@
 import { useRef } from "react";
 import Link from "next/link";
 import { motion, useInView } from "framer-motion";
-import {
-  ArrowRight,
-  BarChart2,
-  CreditCard,
-  Megaphone,
-  Package,
-  Store,
-  Truck,
-  UsersRound,
-  type LucideIcon,
-} from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import {
   SOLUTIONS_STOREFRONT_INTEGRATIONS_INTRO,
   SOLUTIONS_STOREFRONT_INTEGRATIONS_ITEMS,
@@ -25,21 +15,12 @@ import {
 import type { FadeInSectionProps } from "@/types";
 import { StorefrontGrowthStack } from "@/components/website/StorefrontGrowthStack";
 import { SolutionsOnboardingStack } from "@/components/website/SolutionsOnboardingStack";
+import { SolutionsStorefrontModulePreview } from "@/components/website/SolutionsStorefrontModulePreview";
 
 /** First 4 modules keep the full-width sticky-stack treatment; the
  * remaining 3 (marketing, team, analytics) run as a single arc-cycle card
  * stack instead — see StorefrontGrowthStack. */
 const STICKY_STACK_COUNT = 4;
-
-const STACK_ICON_BY_ID: Record<string, LucideIcon> = {
-  storefront: Store,
-  catalog: Package,
-  orders: Truck,
-  payments: CreditCard,
-  marketing: Megaphone,
-  team: UsersRound,
-  analytics: BarChart2,
-};
 
 function FadeIn({ children, delay = 0 }: FadeInSectionProps) {
   const ref = useRef<HTMLDivElement>(null);
@@ -65,16 +46,7 @@ function ModuleStackCard({
   reverse: boolean;
   rowIndex: number;
 }) {
-  const Icon = STACK_ICON_BY_ID[module.id] ?? BarChart2;
   const rowToken = (rowIndex % 4) + 1;
-  const phVar =
-    rowToken === 1
-      ? "var(--xyvoo-storefront-deepdive-ph-1)"
-      : rowToken === 2
-        ? "var(--xyvoo-storefront-deepdive-ph-2)"
-        : rowToken === 3
-          ? "var(--xyvoo-storefront-deepdive-ph-3)"
-          : "var(--xyvoo-storefront-deepdive-ph-4)";
   const rowBg =
     rowToken === 1
       ? "var(--xyvoo-storefront-deepdive-row-1)"
@@ -140,93 +112,16 @@ function ModuleStackCard({
         </Link>
       </div>
 
-      <div className="relative flex items-center justify-center px-5 pb-9 pt-3 sm:px-8 sm:pb-11 md:px-[36px] md:py-12">
+      <div className="relative flex min-h-[280px] items-center justify-center px-5 pb-9 pt-3 sm:px-8 sm:pb-11 md:min-h-0 md:px-[36px] md:py-12">
         <div
-          className="pointer-events-none absolute left-1/2 top-1/2 z-0 h-[260px] w-[260px] -translate-x-1/2 -translate-y-1/2 rounded-full blur-[52px]"
+          className="pointer-events-none absolute left-1/2 top-1/2 z-0 h-[300px] w-[300px] -translate-x-1/2 -translate-y-1/2 rounded-full blur-[60px]"
           style={{ background: "var(--xyvoo-storefront-deepdive-glow-a)" }}
         />
         <div
-          className="pointer-events-none absolute bottom-4 right-4 z-0 h-[150px] w-[150px] rounded-full blur-[32px]"
+          className="pointer-events-none absolute bottom-4 right-4 z-0 h-[170px] w-[170px] rounded-full blur-[36px]"
           style={{ background: "var(--xyvoo-storefront-deepdive-glow-b)" }}
         />
-        <div
-          className="relative z-[1] w-full overflow-hidden rounded-[14px] border"
-          style={{
-            background: "var(--xyvoo-storefront-deepdive-visual-card-bg)",
-            borderColor: "var(--xyvoo-storefront-deepdive-visual-card-border)",
-            boxShadow:
-              "var(--xyvoo-storefront-deepdive-visual-card-shadow-a), var(--xyvoo-storefront-deepdive-visual-card-shadow-b)",
-          }}
-        >
-          <div
-            className="flex items-center gap-1.5 border-b px-3.5 py-2.5"
-            style={{
-              background: "var(--xyvoo-storefront-deepdive-chrome-bg)",
-              borderColor: "var(--xyvoo-storefront-deepdive-chrome-border)",
-            }}
-          >
-            <span
-              className="h-2.5 w-2.5 rounded-full"
-              style={{ background: "var(--xyvoo-storefront-deepdive-dot-red)" }}
-            />
-            <span
-              className="h-2.5 w-2.5 rounded-full"
-              style={{ background: "var(--xyvoo-storefront-deepdive-dot-yellow)" }}
-            />
-            <span
-              className="h-2.5 w-2.5 rounded-full"
-              style={{ background: "var(--xyvoo-storefront-deepdive-dot-green)" }}
-            />
-            <div
-              className="mx-2 flex h-[22px] flex-1 items-center gap-1.5 rounded-[5px] border px-2.5"
-              style={{
-                borderColor: "var(--xyvoo-storefront-deepdive-chrome-url-border)",
-              }}
-            >
-              <span
-                className="h-[9px] w-[8px] rounded-[2px] border-[1.5px]"
-                style={{ borderColor: "var(--xyvoo-storefront-deepdive-lock)" }}
-              />
-              <span
-                className="text-[10px]"
-                style={{ color: "var(--xyvoo-storefront-deepdive-chrome-url-text)" }}
-              >
-                {module.urlLabel}
-              </span>
-            </div>
-          </div>
-
-          <div
-            className="relative flex aspect-[16/10] w-full flex-col items-center justify-center gap-3 overflow-hidden"
-            style={{ background: phVar }}
-          >
-            <div
-              className="pointer-events-none absolute inset-0"
-              style={{
-                backgroundImage:
-                  "radial-gradient(circle, var(--xyvoo-storefront-deepdive-ph-dot) 1px, transparent 1px)",
-                backgroundSize: "22px 22px",
-              }}
-            />
-            <div
-              className="relative z-[1] flex h-[52px] w-[52px] items-center justify-center rounded-[14px] border"
-              style={{
-                background: "var(--xyvoo-white)",
-                borderColor: "var(--xyvoo-storefront-deepdive-ph-icon-border)",
-              }}
-            >
-              <Icon className="h-[22px] w-[22px] text-xyvoo-blue" aria-hidden />
-            </div>
-            <span
-              className="relative z-[1] text-center text-xs leading-[1.55]"
-              style={{ color: "var(--xyvoo-storefront-deepdive-ph-label)" }}
-            >
-              {module.title.replace("\n", " ")}
-              <br />
-              module preview
-            </span>
-          </div>
-        </div>
+        <SolutionsStorefrontModulePreview moduleId={module.id} />
       </div>
     </div>
   );

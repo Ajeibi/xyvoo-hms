@@ -46,6 +46,19 @@ const CHANNELS = [
   { icon: BookOpen, label: "Help Center", desc: "Step-by-step guides and tutorials.", action: "Browse Articles", color: "bg-amber-50 border-amber-100 text-amber-700" },
 ];
 
+const faqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: FAQS.map((f) => ({
+    "@type": "Question",
+    name: f.q,
+    acceptedAnswer: {
+      "@type": "Answer",
+      text: f.a,
+    },
+  })),
+};
+
 export default function SupportPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [search, setSearch] = useState("");
@@ -53,6 +66,10 @@ export default function SupportPage() {
 
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
       <section className="pt-32 pb-16 bg-white border-b border-slate-100">
         <div className="max-w-3xl mx-auto px-6 text-center">
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
@@ -65,7 +82,7 @@ export default function SupportPage() {
             <p className="text-xl text-slate-500 mb-8">Real humans. Real answers. Usually within minutes.</p>
             <div className="relative max-w-lg mx-auto">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-              <input placeholder="Search FAQs..." value={search} onChange={(e) => setSearch(e.target.value)}
+              <input aria-label="Search FAQs" placeholder="Search FAQs..." value={search} onChange={(e) => setSearch(e.target.value)}
                 className="w-full pl-12 pr-4 py-4 rounded-2xl text-slate-900 text-sm outline-none border border-slate-200 bg-slate-50 focus:ring-4 transition-all" />
             </div>
           </motion.div>
@@ -74,6 +91,7 @@ export default function SupportPage() {
 
       <section className="py-16 bg-white">
         <div className="max-w-5xl mx-auto px-6">
+          <h2 className="sr-only">Support channels</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {CHANNELS.map(({ icon: Icon, label, desc, action, color, style: cardStyle }) => (
               <motion.div key={label} initial="offscreen" whileInView="onscreen" viewport={{ once: true }} variants={fadeUp}

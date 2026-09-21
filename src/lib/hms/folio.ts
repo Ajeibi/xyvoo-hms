@@ -150,6 +150,34 @@ export function computeLegBalance(lines: FolioLineRow[], leg: FolioSplitLeg) {
     .reduce((sum, l) => sum + l.amount, 0);
 }
 
+/**
+ * Bulk-reassigns split_leg on a chosen set of existing charges/discounts in one step —
+ * previously split_leg could only be set per-line at creation, so "guest pays their part,
+ * company is billed separately" required re-entering each charge from scratch to move it.
+ * Scoped to charge/discount lines only: a payment's leg records which balance it actually
+ * settled, so moving it after the fact would misstate what was paid against what.
+ */
+export async function reassignFolioLinesSplitLeg(
+  supabase: SupabaseClient,
+  params: { tenantId: string; reservationId: string; lineIds: string[]; splitLeg: FolioSplitLeg },
+): Promise<{ ok: true; count: number } | { ok: false; error: string }> {
+  if (params.lineIds.length === 0) return { ok: false, error: "Select at least one line to move." };
+
+  const { data, error } = await supabase
+    .schema("hotel")
+    .from("folio_transactions")
+    .update({ split_leg: params.splitLeg })
+    .eq("tenant_id", params.tenantId)
+    .eq("reservation_id", params.reservationId)
+    .in("id", params.lineIds)
+    .in("kind", ["charge", "discount"])
+    .is("voided_at", null)
+    .select("id");
+
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, count: (data ?? []).length };
+}
+
 export async function fetchFolioLines(
   supabase: SupabaseClient,
   tenantId: string,
@@ -215,6 +243,29 @@ export async function getTenantFolioSettings(supabase: SupabaseClient, tenantId:
     largeChargeThreshold: num(data?.large_charge_threshold) || 50000,
     hasManagerPin: Boolean(data?.manager_pin_hash),
   };
+}
+
+/**
+ * Was previously unreachable from any UI — nothing ever wrote to tenant_folio_settings, so
+ * allow_checkout_with_balance/large_charge_threshold could never be changed from their defaults
+ * and manager_pin_hash could never be set at all, which meant verifyManagerPin's non-admin path
+ * (require a matching PIN) could never actually succeed for any tenant.
+ */
+export async function updateTenantFolioSettings(
+  supabase: SupabaseClient,
+  tenantId: string,
+  patch: { allowCheckoutWithBalance?: boolean; largeChargeThreshold?: number; managerPin?: string },
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const update: Record<string, unknown> = { tenant_id: tenantId, updated_at: new Date().toISOString() };
+  if (patch.allowCheckoutWithBalance !== undefined) update.allow_checkout_with_balance = patch.allowCheckoutWithBalance;
+  if (patch.largeChargeThreshold !== undefined) update.large_charge_threshold = patch.largeChargeThreshold;
+  if (patch.managerPin !== undefined && patch.managerPin.trim()) {
+    update.manager_pin_hash = hashManagerPin(patch.managerPin);
+  }
+
+  const { error } = await supabase.schema("hotel").from("tenant_folio_settings").upsert(update, { onConflict: "tenant_id" });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
 }
 
 export type InsertFolioLineInput = {

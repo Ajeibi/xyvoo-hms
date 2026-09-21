@@ -16,6 +16,7 @@ function createMockService(responses: Record<string, CannedResponse[]> = {}) {
       in: () => chain,
       order: () => chain,
       lte: () => chain,
+      gte: () => chain,
       limit: () => chain,
       insert: (payload: unknown) => {
         calls.push({ table, op: "insert", payload });
@@ -381,7 +382,32 @@ describe("getTrialBalance", () => {
     });
     const result = await getTrialBalance(service, "t1", { asOfDate: "2026-01-01" });
     expect(result).toEqual([
-      { accountId: "a-cash", code: "1000", name: "Cash on Hand", type: "asset", debit: 0, credit: 0, balance: 0 },
+      {
+        accountId: "a-cash",
+        code: "1000",
+        name: "Cash on Hand",
+        type: "asset",
+        isCashEquivalent: false,
+        cashFlowCategory: "operating",
+        debit: 0,
+        credit: 0,
+        balance: 0,
+      },
     ]);
+  });
+
+  it("filters to a date range when dateFrom is also given, defaulting to the current behavior when omitted", async () => {
+    const { service } = createMockService({
+      chart_of_accounts: [
+        {
+          data: [{ id: "a-cash", code: "1000", name: "Cash on Hand", type: "asset", is_cash_equivalent: true }],
+          error: null,
+        },
+      ],
+      journal_entries: [{ data: [{ id: "je-1" }], error: null }],
+      journal_entry_lines: [{ data: [{ account_id: "a-cash", debit: 100, credit: 0 }], error: null }],
+    });
+    const result = await getTrialBalance(service, "t1", { dateFrom: "2026-02-01", asOfDate: "2026-02-28" });
+    expect(result).toMatchObject([{ accountId: "a-cash", isCashEquivalent: true, debit: 100, balance: 100 }]);
   });
 });

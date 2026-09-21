@@ -116,8 +116,11 @@
    file's MOBILE_BREAKPOINT) and clears its inline styles, so this plain
    static layout is what actually renders: heading, then the 4 cards
    stacked full-width beneath it, always fully readable — no fanning,
-   no scroll-linked movement, nothing to "mash together". */
-@media (max-width: 860px) {
+   no scroll-linked movement, nothing to "mash together". The height
+   condition catches short/landscape phones that are wider than 860px
+   but too short for the fully-open deck to fit without spilling out
+   above the viewport — matches MOBILE_HEIGHT_BREAKPOINT in the .tsx. */
+@media (max-width: 860px), (max-height: 500px) {
   .grid {
     grid-template-columns: 1fr;
     gap: 24px;

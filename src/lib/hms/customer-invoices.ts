@@ -1,6 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { postJournalEntry } from "@/lib/hms/journal-entries";
+import { getAlreadyReceivedByInvoiceId } from "@/lib/hms/customer-invoice-payments";
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100;
+}
 
 export const CUSTOMER_INVOICE_STATUSES = ["open", "paid", "cancelled"] as const;
 export type CustomerInvoiceStatus = (typeof CUSTOMER_INVOICE_STATUSES)[number];
@@ -16,6 +21,7 @@ export type CustomerInvoiceRow = {
   invoiceDate: string;
   dueDate: string | null;
   currency: string;
+  fxRate: number;
   revenueAccountId: string;
   revenueAccountCode: string;
   revenueAccountName: string;
@@ -23,6 +29,7 @@ export type CustomerInvoiceRow = {
   subtotal: number;
   tax: number;
   total: number;
+  amountReceived: number;
   status: CustomerInvoiceStatus;
   notes: string | null;
   createdBy: string;
@@ -53,6 +60,7 @@ function mapRow(r: Record<string, unknown>): CustomerInvoiceRow {
     invoiceDate: r.invoice_date as string,
     dueDate: (r.due_date as string | null) ?? null,
     currency: r.currency as string,
+    fxRate: Number(r.fx_rate) || 1,
     revenueAccountId: r.revenue_account_id as string,
     revenueAccountCode: a?.code ?? "",
     revenueAccountName: a?.name ?? "",
@@ -60,6 +68,7 @@ function mapRow(r: Record<string, unknown>): CustomerInvoiceRow {
     subtotal: Number(r.subtotal) || 0,
     tax: Number(r.tax) || 0,
     total: Number(r.total) || 0,
+    amountReceived: 0,
     status: r.status as CustomerInvoiceStatus,
     notes: (r.notes as string | null) ?? null,
     createdBy: r.created_by as string,
@@ -78,7 +87,7 @@ export async function listCustomerInvoices(
     .schema("hotel")
     .from("customer_invoices")
     .select(
-      "id,invoice_number,customer_id,reservation_id,department,invoice_date,due_date,currency,revenue_account_id,ar_account_id,subtotal,tax,total,status,notes,created_by,journal_entry_id,created_at,updated_at,ar_customers(name),chart_of_accounts!revenue_account_id(code,name),reservations(confirmation_code)",
+      "id,invoice_number,customer_id,reservation_id,department,invoice_date,due_date,currency,fx_rate,revenue_account_id,ar_account_id,subtotal,tax,total,status,notes,created_by,journal_entry_id,created_at,updated_at,ar_customers(name),chart_of_accounts!revenue_account_id(code,name),reservations(confirmation_code)",
     )
     .eq("tenant_id", tenantId)
     .order("created_at", { ascending: false });
@@ -86,7 +95,20 @@ export async function listCustomerInvoices(
 
   const { data, error } = await q;
   if (error) throw new Error(error.message);
-  return (data ?? []).map((r) => mapRow(r as Record<string, unknown>));
+  const rows = (data ?? []).map((r) => mapRow(r as Record<string, unknown>));
+
+  if (rows.length > 0) {
+    const alreadyReceivedByInvoice = await getAlreadyReceivedByInvoiceId(
+      service,
+      tenantId,
+      rows.map((r) => r.id),
+    );
+    for (const row of rows) {
+      row.amountReceived = round2(alreadyReceivedByInvoice.get(row.id) ?? 0);
+    }
+  }
+
+  return rows;
 }
 
 async function nextInvoiceNumber(service: SupabaseClient, tenantId: string): Promise<string> {
@@ -113,6 +135,7 @@ export async function createCustomerInvoice(
     invoiceDate: string;
     dueDate?: string | null;
     currency: string;
+    fxRate?: number;
     revenueAccountId: string;
     arAccountId: string;
     subtotal: number;
@@ -159,6 +182,7 @@ export async function createCustomerInvoice(
       invoice_date: params.invoiceDate,
       due_date: params.dueDate ?? null,
       currency: params.currency,
+      fx_rate: params.fxRate ?? 1,
       revenue_account_id: params.revenueAccountId,
       ar_account_id: params.arAccountId,
       subtotal,
@@ -174,6 +198,10 @@ export async function createCustomerInvoice(
   if (error) return { ok: false, error: error.message };
   const invoiceId = inserted.id as string;
 
+  // The ledger has no per-line currency — total (in the invoice's own currency) is converted
+  // to the tenant's base currency using the rate captured on the invoice, same fix and same
+  // reasoning as vendor bills' postBillToLedger.
+  const baseAmount = round2(total * (params.fxRate ?? 1));
   const posted = await postJournalEntry(service, {
     tenantId: params.tenantId,
     entryDate: params.invoiceDate,
@@ -181,8 +209,8 @@ export async function createCustomerInvoice(
     reference: invoiceId,
     createdBy: params.createdBy,
     lines: [
-      { accountId: params.arAccountId, department: params.department, debit: total, credit: 0 },
-      { accountId: params.revenueAccountId, department: params.department, debit: 0, credit: total },
+      { accountId: params.arAccountId, department: params.department, debit: baseAmount, credit: 0 },
+      { accountId: params.revenueAccountId, department: params.department, debit: 0, credit: baseAmount },
     ],
   });
   if (posted.ok) {
@@ -218,17 +246,22 @@ export async function getArAgingReport(service: SupabaseClient, tenantId: string
   const { data } = await service
     .schema("hotel")
     .from("customer_invoices")
-    .select("customer_id,total,due_date,invoice_date,ar_customers(name)")
+    .select("id,customer_id,total,due_date,invoice_date,ar_customers(name)")
     .eq("tenant_id", tenantId)
     .eq("status", "open");
 
   const rows = (data ?? []) as {
+    id: string;
     customer_id: string;
     total: number;
     due_date: string | null;
     invoice_date: string;
     ar_customers: { name: string } | { name: string }[] | null;
   }[];
+
+  const alreadyReceivedByInvoice =
+    rows.length > 0 ? await getAlreadyReceivedByInvoiceId(service, tenantId, rows.map((r) => r.id)) : new Map<string, number>();
+
   const now = Date.now();
   const byCustomer = new Map<string, ArAgingRow>();
 
@@ -237,7 +270,8 @@ export async function getArAgingReport(service: SupabaseClient, tenantId: string
     const c = Array.isArray(embed) ? embed[0] : embed;
     const dueDate = r.due_date ?? r.invoice_date;
     const daysOverdue = Math.floor((now - new Date(dueDate).getTime()) / 86_400_000);
-    const total = Number(r.total) || 0;
+    const total = Math.round(((Number(r.total) || 0) - (alreadyReceivedByInvoice.get(r.id) ?? 0)) * 100) / 100;
+    if (total <= 0) continue;
 
     const existing: ArAgingRow = byCustomer.get(r.customer_id) ?? {
       customerId: r.customer_id,
