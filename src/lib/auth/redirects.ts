@@ -4,7 +4,7 @@ import { getDepartmentScopeDefinition, hasFullHotelAccess } from "@/lib/hms/depa
 
 export function isPlatformAdminEmail(email?: string | null) {
   if (!email) return false;
-  return email.toLowerCase().endsWith("@xyvoo.com");
+  return email.toLowerCase().endsWith("@getxyvoo.com");
 }
 
 export async function getUserHotelDashboardPath(userId: string): Promise<string | null> {

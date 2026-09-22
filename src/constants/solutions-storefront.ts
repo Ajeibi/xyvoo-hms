@@ -28,7 +28,7 @@ export const SOLUTIONS_STOREFRONT_STACK_MODULES: SolutionsStorefrontStackModule[
       "Live storefront the moment you sign up, no hosting setup required",
       "Mobile-first PWA experience, installable straight from the browser",
     ],
-    urlLabel: "app.xyvoo.com / storefront",
+    urlLabel: "app.getxyvoo.com / storefront",
   },
   {
     id: "catalog",
@@ -40,7 +40,7 @@ export const SOLUTIONS_STOREFRONT_STACK_MODULES: SolutionsStorefrontStackModule[
       "Variants, categories and bundles with real-time stock updates",
       "Bulk import and batch edits for fast merchandising",
     ],
-    urlLabel: "app.xyvoo.com / products",
+    urlLabel: "app.getxyvoo.com / products",
   },
   {
     id: "orders",
@@ -52,7 +52,7 @@ export const SOLUTIONS_STOREFRONT_STACK_MODULES: SolutionsStorefrontStackModule[
       "Unified order board with fulfilment statuses and delivery handoff",
       "Shipping rules by zone or weight, plus returns handled in one flow",
     ],
-    urlLabel: "app.xyvoo.com / orders",
+    urlLabel: "app.getxyvoo.com / orders",
   },
   {
     id: "payments",
@@ -64,7 +64,7 @@ export const SOLUTIONS_STOREFRONT_STACK_MODULES: SolutionsStorefrontStackModule[
       "Paystack checkout with receipts and order confirmation built in",
       "Checkout events feed straight into your sales analytics",
     ],
-    urlLabel: "app.xyvoo.com / checkout",
+    urlLabel: "app.getxyvoo.com / checkout",
   },
   {
     id: "marketing",
@@ -76,7 +76,7 @@ export const SOLUTIONS_STOREFRONT_STACK_MODULES: SolutionsStorefrontStackModule[
       "SEO controls for storefront and product pages",
       "Discount codes, promotions and email marketing lists and sends",
     ],
-    urlLabel: "app.xyvoo.com / marketing",
+    urlLabel: "app.getxyvoo.com / marketing",
   },
   {
     id: "team",
@@ -88,7 +88,7 @@ export const SOLUTIONS_STOREFRONT_STACK_MODULES: SolutionsStorefrontStackModule[
       "Staff invites with role-based dashboard access",
       "Centralised storefront configuration, one source of truth",
     ],
-    urlLabel: "app.xyvoo.com / team",
+    urlLabel: "app.getxyvoo.com / team",
   },
   {
     id: "analytics",
@@ -100,7 +100,7 @@ export const SOLUTIONS_STOREFRONT_STACK_MODULES: SolutionsStorefrontStackModule[
       "Live dashboard for sales, orders and top-selling products",
       "Data stays scoped to your storefront alone",
     ],
-    urlLabel: "app.xyvoo.com / analytics",
+    urlLabel: "app.getxyvoo.com / analytics",
   },
 ];
 

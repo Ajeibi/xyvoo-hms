@@ -647,7 +647,7 @@ export const XYVOO_FAQS: XyvooFaq[] = [
     question: "Can I white-label the system further - for example, use my own domain instead of a subdomain?",
     keywords: ["custom domain", "own domain", "white label domain", "remove xyvoo from url", "branded domain", "domain setup"],
     answer:
-      "Custom domain support - where your system runs on app.yourhotel.com instead of yourhotel.xyvoo.com - is a V2 feature currently in development. The platform architecture is already designed to support it without any data migration. V1 uses subdomain-based URLs only.",
+      "Custom domain support - where your system runs on app.yourhotel.com instead of yourhotel.getxyvoo.com - is a V2 feature currently in development. The platform architecture is already designed to support it without any data migration. V1 uses subdomain-based URLs only.",
   },
   {
     category: "Support & Account Management",

@@ -11,9 +11,9 @@ const fadeUp: Variants = {
 };
 
 const OFFICES = [
-  { city: "Lagos", addr: "14 Adeola Odeku Street, Victoria Island, Lagos 101241", phone: "+234 800 998 6661", email: "lagos@xyvoo.com" },
-  { city: "Nairobi", addr: "The Prism, Upper Hill Towers, Upper Hill, Nairobi 00100", phone: "+254 700 998 661", email: "nairobi@xyvoo.com" },
-  { city: "London", addr: "1 Canada Square, Canary Wharf, London E14 5AB", phone: "+44 20 7946 0998", email: "london@xyvoo.com" },
+  { city: "Lagos", addr: "14 Adeola Odeku Street, Victoria Island, Lagos 101241", phone: "+234 800 998 6661", email: "lagos@getxyvoo.com" },
+  { city: "Nairobi", addr: "The Prism, Upper Hill Towers, Upper Hill, Nairobi 00100", phone: "+254 700 998 661", email: "nairobi@getxyvoo.com" },
+  { city: "London", addr: "1 Canada Square, Canary Wharf, London E14 5AB", phone: "+44 20 7946 0998", email: "london@getxyvoo.com" },
 ];
 
 export default function ContactPage() {
@@ -126,7 +126,7 @@ export default function ContactPage() {
               <div className="grid grid-cols-2 gap-4">
                 {[
                   { icon: MessageCircle, label: "WhatsApp", val: "Fastest support", color: "bg-emerald-50 text-emerald-600 border-emerald-100" },
-                  { icon: Mail, label: "Email", val: "hello@xyvoo.com", color: "bg-indigo-50 text-indigo-600 border-indigo-100" },
+                  { icon: Mail, label: "Email", val: "hello@getxyvoo.com", color: "bg-indigo-50 text-indigo-600 border-indigo-100" },
                 ].map(({ icon: Icon, label, val, color }) => (
                   <div key={label} className={`border rounded-2xl p-5 ${color}`}>
                     <Icon className="w-6 h-6 mb-3" />

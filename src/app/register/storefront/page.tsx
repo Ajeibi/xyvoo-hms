@@ -8,6 +8,7 @@ import { CircleAlert, Eye, EyeOff } from "lucide-react";
 import WebsiteLayout from "@/components/website/WebsiteLayout";
 import { supabaseAuthBrowser } from "@/lib/supabase/auth-browser";
 import { toastError, toastSuccess } from "@/lib/app-toast";
+import { GoogleIcon } from "@/components/auth/GoogleIcon";
 
 function slugify(value: string) {
   return value
@@ -36,6 +37,25 @@ export default function StorefrontRegisterPage() {
   const handleStoreNameChange = (value: string) => {
     setStoreName(value);
     if (!slugTouched) setSlug(slugify(value));
+  };
+
+  const handleGoogleSignUp = async () => {
+    setLoading(true);
+    setError("");
+
+    const { error: oauthError } = await supabaseAuthBrowser.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+        queryParams: { prompt: "select_account" },
+      },
+    });
+
+    if (oauthError) {
+      setError(oauthError.message);
+      toastError("Google sign-in failed", oauthError.message);
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -118,6 +138,22 @@ export default function StorefrontRegisterPage() {
         </motion.div>
       ) : null}
 
+      <button
+        type="button"
+        disabled={loading}
+        onClick={handleGoogleSignUp}
+        className="flex w-full items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white py-3 font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
+      >
+        <GoogleIcon />
+        Continue with Google
+      </button>
+
+      <div className="flex items-center gap-3 text-xs uppercase tracking-wider text-slate-400">
+        <span className="h-px flex-1 bg-slate-200" />
+        or register with email
+        <span className="h-px flex-1 bg-slate-200" />
+      </div>
+
       <motion.form
         onSubmit={handleSubmit}
         className="space-y-4"
@@ -149,7 +185,7 @@ export default function StorefrontRegisterPage() {
             Storefront URL
           </label>
           <div className="flex items-center rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm focus-within:ring-2 focus-within:ring-xyvoo-teal-product-hover">
-            <span className="text-slate-400">xyvoo.com/storefront/</span>
+            <span className="text-slate-400">getxyvoo.com/storefront/</span>
             <input
               id="storefront-register-slug"
               name="slug"

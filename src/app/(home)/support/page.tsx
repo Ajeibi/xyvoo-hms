@@ -25,7 +25,7 @@ const CHANNELS = [
     icon: Mail,
     label: "Email Support",
     desc: "Detailed help for complex issues.",
-    action: "support@xyvoo.com",
+    action: "support@getxyvoo.com",
     style: {
       background: "var(--xyvoo-blue-subtle-bg-05)",
       borderColor: "var(--xyvoo-blue-border-soft)",

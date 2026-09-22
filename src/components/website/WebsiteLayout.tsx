@@ -625,10 +625,10 @@ export default function WebsiteLayout({
                 fast.
               </p>
               <a
-                href="mailto:hello@xyvoo.com"
+                href="mailto:hello@getxyvoo.com"
                 className="group mt-8 inline-flex items-center gap-2 rounded-lg bg-white px-5 py-3 text-xs font-bold uppercase tracking-widest text-xyvoo-navy transition-colors hover:bg-slate-100"
               >
-                hello@xyvoo.com
+                hello@getxyvoo.com
                 <ArrowUpRight
                   className="size-4 transition-transform duration-200 ease-out group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
                   strokeWidth={2.5}
@@ -697,10 +697,10 @@ export default function WebsiteLayout({
                 <ul className="space-y-2.5">
                   <li>
                     <a
-                      href="mailto:hello@xyvoo.com"
+                      href="mailto:hello@getxyvoo.com"
                       className="text-sm text-slate-400 hover:text-white transition-colors"
                     >
-                      hello@xyvoo.com
+                      hello@getxyvoo.com
                     </a>
                   </li>
                   <li>

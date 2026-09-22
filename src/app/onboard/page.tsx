@@ -359,7 +359,7 @@ export default function OnboardPage() {
                     }}
                     className="w-full px-4 py-3 text-sm font-mono outline-none"
                   />
-                  <span className="pr-4 text-sm text-slate-400 font-mono whitespace-nowrap">.xyvoo.com</span>
+                  <span className="pr-4 text-sm text-slate-400 font-mono whitespace-nowrap">.getxyvoo.com</span>
                 </div>
                 {form.subdomain && finalSubdomain !== form.subdomain.toLowerCase() ? (
                   <p className="text-xs text-slate-400 mt-1">Will be saved as &ldquo;{finalSubdomain}&rdquo;.</p>
@@ -454,7 +454,7 @@ export default function OnboardPage() {
                 </div>
                 <div>
                   <dt className="text-xs text-slate-400">Subdomain</dt>
-                  <dd className="text-slate-800 font-mono">{finalSubdomain || "—"}.xyvoo.com</dd>
+                  <dd className="text-slate-800 font-mono">{finalSubdomain || "—"}.getxyvoo.com</dd>
                 </div>
                 <div>
                   <dt className="text-xs text-slate-400">Rooms</dt>

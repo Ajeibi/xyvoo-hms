@@ -28,7 +28,7 @@ export const SOLUTIONS_HOTEL_STACK_MODULES: SolutionsHotelStackModule[] = [
       "See every room's status — clean, dirty, occupied or out of order — the moment it changes",
       "Housekeeping assignments and room setup, all in one board",
     ],
-    urlLabel: "app.xyvoo.com / rooms",
+    urlLabel: "app.getxyvoo.com / rooms",
   },
   {
     id: "crs",
@@ -40,7 +40,7 @@ export const SOLUTIONS_HOTEL_STACK_MODULES: SolutionsHotelStackModule[] = [
       "Create, change or cancel a booking and every channel updates in seconds",
       "Rates and inventory stay in sync across Booking.com, Expedia and more",
     ],
-    urlLabel: "app.xyvoo.com / reservations",
+    urlLabel: "app.getxyvoo.com / reservations",
   },
   {
     id: "front-office",
@@ -52,7 +52,7 @@ export const SOLUTIONS_HOTEL_STACK_MODULES: SolutionsHotelStackModule[] = [
       "Check guests in and assign a room in one screen, walk-ins included",
       "Guest profiles and check-out handled without the paper trail",
     ],
-    urlLabel: "app.xyvoo.com / front-desk",
+    urlLabel: "app.getxyvoo.com / front-desk",
   },
   {
     id: "housekeeping",
@@ -64,7 +64,7 @@ export const SOLUTIONS_HOTEL_STACK_MODULES: SolutionsHotelStackModule[] = [
       "Shift run sheets and task assignments your team can actually follow",
       "Faults get flagged to maintenance the moment housekeeping spots them",
     ],
-    urlLabel: "app.xyvoo.com / housekeeping",
+    urlLabel: "app.getxyvoo.com / housekeeping",
   },
   {
     id: "hr",
@@ -76,7 +76,7 @@ export const SOLUTIONS_HOTEL_STACK_MODULES: SolutionsHotelStackModule[] = [
       "Rosters, clock-ins and leave requests, all in one place for every shift",
       "Payroll-ready exports, no manual re-entry",
     ],
-    urlLabel: "app.xyvoo.com / hr",
+    urlLabel: "app.getxyvoo.com / hr",
   },
   {
     id: "fb-pos",
@@ -88,7 +88,7 @@ export const SOLUTIONS_HOTEL_STACK_MODULES: SolutionsHotelStackModule[] = [
       "Orders go straight from table to kitchen screen — no re-keying",
       "Voids and refunds need manager sign-off, so nothing slips through",
     ],
-    urlLabel: "app.xyvoo.com / pos",
+    urlLabel: "app.getxyvoo.com / pos",
   },
   {
     id: "billing",
@@ -100,7 +100,7 @@ export const SOLUTIONS_HOTEL_STACK_MODULES: SolutionsHotelStackModule[] = [
       "Every charge lands on the folio — nothing gets missed or double-billed",
       "Receipts and invoices carry your hotel's brand, with local taxes handled automatically",
     ],
-    urlLabel: "app.xyvoo.com / billing",
+    urlLabel: "app.getxyvoo.com / billing",
   },
   {
     id: "cmms",
@@ -112,7 +112,7 @@ export const SOLUTIONS_HOTEL_STACK_MODULES: SolutionsHotelStackModule[] = [
       "A fault reported anywhere becomes a work order, tracked through to resolution",
       "Preventive maintenance scheduled against a full asset register",
     ],
-    urlLabel: "app.xyvoo.com / maintenance",
+    urlLabel: "app.getxyvoo.com / maintenance",
   },
   {
     id: "procurement",
@@ -124,7 +124,7 @@ export const SOLUTIONS_HOTEL_STACK_MODULES: SolutionsHotelStackModule[] = [
       "Purchase orders route for approval automatically once they pass your threshold",
       "Stock levels — including F&B — stay visible from order to delivery",
     ],
-    urlLabel: "app.xyvoo.com / procurement",
+    urlLabel: "app.getxyvoo.com / procurement",
   },
   {
     id: "analytics",
@@ -136,7 +136,7 @@ export const SOLUTIONS_HOTEL_STACK_MODULES: SolutionsHotelStackModule[] = [
       "Live dashboards for every department, plus revenue reporting for ownership",
       "Data infrastructure built to scale as your property grows",
     ],
-    urlLabel: "app.xyvoo.com / analytics",
+    urlLabel: "app.getxyvoo.com / analytics",
   },
 ];
 
