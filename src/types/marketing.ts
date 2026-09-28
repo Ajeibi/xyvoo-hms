@@ -6,6 +6,10 @@ export type MarketingContactForm = {
   company: string;
   message: string;
   type: string;
+  /** "Talk to Sales" only — what they're running, or "not sure yet". */
+  businessType?: string;
+  /** "Get Support" only — how urgent the issue is. */
+  urgency?: string;
 };
 
 export type MarketingTeamAvatarProps = {

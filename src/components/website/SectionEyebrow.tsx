@@ -22,21 +22,21 @@ export function SectionEyebrow({
     <div className={className}>
       <p
         className={cn(
-          "mb-4 inline-block text-[11px] font-bold uppercase tracking-[0.22em] text-xyvoo-blue-deep",
+          "mb-4 inline-block text-eyebrow font-bold uppercase tracking-[0.22em] text-xyvoo-blue-deep",
           eyebrowClassName,
         )}
       >
         {eyebrow}
       </p>
-      <h2
+      <h3
         id={titleId}
         className={cn(
-          "text-balance text-[clamp(1.75rem,4vw,2.75rem)] font-extrabold leading-[1.15] tracking-tight text-xyvoo-navy",
+          "text-balance text-h3 font-extrabold leading-[1.15] tracking-tight text-xyvoo-navy",
           titleClassName,
         )}
       >
         {title}
-      </h2>
+      </h3>
     </div>
   );
 }

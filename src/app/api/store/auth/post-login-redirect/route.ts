@@ -11,5 +11,5 @@ export async function POST() {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const storeDashboardPath = await getUserStoreDashboardPath(user.id);
-  return NextResponse.json({ redirectTo: storeDashboardPath || "/register/storefront" });
+  return NextResponse.json({ redirectTo: storeDashboardPath });
 }

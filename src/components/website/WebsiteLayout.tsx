@@ -13,13 +13,24 @@ import { usePathname } from "next/navigation";
 import {
   ArrowUp,
   ArrowUpRight,
+  BarChart2,
+  BedDouble,
+  Boxes,
   Building2,
   ChevronDown,
   ChevronUp,
+  CreditCard,
+  FileText,
   Headphones,
+  Home,
+  Layers,
   Menu,
   Newspaper,
   ShoppingBag,
+  TrendingUp,
+  User,
+  Users,
+  Wrench,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -60,13 +71,30 @@ function isNavGroup(item: NavItem): item is NavItemGroup {
 
 /** Every marketing-site path that's part of the Storefront product flow --
  * not just the /solution/storefront landing page, but also its own
- * register/login pages -- so the header, brand CTA, and footer all read as
- * "XYVOO Storefront" (teal accent, own copy/links) rather than defaulting
- * to the generic multi-product look on those pages. */
-const STOREFRONT_PATH_PREFIXES = ["/solution/storefront", "/register/storefront", "/auth/login/storefront"];
+ * register/login pages and business-type pages -- so the header, brand CTA,
+ * and footer all read as "XYVOO Storefront" (teal accent, own copy/links)
+ * rather than defaulting to the generic multi-product look on those pages. */
+const STOREFRONT_PATH_PREFIXES = [
+  "/solution/storefront",
+  "/register/storefront",
+  "/auth/login/storefront",
+  "/business-types/solo-sellers",
+  "/business-types/growing-retailers",
+];
 
 function isStorefrontPath(pathname: string | null): boolean {
   return STOREFRONT_PATH_PREFIXES.some((prefix) => pathname?.startsWith(prefix)) ?? false;
+}
+
+/** Same idea as STOREFRONT_PATH_PREFIXES, for the HMS product flow. */
+const HMS_PATH_PREFIXES = [
+  "/solution/hms",
+  "/business-types/independent-hotels",
+  "/business-types/hotel-groups",
+];
+
+function isHmsPath(pathname: string | null): boolean {
+  return HMS_PATH_PREFIXES.some((prefix) => pathname?.startsWith(prefix)) ?? false;
 }
 
 /** Mobile sheet: full-width rows, light dividers, generous tap targets (Bumpa-style). */
@@ -95,10 +123,65 @@ const NAV_DROPDOWN_ITEM_VISUAL: Record<
     iconWellStyle: { background: "rgb(var(--xyvoo-mint-rgb) / 0.22)" },
     iconColor: "var(--xyvoo-teal-product)",
   },
+  "/solution/storefront/customer-engagement": {
+    Icon: Users,
+    iconWellStyle: { background: "rgb(var(--xyvoo-mint-rgb) / 0.22)" },
+    iconColor: "var(--xyvoo-teal-product)",
+  },
+  "/solution/storefront/payments": {
+    Icon: CreditCard,
+    iconWellStyle: { background: "rgb(var(--xyvoo-mint-rgb) / 0.22)" },
+    iconColor: "var(--xyvoo-teal-product)",
+  },
+  "/solution/storefront/inventory": {
+    Icon: Boxes,
+    iconWellStyle: { background: "rgb(var(--xyvoo-mint-rgb) / 0.22)" },
+    iconColor: "var(--xyvoo-teal-product)",
+  },
+  "/solution/hms/guest-experience": {
+    Icon: BedDouble,
+    iconWellStyle: { background: "rgb(var(--xyvoo-blue-rgb) / 0.12)" },
+    iconColor: "rgb(var(--xyvoo-blue-rgb) / 0.88)",
+  },
+  "/solution/hms/operations": {
+    Icon: Wrench,
+    iconWellStyle: { background: "rgb(var(--xyvoo-blue-rgb) / 0.12)" },
+    iconColor: "rgb(var(--xyvoo-blue-rgb) / 0.88)",
+  },
+  "/solution/hms/finance-analytics": {
+    Icon: BarChart2,
+    iconWellStyle: { background: "rgb(var(--xyvoo-blue-rgb) / 0.12)" },
+    iconColor: "rgb(var(--xyvoo-blue-rgb) / 0.88)",
+  },
+  "/business-types/independent-hotels": {
+    Icon: Home,
+    iconWellStyle: { background: "rgb(var(--xyvoo-blue-rgb) / 0.12)" },
+    iconColor: "rgb(var(--xyvoo-blue-rgb) / 0.88)",
+  },
+  "/business-types/hotel-groups": {
+    Icon: Layers,
+    iconWellStyle: { background: "rgb(var(--xyvoo-blue-rgb) / 0.12)" },
+    iconColor: "rgb(var(--xyvoo-blue-rgb) / 0.88)",
+  },
+  "/business-types/solo-sellers": {
+    Icon: User,
+    iconWellStyle: { background: "rgb(var(--xyvoo-mint-rgb) / 0.22)" },
+    iconColor: "var(--xyvoo-teal-product)",
+  },
+  "/business-types/growing-retailers": {
+    Icon: TrendingUp,
+    iconWellStyle: { background: "rgb(var(--xyvoo-mint-rgb) / 0.22)" },
+    iconColor: "var(--xyvoo-teal-product)",
+  },
   "/blog": {
     Icon: Newspaper,
     iconWellStyle: { background: "rgb(var(--xyvoo-blue-rgb) / 0.09)" },
     iconColor: "rgb(var(--xyvoo-blue-rgb) / 0.82)",
+  },
+  "/resources": {
+    Icon: FileText,
+    iconWellStyle: { background: "rgb(var(--xyvoo-mint-rgb) / 0.18)" },
+    iconColor: "var(--xyvoo-teal-product)",
   },
   "/support": {
     Icon: Headphones,
@@ -118,21 +201,90 @@ const NAV: NavItem[] = [
           "Front desk, housekeeping, F&B, and finance — one dashboard for your property.",
       },
       {
+        label: "Guest Experience",
+        href: "/solution/hms/guest-experience",
+        description:
+          "Rooms, reservations and front office — the guest-facing side of your property.",
+      },
+      {
+        label: "Operations & Facilities",
+        href: "/solution/hms/operations",
+        description:
+          "Housekeeping, maintenance and procurement, kept in sync.",
+      },
+      {
+        label: "Finance, HR & Analytics",
+        href: "/solution/hms/finance-analytics",
+        description:
+          "Staff, F&B revenue, billing and reporting, all accounted for.",
+      },
+      {
         label: "XYVOO Storefront",
         href: "/solution/storefront",
         description:
           "Branded storefront, catalog, checkout, and fulfilment without bolt-ons.",
       },
+      {
+        label: "Customer Engagement",
+        href: "/solution/storefront/customer-engagement",
+        description:
+          "Segments, loyalty points, back-in-stock alerts, abandoned cart recovery and referrals.",
+      },
+      {
+        label: "Payments & Gift Cards",
+        href: "/solution/storefront/payments",
+        description:
+          "Paystack checkout, gift cards, and receipts — without a separate payment tool.",
+      },
+      {
+        label: "Inventory & Wholesale",
+        href: "/solution/storefront/inventory",
+        description:
+          "Bundles, barcodes, and wholesale pricing with minimum and maximum order quantities.",
+      },
     ],
   },
-  { label: "About", href: "/about" },
   {
-    label: "Resources",
+    label: "Business Types",
+    children: [
+      {
+        label: "Independent Hotels",
+        href: "/business-types/independent-hotels",
+        description:
+          "A single property, running on one simple system — no back office required.",
+      },
+      {
+        label: "Hotel Groups & Multi-Property",
+        href: "/business-types/hotel-groups",
+        description:
+          "Reservations, staff and reporting across every property, in one connected view.",
+      },
+      {
+        label: "Solo Sellers & New Businesses",
+        href: "/business-types/solo-sellers",
+        description:
+          "A storefront, catalogue and checkout you can run by yourself, live the same day.",
+      },
+      {
+        label: "Growing Retailers",
+        href: "/business-types/growing-retailers",
+        description:
+          "Marketing, team access and reporting that scale alongside your storefront.",
+      },
+    ],
+  },
+  {
+    label: "Learn",
     children: [
       {
         label: "Blog",
         href: "/blog",
         description: "Product news, guides, and hospitality reads.",
+      },
+      {
+        label: "Resources",
+        href: "/resources",
+        description: "Downloadable guides and checklists, ready to print or share.",
       },
       {
         label: "Support",
@@ -141,6 +293,7 @@ const NAV: NavItem[] = [
       },
     ],
   },
+  { label: "About", href: "/about" },
   { label: "Pricing", href: "/pricing" },
   { label: "Contact", href: "/contact" },
 ];
@@ -477,11 +630,12 @@ function WebsiteHeader({ pathname }: { pathname: string }) {
   }, []);
 
   const isStorefront = isStorefrontPath(pathname);
+  const isSolutionHmsPath = isHmsPath(pathname);
 
   const isHeroDark = !scrolled && (
     (pathname === "/" && !!heroTheme?.isDark) ||
-    pathname === "/solution/hms" ||
-    pathname === "/solution/storefront"
+    isSolutionHmsPath ||
+    isStorefront
   );
 
   return (
@@ -491,7 +645,7 @@ function WebsiteHeader({ pathname }: { pathname: string }) {
         visible ? "translate-y-0" : "-translate-y-full",
         scrolled
           ? "bg-white/95 backdrop-blur-md shadow-sm"
-          : (pathname === "/" && heroTheme) || pathname === "/solution/hms" || pathname === "/solution/storefront"
+          : (pathname === "/" && heroTheme) || isSolutionHmsPath || isStorefront
             ? "bg-transparent"
             : "bg-white/90 backdrop-blur-sm"
       )}
@@ -606,7 +760,7 @@ export default function WebsiteLayout({
           {/* Heading + CTA (left) and link columns + contact (right) */}
           <div className="grid grid-cols-1 gap-12 border-b border-white/10 pb-14 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.4fr)] lg:gap-16">
             <div className="max-w-md">
-              <h2 className="text-3xl font-black leading-[1.08] tracking-tight text-white md:text-4xl">
+              <h2 className="text-h2 font-black leading-[1.08] tracking-tight text-white">
                 Let&apos;s take your{" "}
                 {isStorefront ? "storefront" : "property"}{" "}
                 <span
@@ -619,7 +773,7 @@ export default function WebsiteLayout({
                 </span>
                 .
               </h2>
-              <p className="mt-4 max-w-sm text-sm leading-relaxed text-slate-400 md:text-[15px]">
+              <p className="mt-4 max-w-sm text-p leading-relaxed text-slate-400">
                 Whether you&apos;re opening your first property or scaling an
                 online storefront, we&apos;ll help you get set up and live —
                 fast.
@@ -649,7 +803,7 @@ export default function WebsiteLayout({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-3">
+            <div className="grid grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-4">
               {[
                 {
                   title: "Product",
@@ -662,17 +816,23 @@ export default function WebsiteLayout({
                   ],
                 },
                 {
-                  title: "Resources",
+                  title: "Learn",
+                  links: [
+                    ["Blog", "/blog"],
+                    ["Resources", "/resources"],
+                    ["Support", "/support"],
+                  ],
+                },
+                {
+                  title: "Company",
                   links: [
                     ["About", "/about"],
-                    ["Blog", "/blog"],
-                    ["Support", "/support"],
                     ["Contact", "/contact"],
                   ],
                 },
               ].map((col) => (
                 <div key={col.title}>
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-4">
+                  <p className="text-eyebrow font-semibold text-slate-500 uppercase tracking-widest mb-4">
                     {col.title}
                   </p>
                   <ul className="space-y-2.5">
@@ -691,7 +851,7 @@ export default function WebsiteLayout({
               ))}
 
               <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-4">
+                <p className="text-eyebrow font-semibold text-slate-500 uppercase tracking-widest mb-4">
                   Get in touch
                 </p>
                 <ul className="space-y-2.5">
@@ -817,9 +977,15 @@ function BrandCtaSection() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const parallaxRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
-  const isHms = pathname?.startsWith("/solution/hms") ?? false;
+  const isHms = isHmsPath(pathname);
   const isStorefront = isStorefrontPath(pathname);
   const isImageBg = isHms || isStorefront;
+  // Sub-pages (e.g. /solution/hms/guest-experience) get a second button
+  // pointing back at the main solution page — but the main solution pages
+  // themselves must not link to themselves, so they keep the single-button
+  // layout they always had.
+  const isHmsSubPage = isHms && pathname !== "/solution/hms";
+  const isStorefrontSubPage = isStorefront && pathname !== "/solution/storefront";
   const bgColor = isHms ? CTA_BG_COLOR.hms : CTA_BG_COLOR.storefront;
   const [imageOk, setImageOk] = useState(true);
 
@@ -951,14 +1117,14 @@ function BrandCtaSection() {
 
       <div className="relative z-10 mx-auto max-w-[1200px] w-full flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div className="flex flex-col text-left max-w-2xl">
-          <h2 id="brand-cta-heading" className="text-xl md:text-2xl lg:text-[1.625rem] font-bold tracking-tight text-white leading-tight">
+          <h4 id="brand-cta-heading" className="text-h4 font-bold tracking-tight text-white leading-tight">
             {isHms
               ? "Ready to run your property on XYVOO?"
               : isStorefront
                 ? "Ready to run your business on your own storefront?"
-                : "Ready to run your business on your own system?"}
-          </h2>
-          <p className="mt-2 text-[13.5px] md:text-[14.5px] text-slate-300 leading-relaxed">
+                : "Ready to see it running your business?"}
+          </h4>
+          <p className="mt-2 text-p text-slate-300 leading-relaxed">
             {isHms
               ? "Start free or compare HMS plans — our team can help you migrate without downtime."
               : isStorefront
@@ -978,12 +1144,12 @@ function BrandCtaSection() {
           >
             {isHms || isStorefront ? "Get started →" : "Launch your HMS →"}
           </Link>
-          {!isHms && !isStorefront && (
+          {(isHmsSubPage || isStorefrontSubPage || (!isHms && !isStorefront)) && (
             <Link
-              href="/register/storefront"
+              href={isHmsSubPage ? "/solution/hms" : isStorefrontSubPage ? "/solution/storefront" : "/register/storefront"}
               className="inline-flex items-center justify-center gap-1 rounded-lg border border-white/30 bg-white/10 hover:bg-white/20 text-white px-6 py-3 text-[14.5px] font-semibold transition-all duration-200 hover:-translate-y-0.5 shadow-sm w-full sm:w-auto text-center"
             >
-              Start your online storefront →
+              {isHmsSubPage ? "Explore HMS →" : isStorefrontSubPage ? "Explore Storefront →" : "Start your online storefront →"}
             </Link>
           )}
         </div>

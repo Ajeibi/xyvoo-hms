@@ -50,12 +50,12 @@ export function HomeAbout() {
             <div className="flex flex-col">
               
               {/* Headline */}
-              <h3 id="about-section-title" className="mb-6 text-balance text-3xl font-black leading-[1.14] tracking-tight text-xyvoo-navy sm:text-4xl">
+              <h3 id="about-section-title" className="mb-6 text-balance text-h3 font-black leading-[1.14] tracking-tight text-xyvoo-navy">
                 About XYVOO
               </h3>
 
               {/* Body Paragraph */}
-              <p className="mb-8 text-base leading-relaxed text-slate-600 sm:text-[16.5px]">
+              <p className="mb-8 text-p leading-relaxed text-slate-600">
                 There&apos;s no shortage of software for hotels and retailers. What&apos;s
                 harder to find is a system that&apos;s genuinely yours — with no XYVOO
                 branding in sight — built specifically for the business you actually

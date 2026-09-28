@@ -133,19 +133,19 @@ function FeatureRowBlock({
     >
       <div className="flex flex-col px-5 pb-5 pt-9 sm:px-8 sm:pb-6 sm:pt-11 md:px-[72px] md:pb-[72px] md:pt-[72px]">
         <div
-          className="mb-3 text-[11px] font-bold uppercase tracking-[0.16em]"
+          className="mb-3 text-eyebrow font-bold uppercase tracking-[0.16em]"
           style={{ color: "var(--xyvoo-hms-features-number)" }}
         >
           {feature.number}
         </div>
         <h3
-          className="mb-3 whitespace-pre-line font-extrabold leading-[1.18] text-[clamp(1.55rem,3vw,1.9rem)]"
+          className="mb-3 whitespace-pre-line font-extrabold leading-[1.18] text-h3"
           style={{ color: "var(--xyvoo-hms-features-title)" }}
         >
           {feature.title}
         </h3>
         <p
-          className="mb-6 max-w-[400px] text-[15.5px] leading-[1.75]"
+          className="mb-6 max-w-[400px] text-p leading-[1.75]"
           style={{ color: "var(--xyvoo-hms-features-desc)" }}
         >
           {feature.description}
@@ -307,9 +307,9 @@ export function HomeWhyChooseSection() {
                   </span>
                 </>
               }
-              eyebrowClassName="mb-[18px] inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-[11.5px] font-semibold uppercase tracking-[0.13em]"
-              titleClassName="mb-4 text-[clamp(1.625rem,4.4vw,2.75rem)] font-extrabold leading-[1.12]"
-              className="[&>h2]:[color:var(--xyvoo-hms-features-headline)] [&>p]:[color:var(--xyvoo-hms-features-eyebrow-text)] [&>p]:[border-color:var(--xyvoo-hms-features-eyebrow-border)] [&>p]:[background:var(--xyvoo-hms-features-eyebrow-bg)]"
+              eyebrowClassName="mb-[18px] inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-eyebrow font-semibold uppercase tracking-[0.13em]"
+              titleClassName="mb-4 text-h3 font-extrabold leading-[1.12]"
+              className="[&>h3]:[color:var(--xyvoo-hms-features-headline)] [&>p]:[color:var(--xyvoo-hms-features-eyebrow-text)] [&>p]:[border-color:var(--xyvoo-hms-features-eyebrow-border)] [&>p]:[background:var(--xyvoo-hms-features-eyebrow-bg)]"
             />
             <p
               className="mx-auto max-w-[480px] text-[17px] leading-[1.65]"

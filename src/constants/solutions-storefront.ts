@@ -37,7 +37,9 @@ export const SOLUTIONS_STOREFRONT_STACK_MODULES: SolutionsStorefrontStackModule[
     description:
       "Variants, pricing, and stock tied together so overselling is harder — with bulk tools for large catalogues.",
     bullets: [
-      "Variants, categories and bundles with real-time stock updates",
+      "Variants, categories and real-time stock updates across your whole catalogue",
+      "Bundle products together, or generate barcodes for every SKU",
+      "Wholesale pricing with minimum and maximum order quantities for bulk buyers",
       "Bulk import and batch edits for fast merchandising",
     ],
     urlLabel: "app.getxyvoo.com / products",
@@ -62,6 +64,7 @@ export const SOLUTIONS_STOREFRONT_STACK_MODULES: SolutionsStorefrontStackModule[
       "Paystack-ready checkout today, with room to add Flutterwave and Stripe as you grow — card, transfer and USSD supported.",
     bullets: [
       "Paystack checkout with receipts and order confirmation built in",
+      "Gift cards customers can buy and redeem straight at checkout",
       "Checkout events feed straight into your sales analytics",
     ],
     urlLabel: "app.getxyvoo.com / checkout",
@@ -71,10 +74,12 @@ export const SOLUTIONS_STOREFRONT_STACK_MODULES: SolutionsStorefrontStackModule[
     number: "05 — Marketing & Growth",
     title: "SEO and campaigns,\nbuilt in.",
     description:
-      "Surface products on search and reach buyers directly, without bolting on a separate marketing tool.",
+      "SEO, coupon codes and sales countdowns, customer segments and loyalty points, automated back-in-stock alerts, abandoned cart recovery and a referral program — all built in, without bolting on a separate marketing tool.",
     bullets: [
       "SEO controls for storefront and product pages",
-      "Discount codes, promotions and email marketing lists and sends",
+      "Coupon codes with usage limits, sales countdown timers and email marketing sends",
+      "Customer segments, loyalty points and automated back-in-stock alerts",
+      "Abandoned cart recovery and a referral program, both running on autopilot",
     ],
     urlLabel: "app.getxyvoo.com / marketing",
   },
@@ -149,9 +154,9 @@ export const SOLUTIONS_STOREFRONT_ONBOARDING_CARDS: SolutionsOnboardingCard[] = 
     id: "sign-up",
     title: "Sign up & go live",
     description:
-      "Business details, quick verification, and your storefront is live on your own subdomain immediately.",
+      "Business details, quick verification, and your storefront is live on your own subdomain immediately — with assisted onboarding on every plan, not just the top ones.",
     explanation:
-      "There's no separate hosting to arrange and no developer to wait on. The moment your details are verified, your storefront is already running on its own subdomain, carrying your branding, and ready for its first product. You can start on the free plan and move up later without switching platforms.",
+      "There's no separate hosting to arrange and no developer to wait on. The moment your details are verified, your storefront is already running on its own subdomain, carrying your branding, and ready for its first product. Migrating from another platform? Assisted onboarding and migration help is available whichever plan you're on — you can start on the free plan and move up later without switching platforms.",
   },
   {
     id: "add-products",

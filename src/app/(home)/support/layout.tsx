@@ -3,7 +3,8 @@ import type { ReactNode } from "react";
 
 export const metadata: Metadata = {
   title: "Support",
-  description: "How can we help? Real humans, real answers, usually within minutes.",
+  description:
+    "Help articles, FAQs, and how to reach the XYVOO team for support with your HMS or Storefront.",
   alternates: { canonical: "/support" },
 };
 

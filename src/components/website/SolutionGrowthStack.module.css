@@ -1,7 +1,7 @@
 /* Arc-cycle card stack: three cards swing off one at a time as the section
    scrolls past, pivoting from a point off to the right of the card so the
    exit reads as a turn rather than a straight fade. Motion is driven from
-   React (scroll-scrubbed, no CSS transition) — see StorefrontGrowthStack.tsx.
+   React (scroll-scrubbed, no CSS transition) — see SolutionGrowthStack.tsx.
    Background matches the hero's dark-tab grid — same faint 0.01 line
    opacity as getGridImage(isDark) in HomeHero.tsx — but without the
    travelling glow-dots (GridPulses), which read as too busy here. */
@@ -28,7 +28,7 @@
 
 .pinWrap {
   /* height is set inline from PER_TRANSITION_VH/DWELL_VH in
-     StorefrontGrowthStack.tsx, computed from the module count — this is
+     SolutionGrowthStack.tsx, computed from the module count — this is
      just a fallback in case JS hasn't run yet. */
   position: relative;
   height: 310vh;
@@ -117,7 +117,7 @@
 }
 
 .eyebrow {
-  font-size: 11px;
+  font-size: var(--text-eyebrow);
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -138,17 +138,17 @@
 
 .heading {
   grid-area: heading;
-  font-size: clamp(1.9rem, 3.2vw, 2.6rem);
+  font-size: var(--text-h3);
   font-weight: 800;
-  line-height: 1.14;
+  line-height: 1.2;
   margin: 0 0 20px;
   color: var(--ink);
 }
 
 .subtitle {
   grid-area: subtitle;
-  font-size: 16px;
-  line-height: 1.7;
+  font-size: var(--text-p);
+  line-height: 1.6;
   color: var(--ink-dim);
   max-width: 44ch;
   margin: 0 0 32px;
@@ -245,8 +245,8 @@
   letter-spacing: 0.04em;
 }
 
-.card h3 {
-  font-size: 24px;
+.card h5 {
+  font-size: var(--text-h5);
   font-weight: 700;
   margin: 0 0 10px;
   color: var(--ink);
@@ -255,7 +255,7 @@
 
 .card p {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--text-p);
   line-height: 1.6;
   color: var(--ink-dim);
   max-width: 40ch;

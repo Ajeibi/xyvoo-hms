@@ -16,6 +16,14 @@ export function getPublicEnv() {
   };
 }
 
+export function getGoogleClientId() {
+  const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+  if (!clientId) {
+    throw new Error("Missing required env var: NEXT_PUBLIC_GOOGLE_CLIENT_ID");
+  }
+  return clientId;
+}
+
 export function getServerEnv() {
   const publicEnv = getPublicEnv();
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

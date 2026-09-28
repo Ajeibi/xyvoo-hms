@@ -8,6 +8,7 @@ import {
   ShoppingBag,
 } from "lucide-react";
 import { XYVOO_AUTH_ROUTES } from "@/constants/auth-links";
+import { AUTH_LOCKED } from "@/lib/auth-lock";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,6 +37,16 @@ const MENU_SHADOW = {
   boxShadow:
     "0 16px 48px -12px rgb(var(--xyvoo-navy-rgb) / 0.22), 0 4px 16px rgb(var(--xyvoo-navy-rgb) / 0.08)",
 } as const;
+
+/** Shown beside each product while sign-in and registration are locked pre-launch. */
+function LaunchingSoonPill() {
+  if (!AUTH_LOCKED) return null;
+  return (
+    <span className="ml-2 inline-flex rounded-full bg-muted px-2 py-0.5 align-middle text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+      Soon
+    </span>
+  );
+}
 
 const MOBILE_AUTH_SIGN_IN = "Sign in";
 const MOBILE_AUTH_GET_STARTED = "Get started";
@@ -86,6 +97,7 @@ function AuthProductMenuRows({
           <span className="flex min-w-0 flex-1 flex-col gap-0.5 text-left">
             <span className="text-sm font-semibold leading-snug text-foreground">
               {cfg.title}
+              <LaunchingSoonPill />
             </span>
             <span
               className="text-[11px] font-normal leading-[1.45]"
@@ -259,6 +271,7 @@ function MobileNavAuthCollapsible({
                         )}
                       >
                         {cfg.title}
+                        <LaunchingSoonPill />
                       </span>
                       <span className="text-[13px] font-normal leading-snug text-muted-foreground">
                         {cfg.subtitle}

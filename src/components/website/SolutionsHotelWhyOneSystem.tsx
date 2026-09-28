@@ -90,12 +90,12 @@ export function SolutionsHotelWhyOneSystem() {
       <div className="mx-auto max-w-[1200px]">
         <FadeIn>
           <div className="mx-auto mb-12 max-w-2xl text-center md:mb-16">
-            <h2
+            <h3
               id="hotel-why-one-system-heading"
-              className="text-balance text-[clamp(1.625rem,4.4vw,2.75rem)] font-extrabold leading-[1.15] tracking-tight text-xyvoo-navy"
+              className="text-balance text-h3 font-extrabold leading-[1.15] tracking-tight text-xyvoo-navy"
             >
               Built as one system, not stitched together.
-            </h2>
+            </h3>
           </div>
         </FadeIn>
 

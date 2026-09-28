@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
       { source: "/website/:path*", destination: "/:path*", permanent: true },
       { source: "/home", destination: "/", permanent: true },
       { source: "/home/:path*", destination: "/:path*", permanent: true },
+      { source: "/solutions/hotel", destination: "/solution/hms", permanent: true },
     ];
   },
 };

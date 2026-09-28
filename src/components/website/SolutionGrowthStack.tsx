@@ -1,9 +1,32 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import type { SolutionsStorefrontStackModule } from "@/constants/solutions-storefront";
+import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
 import { SOLUTIONS_STOREFRONT_GROWTH_STACK_HEADING } from "@/constants/solutions-storefront";
-import styles from "./StorefrontGrowthStack.module.css";
+import styles from "./SolutionGrowthStack.module.css";
+
+export type SolutionGrowthStackModule = {
+  id: string;
+  number: string;
+  title: string;
+  description: string;
+};
+
+export type SolutionGrowthStackColors = {
+  voidBg: string;
+  panelBg: string;
+  ink: string;
+  inkDim: string;
+  inkFaint: string;
+  line: string;
+  accent: string;
+  accentRgb: string;
+};
+
+export type SolutionGrowthStackHeading = {
+  eyebrow: string;
+  title: string;
+  subtitle: string;
+};
 
 /** Exit motion: once a card's turn is up it swings away on a circular arc
  * pivoting from a point off to the right of the card — rather than
@@ -31,11 +54,36 @@ function shortName(moduleNumber: string): string {
   return moduleNumber.split("—")[1]?.trim() ?? moduleNumber;
 }
 
-export function StorefrontGrowthStack({
+export function SolutionGrowthStack({
   modules,
+  heading = SOLUTIONS_STOREFRONT_GROWTH_STACK_HEADING,
+  tagline = (
+    <>
+      Still just <strong>one dashboard</strong> — not three separate tools bolted together.
+    </>
+  ),
+  colors,
 }: {
-  modules: SolutionsStorefrontStackModule[];
+  modules: SolutionGrowthStackModule[];
+  /** Defaults to the Storefront heading/subtitle, unchanged from before this was generalized. */
+  heading?: SolutionGrowthStackHeading;
+  /** Defaults to the Storefront tagline, unchanged from before this was generalized. */
+  tagline?: ReactNode;
+  /** Overrides the CSS module's default (Storefront teal/dark-green) palette — pass this for HMS blue. Omit to keep the Storefront look exactly as it was. */
+  colors?: SolutionGrowthStackColors;
 }) {
+  const colorVars = colors
+    ? ({
+        "--void": colors.voidBg,
+        "--panel": colors.panelBg,
+        "--ink": colors.ink,
+        "--ink-dim": colors.inkDim,
+        "--ink-faint": colors.inkFaint,
+        "--line": colors.line,
+        "--teal": colors.accent,
+        "--teal-rgb": colors.accentRgb,
+      } as CSSProperties)
+    : undefined;
   const wrapRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<Array<HTMLElement | null>>([]);
   const tickRefs = useRef<Array<HTMLDivElement | null>>([]);
@@ -130,11 +178,11 @@ export function StorefrontGrowthStack({
   }, [count, transitionTotalVh, totalVh]);
 
   return (
-    <div className={styles.wrap}>
+    <div className={styles.wrap} style={colorVars}>
       <div className={styles.pinWrap} ref={wrapRef} style={{ height: `${totalVh}vh` }}>
         <div className={styles.pinInner}>
           <div className={styles.topStrip}>
-            <p className={styles.eyebrow}>{SOLUTIONS_STOREFRONT_GROWTH_STACK_HEADING.eyebrow}</p>
+            <p className={styles.eyebrow}>{heading.eyebrow}</p>
             <p className={styles.topStripLine}>
               {modules.map((module, i) => (
                 <span key={module.id}>
@@ -154,7 +202,7 @@ export function StorefrontGrowthStack({
                 can independently reorder just the subtitle to come after
                 the card stack — via grid-area, not DOM order — while
                 desktop keeps heading/subtitle/ticks stacked as before. */}
-            <h2 className={styles.heading}>{SOLUTIONS_STOREFRONT_GROWTH_STACK_HEADING.title}</h2>
+            <h3 className={styles.heading}>{heading.title}</h3>
 
             <div className={styles.ticks}>
               {modules.map((module, i) => (
@@ -183,18 +231,16 @@ export function StorefrontGrowthStack({
                   <span className={styles.num}>
                     {String(i + 1).padStart(2, "0")} — {shortName(module.number)}
                   </span>
-                  <h3>{module.title}</h3>
+                  <h5>{module.title}</h5>
                   <p>{module.description}</p>
                 </article>
               ))}
             </div>
 
-            <p className={styles.subtitle}>{SOLUTIONS_STOREFRONT_GROWTH_STACK_HEADING.subtitle}</p>
+            <p className={styles.subtitle}>{heading.subtitle}</p>
           </div>
 
-          <p className={styles.tagline}>
-            Still just <strong>one dashboard</strong> — not three separate tools bolted together.
-          </p>
+          <p className={styles.tagline}>{tagline}</p>
         </div>
       </div>
     </div>

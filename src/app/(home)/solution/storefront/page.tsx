@@ -57,23 +57,23 @@ export default function SolutionsStorefrontPage() {
         >
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-6">
             <p
-              className="text-[11px] font-bold uppercase tracking-[0.22em]"
+              className="text-eyebrow font-bold uppercase tracking-[0.22em]"
               style={{ color: "var(--xyvoo-teal-product)" }}
             >
               {SOLUTIONS_STOREFRONT_HERO.eyebrow}
             </p>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-white/45">
+            <p className="text-eyebrow font-semibold uppercase tracking-[0.22em] text-white/45">
               No credit card required
             </p>
           </div>
 
-          <h1 className="mt-10 max-w-4xl text-balance text-[clamp(2.5rem,6vw,4.25rem)] font-black leading-[1.08] text-white">
+          <h1 className="mt-10 max-w-4xl text-balance text-h1 font-black leading-[1.08] text-white">
             One <span style={{ color: "var(--xyvoo-teal-product)" }}>connected</span> operating
             system for your online business.
           </h1>
 
           <div className="mt-8 flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
-            <p className="max-w-xl text-[17px] leading-relaxed text-white/70">
+            <p className="max-w-xl text-p leading-relaxed text-white/70">
               {SOLUTIONS_STOREFRONT_HERO.subtitle}
             </p>
             <div className="flex flex-wrap items-center gap-4 shrink-0">

@@ -16,6 +16,8 @@ const FEATURE_LABELS = [
   "OTA & Channel Sync",
   "Automated Tax & Invoicing",
   "Real-Time Inventory Tracking",
+  "Barcode Generator",
+  "Product Bundles",
   "Email Marketing Tools",
   "Custom Subdomain",
   "14-Day Free Trial",
@@ -34,6 +36,13 @@ const FEATURE_LABELS = [
   "Webhook & API Access",
   "Scheduled Report Delivery",
   "Real-Time Room Status Board",
+  "Customer Segments & Loyalty Points",
+  "Automated Abandoned Cart Recovery",
+  "Gift Cards",
+  "Coupon Codes & Sales Countdowns",
+  "Wholesale & MOQ Pricing",
+  "Referral Program",
+  "Assisted Onboarding, Every Plan",
   "GDPR & NDPA Compliant",
 ] as const;
 

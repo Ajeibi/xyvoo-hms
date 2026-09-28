@@ -105,7 +105,7 @@ export function HomeProductsSection() {
             }
             titleId="home-products-heading"
             titleClassName="font-extrabold"
-            className="[&>h2]:[font-family:var(--font-products-display),sans-serif]"
+            className="[&>h3]:[font-family:var(--font-products-display),sans-serif]"
           />
         </Reveal>
 
@@ -128,19 +128,19 @@ export function HomeProductsSection() {
               />
               <CardHeader className="relative z-[1] shrink-0 space-y-4 px-8 pb-0 pt-10 md:px-12 md:pt-12">
                 <p
-                  className="text-[11px] font-bold uppercase tracking-[0.22em]"
+                  className="text-eyebrow font-bold uppercase tracking-[0.22em]"
                   style={{ color: "var(--xyvoo-blue-light)" }}
                 >
                   For Hotels &amp; Properties
                 </p>
                 <CardTitle
-                  className="text-[26px] font-extrabold leading-tight tracking-tight text-[var(--xyvoo-products-navy-alt)]"
+                  className="text-h4 font-extrabold leading-tight tracking-tight text-[var(--xyvoo-products-navy-alt)]"
                   style={{ fontFamily: "var(--font-products-display), sans-serif" }}
                 >
                   Hotel Management, Your Brand
                 </CardTitle>
                 <CardDescription
-                  className="text-[15px] leading-[1.7] text-[#4b5563]"
+                  className="text-p leading-[1.7] text-[#4b5563]"
                   style={{ fontFamily: "var(--font-products-sans), sans-serif" }}
                 >
                   White-label HMS — PMS, reservations, housekeeping, F&amp;B,
@@ -191,19 +191,19 @@ export function HomeProductsSection() {
               />
               <CardHeader className="relative z-[1] shrink-0 space-y-4 px-8 pb-0 pt-10 md:px-12 md:pt-12">
                 <p
-                  className="text-[11px] font-bold uppercase tracking-[0.22em]"
+                  className="text-eyebrow font-bold uppercase tracking-[0.22em]"
                   style={{ color: "var(--xyvoo-teal-product)" }}
                 >
                   For Retailers &amp; Merchants
                 </p>
                 <CardTitle
-                  className="text-[26px] font-extrabold leading-tight tracking-tight text-[var(--xyvoo-products-navy-alt)]"
+                  className="text-h4 font-extrabold leading-tight tracking-tight text-[var(--xyvoo-products-navy-alt)]"
                   style={{ fontFamily: "var(--font-products-display), sans-serif" }}
                 >
                   E-Commerce, Your Brand
                 </CardTitle>
                 <CardDescription
-                  className="text-[15px] leading-[1.7] text-[#4b5563]"
+                  className="text-p leading-[1.7] text-[#4b5563]"
                   style={{ fontFamily: "var(--font-products-sans), sans-serif" }}
                 >
                   A fully branded online storefront — products, orders, payments,

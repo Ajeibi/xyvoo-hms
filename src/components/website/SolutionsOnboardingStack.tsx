@@ -202,7 +202,7 @@ export function SolutionsOnboardingStack({
         const explanation = explanationRefs.current[i];
         if (explanation) {
           explanation.style.opacity = String(explanationOpacity);
-          explanation.style.maxHeight = `${explanationOpacity * 220}px`;
+          explanation.style.maxHeight = `${explanationOpacity * 280}px`;
           explanation.style.borderTopColor = `rgba(13, 27, 42, ${0.1 * explanationOpacity})`;
           explanation.style.transform = `translateY(${(1 - explanationOpacity) * 8}px)`;
         }
@@ -249,9 +249,9 @@ export function SolutionsOnboardingStack({
     >
       <div className={styles.container}>
         <div className={styles.grid}>
-          <h2 className={styles.heading} ref={headingRef}>
+          <h3 className={styles.heading} ref={headingRef}>
             {heading}
-          </h2>
+          </h3>
           {/* Invisible — reserves the layout space the stacked deck starts
               in; its measured rect is the FLIP animation's start point. */}
           <div className={styles.startSlot} ref={startSlotRef} />
@@ -272,7 +272,7 @@ export function SolutionsOnboardingStack({
             }}
           >
             <span className={styles.num}>{String(i + 1).padStart(2, "0")}</span>
-            <h3>{card.title}</h3>
+            <h5>{card.title}</h5>
             <p>{card.description}</p>
             <p
               className={styles.explanation}

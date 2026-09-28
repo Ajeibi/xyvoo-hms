@@ -248,20 +248,20 @@ function HeroCopy({
       }
     >
       <p
-        className="mb-4 text-xs font-bold uppercase tracking-[0.2em]"
+        className="mb-4 text-eyebrow font-bold uppercase tracking-[0.2em]"
         style={{ color: tab.accentText }}
       >
         {tab.eyebrow}
       </p>
       <h1 id="home-hero-heading" className={
-        "mb-5 text-balance text-4xl font-black leading-[1.08] tracking-tight md:text-5xl lg:text-[2.75rem] lg:leading-[1.12] " +
+        "mb-5 text-balance text-h1 font-black leading-[1.08] tracking-tight " +
         (isDark ? "text-white" : "text-[#07162c]")
       }>
         {tab.headline}
       </h1>
       <p
         className={
-          "mb-10 text-pretty text-base leading-relaxed md:text-lg " +
+          "mb-10 text-pretty text-p leading-relaxed " +
           (isDark ? "text-white" : "text-[#334155]") + " " +
           (isCenter
             ? "mx-auto max-w-2xl"

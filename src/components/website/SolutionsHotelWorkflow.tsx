@@ -514,7 +514,7 @@ function RootsCallout() {
           background: "rgb(var(--xyvoo-blue-rgb) / 0.03)",
         }}
       >
-        <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-xyvoo-blue">
+        <span className="text-eyebrow font-bold uppercase tracking-[0.14em] text-xyvoo-blue">
           Running in the background, every day
         </span>
         <p className="text-[13px] leading-[1.6] text-xyvoo-navy/60">
@@ -572,16 +572,16 @@ export function SolutionsHotelWorkflow() {
       <div className="relative z-10 mx-auto max-w-[900px]">
         <FadeIn>
           <div className="mx-auto mb-16 max-w-2xl text-center md:mb-20">
-            <p className="mb-4 text-[11px] font-bold uppercase tracking-[0.22em] text-xyvoo-blue">
+            <p className="mb-4 text-eyebrow font-bold uppercase tracking-[0.22em] text-xyvoo-blue">
               How it really works
             </p>
-            <h2
+            <h3
               id="hotel-workflow-heading"
-              className="mb-5 text-balance text-[clamp(1.75rem,4vw,2.75rem)] font-extrabold leading-[1.15] text-xyvoo-navy"
+              className="mb-5 text-balance text-h3 font-extrabold leading-[1.15] text-xyvoo-navy"
             >
               One stay. Every department, at once.
-            </h2>
-            <p className="mx-auto text-[16px] leading-[1.75] text-xyvoo-navy/65">
+            </h3>
+            <p className="mx-auto text-p leading-[1.75] text-xyvoo-navy/65">
               To the guest, it's one simple visit. Underneath, every
               department is working off the exact same booking — here's what
               actually happens at each stage.

@@ -79,8 +79,8 @@ export function HomePricingFaqSection() {
             eyebrow="FAQ"
             title="Frequently Asked Questions"
             titleId="home-faq-heading"
-            className="[&>h2]:[color:var(--xyvoo-products-navy-alt)] [&>p]:[color:var(--xyvoo-blue)]"
-            titleClassName="text-[clamp(1.625rem,4.4vw,2.75rem)] font-extrabold leading-[1.12]"
+            className="[&>h3]:[color:var(--xyvoo-products-navy-alt)] [&>p]:[color:var(--xyvoo-blue)]"
+            titleClassName="text-h3 font-extrabold leading-[1.12]"
           />
           <p
             className="mx-auto mt-5 max-w-[680px] text-[15px] leading-[1.75]"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
@@ -8,7 +8,8 @@ import { CircleAlert, Eye, EyeOff } from "lucide-react";
 import WebsiteLayout from "@/components/website/WebsiteLayout";
 import { supabaseAuthBrowser } from "@/lib/supabase/auth-browser";
 import { toastError, toastSuccess } from "@/lib/app-toast";
-import { GoogleIcon } from "@/components/auth/GoogleIcon";
+import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
+import type { GoogleCredentialResponse } from "@/lib/auth/google-identity";
 
 function friendlySignInMessage(message: string) {
   const normalized = message.toLowerCase();
@@ -28,38 +29,50 @@ export default function StorefrontLoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const oauthError = params.get("error");
-    if (oauthError) {
-      toastError("Google sign-in failed", oauthError);
-      params.delete("error");
-      const query = params.toString();
-      window.history.replaceState({}, "", query ? `?${query}` : window.location.pathname);
-    }
-  }, []);
+  const completeSignIn = async () => {
+    try {
+      const redirectRes = await fetch("/api/store/auth/post-login-redirect", { method: "POST" });
+      const redirectData = await redirectRes.json().catch(() => ({}));
 
-  const clearError = () => {
-    if (error) setError("");
+      if (!redirectRes.ok) {
+        const message =
+          typeof redirectData.error === "string"
+            ? redirectData.error
+            : "We signed you in but couldn't open your dashboard. Please try again.";
+        setError(message);
+        toastError("Redirect failed", message);
+        return;
+      }
+
+      toastSuccess("Signed in", "Welcome back. Opening your dashboard…");
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      window.location.assign(redirectData.redirectTo || "/register/storefront/complete");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleGoogleSignIn = async () => {
+  const handleGoogleCredential = async (response: GoogleCredentialResponse) => {
     setLoading(true);
     setError("");
 
-    const { error: oauthError } = await supabaseAuthBrowser.auth.signInWithOAuth({
+    const { error: idTokenError } = await supabaseAuthBrowser.auth.signInWithIdToken({
       provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-        queryParams: { prompt: "select_account" },
-      },
+      token: response.credential,
     });
 
-    if (oauthError) {
-      setError(oauthError.message);
-      toastError("Google sign-in failed", oauthError.message);
+    if (idTokenError) {
+      setError(idTokenError.message);
+      toastError("Google sign-in failed", idTokenError.message);
       setLoading(false);
+      return;
     }
+
+    await completeSignIn();
+  };
+
+  const clearError = () => {
+    if (error) setError("");
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -206,15 +219,7 @@ export default function StorefrontLoginPage() {
         <span className="h-px flex-1 bg-slate-200" />
       </div>
 
-      <button
-        type="button"
-        disabled={loading}
-        onClick={handleGoogleSignIn}
-        className="flex w-full items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white py-3 font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
-      >
-        <GoogleIcon />
-        Continue with Google
-      </button>
+      <GoogleSignInButton onCredential={handleGoogleCredential} className="flex w-full justify-center" />
 
       <motion.p
         className="text-center text-sm text-slate-500"

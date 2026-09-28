@@ -13,13 +13,13 @@ import {
   type SolutionsStorefrontStackModule,
 } from "@/constants/solutions-storefront";
 import type { FadeInSectionProps } from "@/types";
-import { StorefrontGrowthStack } from "@/components/website/StorefrontGrowthStack";
+import { SolutionGrowthStack } from "@/components/website/SolutionGrowthStack";
 import { SolutionsOnboardingStack } from "@/components/website/SolutionsOnboardingStack";
 import { SolutionsStorefrontModulePreview } from "@/components/website/SolutionsStorefrontModulePreview";
 
 /** First 4 modules keep the full-width sticky-stack treatment; the
  * remaining 3 (marketing, team, analytics) run as a single arc-cycle card
- * stack instead — see StorefrontGrowthStack. */
+ * stack instead — see SolutionGrowthStack. */
 const STICKY_STACK_COUNT = 4;
 
 function FadeIn({ children, delay = 0 }: FadeInSectionProps) {
@@ -70,19 +70,19 @@ function ModuleStackCard({
     >
       <div className="flex flex-col px-5 pb-5 pt-9 sm:px-8 sm:pb-6 sm:pt-11 md:px-[72px] md:pb-[72px] md:pt-[72px]">
         <div
-          className="mb-3 text-[11px] font-bold uppercase tracking-[0.16em]"
+          className="mb-3 text-eyebrow font-bold uppercase tracking-[0.16em]"
           style={{ color: "var(--xyvoo-storefront-deepdive-number)" }}
         >
           {module.number}
         </div>
         <h3
-          className="mb-3 whitespace-pre-line font-extrabold leading-[1.18] text-[clamp(1.55rem,3vw,1.9rem)]"
+          className="mb-3 whitespace-pre-line font-extrabold leading-[1.18] text-h3"
           style={{ color: "var(--xyvoo-storefront-deepdive-title)" }}
         >
           {module.title}
         </h3>
         <p
-          className="mb-6 max-w-[400px] text-[15.5px] leading-[1.75]"
+          className="mb-6 max-w-[400px] text-p leading-[1.75]"
           style={{ color: "var(--xyvoo-storefront-deepdive-desc)" }}
         >
           {module.description}
@@ -154,14 +154,14 @@ export function SolutionsStorefrontDeepDive() {
         <div className="mx-auto max-w-[1200px]">
           <FadeIn>
             <div className="px-5 pb-11 pt-11 text-center md:px-8 md:pb-[72px] md:pt-[72px]">
-              <h2
-                className="mb-4 text-balance text-[clamp(1.625rem,4.4vw,2.75rem)] font-extrabold leading-[1.12]"
+              <h3
+                className="mb-4 text-balance text-h3 font-extrabold leading-[1.12]"
                 style={{ color: "var(--xyvoo-navy)" }}
               >
                 Every part of your shop,
                 <br />
                 one operating model.
-              </h2>
+              </h3>
             </div>
           </FadeIn>
 
@@ -179,7 +179,7 @@ export function SolutionsStorefrontDeepDive() {
         </div>
       </section>
 
-      <StorefrontGrowthStack modules={SOLUTIONS_STOREFRONT_STACK_MODULES.slice(STICKY_STACK_COUNT)} />
+      <SolutionGrowthStack modules={SOLUTIONS_STOREFRONT_STACK_MODULES.slice(STICKY_STACK_COUNT)} />
 
       {/* Getting started — plain heading on the left, a scroll-morphing
           deck of cards on the right. Storefront's brand green. */}
@@ -207,14 +207,14 @@ export function SolutionsStorefrontDeepDive() {
           <div className="lg:sticky lg:top-28">
             <FadeIn>
               <div>
-                <h2
+                <h3
                   id="storefront-integrations-heading"
-                  className="mb-3 text-2xl font-extrabold text-[var(--xyvoo-products-navy-alt)] md:text-[1.65rem]"
+                  className="mb-3 text-h3 font-extrabold text-[var(--xyvoo-products-navy-alt)]"
                 >
                   {SOLUTIONS_STOREFRONT_INTEGRATIONS_TITLE}
-                </h2>
+                </h3>
                 <p
-                  className="max-w-[36ch] text-[15px] leading-relaxed"
+                  className="max-w-[42ch] text-p leading-relaxed"
                   style={{ color: "var(--xyvoo-navy-muted-text)" }}
                 >
                   {SOLUTIONS_STOREFRONT_INTEGRATIONS_INTRO}
@@ -234,13 +234,13 @@ export function SolutionsStorefrontDeepDive() {
                 >
                   {String(i + 1).padStart(2, "0")}
                 </span>
-                <span
-                  className="block text-[19px] font-semibold leading-snug text-[var(--xyvoo-products-navy-alt)] transition-colors duration-300 group-hover:text-[rgb(39_201_63)] md:text-[21px]"
+                <h5
+                  className="text-h5 font-semibold leading-snug text-[var(--xyvoo-products-navy-alt)] transition-colors duration-300 group-hover:text-[rgb(39_201_63)]"
                 >
                   {item.title}
-                </span>
+                </h5>
                 <p
-                  className="mt-2 max-w-[46ch] text-[15px] leading-relaxed"
+                  className="mt-2 max-w-[46ch] text-p leading-relaxed"
                   style={{ color: "var(--xyvoo-navy-muted-text)" }}
                 >
                   {item.description}

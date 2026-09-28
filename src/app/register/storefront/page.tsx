@@ -8,7 +8,8 @@ import { CircleAlert, Eye, EyeOff } from "lucide-react";
 import WebsiteLayout from "@/components/website/WebsiteLayout";
 import { supabaseAuthBrowser } from "@/lib/supabase/auth-browser";
 import { toastError, toastSuccess } from "@/lib/app-toast";
-import { GoogleIcon } from "@/components/auth/GoogleIcon";
+import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
+import type { GoogleCredentialResponse } from "@/lib/auth/google-identity";
 
 function slugify(value: string) {
   return value
@@ -39,21 +40,30 @@ export default function StorefrontRegisterPage() {
     if (!slugTouched) setSlug(slugify(value));
   };
 
-  const handleGoogleSignUp = async () => {
+  const handleGoogleCredential = async (response: GoogleCredentialResponse) => {
     setLoading(true);
     setError("");
 
-    const { error: oauthError } = await supabaseAuthBrowser.auth.signInWithOAuth({
+    const { error: idTokenError } = await supabaseAuthBrowser.auth.signInWithIdToken({
       provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-        queryParams: { prompt: "select_account" },
-      },
+      token: response.credential,
     });
 
-    if (oauthError) {
-      setError(oauthError.message);
-      toastError("Google sign-in failed", oauthError.message);
+    if (idTokenError) {
+      setError(idTokenError.message);
+      toastError("Google sign-in failed", idTokenError.message);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const redirectRes = await fetch("/api/store/auth/post-login-redirect", { method: "POST" });
+      const redirectData = await redirectRes.json().catch(() => ({}));
+
+      toastSuccess("Signed in", "Welcome to XYVOO. Opening your dashboard…");
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      window.location.assign(redirectData.redirectTo || "/register/storefront/complete");
+    } finally {
       setLoading(false);
     }
   };
@@ -138,15 +148,7 @@ export default function StorefrontRegisterPage() {
         </motion.div>
       ) : null}
 
-      <button
-        type="button"
-        disabled={loading}
-        onClick={handleGoogleSignUp}
-        className="flex w-full items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white py-3 font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed"
-      >
-        <GoogleIcon />
-        Continue with Google
-      </button>
+      <GoogleSignInButton onCredential={handleGoogleCredential} className="flex w-full justify-center" />
 
       <div className="flex items-center gap-3 text-xs uppercase tracking-wider text-slate-400">
         <span className="h-px flex-1 bg-slate-200" />

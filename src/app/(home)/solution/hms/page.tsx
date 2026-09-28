@@ -36,14 +36,14 @@ export default function SolutionsHotelPage() {
             transition={{ duration: 0.55, ease: "easeOut" }}
             className="mx-auto w-full max-w-xl text-center min-[801px]:mx-0 min-[801px]:max-w-full min-[801px]:text-left"
           >
-            <p className="mb-4 text-[11px] font-bold uppercase tracking-[0.22em] text-[#90caf9]">
+            <p className="mb-4 text-eyebrow font-bold uppercase tracking-[0.22em] text-[#90caf9]">
               {SOLUTIONS_HOTEL_HERO.eyebrow}
             </p>
-            <h1 className="mb-6 text-balance text-[clamp(2rem,5vw,3.25rem)] font-black leading-[1.12] text-white">
+            <h1 className="mb-6 text-balance text-h1 font-black leading-[1.12] text-white">
               {SOLUTIONS_HOTEL_HERO.title}
             </h1>
             <p
-              className="mx-auto mb-12 max-w-[540px] text-[17px] leading-relaxed min-[801px]:mx-0"
+              className="mx-auto mb-12 max-w-[540px] text-p leading-relaxed min-[801px]:mx-0"
               style={{ color: "var(--xyvoo-white-muted-75)" }}
             >
               {SOLUTIONS_HOTEL_HERO.subtitle}

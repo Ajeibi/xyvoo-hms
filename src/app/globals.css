@@ -83,6 +83,34 @@
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans: var(--font-sans);
+
+  /* Website type scale — the single source of truth for marketing-site
+   * heading/paragraph sizes (`text-h1` … `text-eyebrow`), so every page
+   * uses the same handful of sizes instead of ad-hoc text-3xl/text-4xl/
+   * clamp() values scattered per component.
+   *   h1 — hero heading, one per hero section
+   *   h2 — footer heading and similar secondary banners
+   *   h3 — every section heading site-wide (integrations, cards, etc.)
+   *   h4 — CTA banner heading and similar
+   *   h5 — sticky-left/scrolling-list titles
+   *   p  — body paragraphs
+   *   eyebrow — small uppercase labels above a heading
+   */
+  --text-h1: 2.75rem; /* 44px */
+  --text-h1--line-height: 1.1;
+  --text-h2: 2.25rem; /* 36px */
+  --text-h2--line-height: 1.15;
+  --text-h3: 1.875rem; /* 30px */
+  --text-h3--line-height: 1.2;
+  --text-h4: 1.625rem; /* 26px */
+  --text-h4--line-height: 1.25;
+  --text-h5: 1.3125rem; /* 21px */
+  --text-h5--line-height: 1.3;
+  --text-p: 1rem; /* 16px */
+  --text-p--line-height: 1.6;
+  --text-eyebrow: 0.625rem; /* 10px */
+  --text-eyebrow--line-height: 1.3;
+
   --color-xyvoo-blue: var(--xyvoo-blue);
   --color-xyvoo-navy: var(--xyvoo-navy);
   --color-xyvoo-blue-deep: var(--xyvoo-blue-deep);
@@ -403,5 +431,16 @@
 
   .thin-scrollbar::-webkit-scrollbar-corner {
     background: transparent;
+  }
+
+  /* Fully hidden scrollbar — for native horizontal scroll-snap reels where
+     the snap dots/arrows are the intended scroll affordance. */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
   }
 }

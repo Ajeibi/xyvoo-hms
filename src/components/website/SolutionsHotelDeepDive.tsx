@@ -146,19 +146,19 @@ function ModuleStackCard({
     >
       <div className="flex flex-col px-5 pb-5 pt-9 sm:px-8 sm:pb-6 sm:pt-11 md:px-[72px] md:pb-[72px] md:pt-[72px]">
         <div
-          className="mb-3 text-[11px] font-bold uppercase tracking-[0.16em]"
+          className="mb-3 text-eyebrow font-bold uppercase tracking-[0.16em]"
           style={{ color: "var(--xyvoo-blue)" }}
         >
           {module.number}
         </div>
         <h3
-          className="mb-3 whitespace-pre-line font-extrabold leading-[1.18] text-[clamp(1.55rem,3vw,1.9rem)]"
+          className="mb-3 whitespace-pre-line font-extrabold leading-[1.18] text-h3"
           style={{ color: "var(--xyvoo-hms-features-title)" }}
         >
           {module.title}
         </h3>
         <p
-          className="mb-6 max-w-[400px] text-[15.5px] leading-[1.75]"
+          className="mb-6 max-w-[400px] text-p leading-[1.75]"
           style={{ color: "var(--xyvoo-hms-features-desc)" }}
         >
           {module.description}
@@ -334,18 +334,18 @@ function CompactModuleCard({
         <Icon className="h-5 w-5 text-xyvoo-blue" aria-hidden />
       </div>
       <div
-        className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em]"
+        className="mb-2 text-eyebrow font-bold uppercase tracking-[0.16em]"
         style={{ color: accentColor }}
       >
         {module.number}
       </div>
-      <h3
-        className="mb-3 whitespace-pre-line font-extrabold leading-[1.18] text-[clamp(1.3rem,2.4vw,1.55rem)]"
+      <h5
+        className="mb-3 whitespace-pre-line font-extrabold leading-[1.18] text-h5"
         style={{ color: textColor }}
       >
         {module.title}
-      </h3>
-      <p className="mb-5 text-[14.5px] leading-[1.7]" style={{ color: mutedText }}>
+      </h5>
+      <p className="mb-5 text-p leading-[1.7]" style={{ color: mutedText }}>
         {module.description}
       </p>
       <div className="mb-6 flex flex-col gap-[10px]">
@@ -407,14 +407,14 @@ export function SolutionsHotelDeepDive() {
         <div className="mx-auto max-w-[1200px]">
           <FadeIn>
             <div className="px-5 pb-11 pt-11 text-center md:px-8 md:pb-[72px] md:pt-[72px]">
-              <h2
-                className="mb-4 text-balance text-[clamp(1.625rem,4.4vw,2.75rem)] font-extrabold leading-[1.12]"
+              <h3
+                className="mb-4 text-balance text-h3 font-extrabold leading-[1.12]"
                 style={{ color: "var(--xyvoo-navy)" }}
               >
                 Every department,
                 <br />
                 one operating model.
-              </h2>
+              </h3>
             </div>
           </FadeIn>
 
@@ -481,14 +481,14 @@ export function SolutionsHotelDeepDive() {
           <div className="lg:sticky lg:top-28">
             <FadeIn>
               <div>
-                <h2
+                <h3
                   id="hotel-integrations-heading"
-                  className="mb-3 text-2xl font-extrabold text-[var(--xyvoo-products-navy-alt)] md:text-[1.65rem]"
+                  className="mb-3 text-h3 font-extrabold text-[var(--xyvoo-products-navy-alt)]"
                 >
                   {SOLUTIONS_HOTEL_INTEGRATIONS_TITLE}
-                </h2>
+                </h3>
                 <p
-                  className="max-w-[36ch] text-[15px] leading-relaxed"
+                  className="max-w-[42ch] text-p leading-relaxed"
                   style={{ color: "var(--xyvoo-navy-muted-text)" }}
                 >
                   {SOLUTIONS_HOTEL_INTEGRATIONS_INTRO}
@@ -506,11 +506,11 @@ export function SolutionsHotelDeepDive() {
                 <span className="mb-2 block font-mono text-sm font-semibold tracking-wide text-[rgb(var(--xyvoo-navy-rgb)/0.32)] transition-colors duration-300 group-hover:text-[rgb(0_126_223)]">
                   {String(i + 1).padStart(2, "0")}
                 </span>
-                <span className="block text-[19px] font-semibold leading-snug text-[var(--xyvoo-products-navy-alt)] transition-colors duration-300 group-hover:text-[rgb(0_126_223)] md:text-[21px]">
+                <h5 className="text-h5 font-semibold leading-snug text-[var(--xyvoo-products-navy-alt)] transition-colors duration-300 group-hover:text-[rgb(0_126_223)]">
                   {item.title}
-                </span>
+                </h5>
                 <p
-                  className="mt-2 max-w-[46ch] text-[15px] leading-relaxed"
+                  className="mt-2 max-w-[46ch] text-p leading-relaxed"
                   style={{ color: "var(--xyvoo-navy-muted-text)" }}
                 >
                   {item.description}

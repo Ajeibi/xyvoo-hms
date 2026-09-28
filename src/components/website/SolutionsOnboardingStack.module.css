@@ -33,14 +33,14 @@
   align-items: center;
 }
 
-/* Matches StorefrontGrowthStack's .heading exactly — same clamp, weight
+/* Matches SolutionGrowthStack's .heading exactly — same size, weight
    and line-height — so this newer section reads as part of the same
    family of "big storytelling" headings rather than standing out. */
 .heading {
   margin: 0;
-  font-size: clamp(1.9rem, 3.2vw, 2.6rem);
+  font-size: var(--text-h3);
   font-weight: 800;
-  line-height: 1.14;
+  line-height: 1.2;
   color: var(--ink);
 }
 
@@ -88,8 +88,8 @@
   margin-bottom: 16px;
 }
 
-.card h3 {
-  font-size: 22px;
+.card h5 {
+  font-size: var(--text-h5);
   font-weight: 700;
   margin: 0 0 10px;
   color: var(--ink);
@@ -98,7 +98,7 @@
 
 .card p {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--text-p);
   line-height: 1.6;
   color: var(--ink-dim);
 }
@@ -107,7 +107,7 @@
   margin-top: 14px;
   padding-top: 14px;
   border-top: 1px solid var(--line);
-  font-size: 14px;
+  font-size: var(--text-p);
   overflow: hidden;
   will-change: opacity, transform, max-height;
 }
@@ -126,7 +126,7 @@
     gap: 24px;
   }
 
-  /* Matches StorefrontGrowthStack's mobile heading override exactly. */
+  /* Matches SolutionGrowthStack's mobile heading override exactly. */
   .heading {
     font-size: clamp(1.5rem, 6vw, 1.8rem);
   }

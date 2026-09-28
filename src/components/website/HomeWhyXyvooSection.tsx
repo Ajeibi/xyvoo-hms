@@ -92,31 +92,38 @@ function FadeIn({
   );
 }
 
-export function HomeWhyXyvooSection() {
+export function HomeWhyXyvooSection({
+  showHeading = true,
+}: {
+  /** Set false to drop the eyebrow/title/subtitle block and render just the cards — for pages that supply their own heading around this section. */
+  showHeading?: boolean;
+}) {
   return (
-    <section className="bg-slate-50 py-16 lg:py-24" aria-labelledby="why-xyvoo-heading">
+    <section className="bg-slate-50 py-16 lg:py-24" aria-labelledby={showHeading ? "why-xyvoo-heading" : undefined}>
       <div className="mx-auto max-w-[1200px] px-6">
-        <FadeIn>
-          <div className="mx-auto mb-12 max-w-2xl text-center md:mb-16">
-            <SectionEyebrow
-              eyebrow="Why Businesses Choose Us"
-              title={
-                <>
-                  We&apos;re not a features list — we&apos;re the team that
-                  gets you live.
-                </>
-              }
-              titleId="why-xyvoo-heading"
-              titleClassName="text-[clamp(1.625rem,4.4vw,2.75rem)] font-extrabold leading-[1.15]"
-              className="text-center [&>p]:justify-center"
-              eyebrowClassName="flex items-center justify-center"
-            />
-            <p className="mx-auto mt-5 max-w-xl text-[16px] leading-[1.75] text-xyvoo-navy/65">
-              Every plan comes with a platform built for how African
-              businesses actually operate.
-            </p>
-          </div>
-        </FadeIn>
+        {showHeading && (
+          <FadeIn>
+            <div className="mx-auto mb-12 max-w-2xl text-center md:mb-16">
+              <SectionEyebrow
+                eyebrow="Why Businesses Choose Us"
+                title={
+                  <>
+                    We&apos;re not a features list — we&apos;re the team that
+                    gets you live.
+                  </>
+                }
+                titleId="why-xyvoo-heading"
+                titleClassName="text-h3 font-extrabold leading-[1.15]"
+                className="text-center [&>p]:justify-center"
+                eyebrowClassName="flex items-center justify-center"
+              />
+              <p className="mx-auto mt-5 max-w-xl text-[16px] leading-[1.75] text-xyvoo-navy/65">
+                Every plan comes with a platform built for how African
+                businesses actually operate.
+              </p>
+            </div>
+          </FadeIn>
+        )}
 
         <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
           {TOP_CARDS.map((card, index) => {
