@@ -329,8 +329,6 @@
   --xyvoo-storefront-deepdive-glow-a: rgb(77 208 196 / 0.09);
   --xyvoo-storefront-deepdive-glow-b: rgb(33 150 243 / 0.07);
 
-  --xyvoo-shadow-column: -16px 0 32px -16px rgb(var(--xyvoo-navy-rgb) / 0.12),
-    16px 0 32px -16px rgb(var(--xyvoo-navy-rgb) / 0.12);
   --xyvoo-shadow-header-scrolled: 0 8px 24px -12px
     rgb(var(--xyvoo-navy-rgb) / 0.08);
 

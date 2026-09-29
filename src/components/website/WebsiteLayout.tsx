@@ -24,6 +24,7 @@ import {
   Headphones,
   Home,
   Layers,
+  LayoutTemplate,
   Menu,
   Newspaper,
   ShoppingBag,
@@ -80,6 +81,7 @@ const STOREFRONT_PATH_PREFIXES = [
   "/auth/login/storefront",
   "/business-types/solo-sellers",
   "/business-types/growing-retailers",
+  "/templates",
 ];
 
 function isStorefrontPath(pathname: string | null): boolean {
@@ -130,6 +132,16 @@ const NAV_DROPDOWN_ITEM_VISUAL: Record<
   },
   "/solution/storefront/payments": {
     Icon: CreditCard,
+    iconWellStyle: { background: "rgb(var(--xyvoo-mint-rgb) / 0.22)" },
+    iconColor: "var(--xyvoo-teal-product)",
+  },
+  "/templates#hotels": {
+    Icon: LayoutTemplate,
+    iconWellStyle: { background: "rgb(var(--xyvoo-blue-rgb) / 0.12)" },
+    iconColor: "rgb(var(--xyvoo-blue-rgb) / 0.88)",
+  },
+  "/templates": {
+    Icon: LayoutTemplate,
     iconWellStyle: { background: "rgb(var(--xyvoo-mint-rgb) / 0.22)" },
     iconColor: "var(--xyvoo-teal-product)",
   },
@@ -219,6 +231,12 @@ const NAV: NavItem[] = [
           "Staff, F&B revenue, billing and reporting, all accounted for.",
       },
       {
+        label: "Hotel Website Templates",
+        href: "/templates#hotels",
+        description:
+          "See your hotel website: rooms, availability and booking requests.",
+      },
+      {
         label: "XYVOO Storefront",
         href: "/solution/storefront",
         description:
@@ -241,6 +259,12 @@ const NAV: NavItem[] = [
         href: "/solution/storefront/inventory",
         description:
           "Bundles, barcodes, and wholesale pricing with minimum and maximum order quantities.",
+      },
+      {
+        label: "Website Templates",
+        href: "/templates",
+        description:
+          "See what your storefront website could look like, page by page.",
       },
     ],
   },
@@ -526,8 +550,19 @@ function NavGroupDropdown({
       <DropdownMenuContent
         align="start"
         sideOffset={8}
-        className="min-w-[360px] max-w-[min(calc(100vw-1.5rem),26rem)] w-max rounded-xl border-0 bg-white p-2 text-foreground ring-0 data-[side=bottom]:slide-in-from-top-2"
+        className={cn(
+          "rounded-xl border-0 bg-white p-2 text-foreground ring-0 data-[side=bottom]:slide-in-from-top-2",
+          // Long menus (e.g. Solutions) split into two columns so they fit
+          // without scrolling; short menus stay a single column.
+          item.children.length > 5
+            ? "grid w-[min(calc(100vw-1.5rem),48rem)] max-w-none grid-flow-col grid-cols-2 gap-x-1"
+            : "min-w-[360px] max-w-[min(calc(100vw-1.5rem),26rem)] w-max"
+        )}
         style={{
+          ...(item.children.length > 5 && {
+            // Fill column-first so related groups (HMS, then Storefront) stack together.
+            gridTemplateRows: `repeat(${Math.ceil(item.children.length / 2)}, auto)`,
+          }),
           border: "1px solid rgb(var(--xyvoo-blue-rgb) / 0.1)",
           boxShadow:
             "0 16px 48px -12px rgb(var(--xyvoo-navy-rgb) / 0.22), 0 4px 16px rgb(var(--xyvoo-navy-rgb) / 0.08)",
@@ -652,7 +687,7 @@ function WebsiteHeader({ pathname }: { pathname: string }) {
     >
       <div
         className={cn(
-          "mx-auto w-full max-w-[1800px] transition-shadow duration-300",
+          "w-full transition-shadow duration-300",
           scrolled ? "shadow-[var(--xyvoo-shadow-header-scrolled)]" : ""
         )}
       >
@@ -810,6 +845,7 @@ export default function WebsiteLayout({
                   links: [
                     ["Solution — HMS", "/solution/hms"],
                     ["Solution — Storefront", "/solution/storefront"],
+                    ["Website templates", "/templates"],
                     ["Pricing", "/pricing"],
                     ["Get started — HMS", XYVOO_AUTH_ROUTES.hms.register],
                     ["Get started — Storefront", XYVOO_AUTH_ROUTES.storefront.register],

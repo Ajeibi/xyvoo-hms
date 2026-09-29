@@ -61,7 +61,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full antialiased font-sans" suppressHydrationWarning>
       <body
-        className="relative mx-auto flex min-h-full w-full max-w-[1800px] flex-col shadow-[var(--xyvoo-shadow-column)]"
+        className="relative flex min-h-full w-full flex-col"
         suppressHydrationWarning
       >
         <script
