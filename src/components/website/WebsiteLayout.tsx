@@ -65,6 +65,7 @@ import {
 } from "@/components/website/WebsiteHeaderAuthMenus";
 
 import { LOGO_URL, LOGO_LIGHT_URL } from "@/constants/branding";
+import { DEMO_BOOKING_HREF } from "@/constants/booking";
 import type { IconType } from "react-icons";
 import { FaFacebookF, FaLinkedinIn, FaXTwitter } from "react-icons/fa6";
 
@@ -947,7 +948,7 @@ export default function WebsiteLayout({
                   </li>
                   <li className="pt-1">
                     <Link
-                      href="/contact"
+                      href={DEMO_BOOKING_HREF}
                       className={cn(
                         "inline-flex items-center gap-1 text-sm font-semibold transition-colors",
                         isStorefront

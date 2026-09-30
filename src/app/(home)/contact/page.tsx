@@ -1,14 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, type Variants } from "framer-motion";
-import { Send, CheckCircle2, ArrowUpRight, Calendar, RotateCcw, Copy, Check, Mail } from "lucide-react";
+import { Send, CheckCircle2, ArrowRight, ArrowUpRight, Calendar, RotateCcw, Copy, Check, Mail, X } from "lucide-react";
 import type { IconType } from "react-icons";
 import { FaEnvelope, FaLinkedinIn, FaWhatsapp, FaYahoo } from "react-icons/fa6";
 import { PiMicrosoftOutlookLogo } from "react-icons/pi";
 import { SiGmail } from "react-icons/si";
 import type { MarketingContactForm } from "@/types";
 import { GridPulses } from "@/components/website/GridPulses";
+import { DEMO_BOOKING_ANCHOR, DEMO_BOOKING_URL } from "@/constants/booking";
 
 const fadeUp: Variants = {
   offscreen: { opacity: 0, y: 40 },
@@ -23,8 +24,6 @@ type ContactMethod = {
   external?: boolean;
 };
 
-// TODO: replace with the real Calendly booking link.
-const CALENDLY_URL = "#";
 // TODO: add the WhatsApp Business number (international format, digits only), e.g. https://wa.me/2348000000000
 const WHATSAPP_URL = "https://wa.me/";
 // TODO: replace with the real LinkedIn company page link.
@@ -46,8 +45,7 @@ const CONTACT_METHODS: ContactMethod[] = [
     title: "Request a demo",
     description: "A short walkthrough of XYVOO HMS or Storefront, tailored to what you're running.",
     actionLabel: "Book a time",
-    href: CALENDLY_URL,
-    external: true,
+    href: `#${DEMO_BOOKING_ANCHOR}`,
   },
   {
     title: "Email us",
@@ -70,6 +68,36 @@ export default function ContactPage() {
   const inbox = form.type === "support" ? SUPPORT_EMAIL : SALES_EMAIL;
   // Honeypot: hidden from real visitors, so anything typed here is a bot.
   const [website, setWebsite] = useState("");
+  // The booking calendar only loads once asked for, and stays hidden behind a loading button until
+  // Zoho has finished loading it. Links to #book-a-demo start it straight away.
+  const [booking, setBooking] = useState<"closed" | "loading" | "open">("closed");
+  const startBooking = () => setBooking((b) => (b === "closed" ? "loading" : b));
+
+  useEffect(() => {
+    const openFromHash = () => {
+      if (window.location.hash === `#${DEMO_BOOKING_ANCHOR}`) startBooking();
+    };
+    openFromHash();
+    window.addEventListener("hashchange", openFromHash);
+    return () => window.removeEventListener("hashchange", openFromHash);
+  }, []);
+
+  // If Zoho is slow or blocked, show the frame anyway so the "open in a new tab" fallback is reachable.
+  useEffect(() => {
+    if (booking !== "loading") return;
+    const timer = setTimeout(() => setBooking("open"), 15000);
+    return () => clearTimeout(timer);
+  }, [booking]);
+
+  // The opened calendar sits below the form, so bring it into view and move focus off the vanished button.
+  const bookingRef = useRef<HTMLDivElement>(null);
+  const bookingHeadingRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (booking !== "open") return;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    bookingHeadingRef.current?.focus({ preventScroll: true });
+    bookingRef.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+  }, [booking]);
 
   const set = (k: keyof MarketingContactForm, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -171,8 +199,8 @@ export default function ContactPage() {
         </div>
       </section>
 
-      <section id="contact-form" className="py-20 bg-slate-50">
-        <div className="max-w-6xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-start">
+      <section id="contact-form" className="py-20 px-6 bg-slate-50">
+        <div className="relative max-w-[1200px] mx-auto grid lg:grid-cols-2 gap-12 items-start">
           <motion.div initial="offscreen" whileInView="onscreen" viewport={{ once: true }} variants={fadeUp}>
             <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm">
               {submitted ? (
@@ -305,25 +333,37 @@ export default function ContactPage() {
           </motion.div>
 
           <div className="space-y-6">
-            <motion.div initial="offscreen" whileInView="onscreen" viewport={{ once: true }} variants={fadeUp}>
-              <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-                <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-xyvoo-blue/10">
-                  <Calendar className="h-6 w-6 text-xyvoo-blue" />
+            {booking !== "open" && (
+              <motion.div initial="offscreen" whileInView="onscreen" viewport={{ once: true }} variants={fadeUp}>
+                <div id={DEMO_BOOKING_ANCHOR} className="scroll-mt-28 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+                  <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-xyvoo-blue/10">
+                    <Calendar className="h-6 w-6 text-xyvoo-blue" />
+                  </div>
+                  <h3 className="text-h3 font-black text-slate-900 mb-2">Request a demo</h3>
+                  <p className="text-p text-slate-500 mb-6 leading-relaxed">
+                    A short walkthrough of XYVOO HMS or Storefront, tailored to what you&apos;re running — pick a time that works for you.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={startBooking}
+                    disabled={booking === "loading"}
+                    aria-busy={booking === "loading"}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-xyvoo-blue py-3.5 font-bold text-white transition-all hover:opacity-90 disabled:cursor-wait disabled:opacity-80"
+                  >
+                    {booking === "loading" ? (
+                      <>
+                        <span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" aria-hidden="true" />
+                        Loading calendar…
+                      </>
+                    ) : (
+                      <>
+                        Book a time <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                      </>
+                    )}
+                  </button>
                 </div>
-                <h3 className="text-h3 font-black text-slate-900 mb-2">Request a demo</h3>
-                <p className="text-p text-slate-500 mb-6 leading-relaxed">
-                  A short walkthrough of XYVOO HMS or Storefront, tailored to what you&apos;re running — pick a time that works for you.
-                </p>
-                <a
-                  href={CALENDLY_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-xyvoo-blue py-3.5 font-bold text-white transition-all hover:opacity-90"
-                >
-                  Book a time <ArrowUpRight className="h-4 w-4" />
-                </a>
-              </div>
-            </motion.div>
+              </motion.div>
+            )}
 
             <motion.div initial="offscreen" whileInView="onscreen" viewport={{ once: true }} variants={fadeUp}>
               <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
@@ -397,6 +437,62 @@ export default function ContactPage() {
               </div>
             </motion.div>
           </div>
+
+          {/* Full width so Zoho has room for its month view (it switches to a day list below 1024px). */}
+          {booking !== "closed" && (
+            <div
+              ref={bookingRef}
+              id={booking === "open" ? DEMO_BOOKING_ANCHOR : undefined}
+              aria-hidden={booking !== "open"}
+              className={
+                booking === "open"
+                  ? "scroll-mt-28 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2"
+                  : "pointer-events-none invisible absolute inset-x-0 top-0 h-0 overflow-hidden"
+              }
+            >
+              <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+                <div className="flex items-start gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-xyvoo-blue/10">
+                    <Calendar className="h-6 w-6 text-xyvoo-blue" />
+                  </div>
+                  <div>
+                    <h3 ref={bookingHeadingRef} tabIndex={-1} className="text-h3 font-black text-slate-900 focus:outline-none">
+                      Request a demo
+                    </h3>
+                    <p className="mt-1 text-sm leading-relaxed text-slate-500">
+                      Pick a date, then choose a time that works for you.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setBooking("closed")}
+                  className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-50 hover:text-xyvoo-navy"
+                >
+                  <X className="h-4 w-4" aria-hidden="true" /> Hide calendar
+                </button>
+              </div>
+              <div className="overflow-hidden rounded-2xl border border-slate-200">
+                <iframe
+                  src={DEMO_BOOKING_URL}
+                  title="Choose a time for your XYVOO demo"
+                  onLoad={() => setBooking((b) => (b === "loading" ? "open" : b))}
+                  className="block h-[760px] w-full border-0"
+                />
+              </div>
+              <p className="mt-3 text-xs text-slate-400">
+                Calendar not loading?{" "}
+                <a
+                  href={DEMO_BOOKING_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-xyvoo-blue hover:text-xyvoo-navy"
+                >
+                  Open it in a new tab<span className="sr-only"> (opens in a new tab)</span>
+                </a>
+              </p>
+            </div>
+          )}
         </div>
       </section>
     </>
