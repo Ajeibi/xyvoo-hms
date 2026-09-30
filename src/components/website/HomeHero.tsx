@@ -411,7 +411,9 @@ export function HomeHero() {
 
       <div
         className={
-          "relative z-0 transition-all duration-300 " +
+          // Capped so the image stays with the content on very wide or zoomed-out
+          // screens. Past the cap the image's edges fade into the hero background.
+          "relative z-0 mx-auto w-full max-w-[1536px] transition-all duration-300 " +
           (active.id === "storefront" || active.id === "hms" ? "lg:-mt-[400px]" : "lg:-mt-[150px]")
         }
       >
@@ -422,7 +424,7 @@ export function HomeHero() {
           height={HERO_IMAGE_HEIGHT}
           priority
           sizes="(max-width: 768px) 100vw, 2000px"
-          className="relative z-0 block h-auto w-full min-w-0 max-w-none"
+          className="relative z-0 block h-auto w-full min-w-0 max-w-none min-[1537px]:[mask-image:linear-gradient(to_right,transparent,black_12%,black_88%,transparent)]"
           style={{ width: "100%", height: "auto" }}
         />
 
