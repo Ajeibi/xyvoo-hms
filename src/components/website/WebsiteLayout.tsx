@@ -65,6 +65,14 @@ import {
 } from "@/components/website/WebsiteHeaderAuthMenus";
 
 import { LOGO_URL, LOGO_LIGHT_URL } from "@/constants/branding";
+import type { IconType } from "react-icons";
+import { FaFacebookF, FaLinkedinIn, FaXTwitter } from "react-icons/fa6";
+
+const FOOTER_SOCIALS: { label: string; Icon: IconType }[] = [
+  { label: "X", Icon: FaXTwitter },
+  { label: "LinkedIn", Icon: FaLinkedinIn },
+  { label: "Facebook", Icon: FaFacebookF },
+];
 
 function isNavGroup(item: NavItem): item is NavItemGroup {
   return "children" in item && Array.isArray(item.children);
@@ -851,15 +859,18 @@ export default function WebsiteLayout({
                 />
               </a>
               <div className="flex gap-3 mt-8">
-                {["𝕏", "in", "f"].map((s) => (
+                {FOOTER_SOCIALS.map(({ label, Icon }) => (
                   <div
-                    key={s}
+                    key={label}
+                    role="img"
+                    aria-label={label}
+                    title={label}
                     className={cn(
-                      "w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-xs font-bold text-slate-300 cursor-pointer transition-colors",
+                      "w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-slate-300 cursor-pointer transition-colors hover:text-white",
                       isStorefront ? "hover:bg-xyvoo-teal-product-hover" : "hover:bg-xyvoo-blue"
                     )}
                   >
-                    {s}
+                    <Icon className="size-3.5" aria-hidden="true" />
                   </div>
                 ))}
               </div>
