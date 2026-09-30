@@ -1,0 +1,15 @@
+{
+  "name": "Sage & Stem",
+  "short_name": "Sage & Stem",
+  "start_url": "./",
+  "display": "browser",
+  "background_color": "#FBF8EF",
+  "theme_color": "#FBF8EF",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

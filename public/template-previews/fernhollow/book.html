@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en-GB" class="no-js">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Book your stay | Fernhollow Lodges</title>
+  <meta name="description" content="Send a booking request to Fernhollow Lodges. No payment is taken online.">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#F4F6EE">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Fernhollow Lodges">
+  <meta property="og:locale" content="en_GB">
+  <meta property="og:title" content="Book your stay | Fernhollow Lodges">
+  <meta property="og:description" content="Send a booking request to Fernhollow Lodges. No payment is taken online.">
+  <meta property="og:image" content="https://www.example.com/og-image.jpg">
+  <meta property="og:image:alt" content="A timber lodge among pine trees at sunrise">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="site.webmanifest">
+
+  <script>document.documentElement.classList.replace("no-js", "js"); if (window.self !== window.top) document.documentElement.classList.add("is-framed");</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&amp;family=Nunito+Sans:wght@400;600;700;800&amp;display=swap">
+  <link rel="stylesheet" href="styles.css?v=edd19764">
+  <script src="main.js?v=af525419" defer></script>
+
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <div class="preview-notice" role="note">
+    <p>You're viewing a <strong>XYVOO website template</strong>. Fernhollow Lodges is a demo shop: nothing is for sale and forms don't send anything.</p>
+  </div>
+
+  <header class="site-header site-header--checkout">
+    <div class="container site-header__inner">
+      <a class="logo" href="index.html" aria-label="Fernhollow Lodges, home page"><svg class="logo__icon" aria-hidden="true" focusable="false"><use href="icons.svg#tree"></use></svg><span class="logo__text"><span class="logo__word" aria-hidden="true">Fernhollow</span><span class="logo__sub" aria-hidden="true">Lodges</span></span></a>
+      <p class="secure-note"><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#calendar"></use></svg>Booking request · no payment taken</p>
+    </div>
+  </header>
+
+  <main id="main" tabindex="-1">
+    <div class="container section">
+      <h1 class="h-page">Book your stay</h1>
+      <ol class="progress-steps" aria-label="Booking progress">
+        <li><a href="availability.html" data-carry-stay>Choose a lodge</a></li>
+        <li aria-current="step">Your details</li>
+        <li>Request sent</li>
+      </ol>
+
+      <div class="checkout-layout">
+        <form class="contact-form" action="booking-confirmation.html" method="post" data-demo-form data-booking-form data-redirect="booking-confirmation.html" data-endpoint="" data-hotel="fernhollow" aria-label="Booking request">
+          <div class="alert"><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#calendar"></use></svg><p><strong>This is a booking request, not a payment.</strong> Nothing is charged now. We'll check availability and email you to confirm within one working day.</p></div>
+          <p class="body-copy">All fields are required unless marked optional.</p>
+
+          <section class="checkout-step" aria-labelledby="step-stay">
+            <h2 class="step-title" id="step-stay"><span class="step-num" aria-hidden="true">1</span>Your stay</h2>
+            <div class="form-row">
+              <div class="field">
+                <label for="bk-in">Check-in</label>
+                <input class="input" id="bk-in" name="checkin" type="date" required data-checkin aria-describedby="bk-in-hint bk-in-error" data-required="Choose your check-in date.">
+                <p class="hint" id="bk-in-hint">From 4pm</p>
+                <p class="error-msg" id="bk-in-error" hidden></p>
+              </div>
+              <div class="field">
+                <label for="bk-out">Check-out</label>
+                <input class="input" id="bk-out" name="checkout" type="date" required data-checkout aria-describedby="bk-out-hint bk-out-error" data-required="Choose your check-out date." data-invalid="Check-out must be after check-in.">
+                <p class="hint" id="bk-out-hint">By 10am</p>
+                <p class="error-msg" id="bk-out-error" hidden></p>
+              </div>
+            </div>
+            <div class="form-row--3">
+              <div class="field">
+                <label for="bk-adults">Adults</label>
+                <select class="select" id="bk-adults" name="adults"><option value="1">1 adult</option><option value="2">2 adults</option><option value="3">3 adults</option><option value="4">4 adults</option><option value="5">5 adults</option><option value="6">6 adults</option><option value="7">7 adults</option><option value="8">8 adults</option></select>
+              </div>
+              <div class="field">
+                <label for="bk-children">Children</label>
+                <select class="select" id="bk-children" name="children"><option value="0">0 children</option><option value="1">1 child</option><option value="2">2 children</option><option value="3">3 children</option><option value="4">4 children</option><option value="5">5 children</option><option value="6">6 children</option></select>
+              </div>
+              <div class="field">
+                <label for="bk-rooms">Lodges</label>
+                <select class="select" id="bk-rooms" name="rooms"><option value="1">1 room</option><option value="2">2 rooms</option><option value="3">3 rooms</option><option value="4">4 rooms</option></select>
+              </div>
+            </div>
+            <div class="field">
+              <label for="bk-room">Lodge</label>
+              <select class="select" id="bk-room" name="room">
+                  <option value="green-valley-cabin" data-rate="165" data-name="Green Valley Cabin">Green Valley Cabin (from £165.00 a night)</option>
+                  <option value="treetop-lodge" data-rate="245" data-name="Treetop Lodge">Treetop Lodge (from £245.00 a night)</option>
+                  <option value="nature-harmony-house" data-rate="320" data-name="Nature Harmony House">Nature Harmony House (from £320.00 a night)</option>
+                  <option value="shepherds-hut" data-rate="119" data-name="Shepherd's Hut">Shepherd's Hut (from £119.00 a night)</option>
+                  <option value="lakeside-lodge" data-rate="280" data-name="Lakeside Lodge">Lakeside Lodge (from £280.00 a night)</option>
+                  <option value="accessible-meadow-lodge" data-rate="185" data-name="Accessible Meadow Lodge">Accessible Meadow Lodge (from £185.00 a night)</option>
+              </select>
+            </div>
+            <fieldset>
+              <legend class="step-sub">Rate</legend>
+              <div class="radio-cards">
+                <label class="radio-card"><input type="radio" name="rate" value="self-catering" data-add="0" data-name="Self-catering, flexible" checked><span><strong>Self-catering, flexible</strong><small>Free cancellation up to 7 days before arrival</small></span><span>Included</span></label>
+                <label class="radio-card"><input type="radio" name="rate" value="breakfast-hamper" data-add="24" data-name="With a daily breakfast hamper"><span><strong>With a daily breakfast hamper</strong><small>Local bread, eggs, yoghurt and coffee, delivered each morning</small></span><span>+£24.00 a night</span></label>
+              </div>
+            </fieldset>
+          </section>
+
+          <section class="checkout-step" aria-labelledby="step-extras">
+            <h2 class="step-title" id="step-extras"><span class="step-num" aria-hidden="true">2</span>Make it special <span class="optional">(optional)</span></h2>
+            <fieldset>
+              <legend class="visually-hidden">Extras</legend>
+              <label class="check check--top extra"><input type="checkbox" name="extras" value="Bring your dog" data-price="20" data-per="stay"><span><strong>Bring your dog</strong> <span class="muted">£20.00 per stay</span><br><span class="hint">Per dog, up to two. Includes a bed, bowls and treats.</span></span></label>
+              <label class="check check--top extra"><input type="checkbox" name="extras" value="Firewood and kindling bundle" data-price="12" data-per="stay"><span><strong>Firewood and kindling bundle</strong> <span class="muted">£12.00 per stay</span><br><span class="hint">Enough for two evenings by the burner.</span></span></label>
+              <label class="check check--top extra"><input type="checkbox" name="extras" value="E-bike hire" data-price="30" data-per="night"><span><strong>E-bike hire</strong> <span class="muted">£30.00 a night</span><br><span class="hint">Two e-bikes and helmets, charged and ready.</span></span></label>
+              <label class="check check--top extra"><input type="checkbox" name="extras" value="Stargazing session" data-price="45" data-per="stay"><span><strong>Stargazing session</strong> <span class="muted">£45.00 per stay</span><br><span class="hint">An hour with our resident astronomer and a telescope.</span></span></label>
+            </fieldset>
+          </section>
+
+          <section class="checkout-step" aria-labelledby="step-details">
+            <h2 class="step-title" id="step-details"><span class="step-num" aria-hidden="true">3</span>Your details</h2>
+            <div class="form-row">
+              <div class="field">
+                <label for="bk-first">First name</label>
+                <input class="input" id="bk-first" name="first-name" type="text" autocomplete="given-name" required aria-describedby="bk-first-error" data-required="Enter your first name.">
+                <p class="error-msg" id="bk-first-error" hidden></p>
+              </div>
+              <div class="field">
+                <label for="bk-last">Last name</label>
+                <input class="input" id="bk-last" name="last-name" type="text" autocomplete="family-name" required aria-describedby="bk-last-error" data-required="Enter your last name.">
+                <p class="error-msg" id="bk-last-error" hidden></p>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="field">
+                <label for="bk-email">Email address</label>
+                <input class="input" id="bk-email" name="email" type="email" autocomplete="email" inputmode="email" required aria-describedby="bk-email-hint bk-email-error" data-required="Enter your email address." data-invalid="Enter an email address in the format name@example.com.">
+                <p class="hint" id="bk-email-hint">We'll send your confirmation here.</p>
+                <p class="error-msg" id="bk-email-error" hidden></p>
+              </div>
+              <div class="field">
+                <label for="bk-phone">Phone number</label>
+                <input class="input" id="bk-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" required minlength="5" aria-describedby="bk-phone-error" data-required="Enter a phone number in case we need to reach you." data-invalid="Enter a full phone number.">
+                <p class="error-msg" id="bk-phone-error" hidden></p>
+              </div>
+            </div>
+            <div class="field">
+              <label for="bk-arrival">Estimated arrival time <span class="optional">(optional)</span></label>
+              <select class="select" id="bk-arrival" name="arrival">
+                <option value="">I'm not sure yet</option>
+                <option>Before 12pm</option>
+                <option>12pm to 3pm</option>
+                <option>3pm to 6pm</option>
+                <option>6pm to 9pm</option>
+                <option>After 9pm</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="bk-requests">Special requests <span class="optional">(optional)</span></label>
+              <textarea class="textarea" id="bk-requests" name="requests" rows="4" maxlength="1000" aria-describedby="bk-requests-hint"></textarea>
+              <p class="hint" id="bk-requests-hint">For example, a cot, dietary needs, access requirements or a special occasion. We'll do our best, but can't guarantee requests.</p>
+            </div>
+            <div class="hp" aria-hidden="true">
+              <label for="bk-company">Leave this field empty</label>
+              <input id="bk-company" name="company" type="text" tabindex="-1" autocomplete="off">
+            </div>
+            <label class="check check--top"><input type="checkbox" name="marketing">Email me offers and news from Fernhollow Lodges. You can unsubscribe at any time.</label>
+          </section>
+
+          <section class="checkout-step" aria-labelledby="step-confirm">
+            <h2 class="step-title" id="step-confirm"><span class="step-num" aria-hidden="true">4</span>Send your request</h2>
+            <div class="panel">
+              <h3>Cancellation and payment</h3>
+              <p>Free cancellation up to 7 days before arrival. Nothing is charged now: when we confirm, we'll send a secure link for a [25%] deposit, and the rest is due 14 days before you arrive.</p>
+            </div>
+            <label class="check check--top"><input type="checkbox" name="terms" id="bk-terms" required aria-describedby="bk-terms-error" data-required="Please confirm you've read the booking terms.">I've read the <a href="terms.html">booking terms</a> and the <a href="privacy.html">privacy policy</a>.</label>
+            <p class="error-msg" id="bk-terms-error" hidden></p>
+            <button class="btn btn--primary" type="submit">Send booking request</button>
+            <p class="form-status" role="status"></p>
+          </section>
+        </form>
+
+        <aside class="summary" aria-labelledby="bk-summary-title" data-booking-summary>
+          <h2 id="bk-summary-title">Your stay</h2>
+          <div class="media tone-4 summary__media" aria-hidden="true"></div>
+          <dl>
+            <dt>Lodge</dt><dd data-sum="room">Choose a lodge</dd>
+            <dt>Dates</dt><dd data-sum="dates">Choose your dates</dd>
+            <dt>Guests</dt><dd data-sum="guests">2 adults</dd>
+            <dt>Rate</dt><dd data-sum="rate">Choose a rate</dd>
+            <dt data-sum-label="stay">Stay</dt><dd data-sum="stay">None yet</dd>
+            <dt>Extras</dt><dd data-sum="extras">None</dd>
+            <dt class="total">Estimated total</dt><dd class="total" data-sum="total">None yet</dd>
+          </dl>
+          <p class="muted">Prices include VAT. Nothing is charged online. We'll send a payment link when we confirm.</p>
+        </aside>
+      </div>
+    </div>
+  </main>
+
+  <footer class="checkout-footer">
+    <div class="container">
+      <ul>
+        <li><a href="terms.html">Booking terms</a></li>
+        <li><a href="faqs.html">FAQs</a></li>
+        <li><a href="privacy.html">Privacy</a></li>
+        <li><a href="contact.html">Need help? Contact us</a></li>
+      </ul>
+      <p>© 2026 Fernhollow Lodges. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <div class="visually-hidden" id="announcer" aria-live="polite"></div>
+</body>
+</html>

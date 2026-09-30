@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en-GB" class="no-js">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Availability | The Aldwin</title>
+  <meta name="description" content="Choose a room and rate for your dates at The Aldwin.">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#FFFFFF">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="The Aldwin">
+  <meta property="og:locale" content="en_GB">
+  <meta property="og:title" content="Availability | The Aldwin">
+  <meta property="og:description" content="Choose a room and rate for your dates at The Aldwin.">
+  <meta property="og:image" content="https://www.example.com/og-image.jpg">
+  <meta property="og:image:alt" content="A warm, minimal bedroom at The Aldwin">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="site.webmanifest">
+
+  <script>document.documentElement.classList.replace("no-js", "js"); if (window.self !== window.top) document.documentElement.classList.add("is-framed");</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:wght@400;700&amp;family=Manrope:wght@400;500;600;700&amp;display=swap">
+  <link rel="stylesheet" href="styles.css?v=d87b6048">
+  <script src="main.js?v=af525419" defer></script>
+
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <div class="preview-notice" role="note">
+    <p>You're viewing a <strong>XYVOO website template</strong>. The Aldwin is a demo shop: nothing is for sale and forms don't send anything.</p>
+  </div>
+
+  <aside class="topbar" aria-label="Hotel information">
+    <div class="container topbar__inner">
+      <p><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#key"></use></svg>Free cancellation on flexible rates</p>
+      <p class="topbar__secondary"><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#calendar"></use></svg>Nothing to pay until you arrive</p>
+      <p class="topbar__secondary"><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#phone"></use></svg>Need help? <a href="tel:+440000000000">[Phone number]</a></p>
+    </div>
+  </aside>
+
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <a class="logo" href="index.html" aria-label="The Aldwin, home page"><svg class="logo__icon" aria-hidden="true" focusable="false"><use href="icons.svg#key"></use></svg><span class="logo__text"><span class="logo__word" aria-hidden="true">The Aldwin</span><span class="logo__sub" aria-hidden="true">Hotel</span></span></a>
+
+      <div class="nav-wrap">
+        <button class="icon-btn menu-btn" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="site-nav" data-menu-toggle>
+          <svg class="icon icon-open" aria-hidden="true" focusable="false"><use href="icons.svg#menu"></use></svg>
+          <svg class="icon icon-close" aria-hidden="true" focusable="false"><use href="icons.svg#close"></use></svg>
+        </button>
+        <nav class="site-nav" id="site-nav" aria-label="Main">
+          <ul class="nav-list">
+            <li>
+              <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="sub-rooms">
+                Rooms <svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#chevron-down"></use></svg>
+              </button>
+              <ul class="subnav" id="sub-rooms">
+                <li><a href="rooms.html">All rooms and suites</a></li>
+                <li><a href="room.html">Classic King</a></li>
+                <li><a href="rooms.html">Suites</a></li>
+                <li><a href="accessibility.html#accessible-rooms">Accessible rooms</a></li>
+              </ul>
+            </li>
+            <li><a href="dining.html">Eat and drink</a></li>
+            <li><a href="experiences.html">Neighbourhood</a></li>
+            <li><a href="about.html">About us</a></li>
+            <li><a href="gallery.html">Gallery</a></li>
+            <li><a class="nav-offers" href="offers.html">Offers</a></li>
+          </ul>
+          <ul class="nav-extra">
+            <li><a href="manage-booking.html"><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#calendar"></use></svg>Manage a booking</a></li>
+            <li><a href="contact.html"><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#phone"></use></svg>Contact</a></li>
+          </ul>
+        </nav>
+      </div>
+
+      <div class="header-actions">
+        <a class="icon-btn lg-only" href="manage-booking.html" aria-label="Manage a booking"><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#user"></use></svg></a>
+        <a class="btn btn--primary btn--sm header-book" href="book.html" data-carry-stay>Book</a>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" tabindex="-1">
+    <section class="page-header" aria-labelledby="page-title">
+      <div class="container page-header__inner">
+        <nav class="breadcrumb" aria-label="Breadcrumb">
+            <ol>
+              <li><a href="index.html">Home</a></li>
+              <li><span aria-current="page">Availability</span></li>
+            </ol>
+          </nav>
+        <h1 class="h-page" id="page-title">Choose your room</h1>
+        <p class="lead" data-stay-text>Choose your dates to see the total price for your stay.</p>
+        <form class="stay-form" action="availability.html" method="get" data-stay-search aria-label="Change your dates">
+          <div class="field">
+            <label for="av-in">Check-in</label>
+            <input class="input" id="av-in" name="checkin" type="date" required data-checkin aria-describedby="av-in-error" data-required="Choose your check-in date.">
+            <p class="error-msg" id="av-in-error" hidden></p>
+          </div>
+          <div class="field">
+            <label for="av-out">Check-out</label>
+            <input class="input" id="av-out" name="checkout" type="date" required data-checkout aria-describedby="av-out-error" data-required="Choose your check-out date." data-invalid="Check-out must be after check-in.">
+            <p class="error-msg" id="av-out-error" hidden></p>
+          </div>
+          <div class="field">
+            <label for="av-adults">Adults</label>
+            <select class="select" id="av-adults" name="adults"><option value="1">1 adult</option><option value="2">2 adults</option><option value="3">3 adults</option><option value="4">4 adults</option><option value="5">5 adults</option><option value="6">6 adults</option><option value="7">7 adults</option><option value="8">8 adults</option></select>
+          </div>
+          <div class="field">
+            <label for="av-children">Children</label>
+            <select class="select" id="av-children" name="children"><option value="0">0 children</option><option value="1">1 child</option><option value="2">2 children</option><option value="3">3 children</option><option value="4">4 children</option><option value="5">5 children</option><option value="6">6 children</option></select>
+          </div>
+          <button class="btn btn--primary" type="submit">Update</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="section" aria-label="Available rooms and suites" data-availability>
+      <div class="container">
+        <p class="availability-note"><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#calendar"></use></svg>Prices include VAT. Book direct for our flexible rate: free cancellation until 2pm the day before arrival.</p>
+        <ul class="avail-list">
+          <li class="avail-card">
+            <div class="media tone-3 avail-card__media" aria-hidden="true"><span class="media__label">Cosy double photo</span></div>
+            <div class="avail-card__body">
+              <h2 class="h-card"><a class="plain-link" href="room.html">Cosy Double</a></h2>
+              <ul class="room-facts">
+                <li><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#users"></use></svg>Sleeps 2</li>
+                <li><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#bed"></use></svg>Double bed</li>
+                <li><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#ruler"></use></svg>18 m²</li>
+              </ul>
+              <p class="body-copy">Small but perfectly formed, with everything you need for a city break.</p>
+              <ul class="rate-list" aria-label="Rates for Cosy Double">
+                <li class="rate-row">
+                  <div>
+                    <p class="rate-row__name">Room only, flexible</p>
+                    <p class="rate-row__desc">Free cancellation until 2pm the day before</p>
+                  </div>
+                  <p class="rate-row__price"><strong>£149.00</strong> <span>/ night</span><br><span class="rate-row__total" data-stay-total="149">Total shown when you choose dates</span></p>
+                  <a class="btn btn--primary btn--sm" href="book.html?room=cosy-double&amp;rate=room-only" data-carry-stay>Select<span class="visually-hidden"> Cosy Double, Room only, flexible</span></a>
+                </li>
+                <li class="rate-row">
+                  <div>
+                    <p class="rate-row__name">Bed and breakfast, flexible</p>
+                    <p class="rate-row__desc">Full breakfast in the brasserie for everyone in the room</p>
+                  </div>
+                  <p class="rate-row__price"><strong>£171.00</strong> <span>/ night</span><br><span class="rate-row__total" data-stay-total="171">Total shown when you choose dates</span></p>
+                  <a class="btn btn--primary btn--sm" href="book.html?room=cosy-double&amp;rate=bed-breakfast" data-carry-stay>Select<span class="visually-hidden"> Cosy Double, Bed and breakfast, flexible</span></a>
+                </li>
+                <li class="rate-row">
+                  <div>
+                    <p class="rate-row__name">Dinner, bed and breakfast</p>
+                    <p class="rate-row__desc">Breakfast and a two-course dinner each night</p>
+                  </div>
+                  <p class="rate-row__price"><strong>£214.00</strong> <span>/ night</span><br><span class="rate-row__total" data-stay-total="214">Total shown when you choose dates</span></p>
+                  <a class="btn btn--primary btn--sm" href="book.html?room=cosy-double&amp;rate=dinner-bb" data-carry-stay>Select<span class="visually-hidden"> Cosy Double, Dinner, bed and breakfast</span></a>
+                </li>
+              </ul>
+            </div>
+          </li>
+          <li class="avail-card">
+            <div class="media tone-2 avail-card__media" aria-hidden="true"><span class="media__label">Classic king photo</span></div>
+            <div class="avail-card__body">
+              <h2 class="h-card"><a class="plain-link" href="room.html">Classic King</a></h2>
+              <ul class="room-facts">
+                <li><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#users"></use></svg>Sleeps 2</li>
+                <li><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#bed"></use></svg>King bed</li>
+                <li><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#ruler"></use></svg>24 m²</li>
+              </ul>
+              <p class="body-copy">A calm room with a king bed, a reading chair and a rain shower.</p>
+              <ul class="rate-list" aria-label="Rates for Classic King">
+                <li class="rate-row">
+                  <div>
+                    <p class="rate-row__name">Room only, flexible</p>
+                    <p class="rate-row__desc">Free cancellation until 2pm the day before</p>
+                  </div>
+                  <p class="rate-row__price"><strong>£189.00</strong> <span>/ night</span><br><span class="rate-row__total" data-stay-total="189">Total shown when you choose dates</span></p>
+                  <a class="btn btn--primary btn--sm" href="book.html?room=classic-king&amp;rate=room-only" data-carry-stay>Select<span class="visually-hidden"> Classic King, Room only, flexible</span></a>
+                </li>
+                <li class="rate-row">
+                  <div>
+                    <p class="rate-row__name">Bed and breakfast, flexible</p>
+                    <p class="rate-row__desc">Full breakfast in the brasserie for everyone in the room</p>
+                  </div>
+                  <p class="rate-row__price"><strong>£211.00</strong> <span>/ night</span><br><span class="rate-row__total" data-stay-total="211">Total shown when you choose dates</span></p>
+                  <a class="btn btn--primary btn--sm" href="book.html?room=classic-king&amp;rate=bed-breakfast" data-carry-stay>Select<span class="visually-hidden"> Classic King, Bed and breakfast, flexible</span></a>
+                </li>
+                <li class="rate-row">
+                  <div>
+                    <p class="rate-row__name">Dinner, bed and breakfast</p>
+                    <p class="rate-row__desc">Breakfast and a two-course dinner each night</p>
+                  </div>
+                  <p class="rate-row__price"><strong>£254.00</strong> <span>/ night</span><br><span class="rate-row__total" data-stay-total="254">Total shown when you choose dates</span></p>
+                  <a class="btn btn--primary btn--sm" href="book.html?room=classic-king&amp;rate=dinner-bb" data-carry-stay>Select<span class="visually-hidden"> Classic King, Dinner, bed and breakfast</span></a>
+                </li>
+              </ul>
+            </div>
+          </li>
+          <li class="avail-card">
+            <div class="media tone-4 avail-card__media" aria-hidden="true"><span class="media__label">Deluxe room photo</span></div>
+            <div class="avail-card__body">
+              <h2 class="h-card"><a class="plain-link" href="room.html">Deluxe Room</a></h2>
+              <ul class="room-facts">
+                <li><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#users"></use></svg>Sleeps 2</li>
+                <li><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#bed"></use></svg>Super king bed</li>
+                <li><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#ruler"></use></svg>30 m²</li>
+              </ul>
+              <p class="body-copy">Tall windows over the square, a writing desk and a deep bath.</p>
+              <ul class="rate-list" aria-label="Rates for Deluxe Room">
+                <li class="rate-row">
+                  <div>
+                    <p class="rate-row__name">Room only, flexible</p>
+                    <p class="rate-row__desc">Free cancellation until 2pm the day before</p>
+                  </div>
+                  <p class="rate-row__price"><strong>£229.00</strong> <span>/ night</span><br><span class="rate-row__total" data-stay-total="229">Total shown when you choose dates</span></p>
+                  <a class="btn btn--primary btn--sm" href="book.html?room=deluxe-room&amp;rate=room-only" data-carry-stay>Select<span class="visually-hidden"> Deluxe Room, Room only, flexible</span></a>
+                </li>
+                <li class="rate-row">
+                  <div>
+                    <p class="rate-row__name">Bed and breakfast, flexible</p>
+                    <p class="rate-row__desc">Full breakfast in the brasserie for everyone in the room</p>
+                  </div>
+                  <p class="rate-row__price"><strong>£251.00</strong> <span>/ night</span><br><span class="rate-row__total" data-stay-total="251">Total shown when you choose dates</span></p>
+                  <a class="btn btn--primary btn--sm" href="book.html?room=deluxe-room&amp;rate=bed-breakfast" data-carry-stay>Select<span class="visually-hidden"> Deluxe Room, Bed and breakfast, flexible</span></a>
+                </li>
+                <li class="rate-row">
+                  <div>
+                    <p class="rate-row__name">Dinner, bed and breakfast</p>
+                    <p class="rate-row__desc">Breakfast and a two-course dinner each night</p>
+                  </div>
+                  <p class="rate-row__price"><strong>£294.00</strong> <span>/ night</span><br><span class="rate-row__total" data-stay-total="294">Total shown when you choose dates</span></p>
+                  <a class="btn btn--primary btn--sm" href="book.html?room=deluxe-room&amp;rate=dinner-bb" data-carry-stay>Select<span class="visually-hidden"> Deluxe Room, Dinner, bed and breakfast</span></a>
+                </li>
+              </ul>
+            </div>
+          </li>
+          <li class="avail-card">
+            <div class="media tone-5 avail-card__media" aria-hidden="true"><span class="media__label">Junior suite photo</span></div>
+            <div class="avail-card__body">
+              <h2 class="h-card"><a class="plain-link" href="room.html">Junior Suite</a></h2>
+              <ul class="room-facts">
+                <li><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#users"></use></svg>Sleeps 3</li>
+                <li><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#bed"></use></svg>Super king and sofa bed</li>
+                <li><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#ruler"></use></svg>42 m²</li>
+              </ul>
+              <p class="body-copy">A separate sitting area, a freestanding bath and a cocktail tray.</p>
+              <ul class="rate-list" aria-label="Rates for Junior Suite">
+                <li class="rate-row">
+                  <div>
+                    <p class="rate-row__name">Room only, flexible</p>
+                    <p class="rate-row__desc">Free cancellation until 2pm the day before</p>
+                  </div>
+                  <p class="rate-row__price"><strong>£299.00</strong> <span>/ night</span><br><span class="rate-row__total" data-stay-total="299">Total shown when you choose dates</span></p>
+                  <a class="btn btn--primary btn--sm" href="book.html?room=junior-suite&amp;rate=room-only" data-carry-stay>Select<span class="visually-hidden"> Junior Suite, Room only, flexible</span></a>
+                </li>
+                <li class="rate-row">
+                  <div>
+                    <p class="rate-row__name">Bed and breakfast, flexible</p>
+                    <p class="rate-row__desc">Full breakfast in the brasserie for everyone in the room</p>
+                  </div>
+                  <p class="rate-row__price"><strong>£321.00</strong> <span>/ night</span><br><span class="rate-row__total" data-stay-total="321">Total shown when you choose dates</span></p>
+                  <a class="btn btn--primary btn--sm" href="book.html?room=junior-suite&amp;rate=bed-breakfast" data-carry-stay>Select<span class="visually-hidden"> Junior Suite, Bed and breakfast, flexible</span></a>
+                </li>
+                <li class="rate-row">
+                  <div>
+                    <p class="rate-row__name">Dinner, bed and breakfast</p>
+                    <p class="rate-row__desc">Breakfast and a two-course dinner each night</p>
+                  </div>
+                  <p class="rate-row__price"><strong>£364.00</strong> <span>/ night</span><br><span class="rate-row__total" data-stay-total="364">Total shown when you choose dates</span></p>
+                  <a class="btn btn--primary btn--sm" href="book.html?room=junior-suite&amp;rate=dinner-bb" data-carry-stay>Select<span class="visually-hidden"> Junior Suite, Dinner, bed and breakfast</span></a>
+                </li>
+              </ul>
+            </div>
+          </li>
+          <li class="avail-card">
+            <div class="media tone-2 avail-card__media" aria-hidden="true"><span class="media__label">Family room photo</span></div>
+            <div class="avail-card__body">
+              <h2 class="h-card"><a class="plain-link" href="room.html">Family Room</a></h2>
+              <ul class="room-facts">
+                <li><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#users"></use></svg>Sleeps 4</li>
+                <li><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#bed"></use></svg>King and 2 singles</li>
+                <li><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#ruler"></use></svg>36 m²</li>
+              </ul>
+              <p class="body-copy">Room for everyone, with a bunk nook the kids will love.</p>
+              <ul class="rate-list" aria-label="Rates for Family Room">
+                <li class="rate-row">
+                  <div>
+                    <p class="rate-row__name">Room only, flexible</p>
+                    <p class="rate-row__desc">Free cancellation until 2pm the day before</p>
+                  </div>
+                  <p class="rate-row__price"><strong>£249.00</strong> <span>/ night</span><br><span class="rate-row__total" data-stay-total="249">Total shown when you choose dates</span></p>
+                  <a class="btn btn--primary btn--sm" href="book.html?room=family-room&amp;rate=room-only" data-carry-stay>Select<span class="visually-hidden"> Family Room, Room only, flexible</span></a>
+                </li>
+                <li class="rate-row">
+                  <div>
+                    <p class="rate-row__name">Bed and breakfast, flexible</p>
+                    <p class="rate-row__desc">Full breakfast in the brasserie for everyone in the room</p>
+                  </div>
+                  <p class="rate-row__price"><strong>£271.00</strong> <span>/ night</span><br><span class="rate-row__total" data-stay-total="271">Total shown when you choose dates</span></p>
+                  <a class="btn btn--primary btn--sm" href="book.html?room=family-room&amp;rate=bed-breakfast" data-carry-stay>Select<span class="visually-hidden"> Family Room, Bed and breakfast, flexible</span></a>
+                </li>
+                <li class="rate-row">
+                  <div>
+                    <p class="rate-row__name">Dinner, bed and breakfast</p>
+                    <p class="rate-row__desc">Breakfast and a two-course dinner each night</p>
+                  </div>
+                  <p class="rate-row__price"><strong>£314.00</strong> <span>/ night</span><br><span class="rate-row__total" data-stay-total="314">Total shown when you choose dates</span></p>
+                  <a class="btn btn--primary btn--sm" href="book.html?room=family-room&amp;rate=dinner-bb" data-carry-stay>Select<span class="visually-hidden"> Family Room, Dinner, bed and breakfast</span></a>
+                </li>
+              </ul>
+            </div>
+          </li>
+          <li class="avail-card">
+            <div class="media tone-3 avail-card__media" aria-hidden="true"><span class="media__label">Accessible room photo</span></div>
+            <div class="avail-card__body">
+              <h2 class="h-card"><a class="plain-link" href="room.html">Accessible King</a></h2>
+              <ul class="room-facts">
+                <li><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#users"></use></svg>Sleeps 2</li>
+                <li><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#bed"></use></svg>King bed</li>
+                <li><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#ruler"></use></svg>28 m²</li>
+              </ul>
+              <p class="body-copy">Step-free with a roll-in shower, grab rails and a hearing loop. [Confirm features.]</p>
+              <ul class="rate-list" aria-label="Rates for Accessible King">
+                <li class="rate-row">
+                  <div>
+                    <p class="rate-row__name">Room only, flexible</p>
+                    <p class="rate-row__desc">Free cancellation until 2pm the day before</p>
+                  </div>
+                  <p class="rate-row__price"><strong>£189.00</strong> <span>/ night</span><br><span class="rate-row__total" data-stay-total="189">Total shown when you choose dates</span></p>
+                  <a class="btn btn--primary btn--sm" href="book.html?room=accessible-king&amp;rate=room-only" data-carry-stay>Select<span class="visually-hidden"> Accessible King, Room only, flexible</span></a>
+                </li>
+                <li class="rate-row">
+                  <div>
+                    <p class="rate-row__name">Bed and breakfast, flexible</p>
+                    <p class="rate-row__desc">Full breakfast in the brasserie for everyone in the room</p>
+                  </div>
+                  <p class="rate-row__price"><strong>£211.00</strong> <span>/ night</span><br><span class="rate-row__total" data-stay-total="211">Total shown when you choose dates</span></p>
+                  <a class="btn btn--primary btn--sm" href="book.html?room=accessible-king&amp;rate=bed-breakfast" data-carry-stay>Select<span class="visually-hidden"> Accessible King, Bed and breakfast, flexible</span></a>
+                </li>
+                <li class="rate-row">
+                  <div>
+                    <p class="rate-row__name">Dinner, bed and breakfast</p>
+                    <p class="rate-row__desc">Breakfast and a two-course dinner each night</p>
+                  </div>
+                  <p class="rate-row__price"><strong>£254.00</strong> <span>/ night</span><br><span class="rate-row__total" data-stay-total="254">Total shown when you choose dates</span></p>
+                  <a class="btn btn--primary btn--sm" href="book.html?room=accessible-king&amp;rate=dinner-bb" data-carry-stay>Select<span class="visually-hidden"> Accessible King, Dinner, bed and breakfast</span></a>
+                </li>
+              </ul>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a class="logo" href="index.html" aria-label="The Aldwin, home page"><svg class="logo__icon" aria-hidden="true" focusable="false"><use href="icons.svg#key"></use></svg><span class="logo__text"><span class="logo__word" aria-hidden="true">The Aldwin</span><span class="logo__sub" aria-hidden="true">Hotel</span></span></a>
+          <p>A warm, modern hotel in the middle of everything.</p>
+          <ul class="social">
+            <li><a class="icon-btn" href="#" aria-label="The Aldwin on Instagram"><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#instagram"></use></svg></a></li>
+            <li><a class="icon-btn" href="#" aria-label="The Aldwin on Facebook"><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#facebook"></use></svg></a></li>
+            <li><a class="icon-btn" href="#" aria-label="The Aldwin on TikTok"><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#tiktok"></use></svg></a></li>
+          </ul>
+        </div>
+        <nav class="footer-col" aria-labelledby="f-stay">
+          <h2 id="f-stay">Stay</h2>
+          <ul>
+            <li><a href="rooms.html">Rooms and suites</a></li>
+            <li><a href="offers.html">Offers</a></li>
+            <li><a href="book.html">Book a room</a></li>
+            <li><a href="manage-booking.html">Manage a booking</a></li>
+          </ul>
+        </nav>
+        <nav class="footer-col" aria-labelledby="f-hotel">
+          <h2 id="f-hotel">The hotel</h2>
+          <ul>
+            <li><a href="dining.html">Eat and drink</a></li>
+            <li><a href="wellness.html">Gym and wellbeing</a></li>
+            <li><a href="experiences.html">Neighbourhood</a></li>
+            <li><a href="gallery.html">Gallery</a></li>
+            <li><a href="about.html">About us</a></li>
+          </ul>
+        </nav>
+        <nav class="footer-col" aria-labelledby="f-help">
+          <h2 id="f-help">Help</h2>
+          <ul>
+            <li><a href="contact.html">Contact and getting here</a></li>
+            <li><a href="faqs.html">FAQs</a></li>
+            <li><a href="accessibility.html">Accessibility</a></li>
+            <li><a href="terms.html">Booking terms</a></li>
+          </ul>
+        </nav>
+      </div>
+      <div class="footer-bottom">
+        <p>© 2026 The Aldwin. All rights reserved.</p>
+        <ul class="legal-links">
+          <li><a href="privacy.html">Privacy</a></li>
+          <li><a href="cookies.html">Cookies</a></li>
+        </ul>
+      </div>
+    </div>
+  </footer>
+
+  <div class="visually-hidden" id="announcer" aria-live="polite"></div>
+</body>
+</html>

@@ -140,7 +140,7 @@ const NAV_DROPDOWN_ITEM_VISUAL: Record<
     iconWellStyle: { background: "rgb(var(--xyvoo-blue-rgb) / 0.12)" },
     iconColor: "rgb(var(--xyvoo-blue-rgb) / 0.88)",
   },
-  "/templates": {
+  "/templates#storefronts": {
     Icon: LayoutTemplate,
     iconWellStyle: { background: "rgb(var(--xyvoo-mint-rgb) / 0.22)" },
     iconColor: "var(--xyvoo-teal-product)",
@@ -261,8 +261,8 @@ const NAV: NavItem[] = [
           "Bundles, barcodes, and wholesale pricing with minimum and maximum order quantities.",
       },
       {
-        label: "Website Templates",
-        href: "/templates",
+        label: "Storefront Website Templates",
+        href: "/templates#storefronts",
         description:
           "See what your storefront website could look like, page by page.",
       },
@@ -355,7 +355,7 @@ function MobileNavSidebar({ pathname }: { pathname: string }) {
       <SheetContent
         side="right"
         showCloseButton={false}
-        className="z-[60] flex min-h-0 flex-col gap-0 overflow-hidden border-0 bg-sidebar p-0 text-sidebar-foreground shadow-xl ring-0 data-[side=right]:w-[75vw] data-[side=right]:max-w-none data-[side=right]:sm:max-w-none [&>button]:hidden"
+        className="z-[60] flex min-h-0 flex-col gap-0 overflow-hidden border-0 bg-sidebar p-0 text-sidebar-foreground shadow-xl ring-0 data-[side=right]:w-full data-[side=right]:max-w-none data-[side=right]:sm:max-w-none [&>button]:hidden"
       >
         <SheetHeader className="sr-only">
           <SheetTitle>Menu</SheetTitle>

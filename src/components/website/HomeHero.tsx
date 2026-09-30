@@ -70,7 +70,7 @@ const HERO_TABS: HeroTab[] = [
       "XYVOO builds dedicated, fully branded platforms for hotels and online retailers, so your team runs on one system instead of ten disconnected tools.",
     image: GENERIC_HERO_IMAGE,
     imageAlt: "XYVOO platform preview",
-    primaryCta: { label: "Learn more about XYVOO", href: "#about-xyvoo" },
+    primaryCta: { label: "Learn more about XYVOO", href: "/about" },
     isDarkTheme: false,
   },
   {

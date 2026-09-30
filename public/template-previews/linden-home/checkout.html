@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en-GB" class="no-js">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Checkout | Linden Home</title>
+  <meta name="description" content="Enter your delivery details and pay securely.">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#FAF7F2">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Linden Home">
+  <meta property="og:locale" content="en_GB">
+  <meta property="og:title" content="Checkout | Linden Home">
+  <meta property="og:description" content="Enter your delivery details and pay securely.">
+  <meta property="og:image" content="https://www.example.com/og-image.jpg">
+  <meta property="og:image:alt" content="A calm, light living room furnished by Linden Home">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="site.webmanifest">
+
+  <script>document.documentElement.classList.replace("no-js", "js"); if (window.self !== window.top) document.documentElement.classList.add("is-framed");</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500&amp;family=DM+Sans:wght@400;500;700&amp;family=Jost:wght@500&amp;display=swap">
+  <link rel="stylesheet" href="styles.css?v=c2a2cbdf">
+  <script src="main.js?v=af525419" defer></script>
+
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <div class="preview-notice" role="note">
+    <p>You're viewing a <strong>XYVOO website template</strong>. Linden Home is a demo shop: nothing is for sale and forms don't send anything.</p>
+  </div>
+
+  <header class="site-header site-header--checkout">
+    <div class="container site-header__inner">
+      <a class="logo" href="index.html" aria-label="Linden Home, home page"><span class="logo__word" aria-hidden="true">LINDEN</span>
+        <span class="logo__sub" aria-hidden="true">HOME</span></a>
+      <p class="secure-note"><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#lock"></use></svg>Secure checkout</p>
+    </div>
+  </header>
+
+  <main id="main" tabindex="-1">
+    <div class="container section">
+      <h1 class="h-page">Checkout</h1>
+      <ol class="progress-steps" aria-label="Checkout progress">
+        <li><a href="cart.html">Basket</a></li>
+        <li aria-current="step">Details and payment</li>
+        <li>Confirmation</li>
+      </ol>
+
+      <div class="checkout-layout">
+        <form class="contact-form" action="order-confirmation.html" method="post" data-demo-form data-redirect="order-confirmation.html" aria-label="Checkout">
+          <p class="body-copy">All fields are required unless marked optional.</p>
+
+          <section class="checkout-step" aria-labelledby="step-contact">
+            <h2 class="step-title" id="step-contact"><span class="step-num" aria-hidden="true">1</span>Contact details</h2>
+            <p class="muted">Already have an account? <a href="login.html">Sign in</a> for faster checkout.</p>
+            <div class="field">
+              <label for="co-email">Email address</label>
+              <input class="input" id="co-email" name="email" type="email" autocomplete="email" inputmode="email" required aria-describedby="co-email-hint co-email-error" data-required="Enter your email address." data-invalid="Enter an email address in the format name@example.com.">
+              <p class="hint" id="co-email-hint">We'll send your order confirmation here.</p>
+              <p class="error-msg" id="co-email-error" hidden></p>
+            </div>
+            <div class="field">
+              <label for="co-phone">Phone number</label>
+              <input class="input" id="co-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" required aria-describedby="co-phone-hint co-phone-error" data-required="Enter a phone number so our delivery team can reach you.">
+              <p class="hint" id="co-phone-hint">Only used to arrange delivery.</p>
+              <p class="error-msg" id="co-phone-error" hidden></p>
+            </div>
+            <label class="check check--top"><input type="checkbox" name="marketing">Email me offers and new arrivals. You can unsubscribe at any time.</label>
+          </section>
+
+          <section class="checkout-step" aria-labelledby="step-address">
+            <h2 class="step-title" id="step-address"><span class="step-num" aria-hidden="true">2</span>Delivery address</h2>
+            <div class="form-row">
+              <div class="field">
+                <label for="co-first">First name</label>
+                <input class="input" id="co-first" name="first-name" type="text" autocomplete="given-name" required aria-describedby="co-first-error" data-required="Enter your first name.">
+                <p class="error-msg" id="co-first-error" hidden></p>
+              </div>
+              <div class="field">
+                <label for="co-last">Last name</label>
+                <input class="input" id="co-last" name="last-name" type="text" autocomplete="family-name" required aria-describedby="co-last-error" data-required="Enter your last name.">
+                <p class="error-msg" id="co-last-error" hidden></p>
+              </div>
+            </div>
+            <div class="field">
+              <label for="co-line1">Address line 1</label>
+              <input class="input" id="co-line1" name="address-line1" type="text" autocomplete="address-line1" required aria-describedby="co-line1-error" data-required="Enter the first line of your address.">
+              <p class="error-msg" id="co-line1-error" hidden></p>
+            </div>
+            <div class="field">
+              <label for="co-line2">Address line 2 <span class="optional">(optional)</span></label>
+              <input class="input" id="co-line2" name="address-line2" type="text" autocomplete="address-line2">
+            </div>
+            <div class="form-row--3">
+              <div class="field">
+                <label for="co-town">Town or city</label>
+                <input class="input" id="co-town" name="town" type="text" autocomplete="address-level2" required aria-describedby="co-town-error" data-required="Enter your town or city.">
+                <p class="error-msg" id="co-town-error" hidden></p>
+              </div>
+              <div class="field">
+                <label for="co-postcode">Postcode</label>
+                <input class="input" id="co-postcode" name="postcode" type="text" autocomplete="postal-code" autocapitalize="characters" required aria-describedby="co-postcode-error" data-required="Enter your postcode.">
+                <p class="error-msg" id="co-postcode-error" hidden></p>
+              </div>
+              <div class="field">
+                <label for="co-country">Country</label>
+                <select class="select" id="co-country" name="country" autocomplete="country">
+                  <option value="GB" selected>United Kingdom</option>
+                  <option value="IE">Ireland</option>
+                </select>
+              </div>
+            </div>
+            <div class="field">
+              <label for="co-notes">Delivery notes <span class="optional">(optional)</span></label>
+              <textarea class="textarea" id="co-notes" name="notes" rows="3" aria-describedby="co-notes-hint"></textarea>
+              <p class="hint" id="co-notes-hint">For example, parking, stairs or a narrow doorway.</p>
+            </div>
+          </section>
+
+          <section class="checkout-step" aria-labelledby="step-delivery">
+            <h2 class="step-title" id="step-delivery"><span class="step-num" aria-hidden="true">3</span>Delivery method</h2>
+            <fieldset>
+              <legend class="visually-hidden">Choose a delivery method</legend>
+              <div class="radio-cards">
+                <label class="radio-card"><input type="radio" name="delivery" value="standard" data-cost="0" checked><span><strong>Standard two-person delivery</strong><small>3 to 5 working days, to the room of your choice</small></span><span>Free</span></label>
+                <label class="radio-card"><input type="radio" name="delivery" value="nominated" data-cost="35"><span><strong>Choose your day</strong><small>Pick a weekday that suits you</small></span><span>£35.00</span></label>
+                <label class="radio-card"><input type="radio" name="delivery" value="assembly" data-cost="79"><span><strong>Delivery and assembly</strong><small>We build it and take the packaging away</small></span><span>£79.00</span></label>
+              </div>
+            </fieldset>
+          </section>
+
+          <section class="checkout-step" aria-labelledby="step-payment">
+            <h2 class="step-title" id="step-payment"><span class="step-num" aria-hidden="true">4</span>Payment</h2>
+            <div class="payment-box">
+              <p><strong>Secure payment</strong></p>
+              <p>[The payment provider's hosted card form loads here, for example Paystack or Stripe. Card details go straight to the provider and never touch our servers.]</p>
+              <p class="secure-note"><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#lock"></use></svg>Encrypted and secure</p>
+            </div>
+            <label class="check check--top"><input type="checkbox" name="billing-same" checked data-toggle-section="billing" data-show-when="unchecked">My billing address is the same as my delivery address</label>
+            <fieldset class="stack" id="billing" hidden>
+              <legend class="step-sub">Billing address</legend>
+              <div class="field">
+                <label for="bi-line1">Address line 1</label>
+                <input class="input" id="bi-line1" name="billing-line1" type="text" autocomplete="billing address-line1" required aria-describedby="bi-line1-error" data-required="Enter the first line of your billing address.">
+                <p class="error-msg" id="bi-line1-error" hidden></p>
+              </div>
+              <div class="form-row">
+                <div class="field">
+                  <label for="bi-town">Town or city</label>
+                  <input class="input" id="bi-town" name="billing-town" type="text" autocomplete="billing address-level2" required aria-describedby="bi-town-error" data-required="Enter the town or city.">
+                  <p class="error-msg" id="bi-town-error" hidden></p>
+                </div>
+                <div class="field">
+                  <label for="bi-postcode">Postcode</label>
+                  <input class="input" id="bi-postcode" name="billing-postcode" type="text" autocomplete="billing postal-code" autocapitalize="characters" required aria-describedby="bi-postcode-error" data-required="Enter the postcode.">
+                  <p class="error-msg" id="bi-postcode-error" hidden></p>
+                </div>
+              </div>
+            </fieldset>
+          </section>
+
+          <section class="checkout-step" aria-labelledby="step-confirm">
+            <h2 class="visually-hidden" id="step-confirm">Place your order</h2>
+            <label class="check check--top"><input type="checkbox" name="terms" id="co-terms" required aria-describedby="co-terms-error" data-required="Please confirm you agree to the terms of sale.">I agree to the <a href="terms.html">terms of sale</a> and have read the <a href="privacy.html">privacy policy</a>.</label>
+            <p class="error-msg" id="co-terms-error" hidden></p>
+            <button class="btn btn--primary" type="submit"><svg class="icon icon--sm" aria-hidden="true" focusable="false"><use href="icons.svg#lock"></use></svg>Place order and pay</button>
+            <p class="form-status" role="status"></p>
+          </section>
+        </form>
+
+        <aside class="summary" aria-labelledby="co-summary-title" data-checkout-summary data-subtotal="1297">
+          <h2 id="co-summary-title">Your order</h2>
+          <ul class="mini-lines">
+            <li class="mini-line"><span class="media tone-6" aria-hidden="true"><span class="mini-line__qty">1</span></span><span><strong>Luna Sofa</strong><span class="muted">Oat · 3 seater · Qty 1</span></span><span>£899.00</span></li>
+            <li class="mini-line"><span class="media tone-3" aria-hidden="true"><span class="mini-line__qty">2</span></span><span><strong>Oak Dining Chair</strong><span class="muted">Natural oak · Qty 2</span></span><span>£398.00</span></li>
+          </ul>
+          <dl>
+            <dt>Subtotal</dt><dd>£1,297.00</dd>
+            <dt>Delivery</dt><dd data-delivery-cost>Free</dd>
+            <dt class="total">Total</dt><dd class="total" data-total>£1,297.00</dd>
+          </dl>
+          <p class="muted">Prices include VAT.</p>
+          <a class="link-arrow" href="cart.html">Edit basket</a>
+        </aside>
+      </div>
+    </div>
+  </main>
+
+  <footer class="checkout-footer">
+    <div class="container">
+      <ul>
+        <li><a href="delivery.html">Delivery information</a></li>
+        <li><a href="returns.html">Returns</a></li>
+        <li><a href="privacy.html">Privacy</a></li>
+        <li><a href="terms.html">Terms</a></li>
+        <li><a href="contact.html">Need help? Contact us</a></li>
+      </ul>
+      <p>© 2026 Linden Home. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <div class="visually-hidden" id="announcer" aria-live="polite"></div>
+</body>
+</html>

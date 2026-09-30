@@ -1,0 +1,15 @@
+{
+  "name": "Linden Home",
+  "short_name": "Linden",
+  "start_url": "./",
+  "display": "browser",
+  "background_color": "#FAF7F2",
+  "theme_color": "#FAF7F2",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

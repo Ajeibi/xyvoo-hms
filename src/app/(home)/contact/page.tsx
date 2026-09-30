@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion, type Variants } from "framer-motion";
 import { Mail, MessageCircle, Send, CheckCircle2, ArrowUpRight, Calendar } from "lucide-react";
 import type { MarketingContactForm } from "@/types";
+import { GridPulses } from "@/components/website/GridPulses";
 
 const fadeUp: Variants = {
   offscreen: { opacity: 0, y: 40 },
@@ -60,7 +61,16 @@ export default function ContactPage() {
 
   return (
     <>
-      <section className="relative isolate overflow-hidden bg-white px-6 pt-36 pb-20 md:pb-24 border-b border-slate-100">
+      <section
+        className="relative isolate overflow-hidden bg-white px-6 pt-36 pb-20 md:pb-24 border-b border-slate-100"
+        style={{
+          // Same grid-line texture as the Company tab of the home hero.
+          backgroundImage:
+            "linear-gradient(to right, rgba(7, 22, 44, 0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(7, 22, 44, 0.04) 1px, transparent 1px)",
+          backgroundSize: "40px 40px",
+        }}
+      >
+        <GridPulses color="#90caf9" />
         <div className="relative z-10 mx-auto grid max-w-[1200px] grid-cols-1 gap-14 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
           <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: "easeOut" }}>
             <p className="mb-5 text-eyebrow font-bold uppercase tracking-[0.22em] text-xyvoo-blue">
@@ -234,7 +244,7 @@ export default function ContactPage() {
             </motion.div>
 
             <motion.div initial="offscreen" whileInView="onscreen" viewport={{ once: true }} variants={fadeUp}>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
                 {[
                   { icon: MessageCircle, label: "WhatsApp", val: "Fastest support", color: "bg-emerald-50 text-emerald-600 border-emerald-100" },
                   { icon: Mail, label: "Email", val: "hello@getxyvoo.com", color: "bg-indigo-50 text-indigo-600 border-indigo-100" },
@@ -246,20 +256,22 @@ export default function ContactPage() {
                   const content = (
                     <>
                       {Icon ? (
-                        <Icon className="w-6 h-6 mb-3" />
+                        <Icon className="w-6 h-6 shrink-0 sm:mb-3" />
                       ) : (
-                        <span className="mb-3 flex h-6 w-6 items-center justify-center text-base font-bold">{glyph}</span>
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center text-base font-bold sm:mb-3">{glyph}</span>
                       )}
-                      <p className="font-bold text-sm">{label}</p>
-                      <p className="text-xs opacity-70 mt-1">{val}</p>
+                      <div className="min-w-0">
+                        <p className="font-bold text-sm">{label}</p>
+                        <p className="text-xs opacity-70 mt-1 break-words">{val}</p>
+                      </div>
                     </>
                   );
                   return href ? (
-                    <a key={label} href={href} target="_blank" rel="noopener noreferrer" className={`border rounded-2xl p-5 transition-opacity hover:opacity-80 ${color}`}>
+                    <a key={label} href={href} target="_blank" rel="noopener noreferrer" className={`flex min-w-0 items-center gap-4 border rounded-2xl p-5 transition-opacity hover:opacity-80 sm:block ${color}`}>
                       {content}
                     </a>
                   ) : (
-                    <div key={label} className={`border rounded-2xl p-5 ${color}`}>
+                    <div key={label} className={`flex min-w-0 items-center gap-4 border rounded-2xl p-5 sm:block ${color}`}>
                       {content}
                     </div>
                   );

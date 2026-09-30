@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en-GB" class="no-js">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Availability | Fernhollow Lodges</title>
+  <meta name="description" content="Choose a lodge and rate for your dates at Fernhollow Lodges.">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#F4F6EE">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Fernhollow Lodges">
+  <meta property="og:locale" content="en_GB">
+  <meta property="og:title" content="Availability | Fernhollow Lodges">
+  <meta property="og:description" content="Choose a lodge and rate for your dates at Fernhollow Lodges.">
+  <meta property="og:image" content="https://www.example.com/og-image.jpg">
+  <meta property="og:image:alt" content="A timber lodge among pine trees at sunrise">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="site.webmanifest">
+
+  <script>document.documentElement.classList.replace("no-js", "js"); if (window.self !== window.top) document.documentElement.classList.add("is-framed");</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&amp;family=Nunito+Sans:wght@400;600;700;800&amp;display=swap">
+  <link rel="stylesheet" href="styles.css?v=edd19764">
+  <script src="main.js?v=af525419" defer></script>
+
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <div class="preview-notice" role="note">
+    <p>You're viewing a <strong>XYVOO website template</strong>. Fernhollow Lodges is a demo shop: nothing is for sale and forms don't send anything.</p>
+  </div>
+
+  <header class="site-header">
+    <div class="container site-header__inner">
+      <a class="logo" href="index.html" aria-label="Fernhollow Lodges, home page"><svg class="logo__icon" aria-hidden="true" focusable="false"><use href="icons.svg#tree"></use></svg><span class="logo__text"><span class="logo__word" aria-hidden="true">Fernhollow</span><span class="logo__sub" aria-hidden="true">Lodges</span></span></a>
+
+      <div class="nav-wrap">
+        <button class="icon-btn menu-btn" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="site-nav" data-menu-toggle>
+          <svg class="icon icon-open" aria-hidden="true" focusable="false"><use href="icons.svg#menu"></use></svg>
+          <svg class="icon icon-close" aria-hidden="true" focusable="false"><use href="icons.svg#close"></use></svg>
+        </button>
+        <nav class="site-nav" id="site-nav" aria-label="Main">
+          <ul class="nav-list">
+            <li><a href="index.html">Home</a></li>
+            <li><a href="rooms.html">Lodges</a></li>
+            <li><a href="experiences.html">Experiences</a></li>
+            <li><a href="wellness.html">Wellbeing</a></li>
+            <li><a href="dining.html">Food</a></li>
+            <li><a href="about.html">About us</a></li>
+            <li><a href="contact.html">Contact</a></li>
+          </ul>
+          <ul class="nav-extra">
+            <li><a href="offers.html"><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#sparkle"></use></svg>Offers</a></li>
+            <li><a href="manage-booking.html"><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#calendar"></use></svg>Manage a booking</a></li>
+          </ul>
+        </nav>
+      </div>
+
+      <div class="header-actions">
+        <a class="btn btn--primary btn--sm header-book" href="book.html" data-carry-stay><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#calendar"></use></svg>Book a lodge</a>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" tabindex="-1">
+    <section class="page-header" aria-labelledby="page-title">
+      <div class="container page-header__inner">
+        <nav class="breadcrumb" aria-label="Breadcrumb">
+            <ol>
+              <li><a href="index.html">Home</a></li>
+              <li><span aria-current="page">Availability</span></li>
+            </ol>
+          </nav>
+        <h1 class="h-page" id="page-title">Choose your lodge</h1>
+        <p class="lead" data-stay-text>Choose your dates to see the total price for your stay.</p>
+        <form class="stay-form" action="availability.html" method="get" data-stay-search aria-label="Change your dates">
+          <div class="field">
+            <label for="av-in">Check-in</label>
+            <input class="input" id="av-in" name="checkin" type="date" required data-checkin aria-describedby="av-in-error" data-required="Choose your check-in date.">
+            <p class="error-msg" id="av-in-error" hidden></p>
+          </div>
+          <div class="field">
+            <label for="av-out">Check-out</label>
+            <input class="input" id="av-out" name="checkout" type="date" required data-checkout aria-describedby="av-out-error" data-required="Choose your check-out date." data-invalid="Check-out must be after check-in.">
+            <p class="error-msg" id="av-out-error" hidden></p>
+          </div>
+          <div class="field">
+            <label for="av-adults">Adults</label>
+            <select class="select" id="av-adults" name="adults"><option value="1">1 adult</option><option value="2">2 adults</option><option value="3">3 adults</option><option value="4">4 adults</option><option value="5">5 adults</option><option value="6">6 adults</option><option value="7">7 adults</option><option value="8">8 adults</option></select>
+          </div>
+          <div class="field">
+            <label for="av-children">Children</label>
+            <select class="select" id="av-children" name="children"><option value="0">0 children</option><option value="1">1 child</option><option value="2">2 children</option><option value="3">3 children</option><option value="4">4 children</option><option value="5">5 children</option><option value="6">6 children</option></select>
+          </div>
+          <button class="btn btn--primary" type="submit">Update</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="section" aria-label="Available lodges" data-availability>
+      <div class="container">
+        <p class="availability-note"><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#calendar"></use></svg>Prices include VAT. Book direct for free cancellation up to 7 days before arrival.</p>
+        <ul class="avail-list">
+          <li class="avail-card">
+            <div class="media tone-4 avail-card__media" aria-hidden="true"><span class="media__label">Cabin photo</span></div>
+            <div class="avail-card__body">
+              <h2 class="h-card"><a class="plain-link" href="room.html">Green Valley Cabin</a></h2>
+              <ul class="room-facts">
+                <li><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#users"></use></svg>Sleeps 2</li>
+                <li><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#bed"></use></svg>1 bedroom</li>
+                <li><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#ruler"></use></svg>38 m²</li>
+              </ul>
+              <p class="body-copy">A cosy cabin for two with a wood burner and a deck over the valley.</p>
+              <ul class="rate-list" aria-label="Rates for Green Valley Cabin">
+                <li class="rate-row">
+                  <div>
+                    <p class="rate-row__name">Self-catering, flexible</p>
+                    <p class="rate-row__desc">Free cancellation up to 7 days before arrival</p>
+                  </div>
+                  <p class="rate-row__price"><strong>£165.00</strong> <span>/ night</span><br><span class="rate-row__total" data-stay-total="165">Total shown when you choose dates</span></p>
+                  <a class="btn btn--primary btn--sm" href="book.html?room=green-valley-cabin&amp;rate=self-catering" data-carry-stay>Select<span class="visually-hidden"> Green Valley Cabin, Self-catering, flexible</span></a>
+                </li>
+                <li class="rate-row">
+                  <div>
+                    <p class="rate-row__name">With a daily breakfast hamper</p>
+                    <p class="rate-row__desc">Local bread, eggs, yoghurt and coffee, delivered each morning</p>
+                  </div>
+                  <p class="rate-row__price"><strong>£189.00</strong> <span>/ night</span><br><span class="rate-row__total" data-stay-total="189">Total shown when you choose dates</span></p>
+                  <a class="btn btn--primary btn--sm" href="book.html?room=green-valley-cabin&amp;rate=breakfast-hamper" data-carry-stay>Select<span class="visually-hidden"> Green Valley Cabin, With a daily breakfast hamper</span></a>
+                </li>
+              </ul>
+            </div>
+          </li>
+          <li class="avail-card">
+            <div class="media tone-2 avail-card__media" aria-hidden="true"><span class="media__label">Treetop lodge photo</span></div>
+            <div class="avail-card__body">
+              <h2 class="h-card"><a class="plain-link" href="room.html">Treetop Lodge</a></h2>
+              <ul class="room-facts">
+                <li><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#users"></use></svg>Sleeps 4</li>
+                <li><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#bed"></use></svg>2 bedrooms</li>
+                <li><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#ruler"></use></svg>72 m²</li>
+              </ul>
+              <p class="body-copy">Raised on stilts among the pines, with a private hot tub on the balcony.</p>
+              <ul class="rate-list" aria-label="Rates for Treetop Lodge">
+                <li class="rate-row">
+                  <div>
+                    <p class="rate-row__name">Self-catering, flexible</p>
+                    <p class="rate-row__desc">Free cancellation up to 7 days before arrival</p>
+                  </div>
+                  <p class="rate-row__price"><strong>£245.00</strong> <span>/ night</span><br><span class="rate-row__total" data-stay-total="245">Total shown when you choose dates</span></p>
+                  <a class="btn btn--primary btn--sm" href="book.html?room=treetop-lodge&amp;rate=self-catering" data-carry-stay>Select<span class="visually-hidden"> Treetop Lodge, Self-catering, flexible</span></a>
+                </li>
+                <li class="rate-row">
+                  <div>
+                    <p class="rate-row__name">With a daily breakfast hamper</p>
+                    <p class="rate-row__desc">Local bread, eggs, yoghurt and coffee, delivered each morning</p>
+                  </div>
+                  <p class="rate-row__price"><strong>£269.00</strong> <span>/ night</span><br><span class="rate-row__total" data-stay-total="269">Total shown when you choose dates</span></p>
+                  <a class="btn btn--primary btn--sm" href="book.html?room=treetop-lodge&amp;rate=breakfast-hamper" data-carry-stay>Select<span class="visually-hidden"> Treetop Lodge, With a daily breakfast hamper</span></a>
+                </li>
+              </ul>
+            </div>
+          </li>
+          <li class="avail-card">
+            <div class="media tone-5 avail-card__media" aria-hidden="true"><span class="media__label">Lodge house photo</span></div>
+            <div class="avail-card__body">
+              <h2 class="h-card"><a class="plain-link" href="room.html">Nature Harmony House</a></h2>
+              <ul class="room-facts">
+                <li><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#users"></use></svg>Sleeps 6</li>
+                <li><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#bed"></use></svg>3 bedrooms</li>
+                <li><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#ruler"></use></svg>118 m²</li>
+              </ul>
+              <p class="body-copy">Our largest lodge, with a vaulted living room and room for the whole family.</p>
+              <ul class="rate-list" aria-label="Rates for Nature Harmony House">
+                <li class="rate-row">
+                  <div>
+                    <p class="rate-row__name">Self-catering, flexible</p>
+                    <p class="rate-row__desc">Free cancellation up to 7 days before arrival</p>
+                  </div>
+                  <p class="rate-row__price"><strong>£320.00</strong> <span>/ night</span><br><span class="rate-row__total" data-stay-total="320">Total shown when you choose dates</span></p>
+                  <a class="btn btn--primary btn--sm" href="book.html?room=nature-harmony-house&amp;rate=self-catering" data-carry-stay>Select<span class="visually-hidden"> Nature Harmony House, Self-catering, flexible</span></a>
+                </li>
+                <li class="rate-row">
+                  <div>
+                    <p class="rate-row__name">With a daily breakfast hamper</p>
+                    <p class="rate-row__desc">Local bread, eggs, yoghurt and coffee, delivered each morning</p>
+                  </div>
+                  <p class="rate-row__price"><strong>£344.00</strong> <span>/ night</span><br><span class="rate-row__total" data-stay-total="344">Total shown when you choose dates</span></p>
+                  <a class="btn btn--primary btn--sm" href="book.html?room=nature-harmony-house&amp;rate=breakfast-hamper" data-carry-stay>Select<span class="visually-hidden"> Nature Harmony House, With a daily breakfast hamper</span></a>
+                </li>
+              </ul>
+            </div>
+          </li>
+          <li class="avail-card">
+            <div class="media tone-3 avail-card__media" aria-hidden="true"><span class="media__label">Shepherd's hut photo</span></div>
+            <div class="avail-card__body">
+              <h2 class="h-card"><a class="plain-link" href="room.html">Shepherd's Hut</a></h2>
+              <ul class="room-facts">
+                <li><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#users"></use></svg>Sleeps 2</li>
+                <li><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#bed"></use></svg>Double bed</li>
+                <li><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#ruler"></use></svg>18 m²</li>
+              </ul>
+              <p class="body-copy">Simple and snug, with a fire pit and the best stargazing on site.</p>
+              <ul class="rate-list" aria-label="Rates for Shepherd's Hut">
+                <li class="rate-row">
+                  <div>
+                    <p class="rate-row__name">Self-catering, flexible</p>
+                    <p class="rate-row__desc">Free cancellation up to 7 days before arrival</p>
+                  </div>
+                  <p class="rate-row__price"><strong>£119.00</strong> <span>/ night</span><br><span class="rate-row__total" data-stay-total="119">Total shown when you choose dates</span></p>
+                  <a class="btn btn--primary btn--sm" href="book.html?room=shepherds-hut&amp;rate=self-catering" data-carry-stay>Select<span class="visually-hidden"> Shepherd's Hut, Self-catering, flexible</span></a>
+                </li>
+                <li class="rate-row">
+                  <div>
+                    <p class="rate-row__name">With a daily breakfast hamper</p>
+                    <p class="rate-row__desc">Local bread, eggs, yoghurt and coffee, delivered each morning</p>
+                  </div>
+                  <p class="rate-row__price"><strong>£143.00</strong> <span>/ night</span><br><span class="rate-row__total" data-stay-total="143">Total shown when you choose dates</span></p>
+                  <a class="btn btn--primary btn--sm" href="book.html?room=shepherds-hut&amp;rate=breakfast-hamper" data-carry-stay>Select<span class="visually-hidden"> Shepherd's Hut, With a daily breakfast hamper</span></a>
+                </li>
+              </ul>
+            </div>
+          </li>
+          <li class="avail-card">
+            <div class="media tone-2 avail-card__media" aria-hidden="true"><span class="media__label">Lakeside lodge photo</span></div>
+            <div class="avail-card__body">
+              <h2 class="h-card"><a class="plain-link" href="room.html">Lakeside Lodge</a></h2>
+              <ul class="room-facts">
+                <li><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#users"></use></svg>Sleeps 4</li>
+                <li><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#bed"></use></svg>2 bedrooms</li>
+                <li><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#ruler"></use></svg>84 m²</li>
+              </ul>
+              <p class="body-copy">Wake up to the lake, with a jetty and a canoe just for you.</p>
+              <ul class="rate-list" aria-label="Rates for Lakeside Lodge">
+                <li class="rate-row">
+                  <div>
+                    <p class="rate-row__name">Self-catering, flexible</p>
+                    <p class="rate-row__desc">Free cancellation up to 7 days before arrival</p>
+                  </div>
+                  <p class="rate-row__price"><strong>£280.00</strong> <span>/ night</span><br><span class="rate-row__total" data-stay-total="280">Total shown when you choose dates</span></p>
+                  <a class="btn btn--primary btn--sm" href="book.html?room=lakeside-lodge&amp;rate=self-catering" data-carry-stay>Select<span class="visually-hidden"> Lakeside Lodge, Self-catering, flexible</span></a>
+                </li>
+                <li class="rate-row">
+                  <div>
+                    <p class="rate-row__name">With a daily breakfast hamper</p>
+                    <p class="rate-row__desc">Local bread, eggs, yoghurt and coffee, delivered each morning</p>
+                  </div>
+                  <p class="rate-row__price"><strong>£304.00</strong> <span>/ night</span><br><span class="rate-row__total" data-stay-total="304">Total shown when you choose dates</span></p>
+                  <a class="btn btn--primary btn--sm" href="book.html?room=lakeside-lodge&amp;rate=breakfast-hamper" data-carry-stay>Select<span class="visually-hidden"> Lakeside Lodge, With a daily breakfast hamper</span></a>
+                </li>
+              </ul>
+            </div>
+          </li>
+          <li class="avail-card">
+            <div class="media tone-4 avail-card__media" aria-hidden="true"><span class="media__label">Accessible lodge photo</span></div>
+            <div class="avail-card__body">
+              <h2 class="h-card"><a class="plain-link" href="room.html">Accessible Meadow Lodge</a></h2>
+              <ul class="room-facts">
+                <li><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#users"></use></svg>Sleeps 4</li>
+                <li><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#bed"></use></svg>2 bedrooms</li>
+                <li><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#ruler"></use></svg>80 m²</li>
+              </ul>
+              <p class="body-copy">Step-free throughout, with a wet room and a hoist-ready bedroom. [Confirm features.]</p>
+              <ul class="rate-list" aria-label="Rates for Accessible Meadow Lodge">
+                <li class="rate-row">
+                  <div>
+                    <p class="rate-row__name">Self-catering, flexible</p>
+                    <p class="rate-row__desc">Free cancellation up to 7 days before arrival</p>
+                  </div>
+                  <p class="rate-row__price"><strong>£185.00</strong> <span>/ night</span><br><span class="rate-row__total" data-stay-total="185">Total shown when you choose dates</span></p>
+                  <a class="btn btn--primary btn--sm" href="book.html?room=accessible-meadow-lodge&amp;rate=self-catering" data-carry-stay>Select<span class="visually-hidden"> Accessible Meadow Lodge, Self-catering, flexible</span></a>
+                </li>
+                <li class="rate-row">
+                  <div>
+                    <p class="rate-row__name">With a daily breakfast hamper</p>
+                    <p class="rate-row__desc">Local bread, eggs, yoghurt and coffee, delivered each morning</p>
+                  </div>
+                  <p class="rate-row__price"><strong>£209.00</strong> <span>/ night</span><br><span class="rate-row__total" data-stay-total="209">Total shown when you choose dates</span></p>
+                  <a class="btn btn--primary btn--sm" href="book.html?room=accessible-meadow-lodge&amp;rate=breakfast-hamper" data-carry-stay>Select<span class="visually-hidden"> Accessible Meadow Lodge, With a daily breakfast hamper</span></a>
+                </li>
+              </ul>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a class="logo" href="index.html" aria-label="Fernhollow Lodges, home page"><svg class="logo__icon" aria-hidden="true" focusable="false"><use href="icons.svg#tree"></use></svg><span class="logo__text"><span class="logo__word" aria-hidden="true">Fernhollow</span><span class="logo__sub" aria-hidden="true">Lodges</span></span></a>
+          <p>Eco lodges in the woods, built to leave the forest as we found it.</p>
+          <ul class="social">
+            <li><a class="icon-btn" href="#" aria-label="Fernhollow on Instagram"><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#instagram"></use></svg></a></li>
+            <li><a class="icon-btn" href="#" aria-label="Fernhollow on Facebook"><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#facebook"></use></svg></a></li>
+            <li><a class="icon-btn" href="#" aria-label="Fernhollow on YouTube"><svg class="icon" aria-hidden="true" focusable="false"><use href="icons.svg#youtube"></use></svg></a></li>
+          </ul>
+        </div>
+        <nav class="footer-col" aria-labelledby="f-stay">
+          <h2 id="f-stay">Stay</h2>
+          <ul>
+            <li><a href="rooms.html">Our lodges</a></li>
+            <li><a href="offers.html">Offers</a></li>
+            <li><a href="book.html">Book a lodge</a></li>
+            <li><a href="manage-booking.html">Manage a booking</a></li>
+          </ul>
+        </nav>
+        <nav class="footer-col" aria-labelledby="f-explore">
+          <h2 id="f-explore">Explore</h2>
+          <ul>
+            <li><a href="experiences.html">Experiences</a></li>
+            <li><a href="wellness.html">Hot tubs and wellbeing</a></li>
+            <li><a href="dining.html">Food</a></li>
+            <li><a href="gallery.html">Gallery</a></li>
+            <li><a href="about.html">About us</a></li>
+          </ul>
+        </nav>
+        <nav class="footer-col" aria-labelledby="f-help">
+          <h2 id="f-help">Help</h2>
+          <ul>
+            <li><a href="contact.html">Contact and getting here</a></li>
+            <li><a href="faqs.html">FAQs</a></li>
+            <li><a href="accessibility.html">Accessibility</a></li>
+            <li><a href="terms.html">Booking terms</a></li>
+          </ul>
+        </nav>
+      </div>
+      <div class="footer-bottom">
+        <p>© 2026 Fernhollow Lodges. All rights reserved.</p>
+        <ul class="legal-links">
+          <li><a href="privacy.html">Privacy</a></li>
+          <li><a href="cookies.html">Cookies</a></li>
+        </ul>
+      </div>
+    </div>
+  </footer>
+
+  <div class="visually-hidden" id="announcer" aria-live="polite"></div>
+</body>
+</html>
