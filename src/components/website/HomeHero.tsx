@@ -9,17 +9,6 @@ import { XYVOO_AUTH_ROUTES } from "@/constants/auth-links";
 import { GridPulses } from "@/components/website/GridPulses";
 
 const XYVOO_SHIELD = "/images/XYVOO%20Shield.png" as const;
-/** Shared placeholder until Company/Storefront get their own dedicated photos. */
-const GENERIC_HERO_IMAGE =
-  "/images/background%20images/xyvoo.png" as const;
-const HMS_HERO_IMAGE =
-  "/images/background%20images/receptionBg.png" as const;
-const STOREFRONT_HERO_IMAGE =
-  "/images/background%20images/storefront-bg3.png" as const;
-
-const HERO_IMAGE_WIDTH = 2400;
-const HERO_IMAGE_HEIGHT = 1600;
-
 type HeroTabId = "company" | "hms" | "storefront";
 
 type HeroTab = {
@@ -39,17 +28,9 @@ type HeroTab = {
   accentText: string;
   /** Colour of the animated grid-line pulses. Defaults to accentText — override when accentText is too vivid/dark for a travelling light streak (e.g. the near-white Company background needs a soft light-blue rather than the bold CTA blue). */
   pulseColor?: string;
-  /** "stacked" = centered copy over a full-width image bleeding to the bottom (original layout). "split" = copy on one side, image bleeding to the opposite screen edge. */
-  layout: "stacked" | "split";
-  /** Which edge the image bleeds to when layout is "split" (copy sits on the other side). */
-  imageSide?: "left" | "right";
-  /** Tailwind width class for the image column when layout is "split". Defaults to "w-1/2". A wider value intentionally extends the image under the text column (text stays on top via z-index). */
-  imageWidthClass?: string;
   eyebrow: string;
   headline: string;
   subhead: string;
-  image: string;
-  imageAlt: string;
   primaryCta: { label: string; href: string };
   secondaryCta?: { label: string; href: string };
   isDarkTheme?: boolean;
@@ -63,13 +44,10 @@ const HERO_TABS: HeroTab[] = [
     pillActiveText: "#07162c",
     accentText: "#1565c0",
     pulseColor: "#90caf9",
-    layout: "stacked",
     eyebrow: "One company. Two platforms.",
     headline: "Software that runs your business — not the other way round.",
     subhead:
       "XYVOO builds dedicated, fully branded platforms for hotels and online retailers, so your team runs on one system instead of ten disconnected tools.",
-    image: GENERIC_HERO_IMAGE,
-    imageAlt: "XYVOO platform preview",
     primaryCta: { label: "Learn more about XYVOO", href: "/about" },
     isDarkTheme: false,
   },
@@ -79,13 +57,10 @@ const HERO_TABS: HeroTab[] = [
     bg: "#000d1f",
     pillActiveText: "#000d1f",
     accentText: "#90caf9",
-    layout: "stacked",
     eyebrow: "For Hotels & Properties",
     headline: "Hotel management, fully under your brand.",
     subhead:
       "Front desk, housekeeping, F&B, billing and reporting — one system. Guests and staff never see XYVOO.",
-    image: HMS_HERO_IMAGE,
-    imageAlt: "Hotel front desk receptionist using the XYVOO HMS",
     primaryCta: {
       label: "Launch your HMS",
       href: XYVOO_AUTH_ROUTES.hms.register,
@@ -98,13 +73,10 @@ const HERO_TABS: HeroTab[] = [
     bg: "#04140f",
     pillActiveText: "#04140f",
     accentText: "#4dd0c4",
-    layout: "stacked",
     eyebrow: "For Retailers & Merchants",
     headline: "Your online storefront, built to sell.",
     subhead:
       "A fully branded storefront with catalogue, checkout and fulfilment — live in minutes, not months.",
-    image: STOREFRONT_HERO_IMAGE,
-    imageAlt: "XYVOO Storefront preview",
     primaryCta: {
       label: "Start your online storefront",
       href: XYVOO_AUTH_ROUTES.storefront.register,
@@ -136,7 +108,7 @@ function FloatingCard({
 }) {
   return (
     <motion.div
-      className={`backdrop-blur-md bg-white/40 border border-white/60 shadow-[0_8px_32px_rgba(7,22,44,0.06)] rounded-2xl p-4 size-fit ${className}`}
+      className={`backdrop-blur-md bg-white/90 border border-white/60 shadow-[0_8px_32px_rgba(7,22,44,0.06)] rounded-2xl p-4 size-fit ${className}`}
       animate={{
         y: [0, -yOffset, 0],
       }}
@@ -389,7 +361,7 @@ export function HomeHero() {
     <section
       aria-labelledby="home-hero-heading"
       className={
-        "relative isolate w-full overflow-hidden pb-0 transition-all duration-300 " +
+        "relative isolate w-full overflow-hidden pb-24 lg:pb-32 transition-all duration-300 " +
         (activeId === "storefront" || activeId === "hms" ? "pt-20" : "pt-28")
       }
       style={sectionStyle}
@@ -409,24 +381,9 @@ export function HomeHero() {
         </div>
       </div>
 
-      <div
-        className={
-          // Capped so the image stays with the content on very wide or zoomed-out
-          // screens. Past the cap the image's edges fade into the hero background.
-          "relative z-0 mx-auto w-full max-w-[1536px] transition-all duration-300 " +
-          (active.id === "storefront" || active.id === "hms" ? "lg:-mt-[400px]" : "lg:-mt-[150px]")
-        }
-      >
-        <Image
-          src={active.image}
-          alt={active.imageAlt}
-          width={HERO_IMAGE_WIDTH}
-          height={HERO_IMAGE_HEIGHT}
-          priority
-          sizes="(max-width: 768px) 100vw, 2000px"
-          className="relative z-0 block h-auto w-full min-w-0 max-w-none min-[1537px]:[mask-image:linear-gradient(to_right,transparent,black_12%,black_88%,transparent)]"
-          style={{ width: "100%", height: "auto" }}
-        />
+      {/* Decorative "live activity" cards in the gutters either side of the copy (wide screens only).
+          Illustrative data, so hidden from assistive tech. Capped so they stay near the content on very wide screens. */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0 mx-auto w-full max-w-[1536px]">
 
         {active.id === "company" && (
           <>
@@ -434,7 +391,7 @@ export function HomeHero() {
 
             {/* Left Card 1 - Hotel Room Status (Blue) */}
             <FloatingCard
-              className="absolute left-[19%] top-[15%] hidden xl:flex items-center gap-3"
+              className="absolute left-[4%] top-[30%] hidden min-[1400px]:flex items-center gap-3"
               yOffset={10}
               duration={5}
               delay={0}
@@ -453,7 +410,7 @@ export function HomeHero() {
 
             {/* Left Card 2 - Storefront Order (Emerald) */}
             <FloatingCard
-              className="absolute left-[4%] top-[25%] hidden xl:flex items-center gap-3"
+              className="absolute left-[8%] top-[60%] hidden min-[1400px]:flex items-center gap-3"
               yOffset={14}
               duration={6.5}
               delay={0.7}
@@ -470,68 +427,11 @@ export function HomeHero() {
               </div>
             </FloatingCard>
 
-            {/* Left Card 3 - Hotel Reservation (Cyan) */}
-            <FloatingCard
-              className="absolute left-[5%] top-[45%] hidden xl:flex items-center gap-3"
-              yOffset={12}
-              duration={5.5}
-              delay={1.4}
-            >
-              <div className="size-10 rounded-xl bg-cyan-500/10 flex items-center justify-center text-cyan-600">
-                <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              </div>
-              <div className="text-left">
-                <p className="text-[11px] font-bold text-cyan-600 uppercase tracking-wider">Grand Plaza Resort</p>
-                <p className="text-[14px] font-extrabold text-[#07162c] leading-tight">Reservation Confirmed</p>
-                <p className="text-[11px] font-medium text-slate-500">XYVOO HMS • Live</p>
-              </div>
-            </FloatingCard>
-
-            {/* Left Card 4 - Storefront SEO (Violet) */}
-            <FloatingCard
-              className="absolute left-[18%] top-[72%] hidden xl:flex items-center gap-3"
-              yOffset={15}
-              duration={7}
-              delay={2.1}
-            >
-              <div className="size-10 rounded-xl bg-violet-500/10 flex items-center justify-center text-violet-600">
-                <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                </svg>
-              </div>
-              <div className="text-left">
-                <p className="text-[11px] font-bold text-violet-600 uppercase tracking-wider">Apex Goods</p>
-                <p className="text-[14px] font-extrabold text-[#07162c] leading-tight">SEO Keyword Ranked #1</p>
-                <p className="text-[11px] font-medium text-slate-500">Google Search • Live</p>
-              </div>
-            </FloatingCard>
-
             {/* --- RIGHT SIDE CARDS --- */}
 
-            {/* Right Card 1 - Storefront Order (Emerald) - Stray outside to text */}
+            {/* Right Card - Hotel Finance (Indigo) */}
             <FloatingCard
-              className="absolute right-[12%] top-[-8%] hidden xl:flex items-center gap-3"
-              yOffset={15}
-              duration={6}
-              delay={0.3}
-            >
-              <div className="size-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600">
-                <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                </svg>
-              </div>
-              <div className="text-left">
-                <p className="text-[11px] font-bold text-emerald-600 uppercase tracking-wider">Velo Bike Shop</p>
-                <p className="text-[14px] font-extrabold text-[#07162c] leading-tight">New Order #4802</p>
-                <p className="text-[11px] font-medium text-slate-500">$1,240.00 • Live Storefront</p>
-              </div>
-            </FloatingCard>
-
-            {/* Right Card 2 - Hotel Finance (Indigo) */}
-            <FloatingCard
-              className="absolute right-[4%] top-[24%] hidden xl:flex items-center gap-3"
+              className="absolute right-[5%] top-[44%] hidden min-[1400px]:flex items-center gap-3"
               yOffset={13}
               duration={5.8}
               delay={1.0}
@@ -548,43 +448,6 @@ export function HomeHero() {
               </div>
             </FloatingCard>
 
-            {/* Right Card 3 - Storefront SEO (Fuchsia) */}
-            <FloatingCard
-              className="absolute right-[5%] top-[48%] hidden xl:flex items-center gap-3"
-              yOffset={13}
-              duration={6.8}
-              delay={1.7}
-            >
-              <div className="size-10 rounded-xl bg-fuchsia-500/10 flex items-center justify-center text-fuchsia-600">
-                <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </div>
-              <div className="text-left">
-                <p className="text-[11px] font-bold text-fuchsia-600 uppercase tracking-wider">Nova Cosmetics</p>
-                <p className="text-[14px] font-extrabold text-[#07162c] leading-tight">Sitemap Indexed by Google</p>
-                <p className="text-[11px] font-medium text-slate-500">SEO Health: 100%</p>
-              </div>
-            </FloatingCard>
-
-            {/* Right Card 4 - Hotel Procurement (Amber) */}
-            <FloatingCard
-              className="absolute right-[20%] top-[68%] hidden xl:flex items-center gap-3"
-              yOffset={12}
-              duration={5.2}
-              delay={2.4}
-            >
-              <div className="size-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-600">
-                <svg className="size-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                </svg>
-              </div>
-              <div className="text-left">
-                <p className="text-[11px] font-bold text-amber-600 uppercase tracking-wider">Siren Cove Resort</p>
-                <p className="text-[14px] font-extrabold text-[#07162c] leading-tight">Procurement Order Approved</p>
-                <p className="text-[11px] font-medium text-slate-500">PO #8109 • Pending Delivery</p>
-              </div>
-            </FloatingCard>
           </>
         )}
 
@@ -592,7 +455,7 @@ export function HomeHero() {
           <>
             {/* Left Card 1 - Hotel Room Status (Blue) */}
             <FloatingCard
-              className="absolute left-[19%] top-[15%] hidden xl:flex items-center gap-3"
+              className="absolute left-[4%] top-[34%] hidden min-[1400px]:flex items-center gap-3"
               yOffset={10}
               duration={5}
               delay={0}
@@ -611,7 +474,7 @@ export function HomeHero() {
 
             {/* Left Card 2 - Hotel Reservation (Cyan) */}
             <FloatingCard
-              className="absolute left-[5%] top-[45%] hidden xl:flex items-center gap-3"
+              className="absolute left-[7%] top-[62%] hidden min-[1400px]:flex items-center gap-3"
               yOffset={12}
               duration={5.5}
               delay={1.4}
@@ -630,7 +493,7 @@ export function HomeHero() {
 
             {/* Right Card 1 - Hotel Finance (Indigo) */}
             <FloatingCard
-              className="absolute right-[4%] top-[24%] hidden xl:flex items-center gap-3"
+              className="absolute right-[4%] top-[34%] hidden min-[1400px]:flex items-center gap-3"
               yOffset={13}
               duration={5.8}
               delay={1.0}
@@ -649,7 +512,7 @@ export function HomeHero() {
 
             {/* Right Card 2 - Hotel Procurement (Amber) */}
             <FloatingCard
-              className="absolute right-[20%] top-[68%] hidden xl:flex items-center gap-3"
+              className="absolute right-[7%] top-[62%] hidden min-[1400px]:flex items-center gap-3"
               yOffset={12}
               duration={5.2}
               delay={2.4}
@@ -672,7 +535,7 @@ export function HomeHero() {
           <>
             {/* Left Card - Cart Addition (Emerald) */}
             <FloatingCard
-              className="absolute left-[4%] top-[35%] hidden xl:flex items-center gap-3"
+              className="absolute left-[5%] top-[40%] hidden min-[1400px]:flex items-center gap-3"
               yOffset={14}
               duration={6.5}
               delay={0.7}
@@ -691,7 +554,7 @@ export function HomeHero() {
 
             {/* Right Card - DHL Shipping Update (Amber) */}
             <FloatingCard
-              className="absolute right-[18%] top-[56%] hidden xl:flex items-center gap-3"
+              className="absolute right-[5%] top-[58%] hidden min-[1400px]:flex items-center gap-3"
               yOffset={12}
               duration={5.2}
               delay={1.4}
