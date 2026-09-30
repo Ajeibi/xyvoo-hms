@@ -1,23 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion, useInView } from "framer-motion";
 import { ArrowRight, Check, CheckCircle2, X, Zap } from "lucide-react";
 import { SectionEyebrow } from "@/components/website/SectionEyebrow";
+import { DarkSplitHero } from "@/components/website/DarkSplitHero";
 import { Button } from "@/components/ui/button";
 import { HMS_CYCLES, HMS_FEATURES, STOREFRONT_FEATURE_COMPARISON_ROWS, STOREFRONT_PLANS } from "@/constants/pricing";
 import type { HomePricingTab } from "@/types";
 
 /** Same static grid backdrop used on /solution/hms, /support and the business-type pages' hero. */
-const DARK_GRID_STYLE: CSSProperties = {
-  backgroundImage: `
-      linear-gradient(to right, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px)
-    `,
-  backgroundSize: "40px 40px",
-};
-
 function FadeIn({
   children,
   delay = 0,
@@ -99,41 +92,17 @@ export function HomePricingSection({
   return (
     <>
       {standalonePage && (
-        <section className="relative isolate overflow-hidden border-b border-white/5 bg-[#000d1f] px-6 pt-36 pb-16 text-center">
-          <div className="pointer-events-none absolute inset-0 z-0" style={DARK_GRID_STYLE} aria-hidden />
-          <div
-            className="pointer-events-none absolute -top-16 left-1/2 z-0 h-[360px] w-[360px] -translate-x-1/2 rounded-full blur-[100px]"
-            style={{ background: "rgb(var(--xyvoo-blue-rgb) / 0.24)" }}
-            aria-hidden
-          />
-          <div className="relative z-10 mx-auto max-w-2xl">
-            <motion.p
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="mb-4 text-eyebrow font-bold uppercase tracking-[0.22em] text-[#90caf9]"
-            >
-              Pricing
-            </motion.p>
-            <motion.h1
-              id="home-pricing-heading"
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.05 }}
-              className="text-balance text-h1 font-black leading-[1.08] tracking-tight text-white"
-            >
-              Simple plans that scale with your business
-            </motion.h1>
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.12 }}
-              className="mx-auto mt-6 max-w-lg text-p leading-relaxed text-white/60"
-            >
-              Start free, grow at your pace, and move to advanced support only when you need it. No hidden lock-ins.
-            </motion.p>
-          </div>
-        </section>
+        <DarkSplitHero
+          eyebrow="Pricing"
+          title="Simple plans that scale with your business"
+          titleId="home-pricing-heading"
+          subtitle="Start free, grow at your pace, and move to advanced support only when you need it. No hidden lock-ins."
+          links={[
+            { title: "XYVOO HMS", description: "Front desk, housekeeping, F&B, billing and reporting — one system, fully under your brand.", actionLabel: "Explore HMS", href: "/solution/hms" },
+            { title: "XYVOO Storefront", description: "Catalogue, checkout and fulfilment — live in minutes, fully under your brand.", actionLabel: "Explore Storefront", href: "/solution/storefront" },
+            { title: "Talk to sales", description: "Running several properties or need something bespoke? Let's talk it through.", actionLabel: "Contact us", href: "/contact" },
+          ]}
+        />
       )}
 
       <section

@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useRef, useState, type CSSProperties } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { motion, useInView } from "framer-motion";
+import { DarkSplitHero } from "@/components/website/DarkSplitHero";
 import {
   ArrowRight,
   ClipboardList,
@@ -29,14 +30,6 @@ const HMS_ACCENT_RGB = "0 126 223";
 const STOREFRONT_ACCENT_RGB = "77 208 196";
 
 /** Same static grid backdrop used on /solution/hms, /support, /pricing and the business-type pages' hero. */
-const DARK_GRID_STYLE: CSSProperties = {
-  backgroundImage: `
-      linear-gradient(to right, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px)
-    `,
-  backgroundSize: "40px 40px",
-};
-
 const CATEGORY_META: Record<ResourceCategory, { icon: LucideIcon; accentRgb: string }> = {
   Operations: { icon: ClipboardList, accentRgb: HMS_ACCENT_RGB },
   Revenue: { icon: TrendingUp, accentRgb: HMS_ACCENT_RGB },
@@ -117,40 +110,16 @@ export default function ResourcesPage() {
 
   return (
     <>
-      <section className="relative isolate overflow-hidden border-b border-white/5 bg-[#000d1f] px-6 pt-36 pb-16 text-center">
-        <div className="pointer-events-none absolute inset-0 z-0" style={DARK_GRID_STYLE} aria-hidden />
-        <div
-          className="pointer-events-none absolute -top-16 left-1/2 z-0 h-[360px] w-[360px] -translate-x-1/2 rounded-full blur-[100px]"
-          style={{ background: "rgb(var(--xyvoo-blue-rgb) / 0.24)" }}
-          aria-hidden
-        />
-        <div className="relative z-10 mx-auto max-w-2xl">
-          <motion.p
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="mb-4 text-eyebrow font-bold uppercase tracking-[0.22em] text-[#90caf9]"
-          >
-            Guides & Downloads
-          </motion.p>
-          <motion.h1
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.05 }}
-            className="mb-6 text-balance text-h1 font-black leading-[1.08] tracking-tight text-white"
-          >
-            The Resource Library
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.12 }}
-            className="mx-auto max-w-lg text-p leading-relaxed text-white/60"
-          >
-            Practical, printable guides on running a hotel or storefront — free to read online or download, no sign-up required.
-          </motion.p>
-        </div>
-      </section>
+      <DarkSplitHero
+        eyebrow="Guides & Downloads"
+        title="The Resource Library"
+        subtitle="Practical, printable guides on running a hotel or storefront — free to read online or download, no sign-up required."
+        links={[
+          { title: "Blog", description: "Product news, guides, and hospitality reads.", actionLabel: "Read", href: "/blog" },
+          { title: "Support", description: "Help articles, FAQs, and how to get unstuck.", actionLabel: "Get help", href: "/support" },
+          { title: "Talk to the team", description: "Questions about XYVOO HMS or Storefront? Tell us what you're running.", actionLabel: "Contact us", href: "/contact" },
+        ]}
+      />
 
       <section className="bg-white py-16">
         <div className="mx-auto max-w-7xl px-6">

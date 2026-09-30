@@ -1,21 +1,14 @@
 "use client";
 
-import { useMemo, useRef, useState, type CSSProperties } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { motion, useInView } from "framer-motion";
+import { DarkSplitHero } from "@/components/website/DarkSplitHero";
 import { ArrowRight, Clock } from "lucide-react";
 import type { FadeInSectionProps } from "@/types";
 import { BLOG_POSTS } from "@/constants/blog";
 
 /** Same static grid backdrop used on /solution/hms, /support, /pricing and the business-type pages' hero. */
-const DARK_GRID_STYLE: CSSProperties = {
-  backgroundImage: `
-      linear-gradient(to right, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px)
-    `,
-  backgroundSize: "40px 40px",
-};
-
 function FadeIn({ children, delay = 0 }: FadeInSectionProps) {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: "-60px" });
@@ -41,40 +34,16 @@ export default function BlogPage() {
 
   return (
     <>
-      <section className="relative isolate overflow-hidden border-b border-white/5 bg-[#000d1f] px-6 pt-36 pb-16 text-center">
-        <div className="pointer-events-none absolute inset-0 z-0" style={DARK_GRID_STYLE} aria-hidden />
-        <div
-          className="pointer-events-none absolute -top-16 left-1/2 z-0 h-[360px] w-[360px] -translate-x-1/2 rounded-full blur-[100px]"
-          style={{ background: "rgb(var(--xyvoo-blue-rgb) / 0.24)" }}
-          aria-hidden
-        />
-        <div className="relative z-10 mx-auto max-w-2xl">
-          <motion.p
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="mb-4 text-eyebrow font-bold uppercase tracking-[0.22em] text-[#90caf9]"
-          >
-            Insights & Resources
-          </motion.p>
-          <motion.h1
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.05 }}
-            className="mb-6 text-balance text-h1 font-black leading-[1.08] tracking-tight text-white"
-          >
-            The XYVOO Blog
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.12 }}
-            className="mx-auto max-w-lg text-p leading-relaxed text-white/60"
-          >
-            Practical guides, data-driven insights, and hotel management ideas from the XYVOO team.
-          </motion.p>
-        </div>
-      </section>
+      <DarkSplitHero
+        eyebrow="Insights & Resources"
+        title="The XYVOO Blog"
+        subtitle="Practical guides, data-driven insights, and hotel management ideas from the XYVOO team."
+        links={[
+          { title: "Resources", description: "Downloadable guides and checklists, ready to print or share.", actionLabel: "Browse", href: "/resources" },
+          { title: "Support", description: "Help articles, FAQs, and how to get unstuck.", actionLabel: "Get help", href: "/support" },
+          { title: "Talk to the team", description: "Questions about XYVOO HMS or Storefront? Tell us what you're running.", actionLabel: "Contact us", href: "/contact" },
+        ]}
+      />
       <section className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-6">
           <FadeIn>

@@ -88,6 +88,25 @@ function isStorefrontPath(pathname: string | null): boolean {
   return STOREFRONT_PATH_PREFIXES.some((prefix) => pathname?.startsWith(prefix)) ?? false;
 }
 
+/** Pages whose hero runs up behind the header, so the header sits on the hero
+ * (transparent) rather than as a separate white bar above it. Dark heroes also
+ * switch the header to its light-on-dark styling. */
+const DARK_HERO_PATHS = ["/pricing", "/blog", "/resources", "/support"];
+const LIGHT_HERO_PATHS = ["/about", "/contact"];
+const LIGHT_HERO_PATH_PREFIXES = ["/resources/", "/blog/"];
+
+function isDarkHeroPath(pathname: string | null): boolean {
+  return !!pathname && DARK_HERO_PATHS.includes(pathname);
+}
+
+function isLightHeroPath(pathname: string | null): boolean {
+  if (!pathname) return false;
+  return (
+    LIGHT_HERO_PATHS.includes(pathname) ||
+    LIGHT_HERO_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+  );
+}
+
 /** Same idea as STOREFRONT_PATH_PREFIXES, for the HMS product flow. */
 const HMS_PATH_PREFIXES = [
   "/solution/hms",
@@ -667,11 +686,19 @@ function WebsiteHeader({ pathname }: { pathname: string }) {
   const isStorefront = isStorefrontPath(pathname);
   const isSolutionHmsPath = isHmsPath(pathname);
 
+  const isDarkHero = isDarkHeroPath(pathname);
   const isHeroDark = !scrolled && (
     (pathname === "/" && !!heroTheme?.isDark) ||
     isSolutionHmsPath ||
-    isStorefront
+    isStorefront ||
+    isDarkHero
   );
+  const sitsOnHero =
+    (pathname === "/" && !!heroTheme) ||
+    isSolutionHmsPath ||
+    isStorefront ||
+    isDarkHero ||
+    isLightHeroPath(pathname);
 
   return (
     <header
@@ -680,7 +707,7 @@ function WebsiteHeader({ pathname }: { pathname: string }) {
         visible ? "translate-y-0" : "-translate-y-full",
         scrolled
           ? "bg-white/95 backdrop-blur-md shadow-sm"
-          : (pathname === "/" && heroTheme) || isSolutionHmsPath || isStorefront
+          : sitsOnHero
             ? "bg-transparent"
             : "bg-white/90 backdrop-blur-sm"
       )}
