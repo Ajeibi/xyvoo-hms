@@ -61,7 +61,7 @@ const CHANNELS = [
     label: "Email",
     desc: "Outline your situation, we'll reply within a day.",
     action: "Email us",
-    href: "mailto:hello@getxyvoo.com",
+    href: "mailto:support@getxyvoo.com",
   },
   {
     label: "Talk to Sales",

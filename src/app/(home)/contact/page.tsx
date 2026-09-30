@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 import { motion, type Variants } from "framer-motion";
-import { Mail, MessageCircle, Send, CheckCircle2, ArrowUpRight, Calendar } from "lucide-react";
+import { Send, CheckCircle2, ArrowUpRight, Calendar, RotateCcw, Copy, Check, Mail } from "lucide-react";
+import type { IconType } from "react-icons";
+import { FaEnvelope, FaLinkedinIn, FaWhatsapp, FaYahoo } from "react-icons/fa6";
+import { PiMicrosoftOutlookLogo } from "react-icons/pi";
+import { SiGmail } from "react-icons/si";
 import type { MarketingContactForm } from "@/types";
 import { GridPulses } from "@/components/website/GridPulses";
 
@@ -21,6 +25,21 @@ type ContactMethod = {
 
 // TODO: replace with the real Calendly booking link.
 const CALENDLY_URL = "#";
+// TODO: add the WhatsApp Business number (international format, digits only), e.g. https://wa.me/2348000000000
+const WHATSAPP_URL = "https://wa.me/";
+// TODO: replace with the real LinkedIn company page link.
+const LINKEDIN_URL = "#";
+
+const SALES_EMAIL = "hello@getxyvoo.com";
+const SUPPORT_EMAIL = "support@getxyvoo.com";
+
+/** Compose links for the common webmail providers, so visitors can write from whichever inbox they use. */
+const EMAIL_APPS: Array<{ label: string; icon: IconType; color: string; href: (to: string) => string }> = [
+  { label: "Gmail", icon: SiGmail, color: "#EA4335", href: (to) => `https://mail.google.com/mail/?view=cm&fs=1&to=${to}` },
+  { label: "Outlook", icon: PiMicrosoftOutlookLogo, color: "#0078D4", href: (to) => `https://outlook.live.com/mail/0/deeplink/compose?to=${to}` },
+  { label: "Yahoo", icon: FaYahoo, color: "#6001D2", href: (to) => `https://compose.mail.yahoo.com/?to=${to}` },
+  { label: "Mail app", icon: FaEnvelope, color: "#475569", href: (to) => `mailto:${to}` },
+];
 
 const CONTACT_METHODS: ContactMethod[] = [
   {
@@ -33,8 +52,8 @@ const CONTACT_METHODS: ContactMethod[] = [
   {
     title: "Email us",
     description: "Prefer to write? Outline your situation and someone from the team will reply.",
-    actionLabel: "hello@getxyvoo.com",
-    href: "mailto:hello@getxyvoo.com",
+    actionLabel: SALES_EMAIL,
+    href: `mailto:${SALES_EMAIL}`,
   },
 ];
 
@@ -45,6 +64,12 @@ export default function ContactPage() {
   const [form, setForm] = useState<MarketingContactForm>({ name: "", email: "", company: "", message: "", type: "sales" });
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [reference, setReference] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const inbox = form.type === "support" ? SUPPORT_EMAIL : SALES_EMAIL;
+  // Honeypot: hidden from real visitors, so anything typed here is a bot.
+  const [website, setWebsite] = useState("");
 
   const set = (k: keyof MarketingContactForm, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -52,12 +77,46 @@ export default function ContactPage() {
     e.preventDefault();
     if (!form.name || !form.email || !form.message) return;
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1200));
-    setLoading(false);
-    setSubmitted(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/public/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, website }),
+      });
+      const data = (await res.json().catch(() => null)) as { error?: string; reference?: string } | null;
+      if (!res.ok) {
+        setError(data?.error ?? "We couldn't send your message. Please try again or email us directly.");
+        return;
+      }
+      setReference(data?.reference ?? null);
+      setSubmitted(true);
+    } catch {
+      setError("We couldn't send your message. Check your connection and try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const inputCls = "w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all";
+  // Keep who they are, clear what they said, so a second message is quick to write.
+  const sendAnother = () => {
+    setForm((f) => ({ ...f, message: "", businessType: "", urgency: "" }));
+    setReference(null);
+    setError(null);
+    setSubmitted(false);
+  };
+
+  const copyInbox = async () => {
+    try {
+      await navigator.clipboard.writeText(inbox);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard blocked (e.g. insecure context): the address is still visible to copy by hand.
+    }
+  };
+
+  const inputCls ="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-400 transition-all";
 
   return (
     <>
@@ -123,6 +182,18 @@ export default function ContactPage() {
                   </motion.div>
                   <h3 className="text-h3 font-black text-slate-900 mb-2">Message sent!</h3>
                   <p className="text-slate-500 text-sm">We&apos;ll get back to you within 2 hours. Check your email.</p>
+                  {reference && (
+                    <p className="mt-3 text-xs text-slate-400">
+                      Your reference: <span className="font-mono font-semibold text-slate-600">{reference}</span>
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={sendAnother}
+                    className="mt-8 inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-xyvoo-navy transition-colors hover:border-xyvoo-blue hover:text-xyvoo-blue"
+                  >
+                    <RotateCcw className="h-4 w-4" /> Send another message
+                  </button>
                 </div>
               ) : (
                 <>
@@ -205,6 +276,17 @@ export default function ContactPage() {
                       </>
                     )}
 
+                    <div aria-hidden="true" className="absolute -left-[9999px] h-px w-px overflow-hidden">
+                      <label htmlFor="contact-website">Website</label>
+                      <input id="contact-website" name="website" type="text" tabIndex={-1} autoComplete="off" value={website} onChange={(e) => setWebsite(e.target.value)} />
+                    </div>
+
+                    {error && (
+                      <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        {error}
+                      </p>
+                    )}
+
                     <button
                       type="submit"
                       disabled={loading}
@@ -244,38 +326,74 @@ export default function ContactPage() {
             </motion.div>
 
             <motion.div initial="offscreen" whileInView="onscreen" viewport={{ once: true }} variants={fadeUp}>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
-                {[
-                  { icon: MessageCircle, label: "WhatsApp", val: "Fastest support", color: "bg-emerald-50 text-emerald-600 border-emerald-100" },
-                  { icon: Mail, label: "Email", val: "hello@getxyvoo.com", color: "bg-indigo-50 text-indigo-600 border-indigo-100" },
-                  // TODO: replace with the real LinkedIn company page link. Lucide has no
-                  // brand icons, so this uses the same plain-text glyph the footer's
-                  // social row already uses instead of importing one.
-                  { glyph: "in", label: "LinkedIn", val: "Follow us", color: "bg-sky-50 text-sky-600 border-sky-100", href: "#" },
-                ].map(({ icon: Icon, glyph, label, val, color, href }) => {
-                  const content = (
-                    <>
-                      {Icon ? (
-                        <Icon className="w-6 h-6 shrink-0 sm:mb-3" />
-                      ) : (
-                        <span className="flex h-6 w-6 shrink-0 items-center justify-center text-base font-bold sm:mb-3">{glyph}</span>
-                      )}
-                      <div className="min-w-0">
-                        <p className="font-bold text-sm">{label}</p>
-                        <p className="text-xs opacity-70 mt-1 break-words">{val}</p>
-                      </div>
-                    </>
-                  );
-                  return href ? (
-                    <a key={label} href={href} target="_blank" rel="noopener noreferrer" className={`flex min-w-0 items-center gap-4 border rounded-2xl p-5 transition-opacity hover:opacity-80 sm:block ${color}`}>
-                      {content}
+              <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+                <div className="flex items-start gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+                    <Mail className="h-6 w-6" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="text-lg font-bold text-xyvoo-navy">Email us from any inbox</h3>
+                    <p className="mt-1 text-sm leading-relaxed text-slate-500">
+                      Gmail, Outlook, Yahoo or any other email works. Pick yours to start a message.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-5 flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                  <a href={`mailto:${inbox}`} className="min-w-0 truncate font-semibold text-xyvoo-navy hover:text-xyvoo-blue">
+                    {inbox}
+                  </a>
+                  <button
+                    type="button"
+                    onClick={copyInbox}
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-500 transition-colors hover:bg-white hover:text-xyvoo-blue"
+                    aria-label={`Copy ${inbox}`}
+                  >
+                    {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                    <span aria-live="polite">{copied ? "Copied" : "Copy"}</span>
+                  </button>
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {EMAIL_APPS.map(({ label, icon: Icon, color, href }) => (
+                    <a
+                      key={label}
+                      href={href(inbox)}
+                      target={href(inbox).startsWith("mailto:") ? undefined : "_blank"}
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50"
+                    >
+                      <Icon className="h-4 w-4 shrink-0" style={{ color }} aria-hidden="true" />
+                      {label}
                     </a>
-                  ) : (
-                    <div key={label} className={`flex min-w-0 items-center gap-4 border rounded-2xl p-5 sm:block ${color}`}>
-                      {content}
+                  ))}
+                </div>
+                <p className="mt-3 text-xs text-slate-400">
+                  {form.type === "support" ? "Support requests" : "Sales questions"} go to {inbox}. Choose Sales or Support on the form to change it.
+                </p>
+              </div>
+            </motion.div>
+
+            <motion.div initial="offscreen" whileInView="onscreen" viewport={{ once: true }} variants={fadeUp}>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+                {[
+                  { icon: FaWhatsapp, label: "WhatsApp", val: "Fastest support", href: WHATSAPP_URL, color: "bg-emerald-50 text-[#128C4B] border-emerald-100" },
+                  { icon: FaLinkedinIn, label: "LinkedIn", val: "Follow us", href: LINKEDIN_URL, color: "bg-sky-50 text-[#0A66C2] border-sky-100" },
+                ].map(({ icon: Icon, label, val, href, color }) => (
+                  <a
+                    key={label}
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`flex min-w-0 items-center gap-4 rounded-2xl border p-5 transition-opacity hover:opacity-80 ${color}`}
+                  >
+                    <Icon className="h-7 w-7 shrink-0" aria-hidden="true" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold">{label}</p>
+                      <p className="mt-0.5 text-xs opacity-80">{val}</p>
                     </div>
-                  );
-                })}
+                  </a>
+                ))}
               </div>
             </motion.div>
           </div>
