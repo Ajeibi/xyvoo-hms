@@ -45,7 +45,16 @@ export async function POST(request: Request) {
     const { to, cc, subject, text, html, reference } = teamEmail(req);
     await sendContactRequestEmail({ to, cc, replyTo: req.email, subject, text, html });
     return NextResponse.json({ ok: true, reference });
-  } catch {
+  } catch (error) {
+    // Log the mail server's reply (e.g. "535 Authentication Failed") so delivery problems can be
+    // diagnosed from the server logs. Never logs credentials or the message itself.
+    const e = error as { code?: string; responseCode?: number; command?: string; response?: string; message?: string };
+    console.error("[contact] email send failed", {
+      code: e.code,
+      responseCode: e.responseCode,
+      command: e.command,
+      response: e.response ?? e.message,
+    });
     return NextResponse.json(
       { error: "We couldn't send your message. Please try again or email us directly." },
       { status: 500 },

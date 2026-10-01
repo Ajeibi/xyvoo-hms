@@ -68,10 +68,25 @@ export default function ContactPage() {
   const inbox = form.type === "support" ? SUPPORT_EMAIL : SALES_EMAIL;
   // Honeypot: hidden from real visitors, so anything typed here is a bot.
   const [website, setWebsite] = useState("");
-  // The booking calendar only loads once asked for, and stays hidden behind a loading button until
-  // Zoho has finished loading it. Links to #book-a-demo start it straight away.
-  const [booking, setBooking] = useState<"closed" | "loading" | "open">("closed");
-  const startBooking = () => setBooking((b) => (b === "closed" ? "loading" : b));
+  // The Zoho booking calendar is only fetched once someone shows intent (hover, focus, touch or
+  // click on "Book a time"), and stays hidden behind a loading button until it is ready.
+  // Zoho's iframe "load" fires ~2s or more before its calendar is drawn and it sends no ready message we
+  // can read cross-origin, so "ready" is load plus a settle delay. Links to #book-a-demo open it.
+  const [frameRequested, setFrameRequested] = useState(false);
+  const [frameReady, setFrameReady] = useState(false);
+  const [wantsBooking, setWantsBooking] = useState(false);
+  const booking: "closed" | "loading" | "open" = !wantsBooking ? "closed" : frameReady ? "open" : "loading";
+  const prefetchBooking = () => setFrameRequested(true);
+  const startBooking = () => {
+    setFrameRequested(true);
+    setWantsBooking(true);
+  };
+  const settleTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const handleFrameLoad = () => {
+    clearTimeout(settleTimer.current);
+    settleTimer.current = setTimeout(() => setFrameReady(true), 3000);
+  };
+  useEffect(() => () => clearTimeout(settleTimer.current), []);
 
   useEffect(() => {
     const openFromHash = () => {
@@ -85,7 +100,7 @@ export default function ContactPage() {
   // If Zoho is slow or blocked, show the frame anyway so the "open in a new tab" fallback is reachable.
   useEffect(() => {
     if (booking !== "loading") return;
-    const timer = setTimeout(() => setBooking("open"), 15000);
+    const timer = setTimeout(() => setFrameReady(true), 15000);
     return () => clearTimeout(timer);
   }, [booking]);
 
@@ -167,7 +182,7 @@ export default function ContactPage() {
               Tell us about your <span className="text-xyvoo-blue">business</span>.
             </h1>
             <p className="mt-6 max-w-md text-p leading-relaxed text-slate-500">
-              The first conversation costs nothing. Tell us whether you&apos;re running a hotel or a storefront, and we&apos;ll take it from there.
+              The first conversation costs nothing. Tell us whether you&apos;re running a hotel or an online store, and we&apos;ll take it from there.
             </p>
           </motion.div>
 
@@ -200,7 +215,7 @@ export default function ContactPage() {
       </section>
 
       <section id="contact-form" className="py-20 px-6 bg-slate-50">
-        <div className="relative max-w-[1200px] mx-auto grid lg:grid-cols-2 gap-12 items-start">
+        <div className="relative max-w-[1200px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
           <motion.div initial="offscreen" whileInView="onscreen" viewport={{ once: true }} variants={fadeUp}>
             <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm">
               {submitted ? (
@@ -247,7 +262,7 @@ export default function ContactPage() {
                   </div>
 
                   <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div>
                         <label htmlFor="contact-name" className="block text-xs font-medium text-slate-600 mb-1.5">Full Name *</label>
                         <input id="contact-name" name="name" autoComplete="name" value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Amara Okafor" required className={inputCls} />
@@ -260,7 +275,7 @@ export default function ContactPage() {
 
                     {form.type === "sales" ? (
                       <>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                           <div>
                             <label htmlFor="contact-company" className="block text-xs font-medium text-slate-600 mb-1.5">Hotel / Company</label>
                             <input id="contact-company" name="company" autoComplete="organization" value={form.company} onChange={(e) => set("company", e.target.value)} placeholder="Grand Meridian Hotel" className={inputCls} />
@@ -282,9 +297,9 @@ export default function ContactPage() {
                       </>
                     ) : (
                       <>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                           <div>
-                            <label htmlFor="contact-company" className="block text-xs font-medium text-slate-600 mb-1.5">Hotel / Storefront Name *</label>
+                            <label htmlFor="contact-company" className="block text-xs font-medium text-slate-600 mb-1.5">Hotel / Store name *</label>
                             <input id="contact-company" name="company" autoComplete="organization" value={form.company} onChange={(e) => set("company", e.target.value)} placeholder="Grand Meridian Hotel" required className={inputCls} />
                           </div>
                           <div>
@@ -346,6 +361,9 @@ export default function ContactPage() {
                   <button
                     type="button"
                     onClick={startBooking}
+                    onPointerEnter={prefetchBooking}
+                    onFocus={prefetchBooking}
+                    onTouchStart={prefetchBooking}
                     disabled={booking === "loading"}
                     aria-busy={booking === "loading"}
                     className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-xyvoo-blue py-3.5 font-bold text-white transition-all hover:opacity-90 disabled:cursor-wait disabled:opacity-80"
@@ -439,15 +457,19 @@ export default function ContactPage() {
           </div>
 
           {/* Full width so Zoho has room for its month view (it switches to a day list below 1024px). */}
-          {booking !== "closed" && (
+          {frameRequested && (
             <div
               ref={bookingRef}
               id={booking === "open" ? DEMO_BOOKING_ANCHOR : undefined}
               aria-hidden={booking !== "open"}
+              inert={booking !== "open"}
               className={
                 booking === "open"
                   ? "scroll-mt-28 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2"
-                  : "pointer-events-none invisible absolute inset-x-0 top-0 h-0 overflow-hidden"
+                  : // While loading, keep the frame in the viewport but transparent: Chrome pauses rendering of
+                    // hidden or off-screen cross-origin iframes, so Zoho would not draw until revealed. Only the
+                    // classes change on reveal (never the DOM position), so the iframe does not reload.
+                    "pointer-events-none fixed inset-x-0 top-0 -z-10 opacity-0"
               }
             >
               <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
@@ -466,7 +488,7 @@ export default function ContactPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setBooking("closed")}
+                  onClick={() => setWantsBooking(false)}
                   className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-sm font-semibold text-slate-500 transition-colors hover:bg-slate-50 hover:text-xyvoo-navy"
                 >
                   <X className="h-4 w-4" aria-hidden="true" /> Hide calendar
@@ -476,7 +498,7 @@ export default function ContactPage() {
                 <iframe
                   src={DEMO_BOOKING_URL}
                   title="Choose a time for your XYVOO demo"
-                  onLoad={() => setBooking((b) => (b === "loading" ? "open" : b))}
+                  onLoad={handleFrameLoad}
                   className="block h-[760px] w-full border-0"
                 />
               </div>
