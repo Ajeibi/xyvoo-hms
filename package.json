@@ -8,6 +8,8 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
+    "templates:build": "node design/storefront-templates/build.js && node design/storefront-templates/build.js --preview --out public/template-previews && npm run templates:css",
+    "templates:css": "node scripts/build-storefront-css.mjs",
     "seed:demo": "tsx scripts/seed-demo-cli.ts",
     "seed:demo:clear": "tsx scripts/seed-demo-cli.ts --clear",
     "clear:tenant": "tsx scripts/clear-tenant-cli.ts",
