@@ -54,7 +54,7 @@ const HMS_ALL_PAGES: HmsSiblingLink[] = [
   {
     id: "hms",
     title: "Hotel Management System",
-    description: "The full HMS overview — every department, one system.",
+    description: "The full HMS overview: every department, one system.",
     href: "/solution/hms",
   },
   {
@@ -117,23 +117,23 @@ const BADGES: Record<string, string> = {
  * lengthening those directly. */
 const DESCRIPTIONS_LONG: Record<string, string> = {
   pms:
-    "Every room is tracked from a single board — its type, floor, rate and current status, whether that's clean, dirty, occupied or out of order. Housekeeping sees the same status the front desk does, the moment it changes, so nobody sells a room that isn't actually ready.",
+    "Every room is tracked from a single board: its type, floor, rate and current status, whether that's clean, dirty, occupied or out of order. Housekeeping sees the same status the front desk does, the moment it changes, so nobody sells a room that isn't actually ready.",
   crs:
-    "Create, amend or cancel a booking from one screen, and every connected channel — Booking.com, Expedia, your own website — updates within seconds. Rates and availability stay aligned everywhere, so a room never gets sold twice by two different channels.",
+    "Create, amend or cancel a booking from one screen, and every connected channel (Booking.com, Expedia, your own website) updates within seconds. Rates and availability stay aligned everywhere, so a room never gets sold twice by two different channels.",
   "front-office":
-    "Arrivals and departures run from a single screen — guest profiles, room assignment and walk-ins handled without switching systems or reaching for a paper log. Check-out closes the guest's folio automatically, so nothing needs re-keying at the end of the stay.",
+    "Arrivals and departures run from a single screen: guest profiles, room assignment and walk-ins handled without switching systems or reaching for a paper log. Check-out closes the guest's folio automatically, so nothing needs re-keying at the end of the stay.",
   housekeeping:
-    "Shift-based run sheets give your team a clear, ordered list of what needs doing and when, instead of a verbal handover at the start of a shift. Faults spotted along the way — a broken fixture, a leak — are flagged to maintenance immediately, not written down and forgotten.",
+    "Shift-based run sheets give your team a clear, ordered list of what needs doing and when, instead of a verbal handover at the start of a shift. Faults spotted along the way (a broken fixture, a leak) are flagged to maintenance immediately, not written down and forgotten.",
   hr:
     "Staff records, rosters, shifts and leave requests all live in one place, visible to whoever needs them. Clock-ins are captured automatically and exported in a format your finance team can run payroll from directly, without re-entering a single hour by hand.",
   "fb-pos":
-    "Point-of-sale built specifically for hotel F&B — orders go straight from the table to the kitchen screen, and every charge posts cleanly to the right outlet or guest folio. Voids and refunds require manager sign-off, so nothing slips through unnoticed.",
+    "Point-of-sale built specifically for hotel F&B. Orders go straight from the table to the kitchen screen, and every charge posts cleanly to the right outlet or guest folio. Voids and refunds require manager sign-off, so nothing slips through unnoticed.",
   billing:
-    "Every charge — from the room, F&B or housekeeping — lands on the right folio automatically, so nothing gets missed or billed twice. Receipts and invoices carry your hotel's own branding, with local taxes calculated and applied without manual configuration.",
+    "Every charge (from the room, F&B or housekeeping) lands on the right folio automatically, so nothing gets missed or billed twice. Receipts and invoices carry your hotel's own branding, with local taxes calculated and applied without manual configuration.",
   cmms:
-    "A fault reported anywhere on the property — by housekeeping, front desk or a guest — becomes a work order automatically, tracked from report through to resolution. Preventive maintenance is scheduled against a full asset register, so equipment gets serviced before it fails.",
+    "A fault reported anywhere on the property (by housekeeping, front desk or a guest) becomes a work order automatically, tracked from report through to resolution. Preventive maintenance is scheduled against a full asset register, so equipment gets serviced before it fails.",
   procurement:
-    "Vendors, purchase orders, approvals and stock levels — including F&B operational inventory — sit in one register instead of scattered spreadsheets. Orders above your threshold route for approval automatically, and stock stays visible from order right through to delivery.",
+    "Vendors, purchase orders, approvals and stock levels (including F&B operational inventory) sit in one register instead of scattered spreadsheets. Orders above your threshold route for approval automatically, and stock stays visible from order right through to delivery.",
   analytics:
     "Every department feeds the same live dashboard, so a manager doesn't need to chase five separate reports to see how the property is doing today. Revenue reporting for ownership runs on the same underlying data, kept separate from day-to-day operations so neither one slows the other down.",
 };
@@ -142,10 +142,10 @@ function pickModules(ids: string[]): HmsExtraFeature[] {
   return ids.map((id, index) => {
     const source = SOLUTIONS_HOTEL_STACK_MODULES.find((m) => m.id === id);
     if (!source) throw new Error(`Unknown HMS module id: ${id}`);
-    const shortTitle = source.number.split("—")[1]?.trim() ?? source.number;
+    const shortTitle = source.number.split(". ").slice(1).join(". ").trim() || source.number;
     return {
       id: source.id,
-      number: `${String(index + 1).padStart(2, "0")} — ${shortTitle}`,
+      number: `${String(index + 1).padStart(2, "0")}. ${shortTitle}`,
       title: source.title,
       description: DESCRIPTIONS_LONG[source.id] ?? source.description,
       bullets: source.bullets,
@@ -159,22 +159,22 @@ export const HMS_GUEST_EXPERIENCE: HmsExtraPage = {
   eyebrow: "HMS · Guest Experience",
   title: "From booking to check-out, without the friction.",
   subtitle:
-    "Rooms, reservations and front office — the guest-facing side of your property, connected in real time.",
+    "Rooms, reservations and front office: the guest-facing side of your property, connected in real time.",
   features: pickModules(["pms", "crs", "front-office"]),
   growth: {
     eyebrow: "Front of house",
     title: "Every stay, one system.",
     subtitle:
-      "Rooms, reservations and front office — the guest-facing side of your property, connected in real time.",
-    tagline: "Still just one system — not three separate logs for rooms, bookings and the front desk.",
+      "Rooms, reservations and front office: the guest-facing side of your property, connected in real time.",
+    tagline: "Still just one system, not three separate logs for rooms, bookings and the front desk.",
   },
   integrations: {
     title: "Where this shows up",
-    intro: "None of this lives in its own silo — it's wired into the rest of your property.",
+    intro: "None of this lives in its own silo. It's wired into the rest of your property.",
     items: [
       {
         title: "Housekeeping",
-        description: "Room status updates from PMS reach housekeeping's board immediately — no phone calls between departments.",
+        description: "Room status updates from PMS reach housekeeping's board immediately, with no phone calls between departments.",
       },
       {
         title: "Billing",
@@ -195,7 +195,7 @@ export const HMS_GUEST_EXPERIENCE: HmsExtraPage = {
         description:
           "Room types, floors, rates and every unit's current status, set up once and ready in your dashboard from day one.",
         explanation:
-          "Once rooms are set up, front desk and housekeeping both see the exact same live status immediately — no separate spreadsheet that's a day out of date.",
+          "Once rooms are set up, front desk and housekeeping both see the exact same live status immediately, with no separate spreadsheet that's a day out of date.",
       },
       {
         id: "channels",
@@ -211,7 +211,7 @@ export const HMS_GUEST_EXPERIENCE: HmsExtraPage = {
         description:
           "Assign rooms and handle walk-ins from one screen, without switching between separate check-in and reservation tools.",
         explanation:
-          "No separate paper trail — guest profiles and folios start the moment check-in happens, and follow the guest through the rest of their stay automatically.",
+          "No separate paper trail: guest profiles and folios start the moment check-in happens, and follow the guest through the rest of their stay automatically.",
       },
     ],
   },
@@ -222,18 +222,18 @@ export const HMS_OPERATIONS: HmsExtraPage = {
   eyebrow: "HMS · Operations & Facilities",
   title: "The back-of-house, running without chaos.",
   subtitle:
-    "Housekeeping, maintenance and procurement — the operational side of your property, kept in sync.",
+    "Housekeeping, maintenance and procurement: the operational side of your property, kept in sync.",
   features: pickModules(["housekeeping", "cmms", "procurement"]),
   growth: {
     eyebrow: "Back of house",
     title: "Nothing falls through the cracks.",
     subtitle:
-      "Housekeeping, maintenance and procurement — the operational side of your property, kept in sync.",
-    tagline: "Still just one system — not three clipboards nobody reads twice.",
+      "Housekeeping, maintenance and procurement: the operational side of your property, kept in sync.",
+    tagline: "Still just one system, not three clipboards nobody reads twice.",
   },
   integrations: {
     title: "Where this shows up",
-    intro: "None of this lives in its own silo — it's wired into the rest of your property.",
+    intro: "None of this lives in its own silo. It's wired into the rest of your property.",
     items: [
       {
         title: "Front Office",
@@ -241,7 +241,7 @@ export const HMS_OPERATIONS: HmsExtraPage = {
       },
       {
         title: "F&B",
-        description: "Procurement's stock levels cover F&B inventory too — one register, not two.",
+        description: "Procurement's stock levels cover F&B inventory too: one register, not two.",
       },
       {
         title: "Analytics",
@@ -256,7 +256,7 @@ export const HMS_OPERATIONS: HmsExtraPage = {
         id: "housekeeping",
         title: "Set up housekeeping run sheets",
         description:
-          "Shift-based run sheets, built for the way housekeeping actually works — not a static checklist nobody opens.",
+          "Shift-based run sheets, built for the way housekeeping actually works, not a static checklist nobody opens.",
         explanation:
           "Room status changes reach the front desk the moment they happen, so nobody ends up selling a room that isn't actually clean, and supervisors can see coverage across every floor without walking it themselves.",
       },
@@ -266,13 +266,13 @@ export const HMS_OPERATIONS: HmsExtraPage = {
         description:
           "Every fault reported anywhere on the property becomes a trackable work order automatically, not a note left on someone's desk.",
         explanation:
-          "Each fault is tracked from the moment it's reported through to resolution, with a full history kept for the next inspection — so nothing gets fixed twice, or missed entirely.",
+          "Each fault is tracked from the moment it's reported through to resolution, with a full history kept for the next inspection, so nothing gets fixed twice, or missed entirely.",
       },
       {
         id: "procurement",
         title: "Connect procurement",
         description:
-          "Vendors, purchase approvals and stock levels — including F&B — all sit in one register instead of scattered spreadsheets.",
+          "Vendors, purchase approvals and stock levels (including F&B) all sit in one register instead of scattered spreadsheets.",
         explanation:
           "Purchase orders above your threshold route for approval automatically, so nothing gets bought without sign-off, and stock stays visible from the moment it's ordered to the moment it arrives.",
       },
@@ -285,18 +285,18 @@ export const HMS_FINANCE_ANALYTICS: HmsExtraPage = {
   eyebrow: "HMS · Finance, HR & Analytics",
   title: "The numbers and the people, both accounted for.",
   subtitle:
-    "Staff, F&B revenue, billing and reporting — the side of your property that has to add up.",
+    "Staff, F&B revenue, billing and reporting: the side of your property that has to add up.",
   features: pickModules(["hr", "fb-pos", "billing", "analytics"]),
   growth: {
     eyebrow: "The numbers",
     title: "Every department, one ledger.",
     subtitle:
-      "Staff, F&B revenue, billing and reporting — the side of your property that has to add up.",
-    tagline: "Still just one system — not a spreadsheet finance has to rebuild every month.",
+      "Staff, F&B revenue, billing and reporting: the side of your property that has to add up.",
+    tagline: "Still just one system, not a spreadsheet finance has to rebuild every month.",
   },
   integrations: {
     title: "Where this shows up",
-    intro: "None of this lives in its own silo — it's wired into the rest of your property.",
+    intro: "None of this lives in its own silo. It's wired into the rest of your property.",
     items: [
       {
         title: "Front Office",
@@ -335,7 +335,7 @@ export const HMS_FINANCE_ANALYTICS: HmsExtraPage = {
         id: "dashboards",
         title: "Turn on departmental dashboards",
         description:
-          "Live reporting for every station — front desk, housekeeping, F&B — not just the numbers finance keeps to itself.",
+          "Live reporting for every station (front desk, housekeeping, F&B), not just the numbers finance keeps to itself.",
         explanation:
           "Revenue and operational data update in real time as the property runs, so managers see the same picture finance does, without waiting on a monthly report.",
       },
@@ -349,7 +349,7 @@ export const HMS_INDEPENDENT_HOTELS: HmsExtraPage = {
   eyebrow: "For Independent Hotels",
   title: "One system for a property you run yourself.",
   subtitle:
-    "Every department — rooms, reservations, housekeeping, staff, F&B, billing, maintenance, procurement and reporting — in one system built for an owner-operator, not a back office.",
+    "Every department (rooms, reservations, housekeeping, staff, F&B, billing, maintenance, procurement and reporting) in one system built for an owner-operator, not a back office.",
   features: pickModules([
     "pms",
     "crs",
@@ -366,16 +366,16 @@ export const HMS_INDEPENDENT_HOTELS: HmsExtraPage = {
     eyebrow: "Built for owner-operators",
     title: "Everything a small property actually needs.",
     subtitle:
-      "Every department — rooms, reservations, housekeeping, staff, F&B, billing, maintenance, procurement and reporting — in one system built for an owner-operator, not a back office.",
-    tagline: "Still just one system — not a PMS, a POS and a spreadsheet stitched together.",
+      "Every department (rooms, reservations, housekeeping, staff, F&B, billing, maintenance, procurement and reporting) in one system built for an owner-operator, not a back office.",
+    tagline: "Still just one system, not a PMS, a POS and a spreadsheet stitched together.",
   },
   integrations: {
     title: "Where this shows up",
-    intro: "None of this lives in its own silo — it's wired into the rest of your property.",
+    intro: "None of this lives in its own silo. It's wired into the rest of your property.",
     items: [
       {
         title: "Housekeeping",
-        description: "Room status from the front desk reaches housekeeping's board immediately — no separate whiteboard to keep up to date.",
+        description: "Room status from the front desk reaches housekeeping's board immediately, with no separate whiteboard to keep up to date.",
       },
       {
         title: "Reservations",
@@ -404,7 +404,7 @@ export const HMS_INDEPENDENT_HOTELS: HmsExtraPage = {
         description:
           "Room types, floors and rates entered once, ready in your dashboard the same day you sign up.",
         explanation:
-          "No implementation project to wait on — a single owner-operator can set this up alone, without a dedicated IT person.",
+          "No implementation project to wait on. A single owner-operator can set this up alone, without a dedicated IT person.",
       },
       {
         id: "checkin",
@@ -420,7 +420,7 @@ export const HMS_INDEPENDENT_HOTELS: HmsExtraPage = {
         description:
           "Every charge lands on the guest's folio automatically, with taxes applied the way your property needs them.",
         explanation:
-          "Receipts carry your own property's name, not a generic template — and there's no separate accounting tool to reconcile against at month end.",
+          "Receipts carry your own property's name, not a generic template, and there's no separate accounting tool to reconcile against at month end.",
       },
     ],
   },
@@ -434,7 +434,7 @@ export const HMS_INDEPENDENT_HOTELS: HmsExtraPage = {
 const HOTEL_GROUPS_FEATURES: HmsExtraFeature[] = [
   {
     id: "portfolio-dashboard",
-    number: "01 — Portfolio Dashboard",
+    number: "01. Portfolio Dashboard",
     title: "Every property,\none login.",
     description:
       "A single dashboard shows occupancy, revenue and performance across every property in the portfolio, with drill-down into any one property's own numbers when you need the detail.",
@@ -446,10 +446,10 @@ const HOTEL_GROUPS_FEATURES: HmsExtraFeature[] = [
   },
   {
     id: "cross-property-rates",
-    number: "02 — Cross-Property Rates & Inventory",
+    number: "02. Cross-Property Rates & Inventory",
     title: "Set once,\napply everywhere.",
     description:
-      "Push rates and room allotments to every property at once, or override individually where one property needs its own pricing — without logging into each property separately.",
+      "Push rates and room allotments to every property at once, or override individually where one property needs its own pricing, without logging into each property separately.",
     bullets: [
       "Bulk rate and allotment changes across the whole portfolio in one action",
       "Per-property overrides for local pricing, without affecting the rest",
@@ -458,10 +458,10 @@ const HOTEL_GROUPS_FEATURES: HmsExtraFeature[] = [
   },
   {
     id: "group-benchmarking",
-    number: "03 — Group Reporting & Benchmarking",
+    number: "03. Group Reporting & Benchmarking",
     title: "See which property\nneeds attention.",
     description:
-      "Compare every property side by side on the numbers that matter — RevPAR, ADR, occupancy, F&B revenue — so an underperforming property is obvious before it becomes a crisis.",
+      "Compare every property side by side on the numbers that matter, such as RevPAR, ADR, occupancy and F&B revenue, so an underperforming property is obvious before it becomes a crisis.",
     bullets: [
       "Side-by-side property comparison on every key metric, not five separate reports",
       "Automatic flags when a property drifts from the portfolio average",
@@ -470,10 +470,10 @@ const HOTEL_GROUPS_FEATURES: HmsExtraFeature[] = [
   },
   {
     id: "unified-guest-profile",
-    number: "04 — Unified Guest Profiles",
+    number: "04. Unified Guest Profiles",
     title: "One guest,\nrecognised everywhere.",
     description:
-      "A guest who stayed at one property is recognised the moment they book or check in at any other property in the group — their history, preferences and loyalty status travel with them.",
+      "A guest who stayed at one property is recognised the moment they book or check in at any other property in the group. Their history, preferences and loyalty status travel with them.",
     bullets: [
       "Guest history and preferences shared across every property in the group",
       "No more re-entering the same guest as a stranger at a different property",
@@ -482,10 +482,10 @@ const HOTEL_GROUPS_FEATURES: HmsExtraFeature[] = [
   },
   {
     id: "group-loyalty",
-    number: "05 — Centralized Loyalty Program",
+    number: "05. Centralized Loyalty Program",
     title: "One loyalty scheme,\nnot one per site.",
     description:
-      "Guests earn and redeem points across every property in the portfolio, not just the one they're staying at — a stronger reason to keep booking within the group.",
+      "Guests earn and redeem points across every property in the portfolio, not just the one they're staying at. That's a stronger reason to keep booking within the group.",
     bullets: [
       "Points earned at one property redeemable at any other in the group",
       "Managed centrally, with reporting on redemption across the whole portfolio",
@@ -494,10 +494,10 @@ const HOTEL_GROUPS_FEATURES: HmsExtraFeature[] = [
   },
   {
     id: "group-procurement",
-    number: "06 — Group Procurement & Vendor Contracts",
+    number: "06. Group Procurement & Vendor Contracts",
     title: "Negotiate once,\nbuy everywhere.",
     description:
-      "Set a vendor contract and pricing once at group level, and every property purchasing against that vendor automatically gets the negotiated rate — instead of each property negotiating on its own.",
+      "Set a vendor contract and pricing once at group level, and every property purchasing against that vendor automatically gets the negotiated rate, instead of each property negotiating on its own.",
     bullets: [
       "Group-wide vendor contracts and pricing, applied automatically per property",
       "Portfolio-wide spend visibility by vendor, not scattered across properties",
@@ -506,10 +506,10 @@ const HOTEL_GROUPS_FEATURES: HmsExtraFeature[] = [
   },
   {
     id: "regional-access",
-    number: "07 — Role-Based Access by Region & Property",
+    number: "07. Role-Based Access by Region & Property",
     title: "The right view,\nfor the right person.",
     description:
-      "Corporate sees the whole portfolio, a regional manager sees their region, and a property GM sees only their own property — one system, scoped correctly for every level of the organisation.",
+      "Corporate sees the whole portfolio, a regional manager sees their region, and a property GM sees only their own property. It's one system, scoped correctly for every level of the organisation.",
     bullets: [
       "Corporate, regional and property-level roles, each scoped to what they need",
       "No property seeing another property's data by accident",
@@ -518,10 +518,10 @@ const HOTEL_GROUPS_FEATURES: HmsExtraFeature[] = [
   },
   {
     id: "brand-standards",
-    number: "08 — Brand Standards & SOP Compliance",
+    number: "08. Brand Standards & SOP Compliance",
     title: "The same standard,\nat every property.",
     description:
-      "Roll out checklists and standard operating procedures to every property from one place, and track compliance centrally — so brand standards don't quietly drift property by property.",
+      "Roll out checklists and standard operating procedures to every property from one place, and track compliance centrally, so brand standards don't quietly drift property by property.",
     bullets: [
       "Checklists and SOPs pushed to every property from one place",
       "Central compliance tracking, not a spreadsheet per property",
@@ -530,7 +530,7 @@ const HOTEL_GROUPS_FEATURES: HmsExtraFeature[] = [
   },
   {
     id: "consolidated-financials",
-    number: "09 — Consolidated Financial Rollup",
+    number: "09. Consolidated Financial Rollup",
     title: "One P&L,\nevery property in it.",
     description:
       "A consolidated financial view rolls every property's numbers up into one portfolio-level P&L, with the ability to drill back down into any single property's own books.",
@@ -542,10 +542,10 @@ const HOTEL_GROUPS_FEATURES: HmsExtraFeature[] = [
   },
   {
     id: "inter-property-transfers",
-    number: "10 — Inter-Property Transfers",
+    number: "10. Inter-Property Transfers",
     title: "Move staff and stock,\nwithout starting over.",
     description:
-      "Transfer a staff member or stock between properties without re-provisioning them from scratch — their record, access and history move with them.",
+      "Transfer a staff member or stock between properties without re-provisioning them from scratch. Their record, access and history move with them.",
     bullets: [
       "Staff transferred between properties keep their record and access history",
       "Stock transfers between properties tracked the same way as any other movement",
@@ -560,10 +560,10 @@ export const HMS_HOTEL_GROUPS: HmsExtraPage = {
   eyebrow: "For Hotel Groups & Multi-Property",
   title: "Every property, one connected view.",
   subtitle:
-    "Portfolio-wide rates, a shared guest profile, group procurement and consolidated reporting — the layer a single-property system doesn't give you once you're running more than one.",
+    "Portfolio-wide rates, a shared guest profile, group procurement and consolidated reporting: the layer a single-property system doesn't give you once you're running more than one.",
   stats: [
     { headline: "One login", label: "for every property in the portfolio, not one per site" },
-    { headline: "Three access levels", label: "corporate, regional and property — each scoped to what they need" },
+    { headline: "Three access levels", label: "corporate, regional and property, each scoped to what they need" },
     { headline: "One consolidated P&L", label: "not a spreadsheet stitched together from five properties" },
   ],
   features: HOTEL_GROUPS_FEATURES,
@@ -571,12 +571,12 @@ export const HMS_HOTEL_GROUPS: HmsExtraPage = {
     eyebrow: "Built to scale",
     title: "Grows the way a portfolio actually grows.",
     subtitle:
-      "Portfolio-wide rates, a shared guest profile, group procurement and consolidated reporting — the layer a single-property system doesn't give you once you're running more than one.",
-    tagline: "Still just one system — not one login per property to keep track of.",
+      "Portfolio-wide rates, a shared guest profile, group procurement and consolidated reporting: the layer a single-property system doesn't give you once you're running more than one.",
+    tagline: "Still just one system, not one login per property to keep track of.",
   },
   integrations: {
     title: "Where this shows up",
-    intro: "None of this lives in its own silo — it's wired into the rest of every property.",
+    intro: "None of this lives in its own silo. It's wired into the rest of every property.",
     items: [
       {
         title: "Front Office",

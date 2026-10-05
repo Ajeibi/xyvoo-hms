@@ -10,8 +10,13 @@ import {
   matchesPrefix,
   previewToken,
 } from "@/lib/auth-lock";
+import { getStoreSlugFromHost, STOREFRONT_HOST_HEADER, storefrontRewritePath } from "@/lib/store/subdomain";
 
-const PROTECTED_PREFIXES = ["/admin", "/tenants", "/onboard", "/hms"];
+const PROTECTED_PREFIXES = ["/admin", "/tenants", "/onboard", "/hms", "/storefront"];
+
+function loginPathFor(pathname: string) {
+  return matchesPrefix(pathname, ["/storefront"]) ? "/auth/login/storefront" : "/auth/login";
+}
 
 async function applyAuthLock(request: NextRequest): Promise<NextResponse | null> {
   if (!AUTH_LOCKED) return null;
@@ -52,16 +57,32 @@ async function applyAuthLock(request: NextRequest): Promise<NextResponse | null>
 }
 
 export async function proxy(request: NextRequest) {
+  // Only the proxy may say a request came in on a store subdomain: drop any copy the browser sent.
+  const headers = new Headers(request.headers);
+  headers.delete(STOREFRONT_HOST_HEADER);
+
+  // <store>.getxyvoo.com: serve the store's pages from /shop/<store>. Stores are
+  // public, so the pre-launch lock and sign-in checks below don't apply.
+  const storeSlug = getStoreSlugFromHost(request.headers.get("host"));
+  if (storeSlug) {
+    const target = storefrontRewritePath(storeSlug, request.nextUrl.pathname);
+    if (!target) return NextResponse.next({ request: { headers } });
+    headers.set(STOREFRONT_HOST_HEADER, storeSlug);
+    const url = request.nextUrl.clone();
+    url.pathname = target;
+    return NextResponse.rewrite(url, { request: { headers } });
+  }
+
   const locked = await applyAuthLock(request);
   if (locked) return locked;
 
   if (!matchesPrefix(request.nextUrl.pathname, PROTECTED_PREFIXES)) {
-    return NextResponse.next();
+    return NextResponse.next({ request: { headers } });
   }
 
   let response = NextResponse.next({
     request: {
-      headers: request.headers,
+      headers,
     },
   });
 
@@ -74,7 +95,7 @@ export async function proxy(request: NextRequest) {
         cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
         response = NextResponse.next({
           request: {
-            headers: request.headers,
+            headers,
           },
         });
         cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
@@ -87,7 +108,7 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    const loginUrl = new URL("/auth/login", request.url);
+    const loginUrl = new URL(loginPathFor(request.nextUrl.pathname), request.url);
     loginUrl.searchParams.set("from", request.nextUrl.pathname);
     return NextResponse.redirect(loginUrl);
   }
@@ -99,5 +120,8 @@ export const config = {
   matcher: [
     // Pages matched so ?preview=<secret> works from the homepage too.
     "/((?!_next/static|_next/image|favicon.ico|icon.png|images/|.*\\.(?:png|jpg|jpeg|svg|webp|mp4|ico|txt|xml)$).*)",
+    // Each store subdomain serves its own robots.txt and sitemap.xml.
+    "/robots.txt",
+    "/sitemap.xml",
   ],
 };

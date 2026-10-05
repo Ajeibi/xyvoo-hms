@@ -8,6 +8,7 @@ import AddressAutocomplete from "@/features/hotel-register/components/AddressAut
 import CityAutocomplete from "@/features/hotel-register/components/CityAutocomplete";
 import CountryDropdown from "@/features/hotel-register/components/CountryDropdown";
 import { useHotelRegisterStore } from "@/features/hotel-register/store";
+import { SubdomainInput } from "@/components/forms/SubdomainInput";
 
 export default function StepHotelDetails() {
   const hotel = useHotelRegisterStore((s) => s.hotel);
@@ -15,6 +16,7 @@ export default function StepHotelDetails() {
   const loading = useHotelRegisterStore((s) => s.loading);
   const sendOtp = useHotelRegisterStore((s) => s.sendOtp);
   const setHotelField = useHotelRegisterStore((s) => s.setHotelField);
+  const setSubdomain = useHotelRegisterStore((s) => s.setSubdomain);
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
@@ -24,6 +26,11 @@ export default function StepHotelDetails() {
         <div>
           <label htmlFor="hotel-name" className="text-xs font-semibold text-slate-500 mb-1 block">Hotel Name *</label>
           <input id="hotel-name" value={hotel.hotel_name} onChange={(e) => setHotelField("hotel_name", e.target.value)} className={INPUT_CLASS} placeholder="Grand Palace Hotel" />
+        </div>
+        <div>
+          <label htmlFor="hotel-subdomain" className="text-xs font-semibold text-slate-500 mb-1 block">Hotel Web Address *</label>
+          <SubdomainInput id="hotel-subdomain" name="subdomain" value={hotel.subdomain} onChange={(e) => setSubdomain(e.target.value)} placeholder="grand-palace" ringClassName="focus-within:ring-xyvoo-blue-light" />
+          <p className="text-xs text-slate-400 mt-1">Lowercase letters, numbers, and hyphens only. This becomes your hotel&rsquo;s web address.</p>
         </div>
         <div>
           <label htmlFor="hotel-email" className="text-xs font-semibold text-slate-500 mb-1 block">Hotel Email *</label>

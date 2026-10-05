@@ -143,7 +143,7 @@ export function HomeProductsSection() {
                   className="text-p leading-[1.7] text-[#4b5563]"
                   style={{ fontFamily: "var(--font-products-sans), sans-serif" }}
                 >
-                  White-label HMS — PMS, reservations, housekeeping, F&amp;B,
+                  White-label HMS with PMS, reservations, housekeeping, F&amp;B,
                   billing, OTA sync, and analytics. Staff never see XYVOO.
                 </CardDescription>
               </CardHeader>
@@ -206,8 +206,8 @@ export function HomeProductsSection() {
                   className="text-p leading-[1.7] text-[#4b5563]"
                   style={{ fontFamily: "var(--font-products-sans), sans-serif" }}
                 >
-                  A fully branded online storefront — products, orders, payments,
-                  and customer tools — under your storefront&apos;s identity. Built to
+                  A fully branded online storefront with products, orders, payments
+                  and customer tools, under your storefront&apos;s identity. Built to
                   sell.
                 </CardDescription>
               </CardHeader>

@@ -42,3 +42,8 @@ next-env.d.ts
 
 # windows / onedrive
 desktop.ini
+
+# local tool state: Claude Code worktrees and personal settings, Supabase CLI cache
+.claude/worktrees/
+.claude/settings.local.json
+supabase/.temp/

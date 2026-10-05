@@ -29,7 +29,7 @@ type StorefrontFeatureRow = {
 const STOREFRONT_FEATURES: StorefrontFeatureRow[] = [
   {
     id: "storefront",
-    number: "01 — Branded Storefront",
+    number: "01. Branded Storefront",
     visualIcon: Store,
     title: "Your brand front and center.",
     description:
@@ -45,7 +45,7 @@ const STOREFRONT_FEATURES: StorefrontFeatureRow[] = [
   },
   {
     id: "catalog",
-    number: "02 — Product Management",
+    number: "02. Product Management",
     visualIcon: Package,
     title: "Catalogs managed without friction.",
     description:
@@ -61,7 +61,7 @@ const STOREFRONT_FEATURES: StorefrontFeatureRow[] = [
   },
   {
     id: "orders",
-    number: "03 — Orders & Fulfilment",
+    number: "03. Orders & Fulfilment",
     visualIcon: Truck,
     title: "From checkout to delivery, tracked.",
     description:
@@ -77,7 +77,7 @@ const STOREFRONT_FEATURES: StorefrontFeatureRow[] = [
   },
   {
     id: "payments",
-    number: "04 — Payments & Checkout",
+    number: "04. Payments & Checkout",
     visualIcon: CreditCard,
     title: "Fast, trusted local checkout.",
     description:

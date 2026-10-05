@@ -57,7 +57,7 @@ const STAGES: Stage[] = [
         icon: UserCheck,
         label: "Front desk captures the guest's details",
         detail:
-          "Guest profile and ID are captured once, at the desk — the same record every other department reads from for the rest of the stay.",
+          "Guest profile and ID are captured once, at the desk. It's the same record every other department reads from for the rest of the stay.",
       },
       {
         id: "room",
@@ -71,7 +71,7 @@ const STAGES: Stage[] = [
         icon: Footprints,
         label: "Staff walks them to their room",
         detail:
-          "A human touch, not a system step — nothing needs re-entering once the guest is in the room.",
+          "A human touch, not a system step. Nothing needs re-entering once the guest is in the room.",
       },
     ],
   },
@@ -90,9 +90,9 @@ const STAGES: Stage[] = [
       {
         id: "extras",
         icon: Bell,
-        label: "Guest requests extras — towels, amenities",
+        label: "Guest requests extras, such as towels and amenities",
         detail:
-          "Logged against the room and picked up on housekeeping's live board — no phone calls between departments.",
+          "Logged against the room and picked up on housekeeping's live board, with no phone calls between departments.",
       },
     ],
   },
@@ -113,7 +113,7 @@ const STAGES: Stage[] = [
         icon: ChefHat,
         label: "Sent straight to the kitchen screen",
         detail:
-          "No handwritten dockets — the order appears on the kitchen display the moment it's placed.",
+          "No handwritten dockets. The order appears on the kitchen display the moment it's placed.",
       },
       {
         id: "wait",
@@ -127,14 +127,14 @@ const STAGES: Stage[] = [
         icon: CheckCheck,
         label: "Food's ready, sent out",
         detail:
-          "Kitchen marks it done and it's on its way — the same order record follows it out.",
+          "Kitchen marks it done and it's on its way, and the same order record follows it out.",
       },
       {
         id: "pay",
         icon: CreditCard,
         label: "Paid by POS, or billed to the room",
         detail:
-          "Either it's settled at the till, or it lands on the guest's folio automatically — your finance team sees it either way, no chasing paper.",
+          "Either it's settled at the till, or it lands on the guest's folio automatically. Your finance team sees it either way, with no chasing paper.",
       },
     ],
   },
@@ -148,20 +148,20 @@ const STAGES: Stage[] = [
         icon: Wrench,
         label: "Guest or staff flags an issue",
         detail:
-          "Anyone can raise it — a guest complaint or a housekeeping note — and it's logged against the exact room.",
+          "Anyone can raise it, whether it's a guest complaint or a housekeeping note, and it's logged against the exact room.",
       },
       {
         id: "route",
         icon: Route,
         label: "Routed to the right person",
-        detail: "No shouting down a corridor — the right maintenance person gets it directly.",
+        detail: "No shouting down a corridor. The right maintenance person gets it directly.",
       },
       {
         id: "resolve",
         icon: CheckCheck,
         label: "Resolved and logged against the room",
         detail:
-          "Once it's fixed, it's on record — so the next guest, and your own reporting, both see a clean history.",
+          "Once it's fixed, it's on record, so the next guest, and your own reporting, both see a clean history.",
       },
     ],
   },
@@ -181,13 +181,13 @@ const STAGES: Stage[] = [
         icon: Sparkles,
         label: "Collected, processed, billed to the room",
         detail:
-          "Picked up, processed, and the charge lands on the same folio as everything else — one bill, not three.",
+          "Picked up, processed, and the charge lands on the same folio as everything else: one bill, not three.",
       },
       {
         id: "return",
         icon: PackageCheck,
         label: "Returned to the room",
-        detail: "Closes the loop — the guest gets it back and the job's marked complete.",
+        detail: "Closes the loop. The guest gets it back and the job's marked complete.",
       },
     ],
   },
@@ -201,14 +201,14 @@ const STAGES: Stage[] = [
         icon: FileText,
         label: "Every charge already on the folio",
         detail:
-          "Room, F&B, laundry — it's all been landing in one place since check-in, so there's nothing to chase at the desk.",
+          "Room, F&B and laundry have all been landing in one place since check-in, so there's nothing to chase at the desk.",
       },
       {
         id: "settle",
         icon: Receipt,
         label: "Payment settled in moments",
         detail:
-          "One folio, one payment — no reconciling separate systems for rooms, food and extras.",
+          "One folio, one payment, and no reconciling separate systems for rooms, food and extras.",
       },
       {
         id: "release",
@@ -518,7 +518,7 @@ function RootsCallout() {
           Running in the background, every day
         </span>
         <p className="text-[13px] leading-[1.6] text-xyvoo-navy/60">
-          Your books, your stock and your suppliers — kept in order
+          Your books, your stock and your suppliers, kept in order
           continuously, not just when a guest happens to be staying.
         </p>
         <div className="flex flex-wrap justify-center gap-2">
@@ -583,7 +583,7 @@ export function SolutionsHotelWorkflow() {
             </h3>
             <p className="mx-auto text-p leading-[1.75] text-xyvoo-navy/65">
               To the guest, it's one simple visit. Underneath, every
-              department is working off the exact same booking — here's what
+              department is working off the exact same booking. Here's what
               actually happens at each stage.
             </p>
           </div>

@@ -1,16 +1,16 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { storeSubdomainSchema } from "@/lib/store/subdomain";
+import { provisionStoreDefaults } from "@/lib/store/site/data";
+import { signupIntentSchema } from "@/lib/store/site/signup-intent";
 import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getUserStoreDashboardPath } from "@/lib/auth/redirects";
 
 const CompleteSchema = z.object({
   storeName: z.string().trim().min(2, "Store name must be at least 2 characters."),
-  slug: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .regex(/^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$/, "Use lowercase letters, numbers, and hyphens only."),
+  slug: storeSubdomainSchema,
+  ...signupIntentSchema.shape,
 });
 
 export async function POST(req: Request) {
@@ -38,7 +38,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const { storeName, slug } = parsed.data;
+  const { storeName, slug, plan, template } = parsed.data;
   const service = createServerSupabaseClient();
 
   const { data: existingTenant } = await service
@@ -70,6 +70,14 @@ export async function POST(req: Request) {
   if (membershipError) {
     await service.from("tenants").delete().eq("id", tenant.id);
     return NextResponse.json({ error: membershipError.message || "Failed to set up owner access." }, { status: 400 });
+  }
+
+  try {
+    await provisionStoreDefaults(tenant.id, { templateSlug: template, plan }, service);
+  } catch (error) {
+    await service.from("tenants").delete().eq("id", tenant.id);
+    console.error("[store/register/complete] provisioning failed", error);
+    return NextResponse.json({ error: "We couldn't finish setting up your store. Please try again." }, { status: 500 });
   }
 
   return NextResponse.json({ success: true, slug }, { status: 201 });

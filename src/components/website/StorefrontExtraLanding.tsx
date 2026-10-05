@@ -38,7 +38,7 @@ export function StorefrontExtraLanding({ page }: { page: StorefrontExtraPage }) 
         { label: "Available On", value: "Free plan and up" },
       ]}
       tagsLabel="Includes"
-      tags={page.features.map((f) => f.number.split("—")[1]?.trim() ?? f.number)}
+      tags={page.features.map((f) => f.number.replace(/^\d+\s*(?:—|–|\.|:)\s*/, "").trim())}
     />
   );
 
@@ -49,7 +49,7 @@ export function StorefrontExtraLanding({ page }: { page: StorefrontExtraPage }) 
       title={page.growth.title}
       intro={page.growth.subtitle}
       items={page.features.map((f) => ({
-        title: f.number.split("—")[1]?.trim() ?? f.number,
+        title: f.number.replace(/^\d+\s*(?:—|–|\.|:)\s*/, "").trim(),
         description: f.description,
       }))}
       accentRgb={STOREFRONT_ACCENT_RGB}
@@ -70,7 +70,7 @@ export function StorefrontExtraLanding({ page }: { page: StorefrontExtraPage }) 
     <SolutionGrowthStack
       modules={page.integrations.items.map((item, i) => ({
         id: item.title.toLowerCase().replace(/\s+/g, "-"),
-        number: `${String(i + 1).padStart(2, "0")} — ${item.title}`,
+        number: `${String(i + 1).padStart(2, "0")}. ${item.title}`,
         title: item.title,
         description: item.description,
       }))}
@@ -97,7 +97,7 @@ export function StorefrontExtraLanding({ page }: { page: StorefrontExtraPage }) 
       title={page.growth.title}
       intro={page.growth.subtitle}
       items={page.features.map((f) => ({
-        title: f.number.split("—")[1]?.trim() ?? f.number,
+        title: f.number.replace(/^\d+\s*(?:—|–|\.|:)\s*/, "").trim(),
         description: f.description,
       }))}
       accentRgb={STOREFRONT_ACCENT_RGB}

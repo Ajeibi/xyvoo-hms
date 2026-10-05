@@ -1,16 +1,24 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { storeSubdomainSchema } from "@/lib/store/subdomain";
+import { provisionStoreDefaults } from "@/lib/store/site/data";
+import { signupIntentSchema } from "@/lib/store/site/signup-intent";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { CODE_TTL_MINUTES, issueAccountCode, maskEmail } from "@/lib/auth/account-codes";
+import { sendAccountCodeEmail } from "@/lib/mail/mailtrap";
 
 const RegisterSchema = z.object({
-  storeName: z.string().trim().min(2, "Store name must be at least 2 characters."),
-  slug: z
+  fullName: z.string().trim().min(2, "Enter your full name.").max(120),
+  phone: z
     .string()
     .trim()
-    .toLowerCase()
-    .regex(/^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$/, "Use lowercase letters, numbers, and hyphens only."),
-  email: z.string().trim().email("Enter a valid email address."),
-  password: z.string().min(8, "Password must be at least 8 characters."),
+    .refine((v) => v.replace(/\D/g, "").length >= 7, "Enter a phone number we can reach you on."),
+  storeName: z.string().trim().min(2, "Store name must be at least 2 characters."),
+  slug: storeSubdomainSchema,
+  email: z.string().trim().toLowerCase().email("Enter a valid email address."),
+  password: z.string().min(8, "Password must be at least 8 characters.").max(72, "Use 72 characters or fewer."),
+  acceptedTerms: z.literal(true, { error: "Please agree to the terms and privacy policy to continue." }),
+  ...signupIntentSchema.shape,
 });
 
 export async function POST(req: Request) {
@@ -24,7 +32,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const { storeName, slug, email, password } = parsed.data;
+  const { fullName, phone, storeName, slug, email, password, plan, template } = parsed.data;
   const service = createServerSupabaseClient();
 
   const { data: existingTenant } = await service
@@ -38,11 +46,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "That storefront address is already taken." }, { status: 409 });
   }
 
+  // Created unconfirmed: the owner confirms with an emailed code (see
+  // /api/auth/verify-email) before they can sign in with the password.
   const { data: created, error: createUserError } = await service.auth.admin.createUser({
     email,
     password,
-    email_confirm: true,
-    user_metadata: { full_name: storeName },
+    email_confirm: false,
+    user_metadata: { full_name: fullName, phone, terms_accepted_at: new Date().toISOString() },
   });
 
   if (createUserError || !created.user) {
@@ -79,5 +89,26 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: membershipError.message || "Failed to set up owner access." }, { status: 400 });
   }
 
-  return NextResponse.json({ success: true, slug }, { status: 201 });
+  try {
+    await provisionStoreDefaults(tenant.id, { templateSlug: template, plan }, service);
+  } catch (error) {
+    await service.from("tenants").delete().eq("id", tenant.id);
+    await service.auth.admin.deleteUser(userId);
+    console.error("[store/register] provisioning failed", error);
+    return NextResponse.json({ error: "We couldn't finish setting up your store. Please try again." }, { status: 500 });
+  }
+
+  // The store exists now even if the email fails; the owner can ask for a new code.
+  let codeSent = false;
+  try {
+    const code = await issueAccountCode(userId, "verify_email");
+    if (code) {
+      await sendAccountCodeEmail({ to: email, name: fullName, code, purpose: "verify_email", expiresInMinutes: CODE_TTL_MINUTES });
+      codeSent = true;
+    }
+  } catch (error) {
+    console.error("[store/register] verification email failed", error);
+  }
+
+  return NextResponse.json({ success: true, slug, verificationRequired: true, codeSent, sentTo: maskEmail(email) }, { status: 201 });
 }

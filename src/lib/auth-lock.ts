@@ -12,7 +12,7 @@ export const AUTH_PREVIEW_PARAM = "preview";
 export const COMING_SOON_PATH = "/coming-soon";
 
 /** Pages that redirect to the coming-soon page while locked. */
-export const LOCKED_PAGE_PREFIXES = ["/auth/login", "/register"];
+export const LOCKED_PAGE_PREFIXES = ["/auth/login", "/auth/forgot-password", "/register"];
 
 /** API routes that return 403 while locked. */
 export const LOCKED_API_PREFIXES = [

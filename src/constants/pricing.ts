@@ -1,4 +1,5 @@
 import type { HomeHmsCycle, HomeStorefrontPlan } from "@/types";
+import { XYVOO_AUTH_ROUTES } from "@/constants/auth-links";
 
 export type StorefrontComparisonRow =
   | { section: string }
@@ -18,7 +19,7 @@ export const STOREFRONT_PLANS: HomeStorefrontPlan[] = [
       "Business analytics dashboard",
     ],
     ctaLabel: "Start with Free",
-    ctaHref: "/register",
+    ctaHref: `${XYVOO_AUTH_ROUTES.storefront.register}?plan=free`,
     featured: true,
   },
   {
@@ -34,7 +35,7 @@ export const STOREFRONT_PLANS: HomeStorefrontPlan[] = [
       "Priority customer support",
     ],
     ctaLabel: "Choose Standard",
-    ctaHref: "/register",
+    ctaHref: `${XYVOO_AUTH_ROUTES.storefront.register}?plan=standard`,
   },
   {
     name: "Enterprise",
@@ -137,7 +138,7 @@ export const HMS_CYCLES: HomeHmsCycle[] = [
   {
     id: "yearly",
     label: "Yearly",
-    badge: "Best Value — Save 17%",
+    badge: "Best Value: Save 17%",
     priceDisplay: "N2,000,000",
     period: "/year",
     feeDisplay: "Billed annually",
@@ -179,7 +180,7 @@ export const HMS_FAQS = [
   },
   {
     q: "Is there a free trial?",
-    a: "Yes — every new hotel gets a 14-day free trial with full access. No credit card required to start.",
+    a: "Yes, every new hotel gets a 14-day free trial with full access. No credit card required to start.",
   },
   {
     q: "How many rooms are supported?",
@@ -191,6 +192,6 @@ export const HMS_FAQS = [
   },
   {
     q: "What happens at the end of my trial?",
-    a: "You'll be prompted to choose a billing cycle. If you don't, the account goes into read-only mode — nothing is deleted.",
+    a: "You'll be prompted to choose a billing cycle. If you don't, the account goes into read-only mode. Nothing is deleted.",
   },
 ];

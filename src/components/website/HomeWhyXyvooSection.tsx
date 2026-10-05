@@ -28,9 +28,9 @@ const TOP_CARDS: TopCard[] = [
     id: "payments",
     icon: "/images/icons/payment.png",
     iconBg: "var(--xyvoo-blue-deep)",
-    title: "Payments that just work",
+    title: "Flexible Payments",
     description:
-      "Accept payments the way your customers already pay — multiple currencies, local payment methods, no plugins or workarounds bolted on.",
+      "Accept payments the way your customers already pay, with support for multiple currencies and local payment methods, without relying on plugins or complicated workarounds.",
     linkLabel: "See pricing",
     linkHref: "/pricing",
   },
@@ -38,9 +38,9 @@ const TOP_CARDS: TopCard[] = [
     id: "data-protection",
     icon: "/images/icons/gdprCompliant.png",
     iconBg: "var(--xyvoo-navy)",
-    title: "Data protection, done properly",
+    title: "Built for Data Protection",
     description:
-      "Built to meet GDPR and adhere to local data protection policies — including Nigeria's NDPA — so guest and customer information stays secure wherever you operate.",
+      "Our platforms are designed to support GDPR requirements and comply with applicable local data protection regulations, including Nigeria's NDPA, helping keep guest and customer information secure wherever you operate.",
     linkLabel: "How we handle data",
     linkHref: "/privacy",
   },
@@ -48,9 +48,9 @@ const TOP_CARDS: TopCard[] = [
     id: "your-brand",
     icon: "/images/icons/brand.png",
     iconBg: "rgb(25 131 41)",
-    title: "Your brand, always",
+    title: "Your Platform. Your Brand.",
     description:
-      "White-label by design. Your guests and customers see your brand — XYVOO stays invisible in the background.",
+      "Your customers see your brand. You control the experience. XYVOO powers the technology behind the scenes, with fully white-label platforms designed to make your digital presence feel entirely yours.",
     linkLabel: "How white-labelling works",
     linkHref: "/about",
   },
@@ -59,15 +59,15 @@ const TOP_CARDS: TopCard[] = [
 const BOTTOM_CARDS: BottomCard[] = [
   {
     id: "fast-setup",
-    title: "Set up in minutes, not months",
+    title: "From Setup to Live, Fast",
     description:
-      "Most systems take weeks of configuration before you see anything. Yours can be live within the hour — try it free for 14 days before you commit to anything.",
+      "Skip weeks of configuration and complicated onboarding. Get your platform up and running in as little as an hour, then explore it free for 14 days before you commit.",
   },
   {
     id: "real-support",
-    title: "Real support, not tickets",
+    title: "Real Support. Real People.",
     description:
-      "A 99.9% uptime SLA backed by priority support on every paid plan. Real people, real answers.",
+      "99.9% uptime service level agreement with priority support on every paid plan. Get real people, clear answers, and fast solutions.",
   },
 ];
 
@@ -108,8 +108,8 @@ export function HomeWhyXyvooSection({
                 eyebrow="Why Businesses Choose Us"
                 title={
                   <>
-                    We&apos;re not a features list — we&apos;re the team that
-                    gets you live.
+                    We&apos;re not just a list of features. We&apos;re the
+                    team that helps you get up and running.
                   </>
                 }
                 titleId="why-xyvoo-heading"
@@ -118,8 +118,9 @@ export function HomeWhyXyvooSection({
                 eyebrowClassName="flex items-center justify-center"
               />
               <p className="mx-auto mt-5 max-w-xl text-[16px] leading-[1.75] text-xyvoo-navy/65">
-                Every plan comes with a platform built for how African
-                businesses actually operate.
+                Every plan comes with a platform designed around the realities
+                of how African businesses operate, combining powerful technology
+                with practical, seamless workflows.
               </p>
             </div>
           </FadeIn>

@@ -1,17 +1,9 @@
 import { NextResponse } from "next/server";
+import { ZodError } from "zod";
 import { sendRegistrationOtpEmail } from "@/lib/mail/mailtrap";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { storefrontHost } from "@/lib/store/subdomain";
 import { HotelSendOtpSchema, apiError, createMaskedEmail, generateOtpCode, hashOtp, validationError } from "../_lib";
-
-function createTenantSubdomain(hotelName: string) {
-  return hotelName
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .trim()
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .slice(0, 45);
-}
 
 export async function POST(req: Request) {
   try {
@@ -29,25 +21,33 @@ export async function POST(req: Request) {
       .limit(1)
       .maybeSingle();
 
-    if (existingSession?.tenant_id) {
-      tenantId = existingSession.tenant_id;
+    // The hotel picks its own web address, so a clash is reported rather than
+    // silently changed to something they didn't choose.
+    const { data: subdomainOwner } = await supabase
+      .from("tenants")
+      .select("id")
+      .eq("subdomain", parsed.subdomain)
+      .maybeSingle();
+    const resumingTenantId = existingSession?.tenant_id ?? null;
+    if (subdomainOwner && subdomainOwner.id !== resumingTenantId) {
+      return apiError(`${storefrontHost(parsed.subdomain)} is already taken. Please choose another web address.`, 409);
+    }
+
+    if (resumingTenantId) {
+      tenantId = resumingTenantId;
+      const { error: renameError } = await supabase
+        .from("tenants")
+        .update({ subdomain: parsed.subdomain, name: parsed.subdomain, display_name: parsed.hotel_name })
+        .eq("id", resumingTenantId);
+      if (renameError) return apiError(`Unable to update tenant. ${renameError.message}`);
     } else {
       const generatedId = crypto.randomUUID();
-      const baseSubdomain = createTenantSubdomain(parsed.hotel_name) || `hotel-${generatedId.slice(0, 8)}`;
-      let subdomain = baseSubdomain;
-
-      for (let i = 0; i < 6; i++) {
-        const { data: subdomainMatch } = await supabase.from("tenants").select("id").eq("subdomain", subdomain).maybeSingle();
-        if (!subdomainMatch) break;
-        subdomain = `${baseSubdomain}-${Math.floor(100 + Math.random() * 900)}`;
-      }
-
       const { data: insertedTenant, error: tenantError } = await supabase
         .from("tenants")
         .insert({
           id: generatedId,
-          subdomain,
-          name: subdomain,
+          subdomain: parsed.subdomain,
+          name: parsed.subdomain,
           display_name: parsed.hotel_name,
           product: "hotel",
         })
@@ -106,6 +106,7 @@ export async function POST(req: Request) {
       email_hint: createMaskedEmail(parsed.contact_email),
     });
   } catch (error) {
+    if (error instanceof ZodError) return apiError(error.issues[0]?.message ?? "Invalid details.");
     if (error instanceof Error) return apiError(error.message, 500);
     return validationError(error);
   }

@@ -29,7 +29,7 @@ type FeatureRow = {
 const FEATURES: FeatureRow[] = [
   {
     id: "front-desk",
-    number: "01 — Front Desk",
+    number: "01. Front Desk",
     title: "Your entire lobby,\non one screen.",
     description:
       "Check-ins, check-outs, and walk-ins handled in seconds. Live room status across every floor, without the back-and-forth.",
@@ -45,10 +45,10 @@ const FEATURES: FeatureRow[] = [
   },
   {
     id: "reservations",
-    number: "02 — Reservations",
+    number: "02. Reservations",
     title: "Every booking,\nunder control.",
     description:
-      "From direct inquiry to OTA sync — manage your full booking pipeline without jumping between tabs or tools.",
+      "From direct inquiry to OTA sync, and manage your full booking pipeline without jumping between tabs or tools.",
     bullets: [
       "Syncs with Booking.com, Expedia & all major OTAs",
       "Drag-to-reschedule on a visual timeline",
@@ -61,10 +61,10 @@ const FEATURES: FeatureRow[] = [
   },
   {
     id: "analytics",
-    number: "03 — Revenue & Analytics",
+    number: "03. Revenue & Analytics",
     title: "The numbers GMs\nwake up thinking about.",
     description:
-      "Occupancy, ADR, RevPAR — all surfaced in real time. Know exactly where your revenue is coming from and where it is leaking.",
+      "Occupancy, ADR and RevPAR, all surfaced in real time. Know exactly where your revenue is coming from and where it is leaking.",
     bullets: [
       "Live occupancy and ADR dashboard",
       "Revenue breakdown by room type and channel",
@@ -77,10 +77,10 @@ const FEATURES: FeatureRow[] = [
   },
   {
     id: "housekeeping",
-    number: "04 — Housekeeping",
+    number: "04. Housekeeping",
     title: "Operations that\nrun without chaos.",
     description:
-      "Live room board, task assignment, maintenance tickets. Every room's status visible to the right team — without a single phone call.",
+      "Live room board, task assignment, maintenance tickets. Every room's status is visible to the right team, without a single phone call.",
     bullets: [
       "Dirty / clean / inspected status updated in real time",
       "Task assignment by floor, room type, or staff member",

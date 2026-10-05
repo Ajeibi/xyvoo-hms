@@ -2,7 +2,7 @@ export const ABOUT_HERO = {
   eyebrow: "About XYVOO",
   title: "One company. Two platforms.\nSoftware that runs your business.",
   subtitle:
-    "XYVOO builds dedicated, white-label systems for hotels and online retailers — never one generic toolkit stretched to cover both. Your team runs on a single connected platform. Your guests and customers only ever see your brand.",
+    "XYVOO builds dedicated, white-label systems for hotels and online retailers, never one generic toolkit stretched to cover both. Your team runs on a single connected platform. Your guests and customers only ever see your brand.",
 };
 
 export type AboutBeliefPoint = {
@@ -26,7 +26,7 @@ export const ABOUT_WHO_POINTS: AboutBeliefPoint[] = [
   {
     title: "White-label, always",
     description:
-      "Your guests and customers see your brand — on the booking page, the receipts, the app icon. XYVOO never appears.",
+      "Your guests and customers see your brand: on the booking page, the receipts, the app icon. XYVOO never appears.",
   },
   {
     title: "Built deep on what matters",
@@ -54,7 +54,7 @@ export const ABOUT_PLATFORMS_INTRO = {
   eyebrow: "What We Build",
   title: "Built deep, not wide.",
   subtitle:
-    "We didn't start with a platform and go looking for markets to sell it into. We started with two problems — hotels running on spreadsheets and WhatsApp groups, retailers stitching together five different tools to sell online — and built a dedicated answer to each.",
+    "We didn't start with a platform and go looking for markets to sell it into. We started with two problems (hotels running on spreadsheets and WhatsApp groups, retailers stitching together five different tools to sell online) and built a dedicated answer to each.",
 };
 
 export type AboutBuildTopCard = {
@@ -70,7 +70,7 @@ export const ABOUT_BUILD_TOP_CARDS: AboutBuildTopCard[] = [
     id: "hms",
     title: "Hotel Management, Your Brand",
     description:
-      "PMS, reservations, housekeeping, F&B, billing, OTA sync and analytics — ten connected modules under one login. Staff never see XYVOO.",
+      "PMS, reservations, housekeeping, F&B, billing, OTA sync and analytics: ten connected modules under one login. Staff never see XYVOO.",
     linkLabel: "Explore HMS",
     linkHref: "/solution/hms",
   },
@@ -78,7 +78,7 @@ export const ABOUT_BUILD_TOP_CARDS: AboutBuildTopCard[] = [
     id: "storefront",
     title: "E-Commerce, Your Brand",
     description:
-      "Catalogue, checkout, payments and fulfilment under your storefront's identity — live in minutes, not months.",
+      "Catalogue, checkout, payments and fulfilment under your storefront's identity, live in minutes, not months.",
     linkLabel: "Explore Storefront",
     linkHref: "/solution/storefront",
   },
@@ -86,7 +86,7 @@ export const ABOUT_BUILD_TOP_CARDS: AboutBuildTopCard[] = [
     id: "white-label",
     title: "White-Label, Always",
     description:
-      "Your guests and customers see your brand — on the booking page, the receipts, the app icon. XYVOO never appears.",
+      "Your guests and customers see your brand: on the booking page, the receipts, the app icon. XYVOO never appears.",
   },
 ];
 
@@ -104,7 +104,7 @@ export const ABOUT_BUILD_BOTTOM_CARDS: AboutBuildBottomCard[] = [
   {
     title: "99.9% Uptime, Real Support",
     description:
-      "A 99.9% uptime SLA backed by priority support on every paid plan — real people, real answers.",
+      "A 99.9% uptime SLA backed by priority support on every paid plan. Real people, real answers.",
   },
 ];
 
@@ -116,7 +116,7 @@ export const ABOUT_HOW_IT_WORKS = {
     {
       title: "Choose your platform",
       description:
-        "Running a hotel or a storefront? Pick XYVOO HMS or XYVOO Storefront — each built specifically for that business, not a generic toolkit stretched to fit.",
+        "Running a hotel or a storefront? Pick XYVOO HMS or XYVOO Storefront, each built specifically for that business, not a generic toolkit stretched to fit.",
     },
     {
       title: "Set up in minutes",

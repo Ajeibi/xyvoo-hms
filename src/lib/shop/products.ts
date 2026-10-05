@@ -161,9 +161,24 @@ function mapRow(row: ShopProductRow): ShopProduct {
   };
 }
 
+export const SHOP_PRODUCT_SORTS = ["newest", "featured", "price-asc", "price-desc", "rating"] as const;
+export type ShopProductSort = (typeof SHOP_PRODUCT_SORTS)[number];
+
+const SORTS: Record<ShopProductSort, { column: string; ascending: boolean }> = {
+  newest: { column: "created_at", ascending: false },
+  featured: { column: "featured", ascending: false },
+  "price-asc": { column: "price", ascending: true },
+  "price-desc": { column: "price", ascending: false },
+  rating: { column: "rating_average", ascending: false },
+};
+
 export type ShopProductFilters = {
   category?: string;
   search?: string;
+  /** Merchandising flag set on the product in the dashboard. */
+  flag?: "featured" | "new-arrival" | "best-seller" | "on-sale";
+  collectionId?: string;
+  sort?: ShopProductSort;
   page?: number;
   pageSize?: number;
 };
@@ -180,6 +195,19 @@ export async function listShopProducts(
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
+  let productIds: string[] | null = null;
+  if (filters.collectionId) {
+    const { data: members, error: membersError } = await supabase
+      .schema("store")
+      .from("collection_products")
+      .select("product_id")
+      .eq("collection_id", filters.collectionId)
+      .order("position");
+    if (membersError) throw new Error(membersError.message);
+    productIds = (members || []).map((m) => m.product_id as string);
+    if (productIds.length === 0) return { products: [], total: 0, page, pageSize };
+  }
+
   let query = supabase
     .schema("store")
     .from("products")
@@ -187,40 +215,82 @@ export async function listShopProducts(
     .eq("tenant_id", tenantId)
     .eq("status", "active")
     .eq("visibility", "visible")
-    .eq("approval_status", "approved")
-    .order("created_at", { ascending: false })
-    .range(from, to);
+    .eq("approval_status", "approved");
 
+  if (productIds) query = query.in("id", productIds);
   if (filters.category) query = query.eq("category", filters.category);
   if (filters.search) query = query.ilike("name", `%${filters.search}%`);
+  if (filters.flag === "featured") query = query.eq("featured", true);
+  if (filters.flag === "new-arrival") query = query.eq("new_arrival", true);
+  if (filters.flag === "best-seller") query = query.eq("best_seller", true);
+  // PostgREST can't compare two columns, so "on sale" narrows to products with a
+  // compare-at price here and drops any not actually discounted below.
+  if (filters.flag === "on-sale") query = query.not("compare_at_price", "is", null);
 
-  const { data, error, count } = await query;
+  const sort = SORTS[filters.sort ?? "newest"];
+  query = query.order(sort.column, { ascending: sort.ascending });
+  if (sort.column !== "created_at") query = query.order("created_at", { ascending: false });
+
+  const { data, error, count } = await query.range(from, to);
   if (error) throw new Error(error.message);
 
+  let products = ((data || []) as unknown as ShopProductRow[]).map(mapRow);
+  if (filters.flag === "on-sale") products = products.filter((p) => p.compareAtPrice != null && p.compareAtPrice > p.price);
+
   return {
-    products: ((data || []) as unknown as ShopProductRow[]).map(mapRow),
+    products,
     total: count || 0,
     page,
     pageSize,
   };
 }
 
-export async function getShopProductBySlug(tenantId: string, slug: string): Promise<ShopProduct | null> {
+/** Distinct categories of a store's visible products, with how many products each has. */
+export async function listShopCategories(tenantId: string): Promise<Array<{ name: string; count: number }>> {
   const supabase = createServerSupabaseClient();
-
   const { data, error } = await supabase
     .schema("store")
     .from("products")
-    .select(SHOP_PRODUCT_COLUMNS)
+    .select("category")
     .eq("tenant_id", tenantId)
-    .eq("slug", slug)
     .eq("status", "active")
     .eq("visibility", "visible")
     .eq("approval_status", "approved")
-    .maybeSingle();
+    .not("category", "is", null)
+    .limit(2000);
+  if (error) throw new Error(error.message);
+
+  const counts = new Map<string, number>();
+  for (const row of data || []) {
+    const name = String(row.category).trim();
+    if (name) counts.set(name, (counts.get(name) || 0) + 1);
+  }
+  return Array.from(counts, ([name, count]) => ({ name, count })).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export async function getShopProductBySlug(tenantId: string, slug: string): Promise<ShopProduct | null> {
+  const supabase = createServerSupabaseClient();
+
+  const lookup = (column: "slug" | "id") =>
+    supabase
+      .schema("store")
+      .from("products")
+      .select(SHOP_PRODUCT_COLUMNS)
+      .eq("tenant_id", tenantId)
+      .eq(column, slug)
+      .eq("status", "active")
+      .eq("visibility", "visible")
+      .eq("approval_status", "approved")
+      .maybeSingle();
+
+  let { data, error } = await lookup("slug");
+  // Products without a slug are linked by id (see ProductCard), so fall back to that.
+  if (!data && !error && UUID_PATTERN.test(slug)) ({ data, error } = await lookup("id"));
 
   if (error) throw new Error(error.message);
   if (!data) return null;
 
   return mapRow(data as unknown as ShopProductRow);
 }
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

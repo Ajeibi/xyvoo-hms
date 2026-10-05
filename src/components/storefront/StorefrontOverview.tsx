@@ -18,7 +18,7 @@ import type { DashboardOrder } from "@/lib/store/orders";
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend);
 
 function formatCurrency(value: number, currency: string | null) {
-  return new Intl.NumberFormat("en-GB", {
+  return new Intl.NumberFormat("en-NG", {
     style: "currency",
     currency: currency || "NGN",
     maximumFractionDigits: 0,

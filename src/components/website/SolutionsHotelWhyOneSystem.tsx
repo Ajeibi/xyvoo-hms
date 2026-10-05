@@ -25,7 +25,7 @@ const TOP_CARDS: TopCard[] = [
     iconBg: "var(--xyvoo-blue)",
     title: "One login, every department",
     description:
-      "Front desk, housekeeping, F&B and finance all work from the same platform — no juggling separate tools or passwords.",
+      "Front desk, housekeeping, F&B and finance all work from the same platform, with no juggling separate tools or passwords.",
   },
   {
     id: "your-brand",
@@ -33,7 +33,7 @@ const TOP_CARDS: TopCard[] = [
     iconBg: "var(--xyvoo-navy)",
     title: "Your brand, not ours",
     description:
-      "Guests see your hotel's name, logo and colours everywhere — the booking page, the app, the receipts.",
+      "Guests see your hotel's name, logo and colours everywhere: the booking page, the app, the receipts.",
   },
   {
     id: "secure-by-design",

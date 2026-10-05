@@ -36,7 +36,7 @@ const INITIAL_LINES: FolioLine[] = [
   {
     id: "l-1",
     date: "Sep 04",
-    desc: "Deluxe King Room — Night 1",
+    desc: "Deluxe King Room, Night 1",
     dept: "Front Desk",
     leg: "company",
     amount: 240.0,

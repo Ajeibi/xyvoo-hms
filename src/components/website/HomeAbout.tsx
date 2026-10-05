@@ -55,13 +55,21 @@ export function HomeAbout() {
               </h3>
 
               {/* Body Paragraph */}
+              <p className="mb-4 text-p leading-relaxed text-slate-600">
+                There&apos;s no shortage of software for hotels and retailers.
+                What&apos;s harder to find is a system that is genuinely yours,
+                with no XYVOO branding in sight, built specifically around the
+                business you actually run.
+              </p>
+              <p className="mb-4 text-p leading-relaxed text-slate-600">
+                Our Hotel Management System and Storefront are two separate,
+                independent platforms, each designed for the unique needs of the
+                business it serves. We don&apos;t stretch one system across two
+                industries. We build purpose-driven technology that works for
+                each one.
+              </p>
               <p className="mb-8 text-p leading-relaxed text-slate-600">
-                There&apos;s no shortage of software for hotels and retailers. What&apos;s
-                harder to find is a system that&apos;s genuinely yours — with no XYVOO
-                branding in sight — built specifically for the business you actually
-                run. Our Hotel Management System and Storefront are two separate,
-                independent platforms, each built for the business it actually serves
-                — not one system stretched to cover both. That&apos;s what we built.
+                That&apos;s what makes XYVOO different.
               </p>
 
               {/* CTA Link */}

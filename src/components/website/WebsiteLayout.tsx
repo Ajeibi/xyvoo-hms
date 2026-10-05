@@ -97,6 +97,14 @@ function isStorefrontPath(pathname: string | null): boolean {
   return STOREFRONT_PATH_PREFIXES.some((prefix) => pathname?.startsWith(prefix)) ?? false;
 }
 
+/** Storefront register/login pages keep the storefront branding but sit on a
+ * white page with no hero, so the header must use its dark-on-light styling. */
+const STOREFRONT_AUTH_PATH_PREFIXES = ["/register/storefront", "/auth/login/storefront"];
+
+function isStorefrontAuthPath(pathname: string | null): boolean {
+  return STOREFRONT_AUTH_PATH_PREFIXES.some((prefix) => pathname?.startsWith(prefix)) ?? false;
+}
+
 /** Pages whose hero runs up behind the header, so the header sits on the hero
  * (transparent) rather than as a separate white bar above it. Dark heroes also
  * switch the header to its light-on-dark styling. */
@@ -238,13 +246,13 @@ const NAV: NavItem[] = [
         label: "Hotel Management System",
         href: "/solution/hms",
         description:
-          "Front desk, housekeeping, F&B, and finance — one dashboard for your property.",
+          "Front desk, housekeeping, F&B and finance in one dashboard for your property.",
       },
       {
         label: "Guest Experience",
         href: "/solution/hms/guest-experience",
         description:
-          "Rooms, reservations and front office — the guest-facing side of your property.",
+          "Rooms, reservations and front office: the guest-facing side of your property.",
       },
       {
         label: "Operations & Facilities",
@@ -280,7 +288,7 @@ const NAV: NavItem[] = [
         label: "Payments & Gift Cards",
         href: "/solution/storefront/payments",
         description:
-          "Paystack checkout, gift cards, and receipts — without a separate payment tool.",
+          "Paystack checkout, gift cards, and receipts, without a separate payment tool.",
       },
       {
         label: "Inventory & Wholesale",
@@ -303,7 +311,7 @@ const NAV: NavItem[] = [
         label: "Independent Hotels",
         href: "/business-types/independent-hotels",
         description:
-          "A single property, running on one simple system — no back office required.",
+          "A single property, running on one simple system, with no back office required.",
       },
       {
         label: "Hotel Groups & Multi-Property",
@@ -693,19 +701,24 @@ function WebsiteHeader({ pathname }: { pathname: string }) {
   }, []);
 
   const isStorefront = isStorefrontPath(pathname);
+  const isStorefrontAuth = isStorefrontAuthPath(pathname);
+  const isStorefrontHero = isStorefront && !isStorefrontAuth;
+  // The auth pages pin their image below the header (top-[76px]), so hiding
+  // the header on scroll would leave an empty strip above it.
+  const shown = visible || isStorefrontAuth;
   const isSolutionHmsPath = isHmsPath(pathname);
 
   const isDarkHero = isDarkHeroPath(pathname);
   const isHeroDark = !scrolled && (
     (pathname === "/" && !!heroTheme?.isDark) ||
     isSolutionHmsPath ||
-    isStorefront ||
+    isStorefrontHero ||
     isDarkHero
   );
   const sitsOnHero =
     (pathname === "/" && !!heroTheme) ||
     isSolutionHmsPath ||
-    isStorefront ||
+    isStorefrontHero ||
     isDarkHero ||
     isLightHeroPath(pathname);
 
@@ -713,7 +726,7 @@ function WebsiteHeader({ pathname }: { pathname: string }) {
     <header
       className={cn(
         "fixed top-0 left-0 right-0 z-50 transition-all duration-300 transform",
-        visible ? "translate-y-0" : "-translate-y-full",
+        shown ? "translate-y-0" : "-translate-y-full",
         scrolled
           ? "bg-white/95 backdrop-blur-md shadow-sm"
           : sitsOnHero
@@ -832,22 +845,21 @@ export default function WebsiteLayout({
           <div className="grid grid-cols-1 gap-12 border-b border-white/10 pb-14 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.4fr)] lg:gap-16">
             <div className="max-w-md">
               <h2 className="text-h2 font-black leading-[1.08] tracking-tight text-white">
-                Let&apos;s take your{" "}
-                {isStorefront ? "storefront" : "property"}{" "}
+                Built to help you{" "}
                 <span
                   className={cn(
                     "underline decoration-2 underline-offset-4",
                     isStorefront ? "text-xyvoo-teal-product" : "text-xyvoo-blue-light"
                   )}
                 >
-                  further
+                  grow
                 </span>
                 .
               </h2>
               <p className="mt-4 max-w-sm text-p leading-relaxed text-slate-400">
-                Whether you&apos;re opening your first property or scaling an
-                online storefront, we&apos;ll help you get set up and live —
-                fast.
+                Whether you&apos;re launching your first property or scaling
+                your online storefront, XYVOO gives you the tools to get set up,
+                go live, and grow faster.
               </p>
               <a
                 href="mailto:hello@getxyvoo.com"
@@ -882,12 +894,12 @@ export default function WebsiteLayout({
                 {
                   title: "Product",
                   links: [
-                    ["Solution — HMS", "/solution/hms"],
-                    ["Solution — Storefront", "/solution/storefront"],
+                    ["Solution: HMS", "/solution/hms"],
+                    ["Solution: Storefront", "/solution/storefront"],
                     ["Website templates", "/templates"],
                     ["Pricing", "/pricing"],
-                    ["Get started — HMS", XYVOO_AUTH_ROUTES.hms.register],
-                    ["Get started — Storefront", XYVOO_AUTH_ROUTES.storefront.register],
+                    ["Get started: HMS", XYVOO_AUTH_ROUTES.hms.register],
+                    ["Get started: Storefront", XYVOO_AUTH_ROUTES.storefront.register],
                   ],
                 },
                 {
@@ -982,7 +994,7 @@ export default function WebsiteLayout({
                 style={{ width: "auto", height: "auto" }}
               />
               <p className="max-w-[220px] text-xs leading-relaxed text-slate-500">
-                One company, two platforms — built for businesses across
+                One company, two platforms, built for businesses across
                 Africa.
               </p>
             </div>
@@ -1201,7 +1213,7 @@ function BrandCtaSection() {
           </h4>
           <p className="mt-2 text-p text-slate-300 leading-relaxed">
             {isHms
-              ? "Start free or compare HMS plans — our team can help you migrate without downtime."
+              ? "Start free or compare HMS plans. Our team can help you migrate without downtime."
               : isStorefront
                 ? "Free plan available for Storefront. No credit card required to start."
                 : "14-day free trial for HMS. Free plan available for Storefront. No credit card required to start."}

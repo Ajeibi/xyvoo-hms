@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ExternalLink, LayoutDashboard, LogOut, Package, Settings, ShoppingCart } from "lucide-react";
+import { CreditCard, ExternalLink, Layers, LayoutDashboard, LogOut, Package, Settings, ShoppingCart, Truck } from "lucide-react";
 
 type StorefrontDashboardShellProps = {
   children: React.ReactNode;
@@ -27,7 +27,10 @@ export default function StorefrontDashboardShell({
   const navItems = [
     { key: "dashboard", label: "Overview", path: `${base}/dashboard`, icon: LayoutDashboard },
     { key: "products", label: "Products", path: `${base}/products`, icon: Package },
+    { key: "collections", label: "Collections", path: `${base}/collections`, icon: Layers },
     { key: "orders", label: "Orders", path: `${base}/orders`, icon: ShoppingCart },
+    { key: "delivery", label: "Delivery", path: `${base}/delivery`, icon: Truck },
+    { key: "payments", label: "Payments", path: `${base}/payments`, icon: CreditCard },
     { key: "settings", label: "Settings", path: `${base}/settings`, icon: Settings },
   ];
 

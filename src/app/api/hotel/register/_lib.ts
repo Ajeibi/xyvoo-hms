@@ -2,9 +2,11 @@ import { NextResponse } from "next/server";
 import crypto from "node:crypto";
 import { z } from "zod";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { storeSubdomainSchema } from "@/lib/store/subdomain";
 
 export const HotelSendOtpSchema = z.object({
   hotel_name: z.string().min(1),
+  subdomain: storeSubdomainSchema,
   contact_email: z.string().email(),
   contact_phone: z.string().min(1),
   country: z.string().min(1),
