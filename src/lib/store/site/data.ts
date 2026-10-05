@@ -137,3 +137,42 @@ export async function provisionStoreDefaults(
   const failed = results.find((r) => r.error);
   if (failed?.error) throw new Error(failed.error.message);
 }
+
+/** Throws away unpublished edits: the draft goes back to what's live (or to the template defaults if nothing is). */
+export async function discardSiteDraft(tenantId: string) {
+  const site = await getStoreSite(tenantId);
+  if (!site) throw new Error("This store has no site record.");
+  const { error } = await storeDb().from("sites").update({ draft: site.published ?? {} }).eq("tenant_id", tenantId);
+  if (error) throw new Error(error.message);
+}
+
+export type SiteVersionSummary = { version: number; templateSlug: string; createdAt: string };
+
+export async function listSiteVersions(tenantId: string, limit = 20): Promise<SiteVersionSummary[]> {
+  const { data, error } = await storeDb()
+    .from("site_versions")
+    .select("version, template_slug, created_at")
+    .eq("tenant_id", tenantId)
+    .order("version", { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(error.message);
+  return (data || []).map((v) => ({ version: v.version, templateSlug: v.template_slug, createdAt: v.created_at }));
+}
+
+/** Copies an earlier published version into the draft, to review and publish again. Nothing goes live until then. */
+export async function restoreSiteVersion(tenantId: string, version: number) {
+  const { data, error } = await storeDb()
+    .from("site_versions")
+    .select("snapshot, template_slug")
+    .eq("tenant_id", tenantId)
+    .eq("version", version)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return false;
+  const { error: updateError } = await storeDb()
+    .from("sites")
+    .update({ draft: parseSiteOverrides(data.snapshot), template_slug: isStorefrontTemplateSlug(data.template_slug) ? data.template_slug : DEFAULT_TEMPLATE_SLUG })
+    .eq("tenant_id", tenantId);
+  if (updateError) throw new Error(updateError.message);
+  return true;
+}

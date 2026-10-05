@@ -1,5 +1,5 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { isReservedSubdomain } from "@/lib/store/subdomain";
+import { checkSlugAvailable } from "@/lib/store/slugs";
 import { contactRequestSchema, teamEmail } from "@/lib/marketing/contact-request";
 import { sendContactRequestEmail } from "@/lib/mail/mailtrap";
 import { getStoreSite, saveSiteDraft, setSiteTemplate } from "./data";
@@ -26,14 +26,9 @@ export async function saveBasics(ctx: Ctx, v: StepValues<"basics">): Promise<str
   let slug = ctx.slug;
 
   if (v.subdomain !== ctx.slug) {
-    if (isReservedSubdomain(v.subdomain)) throw new StepError("That address is reserved. Please choose another.");
-    const { data: taken } = await service
-      .from("tenants")
-      .select("id")
-      .or(`subdomain.eq.${v.subdomain},name.eq.${v.subdomain}`)
-      .neq("id", ctx.tenantId)
-      .limit(1);
-    if (taken?.length) throw new StepError("That web address is already taken. Please choose another.");
+    // No redirect from the old address here: the shop isn't live during onboarding.
+    const check = await checkSlugAvailable(v.subdomain, ctx.tenantId, service);
+    if (!check.available) throw new StepError(check.reason);
     slug = v.subdomain;
   }
 

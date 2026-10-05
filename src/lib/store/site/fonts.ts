@@ -1,7 +1,7 @@
 /**
  * Curated heading/body font pairings a merchant can choose from. Every family
  * is self-hosted through next/font (see next-fonts.ts), so storefronts never
- * load fonts from a third-party host, and only the chosen pairing is preloaded.
+ * load fonts from a third-party host, and only the chosen pairing is downloaded.
  */
 export const FONT_FAMILY_KEYS = [
   "jost",

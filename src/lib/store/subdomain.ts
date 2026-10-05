@@ -13,6 +13,22 @@ export const STOREFRONT_ROOT_DOMAIN = process.env.NEXT_PUBLIC_STOREFRONT_ROOT_DO
  */
 export const STOREFRONT_HOST_HEADER = "x-storefront-host";
 
+/**
+ * Also set only by the proxy: the path within the store being requested
+ * (e.g. "/products/mug"), so a store that changed its address can send old
+ * links to the same page at the new address.
+ */
+export const STOREFRONT_PATH_HEADER = "x-storefront-path";
+
+/**
+ * Set (scoped to /shop/<slug>) when a store member opens the website editor's
+ * preview with ?sfpreview=1, so they see unpublished changes even on a live
+ * shop. It only switches to the draft for signed-in members of that store;
+ * for anyone else it does nothing.
+ */
+export const STOREFRONT_PREVIEW_COOKIE = "sf_draft_preview";
+export const STOREFRONT_PREVIEW_PARAM = "sfpreview";
+
 /** Names a merchant can't claim: platform hosts, or names that look official. */
 export const RESERVED_SUBDOMAINS = new Set([
   "account",
@@ -122,4 +138,25 @@ export function getStoreSlugFromHost(host: string | null, rootDomain = STOREFRON
   }
 
   return null;
+}
+
+/**
+ * Where a request for a store's old address should go once the store has
+ * moved to newSlug, keeping the page path. `path` is the path within the
+ * store (STOREFRONT_PATH_HEADER); `subdomainSlug` is set when the request came
+ * in on the old subdomain (STOREFRONT_HOST_HEADER).
+ */
+export function movedStoreLocation(input: { oldSlug: string; newSlug: string; path: string | null; host: string | null; subdomainSlug: string | null; protocol: string | null }) {
+  const oldSlug = input.oldSlug.toLowerCase();
+  // Only same-site paths: "//host" or "/\host" would make this an open redirect.
+  const path = input.path && /^\/(?![/\\])\S*$/.test(input.path) ? input.path : "/";
+
+  // On the old subdomain, swap the first label of the host so the port and
+  // root domain (localhost in development) stay as they are.
+  const host = (input.host || "").toLowerCase();
+  if (input.subdomainSlug === oldSlug && host.startsWith(`${oldSlug}.`)) {
+    const protocol = input.protocol === "http" ? "http" : "https";
+    return `${protocol}://${input.newSlug}${host.slice(oldSlug.length)}${path}`;
+  }
+  return `/shop/${input.newSlug}${path === "/" ? "" : path}`;
 }

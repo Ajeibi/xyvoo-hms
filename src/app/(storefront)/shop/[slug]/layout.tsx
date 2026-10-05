@@ -3,16 +3,19 @@ import "@/styles/storefront/themes.css";
 import "@/styles/storefront/app.css";
 import type { CSSProperties } from "react";
 import type { Metadata, Viewport } from "next";
-import { notFound } from "next/navigation";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import Script from "next/script";
 import StoreFooter from "@/components/storefront-theme/StoreFooter";
 import StoreHeader, { type HeaderNavItem } from "@/components/storefront-theme/StoreHeader";
 import { StorefrontProvider } from "@/components/storefront-theme/StorefrontProvider";
 import { storeSocialLinks } from "@/components/storefront-theme/socials";
-import { getFontPairing } from "@/lib/store/site/fonts";
+import { getFontPairing, type FontPairing } from "@/lib/store/site/fonts";
 import { menuItemPath, STORE_PATHS, storeHref } from "@/lib/store/site/links";
 import { fontVariableClasses } from "@/lib/store/site/next-fonts";
 import { getStorefront, type Storefront } from "@/lib/store/site/storefront";
+import { findSlugRedirect } from "@/lib/store/slugs";
+import { movedStoreLocation, STOREFRONT_HOST_HEADER, STOREFRONT_PATH_HEADER, STOREFRONT_PREVIEW_PARAM } from "@/lib/store/subdomain";
 
 /*
  * Root layout for every storefront page. It is its own root layout (no
@@ -23,14 +26,50 @@ import { getStorefront, type Storefront } from "@/lib/store/site/storefront";
 type LayoutParams = { params: Promise<{ slug: string }> };
 
 // Swaps html.no-js for html.js before paint, as the static templates do, so
-// menus and panels that need JavaScript stay usable without it.
+// menus and panels that need JavaScript stay usable without it. A plain inline
+// script in <head>: next/script queues inline beforeInteractive code until the
+// framework bundle has loaded, which painted the taller no-js header first and
+// then shifted the whole page.
 const ENHANCE_SCRIPT = `document.documentElement.classList.replace("no-js","js");if(window.self!==window.top)document.documentElement.classList.add("is-framed");`;
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "";
 
+/**
+ * Store fonts use display: optional (next-fonts.ts), so a font that is not
+ * cached yet may not show on the first view. That is fine for customers, but
+ * the website editor preview is how an owner sees a font they just chose: when
+ * previewing, load the pairing and reload once if it was missing.
+ */
+function previewFontScript(pairing: FontPairing) {
+  const faces = [`${pairing.display.weight} 1em "${pairing.display.family}"`, `400 1em "${pairing.body.family}"`];
+  return `(function(){var f=${JSON.stringify(faces)},k="sf-font-reload:"+${JSON.stringify(pairing.id)};if(!document.fonts||f.every(function(x){return document.fonts.check(x)}))return;Promise.all(f.map(function(x){return document.fonts.load(x)})).then(function(){try{if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,"1")}catch(e){return}location.reload()})})();`;
+}
+
+/**
+ * Where an old store address now lives, keeping the page path, when the store
+ * changed its address in the last 90 days. A temporary redirect, not a
+ * permanent one: once the 90 days are up another shop may claim the address,
+ * and browsers never forget a permanent redirect.
+ */
+async function movedStoreUrl(oldSlug: string): Promise<string | null> {
+  if (!/^[a-z0-9-]{1,63}$/i.test(oldSlug)) return null;
+  const newSlug = await findSlugRedirect(oldSlug);
+  if (!newSlug) return null;
+
+  const requestHeaders = await headers();
+  return movedStoreLocation({
+    oldSlug,
+    newSlug,
+    path: requestHeaders.get(STOREFRONT_PATH_HEADER),
+    host: requestHeaders.get("host"),
+    subdomainSlug: requestHeaders.get(STOREFRONT_HOST_HEADER),
+    protocol: requestHeaders.get("x-forwarded-proto"),
+  });
+}
+
 export async function generateMetadata({ params }: LayoutParams): Promise<Metadata> {
   const storefront = await getStorefront((await params).slug);
-  if (!storefront) return {};
+  if (!storefront) return { title: "Shop not found | XYVOO", robots: { index: false, follow: false } };
   const { seo, brand } = storefront.site;
   const icon = brand.faviconUrl || brand.logoUrl;
 
@@ -94,32 +133,60 @@ function OpeningSoon({ storefront }: { storefront: Storefront }) {
 export default async function StorefrontLayout({ children, params }: LayoutParams & { children: React.ReactNode }) {
   const { slug } = await params;
   const storefront = await getStorefront(slug);
-  if (!storefront) notFound();
+  if (!storefront) {
+    const moved = await movedStoreUrl(slug);
+    if (moved) redirect(moved);
+    // No shop here. Calling notFound() in a root layout skips every not-found
+    // page and shows Next's bare 404, so render an empty document instead: the
+    // page's own notFound() then shows the branded "no shop at this address"
+    // page (not-found.tsx) with a 404 status.
+    return (
+      <html lang="en-GB">
+        <body>{children}</body>
+      </html>
+    );
+  }
 
   const { site, basePath, storeName } = storefront;
   const showMark = site.template.slug === "loftwood";
   const visible = storefront.isLive || storefront.isPreview;
+  const fontPairing = getFontPairing(site.theme.fontPairing);
 
   return (
     <html
       lang="en"
-      className={`no-js ${fontVariableClasses(getFontPairing(site.theme.fontPairing))}`}
+      className={`no-js ${fontVariableClasses(fontPairing)}`}
       data-template={site.template.slug}
       style={site.cssVariables as CSSProperties}
       suppressHydrationWarning
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: ENHANCE_SCRIPT }} />
+      </head>
       <body>
-        <Script id="sf-enhance" strategy="beforeInteractive">
-          {ENHANCE_SCRIPT}
-        </Script>
         <a className="skip-link" href="#main">
           Skip to main content
         </a>
 
         {storefront.isPreview ? (
+          <Script id="sf-preview-fonts" strategy="afterInteractive">
+            {previewFontScript(fontPairing)}
+          </Script>
+        ) : null}
+
+        {storefront.isPreview ? (
           <div className="preview-bar" role="note">
-            You&rsquo;re previewing your unpublished shop. Customers can&rsquo;t see it yet.{" "}
-            <a href={`${APP_URL}/storefront/${slug}/dashboard`}>Back to your dashboard</a>
+            {storefront.isLive ? (
+              <>
+                You&rsquo;re previewing changes customers can&rsquo;t see yet.{" "}
+                <a href={`/shop/${slug}?${STOREFRONT_PREVIEW_PARAM}=0`}>See the live shop</a>
+              </>
+            ) : (
+              <>
+                You&rsquo;re previewing your unpublished shop. Customers can&rsquo;t see it yet.{" "}
+                <a href={`${APP_URL}/storefront/${slug}/dashboard`}>Back to your dashboard</a>
+              </>
+            )}
           </div>
         ) : null}
 

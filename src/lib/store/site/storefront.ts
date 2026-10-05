@@ -1,11 +1,11 @@
 import { cache } from "react";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getShopTenantBySlug, type ShopTenant } from "@/lib/shop/tenants";
 import { listShopCategories } from "@/lib/shop/products";
 import { getStorePaymentRoute } from "@/lib/store/payments";
-import { STOREFRONT_HOST_HEADER, storefrontUrl } from "@/lib/store/subdomain";
+import { STOREFRONT_HOST_HEADER, STOREFRONT_PREVIEW_COOKIE, storefrontUrl } from "@/lib/store/subdomain";
 import { getStoreSite } from "./data";
 import { menuItemPath } from "./links";
 import { resolveSite, type ResolvedSite } from "./resolve";
@@ -118,14 +118,17 @@ export const getStorefront = cache(async (slug: string): Promise<Storefront | nu
       .eq("tenant_id", tenant.id)
       .eq("is_visible", true)
       .order("sort_order"),
-    db.from("pages").select("slug, title, system_key").eq("tenant_id", tenant.id).eq("status", "published").order("sort_order"),
+    db.from("pages").select("slug, title, system_key, status").eq("tenant_id", tenant.id).order("sort_order"),
     listShopCategories(tenant.id),
     headers(),
     getStorePaymentRoute(tenant.id),
   ]);
 
   const isLive = siteRecord?.status === "live" && siteRecord.published !== null;
-  const isPreview = !isLive && (await isStoreMember(tenant.id));
+  // Members see the draft on an unpublished shop, or on a live one when they've
+  // opened the editor's preview (which sets the preview cookie).
+  const wantsDraft = (await cookies()).get(STOREFRONT_PREVIEW_COOKIE)?.value === "1";
+  const isPreview = (!isLive || wantsDraft) && (await isStoreMember(tenant.id));
   const overrides = isPreview ? siteRecord?.draft ?? {} : siteRecord?.published ?? {};
   const storeName = tenant.displayName?.trim() || tenant.name?.trim() || slug;
 
@@ -137,7 +140,10 @@ export const getStorefront = cache(async (slug: string): Promise<Storefront | nu
     imageUrl: c.image_url,
     imageAlt: c.image_alt,
   }));
-  const pages: StorePageSummary[] = (pagesResult.data || []).map((p) => ({ slug: p.slug, title: p.title, systemKey: p.system_key }));
+  // Draft pages only exist for members previewing the shop.
+  const pages: StorePageSummary[] = (pagesResult.data || [])
+    .filter((p) => p.status === "published" || isPreview)
+    .map((p) => ({ slug: p.slug, title: p.title, systemKey: p.system_key }));
   const categories = categoriesResult.map((c) => c.name);
 
   const resolved = resolveSite(siteRecord?.templateSlug, overrides, { storeName, tenantLogoUrl: tenant.logoUrl });
