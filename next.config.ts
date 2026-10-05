@@ -1,6 +1,30 @@
 import type { NextConfig } from "next";
 
+// Storefront product and site images are uploaded to Supabase Storage; allow
+// next/image to optimise those (and only those) public objects.
+const supabaseHost = process.env.NEXT_PUBLIC_SUPABASE_URL ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname : null;
+
 const nextConfig: NextConfig = {
+  experimental: {
+    // src/app/global-not-found.tsx: one branded 404 for both root layouts
+    // (platform and storefront), including unknown store addresses.
+    globalNotFound: true,
+  },
+  images: {
+    remotePatterns: supabaseHost
+      ? [{ protocol: "https", hostname: supabaseHost, pathname: "/storage/v1/object/public/**" }]
+      : [],
+  },
+  async headers() {
+    return [
+      {
+        // Static website-template showcases (built by `npm run templates:build`).
+        // Demo content only, so keep them out of search results.
+        source: "/template-previews/:path*",
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+      },
+    ];
+  },
   async redirects() {
     return [
       { source: "/website", destination: "/", permanent: true },

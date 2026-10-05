@@ -45,9 +45,9 @@ const HERO_TABS: HeroTab[] = [
     accentText: "#1565c0",
     pulseColor: "#90caf9",
     eyebrow: "One company. Two platforms.",
-    headline: "Software that runs your business — not the other way round.",
+    headline: "Software that runs your business, not the other way round.",
     subhead:
-      "XYVOO builds dedicated, fully branded platforms for hotels and online retailers, so your team runs on one system instead of ten disconnected tools.",
+      "XYVOO builds dedicated, fully branded platforms for hotels and online retailers, giving your team one seamless system to run your business instead of juggling ten disconnected tools.",
     primaryCta: { label: "Learn more about XYVOO", href: "/about" },
     isDarkTheme: false,
   },
@@ -60,7 +60,7 @@ const HERO_TABS: HeroTab[] = [
     eyebrow: "For Hotels & Properties",
     headline: "Hotel management, fully under your brand.",
     subhead:
-      "Front desk, housekeeping, F&B, billing and reporting — one system. Guests and staff never see XYVOO.",
+      "Front desk, housekeeping, F&B, billing and reporting in one system. Guests and staff never see XYVOO.",
     primaryCta: {
       label: "Launch your HMS",
       href: XYVOO_AUTH_ROUTES.hms.register,
@@ -76,7 +76,7 @@ const HERO_TABS: HeroTab[] = [
     eyebrow: "For Retailers & Merchants",
     headline: "Your online storefront, built to sell.",
     subhead:
-      "A fully branded storefront with catalogue, checkout and fulfilment — live in minutes, not months.",
+      "A fully branded storefront with catalogue, checkout and fulfilment, live in minutes, not months.",
     primaryCta: {
       label: "Start your online storefront",
       href: XYVOO_AUTH_ROUTES.storefront.register,

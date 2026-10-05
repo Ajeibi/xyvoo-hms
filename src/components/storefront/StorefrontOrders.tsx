@@ -12,7 +12,7 @@ const STATUS_BADGE: Record<DashboardOrder["status"], string> = {
 };
 
 function formatCurrency(value: number) {
-  return new Intl.NumberFormat("en-GB", {
+  return new Intl.NumberFormat("en-NG", {
     style: "currency",
     currency: "NGN",
     maximumFractionDigits: 2,

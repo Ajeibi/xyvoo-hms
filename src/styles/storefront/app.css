@@ -1,0 +1,74 @@
+/*
+ * Storefront additions that the static templates didn't need: real logo
+ * images, the draft-preview bar and the "opening soon" page. Hand-written;
+ * base.css and themes.css next to this file are generated.
+ */
+
+.logo__img { width: auto; max-width: 11rem; height: 2.75rem; object-fit: contain; }
+
+/* The template logos were drawn for one short word; real store names can be longer.
+   On phones, tighten the tracking and let a long name use two lines, truncating only
+   beyond that (the link's aria-label always carries the full name). */
+.logo { min-width: 0; }
+.logo__word { max-width: 100%; }
+@media (max-width: 599.98px) {
+  .site-header .logo__word {
+    display: -webkit-box;
+    max-width: 52vw;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    font-size: 1.125rem;
+    line-height: 1.15;
+    letter-spacing: 0.04em;
+    white-space: normal;
+  }
+}
+.site-footer .logo__img { height: 3rem; }
+
+.preview-bar {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  padding: 0.5rem var(--gutter);
+  background: var(--dark);
+  color: var(--on-dark);
+  font-size: 0.875rem;
+  text-align: center;
+}
+.preview-bar a { color: var(--on-dark); }
+.is-framed .preview-bar { display: none; }
+
+.opening-soon { display: grid; place-items: center; min-height: 100vh; padding: 2rem var(--gutter); text-align: center; }
+.opening-soon .h-display { margin-block: 1rem; }
+
+.page-body { max-width: 46rem; }
+.page-body > * + * { margin-top: 1rem; }
+.page-body h2 { margin-top: 2rem; }
+
+/* Loftwood: hero photo when the store has no categories to show yet, and a
+   flash-sale panel with one photo or none (the template was drawn with two). */
+.hero-lw__media { aspect-ratio: 4 / 3; border-radius: 1rem; }
+@media (min-width: 1024px) { .hero-lw__media { margin-right: 3.5rem; } }
+.flash--solo { grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 900px) {
+  .flash--solo { grid-template-columns: minmax(0, 1fr); }
+  .flash--one { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+}
+
+.empty-state { padding-block: 3rem; text-align: center; }
+.empty-state .icon { width: 2.5rem; height: 2.5rem; margin: 0 auto 1rem; color: var(--muted); }
+
+/* Unknown store address (shop/[slug]/not-found.tsx without a store). No template is loaded, so fixed, accessible colours. */
+.unknown-store { display: grid; place-items: center; min-height: 100vh; padding: 2rem 1rem; text-align: center; background: #f8fafc; color: #0f172a; font-family: system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+.unknown-store > div { max-width: 34rem; }
+.unknown-store__eyebrow { margin: 0; font-size: 0.8125rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #1d4ed8; }
+.unknown-store h1 { margin: 0.75rem 0 1rem; font-size: clamp(1.75rem, 4vw, 2.25rem); line-height: 1.2; }
+.unknown-store p { line-height: 1.6; color: #334155; }
+.unknown-store__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.75rem; margin-top: 2rem; }
+.unknown-store__actions a { display: inline-block; padding: 0.75rem 1.25rem; border-radius: 0.5rem; font-weight: 600; text-decoration: none; }
+.unknown-store__primary { background: #1d4ed8; color: #fff; }
+.unknown-store__primary:hover { background: #1e40af; }
+.unknown-store__secondary { color: #1d4ed8; text-decoration: underline !important; text-underline-offset: 0.2em; }
+.unknown-store a:focus-visible { outline: 3px solid #1d4ed8; outline-offset: 3px; }

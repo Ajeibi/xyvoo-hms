@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { getShopTenantBySlug, getTenantPaystackSetup } from "@/lib/shop/tenants";
+import { getShopTenantBySlug } from "@/lib/shop/tenants";
+import { getStorePaymentRoute } from "@/lib/store/payments";
+import { platformFeeSubunits } from "@/lib/store/billing";
+import { deliveryFeeFor, mapDeliveryZone, type DeliveryZoneRow } from "@/lib/store/delivery";
 import { mapOrderErrorMessage, resolveCartCurrency, toSubunitAmount } from "@/lib/shop/checkout";
 import { initializeTransaction } from "@/lib/shop/paystack";
+import { getStoreSlugFromHost } from "@/lib/store/subdomain";
 
 const CheckoutSchema = z.object({
   customer: z.object({
@@ -30,6 +34,8 @@ const CheckoutSchema = z.object({
       }),
     )
     .min(1, "Your cart is empty."),
+  /** One of the store's active delivery options; required when the store has any. */
+  deliveryZoneId: z.string().uuid().nullable().optional(),
 });
 
 export async function POST(req: Request, { params }: { params: Promise<{ slug: string }> }) {
@@ -37,8 +43,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
   const tenant = await getShopTenantBySlug(slug);
   if (!tenant) return NextResponse.json({ error: "Storefront not found." }, { status: 404 });
 
-  const paystack = await getTenantPaystackSetup(tenant.id);
-  if (!paystack) {
+  const paymentRoute = await getStorePaymentRoute(tenant.id);
+  if (!paymentRoute) {
     return NextResponse.json({ error: "This store isn't accepting payments yet." }, { status: 400 });
   }
 
@@ -48,8 +54,25 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     return NextResponse.json({ error: parsed.error.issues[0]?.message || "Invalid checkout details." }, { status: 400 });
   }
 
-  const { customer, shippingAddress, items } = parsed.data;
+  const { customer, shippingAddress, items, deliveryZoneId } = parsed.data;
   const service = createServerSupabaseClient();
+
+  // Delivery: the option must be one of this store's active ones, looked up
+  // here rather than trusting any price from the browser.
+  const { data: zoneRows } = await service
+    .schema("store")
+    .from("delivery_zones")
+    .select("id, name, regions, fee, free_over, eta_text, is_pickup, is_active, sort_order")
+    .eq("tenant_id", tenant.id)
+    .eq("is_active", true);
+  const zones = ((zoneRows || []) as DeliveryZoneRow[]).map(mapDeliveryZone);
+  const zone = zones.find((z) => z.id === deliveryZoneId) ?? null;
+  if (zones.length > 0 && !zone) {
+    return NextResponse.json({ error: "Please choose a delivery option." }, { status: 400 });
+  }
+  if (zone && !zone.isPickup && (!shippingAddress.line1 || !shippingAddress.city)) {
+    return NextResponse.json({ error: "Please enter your delivery address." }, { status: 400 });
+  }
 
   // Merge duplicate lines for the same product+variant before they reach
   // the RPC, which expects one line per product+variant.
@@ -94,20 +117,54 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     return NextResponse.json({ error: mapOrderErrorMessage(orderError?.message || "") }, { status: 400 });
   }
 
-  const order = orderResult as { id: string; total_amount: number };
+  const created = orderResult as { id: string; total_amount: number };
+  const subtotal = Number(created.total_amount);
+  const deliveryFee = zone ? deliveryFeeFor(zone, subtotal) : 0;
+  const order = { id: created.id, total_amount: Math.round((subtotal + deliveryFee) * 100) / 100 };
+
+  if (zone) {
+    const { error: deliveryError } = await service
+      .schema("store")
+      .from("orders")
+      .update({ delivery_fee: deliveryFee, delivery_method: zone.name, total_amount: order.total_amount })
+      .eq("id", order.id);
+    if (deliveryError) {
+      return NextResponse.json({ error: "We couldn't add delivery to your order. Please try again." }, { status: 500 });
+    }
+  }
 
   const origin = new URL(req.url).origin;
   const reference = order.id;
+  // Send the shopper back to wherever they checked out: the store's own
+  // subdomain, or /shop/<slug> on the platform domain.
+  const onStoreSubdomain = getStoreSlugFromHost(req.headers.get("host")) === slug;
+  const callbackUrl = onStoreSubdomain ? `${origin}/checkout/callback` : `${origin}/shop/${slug}/checkout/callback`;
+
+  const amountSubunit = toSubunitAmount(Number(order.total_amount));
+  const split = paymentRoute.kind === "split";
+  const feeSubunits = split ? platformFeeSubunits(amountSubunit, paymentRoute.feeRate) : 0;
 
   try {
+    // Record XYVOO's share on the order (zero for stores still on their own keys,
+    // where nothing is collected).
+    const { error: feeError } = await service
+      .schema("store")
+      .from("orders")
+      .update({ platform_fee: feeSubunits / 100, platform_fee_percentage: split ? paymentRoute.feeRate : null })
+      .eq("id", order.id);
+    if (feeError) throw new Error(feeError.message);
+
     const transaction = await initializeTransaction({
-      secretKey: paystack.secretKey,
+      secretKey: paymentRoute.secretKey,
       email: customer.email,
-      amountSubunit: toSubunitAmount(Number(order.total_amount)),
+      amountSubunit,
       currency,
       reference,
-      callbackUrl: `${origin}/shop/${slug}/checkout/callback`,
+      callbackUrl,
       metadata: { tenant_id: tenant.id, order_id: order.id },
+      split: split
+        ? { subaccount: paymentRoute.subaccountCode, transactionChargeSubunits: feeSubunits, bearer: paymentRoute.bearer }
+        : undefined,
     });
 
     const { error: intentError } = await service.schema("store").from("payment_intents").insert({
@@ -117,6 +174,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
       currency_code: currency,
       paystack_reference: reference,
       status: "pending",
+      subaccount_code: split ? paymentRoute.subaccountCode : null,
     });
 
     if (intentError) throw new Error(intentError.message);

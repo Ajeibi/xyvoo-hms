@@ -54,7 +54,7 @@ const STOREFRONT_ALL_PAGES: StorefrontSiblingLink[] = [
   {
     id: "storefront",
     title: "XYVOO Storefront",
-    description: "The full storefront overview — catalogue, checkout and fulfilment.",
+    description: "The full storefront overview: catalogue, checkout and fulfilment.",
     href: "/solution/storefront",
   },
   {
@@ -100,29 +100,29 @@ export function storefrontSiblingLinks(excludeId: string): StorefrontSiblingLink
  * untouched) rather than lengthening those directly. */
 const MODULE_DESCRIPTIONS_LONG: Record<string, string> = {
   storefront:
-    "Your storefront is live on your own subdomain the moment you sign up — your logo, your colours, your identity throughout. Shoppers never see XYVOO anywhere in the experience, and it works as an installable app on their phone from the first visit.",
+    "Your storefront is live on your own subdomain the moment you sign up, with your logo, your colours and your identity throughout. Shoppers never see XYVOO anywhere in the experience, and it works as an installable app on their phone from the first visit.",
   catalog:
     "Variants, pricing and stock all live in the same record, so a size or colour running low is visible before it oversells rather than after a customer complains. Bulk import and batch edits mean a large catalogue doesn't have to be entered one product at a time.",
   orders:
     "Every order moves through the same board from placement to delivered parcel, with shipping rules by zone or weight applied automatically. Returns run through the same flow too, instead of a separate process nobody remembers the steps to.",
   payments:
-    "Card, transfer and USSD are accepted from day one through Paystack, with room to add more providers as you grow. Every payment status — paid, pending or failed — flows straight into the same order board your team already works from.",
+    "Card, transfer and USSD are accepted from day one through Paystack, with room to add more providers as you grow. Every payment status (paid, pending or failed) flows straight into the same order board your team already works from.",
   marketing:
     "Customer segments, loyalty points, back-in-stock alerts, abandoned cart recovery and a referral program all run without a separate marketing tool bolted on. SEO controls and coupon codes are built into the same dashboard, not a plugin you have to configure separately.",
   team:
     "Invite staff and decide exactly what each person can reach, instead of handing out full admin access by default. Storefront configuration stays centralised, so there's one source of truth regardless of how many people are working in it.",
   analytics:
-    "Sales performance, order volumes and traffic insights are scoped to your storefront alone — never shared with or benchmarked against other merchants. The same dashboard updates live as orders come in, not on a delayed nightly report.",
+    "Sales performance, order volumes and traffic insights are scoped to your storefront alone, never shared with or benchmarked against other merchants. The same dashboard updates live as orders come in, not on a delayed nightly report.",
 };
 
 function pickModules(ids: string[]): StorefrontExtraFeature[] {
   return ids.map((id, index) => {
     const source = SOLUTIONS_STOREFRONT_STACK_MODULES.find((m) => m.id === id);
     if (!source) throw new Error(`Unknown Storefront module id: ${id}`);
-    const shortTitle = source.number.split("—")[1]?.trim() ?? source.number;
+    const shortTitle = source.number.split(". ").slice(1).join(". ").trim() || source.number;
     return {
       id: source.id,
-      number: `${String(index + 1).padStart(2, "0")} — ${shortTitle}`,
+      number: `${String(index + 1).padStart(2, "0")}. ${shortTitle}`,
       title: source.title,
       description: MODULE_DESCRIPTIONS_LONG[source.id] ?? source.description,
       bullets: source.bullets,
@@ -136,14 +136,14 @@ export const STOREFRONT_CUSTOMER_ENGAGEMENT: StorefrontExtraPage = {
   eyebrow: "Storefront · Customer Engagement",
   title: "Turn first-time buyers into repeat customers.",
   subtitle:
-    "Segments, loyalty points, back-in-stock alerts, abandoned cart recovery and referrals — built into your storefront, not bolted on.",
+    "Segments, loyalty points, back-in-stock alerts, abandoned cart recovery and referrals, all built into your storefront, not bolted on.",
   features: [
     {
       id: "segments",
-      number: "01 — Customer Segments",
+      number: "01. Customer Segments",
       title: "Group customers,\ntarget them directly.",
       description:
-        "Group your customers by how much they spend, where they're based or what they've bought before, and build a segment in a few clicks — no spreadsheet exports required. Once a segment exists, you can target it directly with its own campaign or discount, instead of sending the same message to your entire list.",
+        "Group your customers by how much they spend, where they're based or what they've bought before, and build a segment in a few clicks, with no spreadsheet exports required. Once a segment exists, you can target it directly with its own campaign or discount, instead of sending the same message to your entire list.",
       bullets: [
         "Group by spend, location or order history in a few clicks",
         "Target a segment directly with campaigns or discounts",
@@ -152,7 +152,7 @@ export const STOREFRONT_CUSTOMER_ENGAGEMENT: StorefrontExtraPage = {
     },
     {
       id: "loyalty",
-      number: "02 — Loyalty Points",
+      number: "02. Loyalty Points",
       title: "Reward the customers\nwho keep coming back.",
       description:
         "Every purchase earns points automatically, with no manual tracking or separate loyalty card to manage. Customers can see their balance and redeem it straight at checkout on their next order, which keeps them coming back without you having to run a standalone rewards programme.",
@@ -164,10 +164,10 @@ export const STOREFRONT_CUSTOMER_ENGAGEMENT: StorefrontExtraPage = {
     },
     {
       id: "back-in-stock",
-      number: "03 — Back-in-Stock Alerts",
+      number: "03. Back-in-Stock Alerts",
       title: "Sold out today,\nremembered tomorrow.",
       description:
-        "When a product sells out, customers can opt in with a single click instead of leaving empty-handed. The moment stock is replenished, everyone who opted in gets notified automatically — no spreadsheet of emails to chase down by hand.",
+        "When a product sells out, customers can opt in with a single click instead of leaving empty-handed. The moment stock is replenished, everyone who opted in gets notified automatically, with no spreadsheet of emails to chase down by hand.",
       bullets: [
         "Customers opt in with one click on a sold-out product",
         "Notified automatically the moment stock is replenished",
@@ -176,7 +176,7 @@ export const STOREFRONT_CUSTOMER_ENGAGEMENT: StorefrontExtraPage = {
     },
     {
       id: "abandoned-cart",
-      number: "04 — Abandoned Cart Recovery",
+      number: "04. Abandoned Cart Recovery",
       title: "Almost bought?\nWe'll remind them.",
       description:
         "If a shopper adds items to their cart and leaves without checking out, a reminder goes out automatically to bring them back to finish the order. It runs entirely in the background, and recovery rates show up alongside the rest of your sales data, so you can see exactly how much revenue it's recovering.",
@@ -188,7 +188,7 @@ export const STOREFRONT_CUSTOMER_ENGAGEMENT: StorefrontExtraPage = {
     },
     {
       id: "referral",
-      number: "05 — Referral Program",
+      number: "05. Referral Program",
       title: "Your customers,\nyour sales team.",
       description:
         "Every customer gets their own unique referral link they can share with friends or on social media. When someone uses it to make a purchase, the referral is tracked automatically from click to checkout, and the reward is issued without you having to manually verify or process a single claim.",
@@ -203,12 +203,12 @@ export const STOREFRONT_CUSTOMER_ENGAGEMENT: StorefrontExtraPage = {
     eyebrow: "After the sale",
     title: "Keep them coming back.",
     subtitle:
-      "Segments, loyalty, alerts, recovery and referrals — the parts of running a storefront that turn one order into ten.",
-    tagline: "Still just one dashboard — not five separate marketing tools.",
+      "Segments, loyalty, alerts, recovery and referrals: the parts of running a storefront that turn one order into ten.",
+    tagline: "Still just one dashboard, not five separate marketing tools.",
   },
   integrations: {
     title: "Where this shows up",
-    intro: "None of this lives in its own silo — it's wired into the rest of your storefront.",
+    intro: "None of this lives in its own silo. It's wired into the rest of your storefront.",
     items: [
       {
         title: "Checkout",
@@ -216,7 +216,7 @@ export const STOREFRONT_CUSTOMER_ENGAGEMENT: StorefrontExtraPage = {
       },
       {
         title: "Orders",
-        description: "Abandoned cart recovery reads straight from your live order data — no separate tracking pixel to install.",
+        description: "Abandoned cart recovery reads straight from your live order data, with no separate tracking pixel to install.",
       },
       {
         title: "Analytics",
@@ -232,14 +232,14 @@ export const STOREFRONT_CUSTOMER_ENGAGEMENT: StorefrontExtraPage = {
         title: "Set up your first segment",
         description: "Group customers by spend, location or order history.",
         explanation:
-          "Create a segment from your customer list in a couple of clicks — no CSV exports or spreadsheets needed.",
+          "Create a segment from your customer list in a couple of clicks, with no CSV exports or spreadsheets needed.",
       },
       {
         id: "loyalty",
         title: "Turn on loyalty points",
         description: "Decide how points are earned and what they're worth at checkout.",
         explanation:
-          "Points start accruing on the next order — customers redeem them straight at checkout, automatically.",
+          "Points start accruing on the next order, and customers redeem them straight at checkout, automatically.",
       },
       {
         id: "automate",
@@ -247,7 +247,7 @@ export const STOREFRONT_CUSTOMER_ENGAGEMENT: StorefrontExtraPage = {
         description:
           "Abandoned cart recovery, back-in-stock alerts and referrals all run automatically once switched on.",
         explanation:
-          "No ongoing manual work — these stay running in the background while you focus on the storefront itself.",
+          "No ongoing manual work: these stay running in the background while you focus on the storefront itself.",
       },
     ],
   },
@@ -258,14 +258,14 @@ export const STOREFRONT_PAYMENTS: StorefrontExtraPage = {
   eyebrow: "Storefront · Payments",
   title: "Get paid your way, every time.",
   subtitle:
-    "Paystack checkout, gift cards, and receipts — all handled without a separate payment tool bolted on.",
+    "Paystack checkout, gift cards and receipts, all handled without a separate payment tool bolted on.",
   features: [
     {
       id: "checkout",
-      number: "01 — Paystack Checkout",
+      number: "01. Paystack Checkout",
       title: "Fast, trusted\nlocal checkout.",
       description:
-        "Card, bank transfer and USSD are all accepted from the moment your storefront goes live, powered by Paystack under the hood. There's no separate merchant account application to wait on first — checkout is ready to take a real payment on day one.",
+        "Card, bank transfer and USSD are all accepted from the moment your storefront goes live, powered by Paystack under the hood. There's no separate merchant account application to wait on first. Checkout is ready to take a real payment on day one.",
       bullets: [
         "Card, bank transfer and USSD accepted from day one",
         "No separate merchant account needed to get started",
@@ -274,7 +274,7 @@ export const STOREFRONT_PAYMENTS: StorefrontExtraPage = {
     },
     {
       id: "gift-cards",
-      number: "02 — Gift Cards",
+      number: "02. Gift Cards",
       title: "Let customers\nbuy for each other.",
       description:
         "Customers can buy a gift card for someone else directly from your storefront, with no separate plugin or third-party service involved. Balances are tracked automatically and redeemed straight at checkout, so there's no manual reconciliation between a gift card system and your actual sales.",
@@ -286,10 +286,10 @@ export const STOREFRONT_PAYMENTS: StorefrontExtraPage = {
     },
     {
       id: "receipts",
-      number: "03 — Instant Receipts & Confirmation",
+      number: "03. Instant Receipts & Confirmation",
       title: "Every order,\nconfirmed instantly.",
       description:
-        "The moment a payment clears, the customer receives a receipt and confirmation automatically, carrying your storefront's own branding rather than a generic template. There's nothing to trigger manually — every order, regardless of size, gets the same instant, professional confirmation.",
+        "The moment a payment clears, the customer receives a receipt and confirmation automatically, carrying your storefront's own branding rather than a generic template. There's nothing to trigger manually. Every order, regardless of size, gets the same instant, professional confirmation.",
       bullets: [
         "Every order gets a branded receipt automatically",
         "Confirmation sent the moment payment clears",
@@ -298,10 +298,10 @@ export const STOREFRONT_PAYMENTS: StorefrontExtraPage = {
     },
     {
       id: "checkout-analytics",
-      number: "04 — Checkout Analytics",
+      number: "04. Checkout Analytics",
       title: "Revenue truth,\nas it happens.",
       description:
-        "Every checkout event — successful, failed or abandoned — feeds straight into your sales analytics as it happens, rather than sitting in a separate payment dashboard you have to check independently. That means the revenue numbers you see are always current, without reconciling two different systems by hand.",
+        "Every checkout event (successful, failed or abandoned) feeds straight into your sales analytics as it happens, rather than sitting in a separate payment dashboard you have to check independently. That means the revenue numbers you see are always current, without reconciling two different systems by hand.",
       bullets: [
         "Every checkout event feeds straight into your dashboard",
         "No separate reporting tool to reconcile against",
@@ -313,12 +313,12 @@ export const STOREFRONT_PAYMENTS: StorefrontExtraPage = {
     eyebrow: "Getting paid",
     title: "Money in, without the friction.",
     subtitle:
-      "Paystack checkout, gift cards and receipts — handled without bolting on a separate payment tool.",
-    tagline: "Still just one dashboard — not a separate payment gateway to reconcile.",
+      "Paystack checkout, gift cards and receipts, handled without bolting on a separate payment tool.",
+    tagline: "Still just one dashboard, not a separate payment gateway to reconcile.",
   },
   integrations: {
     title: "Where this shows up",
-    intro: "Payments aren't a bolt-on — they're wired into the rest of your storefront.",
+    intro: "Payments aren't a bolt-on. They're wired into the rest of your storefront.",
     items: [
       {
         title: "Catalogue",
@@ -326,7 +326,7 @@ export const STOREFRONT_PAYMENTS: StorefrontExtraPage = {
       },
       {
         title: "Orders",
-        description: "Every payment status flows straight into your order board — paid, pending or failed.",
+        description: "Every payment status flows straight into your order board, whether paid, pending or failed.",
       },
       {
         title: "Analytics",
@@ -342,14 +342,14 @@ export const STOREFRONT_PAYMENTS: StorefrontExtraPage = {
         title: "Connect Paystack",
         description: "Card, transfer and USSD are ready the moment you sign up.",
         explanation:
-          "No separate merchant account application to wait on — Paystack is switched on from day one.",
+          "No separate merchant account application to wait on. Paystack is switched on from day one.",
       },
       {
         id: "giftcards",
         title: "Turn on gift cards",
         description: "Let customers buy and send gift cards from your storefront.",
         explanation:
-          "Balances are tracked automatically and redeemed straight at checkout — no separate ledger to manage.",
+          "Balances are tracked automatically and redeemed straight at checkout, with no separate ledger to manage.",
       },
       {
         id: "reconcile",
@@ -367,14 +367,14 @@ export const STOREFRONT_INVENTORY: StorefrontExtraPage = {
   eyebrow: "Storefront · Inventory",
   title: "Stock that scales from single units to bulk orders.",
   subtitle:
-    "Bundles, barcodes and wholesale pricing — built into the same catalogue you already manage.",
+    "Bundles, barcodes and wholesale pricing, built into the same catalogue you already manage.",
   features: [
     {
       id: "bundles",
-      number: "01 — Product Bundles",
+      number: "01. Product Bundles",
       title: "Sell products\ntogether, as one.",
       description:
-        "Combine several products into a single listing — a gift set, a starter pack — and sell it as one item, while stock for every individual component updates automatically as bundles sell. There's no separate spreadsheet tracking how many of each component is left.",
+        "Combine several products into a single listing, such as a gift set or a starter pack, and sell it as one item, while stock for every individual component updates automatically as bundles sell. There's no separate spreadsheet tracking how many of each component is left.",
       bullets: [
         "Bundle products together and sell as one listing",
         "Stock tracked across every component automatically",
@@ -383,7 +383,7 @@ export const STOREFRONT_INVENTORY: StorefrontExtraPage = {
     },
     {
       id: "barcode",
-      number: "02 — Barcode Generator",
+      number: "02. Barcode Generator",
       title: "Every SKU,\nscan-ready.",
       description:
         "Every SKU in your catalogue gets its own barcode generated automatically, ready to print and use for in-store scanning alongside your online listings. The same barcode works whether the sale happens on your storefront or at a till in person.",
@@ -395,10 +395,10 @@ export const STOREFRONT_INVENTORY: StorefrontExtraPage = {
     },
     {
       id: "wholesale",
-      number: "03 — Wholesale & MOQ Pricing",
+      number: "03. Wholesale & MOQ Pricing",
       title: "Bulk buyers,\npriced properly.",
       description:
-        "Set a minimum and maximum order quantity for any product, with tiered pricing that kicks in automatically once a buyer crosses into bulk territory. Wholesale and retail customers use the exact same checkout — there's no separate B2B portal or manual quote process to manage.",
+        "Set a minimum and maximum order quantity for any product, with tiered pricing that kicks in automatically once a buyer crosses into bulk territory. Wholesale and retail customers use the exact same checkout, so there's no separate B2B portal or manual quote process to manage.",
       bullets: [
         "Set minimum and maximum order quantities per product",
         "Tiered pricing for bulk buyers, built into checkout",
@@ -407,7 +407,7 @@ export const STOREFRONT_INVENTORY: StorefrontExtraPage = {
     },
     {
       id: "stock-tracking",
-      number: "04 — Real-Time Stock Tracking",
+      number: "04. Real-Time Stock Tracking",
       title: "Stock that stays\ntrue everywhere.",
       description:
         "Stock levels update the instant an order is placed, whether that order came through your online storefront or was rung up in person at the till. Online and in-person sales always stay in sync, so you're never at risk of selling something twice from two different channels.",
@@ -422,16 +422,16 @@ export const STOREFRONT_INVENTORY: StorefrontExtraPage = {
     eyebrow: "Stock, sorted",
     title: "From one unit to one pallet.",
     subtitle:
-      "Bundles, barcodes and wholesale pricing — built into the same catalogue you already manage.",
-    tagline: "Still just one catalogue — not a separate spreadsheet for bulk orders.",
+      "Bundles, barcodes and wholesale pricing, built into the same catalogue you already manage.",
+    tagline: "Still just one catalogue, not a separate spreadsheet for bulk orders.",
   },
   integrations: {
     title: "Where this shows up",
-    intro: "Inventory isn't a separate system — it's wired into the rest of your storefront.",
+    intro: "Inventory isn't a separate system. It's wired into the rest of your storefront.",
     items: [
       {
         title: "Orders",
-        description: "Wholesale orders route through the same checkout as retail ones — no separate B2B system.",
+        description: "Wholesale orders route through the same checkout as retail ones, with no separate B2B system.",
       },
       {
         title: "Point of Sale",
@@ -450,7 +450,7 @@ export const STOREFRONT_INVENTORY: StorefrontExtraPage = {
         id: "bundle",
         title: "Bundle your first products",
         description:
-          "Combine several products into a single sellable listing — a gift set, a starter pack, whatever suits your catalogue.",
+          "Combine several products into a single sellable listing, such as a gift set, a starter pack or whatever suits your catalogue.",
         explanation:
           "Stock across every component updates automatically as bundles sell, so there's no separate spreadsheet tracking how many of each part is left.",
       },
@@ -460,7 +460,7 @@ export const STOREFRONT_INVENTORY: StorefrontExtraPage = {
         description:
           "Every SKU in your catalogue gets a barcode generated automatically, ready to print for in-store scanning.",
         explanation:
-          "Use the same barcode online and at the till — no separate in-store system to maintain, and no risk of the two falling out of sync.",
+          "Use the same barcode online and at the till, with no separate in-store system to maintain, and no risk of the two falling out of sync.",
       },
       {
         id: "wholesale",
@@ -468,7 +468,7 @@ export const STOREFRONT_INVENTORY: StorefrontExtraPage = {
         description:
           "Add minimum and maximum order quantities wherever you need them, with tiered pricing that applies automatically.",
         explanation:
-          "Bulk buyers see the right pricing the moment they cross into wholesale territory at checkout — no separate quote process or manual invoice to prepare.",
+          "Bulk buyers see the right pricing the moment they cross into wholesale territory at checkout, with no separate quote process or manual invoice to prepare.",
       },
     ],
   },
@@ -480,18 +480,18 @@ export const STOREFRONT_SOLO_SELLERS: StorefrontExtraPage = {
   eyebrow: "For Solo Sellers & New Businesses",
   title: "A storefront you can run by yourself, live today.",
   subtitle:
-    "Every part of running a storefront — your site, catalogue, orders, checkout, marketing, team access and reporting — built for a business of one, not a whole department.",
+    "Every part of running a storefront: your site, catalogue, orders, checkout, marketing, team access and reporting, built for a business of one, not a whole department.",
   features: pickModules(["storefront", "catalog", "orders", "payments", "marketing", "team", "analytics"]),
   growth: {
     eyebrow: "Built for a team of one",
     title: "Everything you need to open, nothing you don't.",
     subtitle:
-      "Every part of running a storefront — your site, catalogue, orders, checkout, marketing, team access and reporting — built for a business of one, not a whole department.",
-    tagline: "Still just one dashboard — not a website builder, a payment plugin and a stock sheet stitched together.",
+      "Every part of running a storefront: your site, catalogue, orders, checkout, marketing, team access and reporting, built for a business of one, not a whole department.",
+    tagline: "Still just one dashboard, not a website builder, a payment plugin and a stock sheet stitched together.",
   },
   integrations: {
     title: "Where this shows up",
-    intro: "None of this lives in its own silo — it's wired into the rest of your storefront.",
+    intro: "None of this lives in its own silo. It's wired into the rest of your storefront.",
     items: [
       {
         title: "Orders",
@@ -507,7 +507,7 @@ export const STOREFRONT_SOLO_SELLERS: StorefrontExtraPage = {
       },
       {
         title: "Analytics",
-        description: "Your first sales show up in the same dashboard from day one — no separate reporting tool to set up later.",
+        description: "Your first sales show up in the same dashboard from day one, with no separate reporting tool to set up later.",
       },
     ],
   },
@@ -518,7 +518,7 @@ export const STOREFRONT_SOLO_SELLERS: StorefrontExtraPage = {
         id: "storefront",
         title: "Launch your storefront",
         description:
-          "Your own subdomain, logo and colours, live the moment you sign up — no hosting or domain setup to figure out first.",
+          "Your own subdomain, logo and colours, live the moment you sign up, with no hosting or domain setup to figure out first.",
         explanation:
           "It's a mobile-first PWA from the start, installable straight from a customer's browser without an app store submission.",
       },
@@ -550,10 +550,10 @@ export const STOREFRONT_SOLO_SELLERS: StorefrontExtraPage = {
 const GROWING_RETAILERS_FEATURES: StorefrontExtraFeature[] = [
   {
     id: "multi-channel-sync",
-    number: "01 — Multi-Channel Sync",
+    number: "01. Multi-Channel Sync",
     title: "List once,\nsell everywhere.",
     description:
-      "Your catalogue stays in sync across your storefront, an Instagram or WhatsApp shop, and a marketplace listing — one product edit updates every channel, and stock never oversells across them.",
+      "Your catalogue stays in sync across your storefront, an Instagram or WhatsApp shop, and a marketplace listing. One product edit updates every channel, and stock never oversells across them.",
     bullets: [
       "One catalogue powering your storefront, social shops and marketplace listings",
       "Stock updates everywhere the moment an order comes in from any channel",
@@ -562,10 +562,10 @@ const GROWING_RETAILERS_FEATURES: StorefrontExtraFeature[] = [
   },
   {
     id: "cohort-analytics",
-    number: "02 — Customer Lifetime Value & Cohort Analytics",
+    number: "02. Customer Lifetime Value & Cohort Analytics",
     title: "See who's actually\nworth keeping.",
     description:
-      "Go beyond basic segments to see which customers are worth the most over time, and how a cohort's spending changes after a campaign — not just today's sales number.",
+      "Go beyond basic segments to see which customers are worth the most over time, and how a cohort's spending changes after a campaign, not just today's sales number.",
     bullets: [
       "Lifetime value calculated per customer, not just per order",
       "Cohort comparisons to see whether a campaign actually changed behaviour",
@@ -574,7 +574,7 @@ const GROWING_RETAILERS_FEATURES: StorefrontExtraFeature[] = [
   },
   {
     id: "multi-location-inventory",
-    number: "03 — Multi-Location Inventory",
+    number: "03. Multi-Location Inventory",
     title: "Stock split across\nwarehouses, one view.",
     description:
       "Stock held across multiple warehouses or physical stores shows up as one inventory view, with orders automatically routed to whichever location actually has it.",
@@ -586,10 +586,10 @@ const GROWING_RETAILERS_FEATURES: StorefrontExtraFeature[] = [
   },
   {
     id: "approval-workflows",
-    number: "04 — Approval Workflows",
+    number: "04. Approval Workflows",
     title: "A second pair of eyes\nbefore it goes out.",
     description:
-      "A discount, refund or price change above a threshold you set requires a manager's approval before it takes effect — so growing the team doesn't mean losing control of the storefront.",
+      "A discount, refund or price change above a threshold you set requires a manager's approval before it takes effect, so growing the team doesn't mean losing control of the storefront.",
     bullets: [
       "Configurable thresholds for what needs manager sign-off",
       "A queue of pending approvals, not a scramble in a chat thread",
@@ -598,10 +598,10 @@ const GROWING_RETAILERS_FEATURES: StorefrontExtraFeature[] = [
   },
   {
     id: "subscriptions",
-    number: "05 — Subscriptions & Recurring Orders",
+    number: "05. Subscriptions & Recurring Orders",
     title: "Bill once,\nship on repeat.",
     description:
-      "Customers subscribe to a product once, and it bills and ships again automatically on their chosen schedule — no manually reinvoicing a repeat customer every month.",
+      "Customers subscribe to a product once, and it bills and ships again automatically on their chosen schedule. No more manually reinvoicing a repeat customer every month.",
     bullets: [
       "Recurring billing on a schedule the customer chooses at checkout",
       "Failed renewal payments retried automatically before a subscription lapses",
@@ -610,7 +610,7 @@ const GROWING_RETAILERS_FEATURES: StorefrontExtraFeature[] = [
   },
   {
     id: "3pl-shipping",
-    number: "06 — 3PL & Advanced Shipping",
+    number: "06. 3PL & Advanced Shipping",
     title: "Labels and tracking,\nwithout the copy-paste.",
     description:
       "Connect a third-party logistics provider and generate shipping labels and tracking numbers directly from an order, instead of re-entering the same address into a courier's own site.",
@@ -622,10 +622,10 @@ const GROWING_RETAILERS_FEATURES: StorefrontExtraFeature[] = [
   },
   {
     id: "wholesale-portal",
-    number: "07 — Wholesale / B2B Storefront",
+    number: "07. Wholesale / B2B Storefront",
     title: "One catalogue,\ntwo price books.",
     description:
-      "Bulk and business buyers get their own ordering flow and pricing tier, running alongside your normal retail storefront on the same catalogue — not a second system to maintain.",
+      "Bulk and business buyers get their own ordering flow and pricing tier, running alongside your normal retail storefront on the same catalogue, not a second system to maintain.",
     bullets: [
       "A separate price list and minimum order quantities for approved wholesale accounts",
       "Wholesale orders still land on the same order board as retail",
@@ -634,10 +634,10 @@ const GROWING_RETAILERS_FEATURES: StorefrontExtraFeature[] = [
   },
   {
     id: "demand-forecasting",
-    number: "08 — Demand Forecasting",
+    number: "08. Demand Forecasting",
     title: "Reorder before\nyou run out.",
     description:
-      "Based on how fast a product is actually selling, the system flags what to reorder — and when — before stock hits zero, instead of finding out from an angry customer.",
+      "Based on how fast a product is actually selling, the system flags what to reorder, and when, before stock hits zero, instead of finding out from an angry customer.",
     bullets: [
       "Reorder alerts based on real sales velocity, not a fixed stock threshold",
       "Forecasts that adjust automatically as sales speed up or slow down",
@@ -652,7 +652,7 @@ export const STOREFRONT_GROWING_RETAILERS: StorefrontExtraPage = {
   eyebrow: "For Growing Retailers",
   title: "The tools that keep up once orders do.",
   subtitle:
-    "Multi-channel sync, multi-location stock, wholesale pricing and demand forecasting — the layer a single-storefront system doesn't give you once you've outgrown the basics.",
+    "Multi-channel sync, multi-location stock, wholesale pricing and demand forecasting: the layer a single-storefront system doesn't give you once you've outgrown the basics.",
   stats: [
     { headline: "One catalogue", label: "powering your storefront, social shops and marketplace listings" },
     { headline: "Multiple locations", label: "tracked as one inventory view, not five separate spreadsheets" },
@@ -663,12 +663,12 @@ export const STOREFRONT_GROWING_RETAILERS: StorefrontExtraPage = {
     eyebrow: "After launch",
     title: "Then the real work starts.",
     subtitle:
-      "Multi-channel sync, multi-location stock, wholesale pricing and demand forecasting — the layer a single-storefront system doesn't give you once you've outgrown the basics.",
-    tagline: "Still just one dashboard — not five separate tools your team has to juggle.",
+      "Multi-channel sync, multi-location stock, wholesale pricing and demand forecasting: the layer a single-storefront system doesn't give you once you've outgrown the basics.",
+    tagline: "Still just one dashboard, not five separate tools your team has to juggle.",
   },
   integrations: {
     title: "Where this shows up",
-    intro: "None of this lives in its own silo — it's wired into the rest of your storefront.",
+    intro: "None of this lives in its own silo. It's wired into the rest of your storefront.",
     items: [
       {
         title: "Catalogue",
@@ -697,7 +697,7 @@ export const STOREFRONT_GROWING_RETAILERS: StorefrontExtraPage = {
         description:
           "Sync your catalogue to an Instagram or WhatsApp shop and a marketplace listing, from the same product records.",
         explanation:
-          "Stock stays accurate everywhere at once — no more manually updating three places every time something sells.",
+          "Stock stays accurate everywhere at once. No more manually updating three places every time something sells.",
       },
       {
         id: "locations",
@@ -713,7 +713,7 @@ export const STOREFRONT_GROWING_RETAILERS: StorefrontExtraPage = {
         description:
           "Let the system watch sales velocity per product and flag what needs reordering before it actually runs out.",
         explanation:
-          "Reorder alerts adjust automatically as a product speeds up or slows down — nothing to recalculate by hand.",
+          "Reorder alerts adjust automatically as a product speeds up or slows down, so there's nothing to recalculate by hand.",
       },
     ],
   },

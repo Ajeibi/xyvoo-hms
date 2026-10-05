@@ -2,6 +2,8 @@ export type HotelRegisterBillingCycle = "monthly" | "quarterly" | "yearly";
 
 export type HotelRegisterHotelDraft = {
   hotel_name: string;
+  /** Web address label, e.g. `grand-palace` for grand-palace.getxyvoo.com. */
+  subdomain: string;
   contact_email: string;
   contact_phone: string;
   country: string;

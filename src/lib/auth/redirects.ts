@@ -1,6 +1,7 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { HotelMembershipRow, HotelTenantCore } from "@/types";
 import { getDepartmentScopeDefinition, hasFullHotelAccess } from "@/lib/hms/department-access";
+import { getOnboardingProgress } from "@/lib/store/site/data";
 
 export function isPlatformAdminEmail(email?: string | null) {
   if (!email) return false;
@@ -75,5 +76,8 @@ export async function getUserStoreDashboardPath(userId: string): Promise<string 
   if (!tenantData) return null;
 
   const slug = tenantData.subdomain || tenantData.name || tenantData.id;
+  // Merchants who haven't finished setting up carry on where they left off.
+  const progress = await getOnboardingProgress(tenantData.id);
+  if (progress && !progress.completedAt) return `/storefront/${slug}/welcome/${progress.currentStep}`;
   return `/storefront/${slug}/dashboard`;
 }

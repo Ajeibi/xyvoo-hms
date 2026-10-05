@@ -10,6 +10,8 @@ type InitializeTransactionParams = {
   currency: string;
   callbackUrl: string;
   metadata?: Record<string, unknown>;
+  /** Split payment: the store's subaccount, XYVOO's flat share in subunits, and who pays Paystack's charge. */
+  split?: { subaccount: string; transactionChargeSubunits: number; bearer: "subaccount" | "account" };
 };
 
 type InitializeTransactionResult = {
@@ -37,6 +39,15 @@ export async function initializeTransaction(
       reference: params.reference,
       callback_url: params.callbackUrl,
       metadata: params.metadata || {},
+      ...(params.split
+        ? {
+            subaccount: params.split.subaccount,
+            // Overrides the subaccount's stored percentage for this payment, so the
+            // fee always follows the store's current plan.
+            transaction_charge: params.split.transactionChargeSubunits,
+            bearer: params.split.bearer,
+          }
+        : {}),
     }),
   });
 

@@ -42,3 +42,30 @@ next-env.d.ts
 
 # windows / onedrive
 desktop.ini
+
+# local tool state: Claude Code worktrees and personal settings, Supabase CLI cache
+.claude/worktrees/
+.claude/settings.local.json
+.claude/launch.json
+supabase/.temp/
+
+# Local only: kept on developers' machines, never in the repository Vercel deploys.
+# Tests
+*.test.ts
+*.test.tsx
+*.test.js
+*.test.mjs
+# Seed data and demo-data tooling (the scripts import the seed code, so they go together)
+/scripts/seed-*
+/scripts/clear-tenant-cli.ts
+/scripts/fix-guest-stay-fixture-*.ts
+/scripts/validate-demo-schema.ts
+/src/lib/hms/seed/
+/src/lib/store/seed/
+/src/app/api/hotel/seed-demo/
+/supabase/seed*.sql
+# Internal documents and the static template sources
+/docs/
+/design/
+/*.pdf
+/*.docx

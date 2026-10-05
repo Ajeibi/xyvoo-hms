@@ -89,9 +89,10 @@ export default function StorefrontSettingsClient({ slug }: { slug: string }) {
 
   return (
     <div className="max-w-2xl">
-      <h1 className="text-lg font-semibold text-slate-900">Payment settings</h1>
+      <h2 className="text-base font-semibold text-slate-900">Your own Paystack keys</h2>
       <p className="mt-1 text-sm text-slate-500">
-        Connect your own Paystack account so customer payments are captured directly into it.
+        For stores set up before payouts through XYVOO. Once you add a payout account above, payments go through XYVOO instead and these keys are
+        no longer used.
       </p>
 
       <form onSubmit={handleSave} className="mt-6 space-y-4 rounded-2xl border border-slate-200 bg-white p-6">

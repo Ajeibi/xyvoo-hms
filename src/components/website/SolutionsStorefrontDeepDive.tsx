@@ -4,6 +4,7 @@ import { useRef } from "react";
 import Link from "next/link";
 import { motion, useInView } from "framer-motion";
 import { ArrowRight } from "lucide-react";
+import { XYVOO_AUTH_ROUTES } from "@/constants/auth-links";
 import {
   SOLUTIONS_STOREFRONT_INTEGRATIONS_INTRO,
   SOLUTIONS_STOREFRONT_INTEGRATIONS_ITEMS,
@@ -103,7 +104,7 @@ function ModuleStackCard({
           ))}
         </div>
         <Link
-          href="/register"
+          href={XYVOO_AUTH_ROUTES.storefront.register}
           className="inline-flex items-center gap-2 text-sm font-semibold"
           style={{ color: "var(--xyvoo-storefront-deepdive-secondary-text)" }}
         >

@@ -53,7 +53,7 @@ export function HmsExtraLanding({ page }: { page: HmsExtraPage }) {
         { label: "Live In", value: "<60s provisioning" },
       ]}
       tagsLabel="Includes"
-      tags={page.features.map((f) => f.number.split("—")[1]?.trim() ?? f.number)}
+      tags={page.features.map((f) => f.number.replace(/^\d+\s*(?:—|–|\.|:)\s*/, "").trim())}
     />
   );
 
@@ -64,7 +64,7 @@ export function HmsExtraLanding({ page }: { page: HmsExtraPage }) {
       title={page.growth.title}
       intro={page.growth.subtitle}
       items={page.features.map((f) => ({
-        title: f.number.split("—")[1]?.trim() ?? f.number,
+        title: f.number.replace(/^\d+\s*(?:—|–|\.|:)\s*/, "").trim(),
         description: f.description,
       }))}
       accentRgb={HMS_ACCENT_RGB}
@@ -85,7 +85,7 @@ export function HmsExtraLanding({ page }: { page: HmsExtraPage }) {
     <SolutionGrowthStack
       modules={page.integrations.items.map((item, i) => ({
         id: item.title.toLowerCase().replace(/\s+/g, "-"),
-        number: `${String(i + 1).padStart(2, "0")} — ${item.title}`,
+        number: `${String(i + 1).padStart(2, "0")}. ${item.title}`,
         title: item.title,
         description: item.description,
       }))}
@@ -111,7 +111,7 @@ export function HmsExtraLanding({ page }: { page: HmsExtraPage }) {
       title={page.growth.title}
       intro={page.growth.subtitle}
       items={page.features.map((f) => ({
-        title: f.number.split("—")[1]?.trim() ?? f.number,
+        title: f.number.replace(/^\d+\s*(?:—|–|\.|:)\s*/, "").trim(),
         description: f.description,
       }))}
       accentRgb={HMS_ACCENT_RGB}

@@ -49,9 +49,9 @@ const EXIT_SWEEP_DEG = 100;
 const PER_TRANSITION_VH = 130;
 const DWELL_VH = 50;
 
-/** Short name for the top strip and tagline, e.g. "05 — Marketing & Growth" -> "Marketing & Growth" */
+/** Short name for the top strip and tagline, e.g. "05. Marketing & Growth" -> "Marketing & Growth" */
 function shortName(moduleNumber: string): string {
-  return moduleNumber.split("—")[1]?.trim() ?? moduleNumber;
+  return moduleNumber.replace(/^\d+\s*(?:—|–|\.|:)\s*/, "").trim();
 }
 
 export function SolutionGrowthStack({
@@ -59,7 +59,7 @@ export function SolutionGrowthStack({
   heading = SOLUTIONS_STOREFRONT_GROWTH_STACK_HEADING,
   tagline = (
     <>
-      Still just <strong>one dashboard</strong> — not three separate tools bolted together.
+      Still just <strong>one dashboard</strong>, not three separate tools bolted together.
     </>
   ),
   colors,
@@ -229,7 +229,7 @@ export function SolutionGrowthStack({
                   className={styles.card}
                 >
                   <span className={styles.num}>
-                    {String(i + 1).padStart(2, "0")} — {shortName(module.number)}
+                    {String(i + 1).padStart(2, "0")}. {shortName(module.number)}
                   </span>
                   <h5>{module.title}</h5>
                   <p>{module.description}</p>

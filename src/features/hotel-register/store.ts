@@ -4,26 +4,34 @@ import type {
   HotelRegisterBillingCycle,
   HotelRegisterHotelDraft,
 } from "@/types";
+import { slugifyStoreName } from "@/lib/store/subdomain";
 
 type Hotel = HotelRegisterHotelDraft;
 type Account = HotelRegisterAccountDraft;
 type BillingCycle = HotelRegisterBillingCycle;
 type State = {
-  step: number; hotel: Hotel; account: Account; billingCycle: BillingCycle; loading: boolean; error: string; tenantId: string | null;
+  step: number; hotel: Hotel; subdomainTouched: boolean; account: Account; billingCycle: BillingCycle; loading: boolean; error: string; tenantId: string | null;
   showMissingFieldsModal: boolean; missingFields: string[]; otp: string[]; otpError: string; resendCooldown: number; canResend: boolean; otpExpiry: number | null; accountError: string;
-  setHotelField: (field: keyof Hotel, value: string | boolean) => void; setAccountField: (field: keyof Account, value: string | boolean) => void;
+  setHotelField: (field: keyof Hotel, value: string | boolean) => void; setSubdomain: (value: string) => void; setAccountField: (field: keyof Account, value: string | boolean) => void;
   closeMissingFieldsModal: () => void; setOtpDigit: (index: number, value: string) => void; resetOtpDigits: () => void; resendOtp: () => Promise<void>;
   setBillingCycle: (v: BillingCycle) => void; setStep: (v: number) => void;
   sendOtp: () => Promise<void>; verifyOtp: (code?: string) => Promise<void>; saveAccountDetails: () => Promise<void>; startTrial: () => Promise<void>;
 };
 
-const initialHotel: Hotel = { hotel_name: "", contact_email: "", contact_phone: "", country: "Nigeria", city: "", address: "", room_count: "", hotel_type: "", agreed: false };
+const initialHotel: Hotel = { hotel_name: "", subdomain: "", contact_email: "", contact_phone: "", country: "Nigeria", city: "", address: "", room_count: "", hotel_type: "", agreed: false };
 const initialOtp = ["", "", "", "", "", ""];
 
 export const useHotelRegisterStore = create<State>((set, get) => ({
-  step: 0, hotel: initialHotel, account: { contact_name: "", password: "", confirm: "", whatsapp: false }, billingCycle: "monthly", loading: false, error: "", tenantId: null,
+  step: 0, hotel: initialHotel, subdomainTouched: false, account: { contact_name: "", password: "", confirm: "", whatsapp: false }, billingCycle: "monthly", loading: false, error: "", tenantId: null,
   showMissingFieldsModal: false, missingFields: [], otp: [...initialOtp], otpError: "", resendCooldown: 60, canResend: false, otpExpiry: null, accountError: "",
-  setHotelField: (field, value) => set((s) => ({ hotel: { ...s.hotel, [field]: value } as Hotel })),
+  setHotelField: (field, value) =>
+    set((s) => {
+      const hotel = { ...s.hotel, [field]: value } as Hotel;
+      // The web address follows the hotel name until the user edits it themselves.
+      if (field === "hotel_name" && !s.subdomainTouched) hotel.subdomain = slugifyStoreName(String(value));
+      return { hotel };
+    }),
+  setSubdomain: (value) => set((s) => ({ subdomainTouched: true, hotel: { ...s.hotel, subdomain: slugifyStoreName(value) } })),
   setAccountField: (field, value) => set((s) => ({ account: { ...s.account, [field]: value } as Account })),
   closeMissingFieldsModal: () => set({ showMissingFieldsModal: false }),
   setOtpDigit: (index, value) =>
@@ -47,6 +55,7 @@ export const useHotelRegisterStore = create<State>((set, get) => ({
     const h = get().hotel;
     const missing: string[] = [];
     if (!h.hotel_name.trim()) missing.push("Hotel Name");
+    if (!h.subdomain.trim()) missing.push("Hotel Web Address");
     if (!h.contact_email.trim()) missing.push("Hotel Email");
     if (!h.contact_phone) missing.push("Phone Number");
     if (!h.country) missing.push("Country");

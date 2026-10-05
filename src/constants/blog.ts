@@ -28,7 +28,7 @@ export const BLOG_POSTS: BlogPost[] = [
       },
       {
         type: "quote",
-        text: "\"We didn't hire anyone new. We just stopped asking guests for information we already had.\" — Front office manager, 44-room property, Lagos",
+        text: "\"We didn't hire anyone new. We just stopped asking guests for information we already had.\" (Front office manager, 44-room property, Lagos)",
       },
       { type: "h2", text: "The three changes that moved the needle most" },
       {
@@ -45,7 +45,7 @@ export const BLOG_POSTS: BlogPost[] = [
       },
       {
         type: "p",
-        text: "If you want a fuller, step-by-step version of this, we've put together a free front desk efficiency checklist covering all four moments — before arrival, at arrival, during the stay, and at departure — that you can download and run against your own property this week.",
+        text: "If you want a fuller, step-by-step version of this, we've put together a free front desk efficiency checklist covering all four moments (before arrival, at arrival, during the stay, and at departure) that you can download and run against your own property this week.",
       },
       { type: "resource", slug: "front-desk-efficiency-checklist" },
     ],
@@ -54,7 +54,7 @@ export const BLOG_POSTS: BlogPost[] = [
     slug: "hoteliers-guide-to-revenue-management-2026",
     title: "The Hotelier's Guide to Revenue Management in 2026",
     excerpt:
-      "ADR, RevPAR, occupancy rate — what they mean, how to improve them, and why every independent hotel should be tracking them.",
+      "ADR, RevPAR, occupancy rate: what they mean, how to improve them, and why every independent hotel should be tracking them.",
     category: "Revenue",
     readTime: "8 min",
     date: "Apr 5, 2026",
@@ -64,16 +64,16 @@ export const BLOG_POSTS: BlogPost[] = [
     body: [
       {
         type: "p",
-        text: "Revenue management has a reputation for being something only large chains do, with a dedicated analyst and a wall of dashboards. In practice, the core of it is three numbers, and any independent hotel can start tracking them this week with nothing more than a spreadsheet — though a system that calculates them for you removes the risk of doing it wrong.",
+        text: "Revenue management has a reputation for being something only large chains do, with a dedicated analyst and a wall of dashboards. In practice, the core of it is three numbers, and any independent hotel can start tracking them this week with nothing more than a spreadsheet, though a system that calculates them for you removes the risk of doing it wrong.",
       },
       { type: "h2", text: "Occupancy, ADR, and the number that ties them together" },
       {
         type: "p",
-        text: "Occupancy rate tells you how full you were. Average Daily Rate (ADR) tells you what you charged for the rooms you sold, ignoring the empty ones entirely. Neither number on its own tells the whole story — a hotel can be fully booked at a low rate, or half-empty at a high one, and land on the same revenue either way. Revenue Per Available Room (RevPAR) is what closes that gap: it's ADR multiplied by occupancy, and it's the one figure that lets you compare a slow Tuesday to a busy Saturday fairly.",
+        text: "Occupancy rate tells you how full you were. Average Daily Rate (ADR) tells you what you charged for the rooms you sold, ignoring the empty ones entirely. Neither number on its own tells the whole story. A hotel can be fully booked at a low rate, or half-empty at a high one, and land on the same revenue either way. Revenue Per Available Room (RevPAR) is what closes that gap: it's ADR multiplied by occupancy, and it's the one figure that lets you compare a slow Tuesday to a busy Saturday fairly.",
       },
       {
         type: "p",
-        text: "Once you're tracking RevPAR weekly rather than glancing at a monthly total, patterns start to show up that a single average would hide entirely — a specific weekday that consistently underperforms, or a slow, steady decline that a strong weekend was masking.",
+        text: "Once you're tracking RevPAR weekly rather than glancing at a monthly total, patterns start to show up that a single average would hide entirely: a specific weekday that consistently underperforms, or a slow, steady decline that a strong weekend was masking.",
       },
       { type: "h2", text: "Small, frequent rate moves beat one big seasonal jump" },
       {
@@ -86,11 +86,11 @@ export const BLOG_POSTS: BlogPost[] = [
       },
       {
         type: "p",
-        text: "The instinct when a week looks soft is to drop the rate. It works, but it's the most expensive lever available, because the discount applies to every room you would have sold anyway at the higher price. A minimum-stay adjustment or an added-value package — a free breakfast rather than a lower headline rate — often protects revenue better while still filling the room.",
+        text: "The instinct when a week looks soft is to drop the rate. It works, but it's the most expensive lever available, because the discount applies to every room you would have sold anyway at the higher price. A minimum-stay adjustment or an added-value package (a free breakfast rather than a lower headline rate) often protects revenue better while still filling the room.",
       },
       {
         type: "p",
-        text: "We've written a longer field guide with a full worked example — a 40-room property, one Saturday night, walked through occupancy, ADR and RevPAR step by step — if you want something to sit down with and apply directly to your own numbers.",
+        text: "We've written a longer field guide with a full worked example (a 40-room property, one Saturday night, walked through occupancy, ADR and RevPAR step by step) if you want something to sit down with and apply directly to your own numbers.",
       },
       { type: "resource", slug: "hotel-revenue-management-field-guide" },
     ],
@@ -109,7 +109,7 @@ export const BLOG_POSTS: BlogPost[] = [
     body: [
       {
         type: "p",
-        text: "Guests rarely mention the front desk in a review unless something went wrong there. That silence is deceptive — a slow, clunky check-in doesn't usually generate a complaint, it generates a guest who quietly books elsewhere next time, or books through an OTA instead of direct, because the friction of dealing with your system directly wasn't worth the saving.",
+        text: "Guests rarely mention the front desk in a review unless something went wrong there. That silence is deceptive: a slow, clunky check-in doesn't usually generate a complaint, it generates a guest who quietly books elsewhere next time, or books through an OTA instead of direct, because the friction of dealing with your system directly wasn't worth the saving.",
       },
       { type: "h2", text: "The moment that sets the tone for the whole stay" },
       {
@@ -118,12 +118,12 @@ export const BLOG_POSTS: BlogPost[] = [
       },
       {
         type: "quote",
-        text: "\"The room was lovely. Getting into it wasn't.\" — an actual line from a three-star review we came across while researching this piece.",
+        text: "\"The room was lovely. Getting into it wasn't.\" This is an actual line from a three-star review we came across while researching this piece.",
       },
       { type: "h2", text: "It compounds at checkout too" },
       {
         type: "p",
-        text: "The same friction shows up in reverse at departure — a guest who has to wait at the desk while incidental charges are reconciled by hand is leaving with that as their last memory of the stay, not the room or the staff. Express checkout, where the folio is settled automatically and emailed, removes that entirely, and it's one of the cheapest guest-experience improvements a hotel can make.",
+        text: "The same friction shows up in reverse at departure: a guest who has to wait at the desk while incidental charges are reconciled by hand is leaving with that as their last memory of the stay, not the room or the staff. Express checkout, where the folio is settled automatically and emailed, removes that entirely, and it's one of the cheapest guest-experience improvements a hotel can make.",
       },
       {
         type: "p",
@@ -146,20 +146,20 @@ export const BLOG_POSTS: BlogPost[] = [
     body: [
       {
         type: "p",
-        text: "Most of the hotels we talk to already use Paystack for something — a website deposit form, an invoice link, or a card machine at the desk. Far fewer have it properly wired into the front desk itself, which means someone is manually copying a payment reference from one system into another, or worse, trusting that two separate totals happen to agree at month-end.",
+        text: "Most of the hotels we talk to already use Paystack for something, whether that's a website deposit form, an invoice link, or a card machine at the desk. Far fewer have it properly wired into the front desk itself, which means someone is manually copying a payment reference from one system into another, or worse, trusting that two separate totals happen to agree at month-end.",
       },
       { type: "h2", text: "What 'properly integrated' actually means" },
       {
         type: "p",
-        text: "A genuine integration means a payment taken against a guest's folio posts there directly — no manual entry, no separate export to reconcile later. It means a refund processed through Paystack updates the folio the same day, not whenever someone remembers to check. And it means your finance team can pull a settlement report and match it against your booking system's totals in minutes, not hours.",
+        text: "A genuine integration means a payment taken against a guest's folio posts there directly, with no manual entry and no separate export to reconcile later. It means a refund processed through Paystack updates the folio the same day, not whenever someone remembers to check. And it means your finance team can pull a settlement report and match it against your booking system's totals in minutes, not hours.",
       },
       { type: "h2", text: "The three kinds of mismatch you'll actually see" },
       {
         type: "list",
         items: [
-          "Timing differences — a payment taken late on a Sunday settles on Tuesday, so it's in one week's folio total and the next week's settlement. Not an error, just a timing gap.",
-          "Fee differences — Paystack's percentage fee is deducted before settlement, so a folio showing the gross amount won't match a settlement showing net, until you reconcile against gross and check the fee separately.",
-          "Genuine mismatches — a refund processed in Paystack but never applied to the folio, or a payment posted to the wrong room. This is the only category that actually needs investigating.",
+          "Timing differences: a payment taken late on a Sunday settles on Tuesday, so it's in one week's folio total and the next week's settlement. Not an error, just a timing gap.",
+          "Fee differences: Paystack's percentage fee is deducted before settlement, so a folio showing the gross amount won't match a settlement showing net, until you reconcile against gross and check the fee separately.",
+          "Genuine mismatches: a refund processed in Paystack but never applied to the folio, or a payment posted to the wrong room. This is the only category that actually needs investigating.",
         ],
       },
       {
@@ -187,7 +187,7 @@ export const BLOG_POSTS: BlogPost[] = [
     body: [
       {
         type: "p",
-        text: "Front desk software gets most of the attention in hotel technology conversations, but housekeeping is where a huge amount of quiet inefficiency actually lives. A paper log or a shared spreadsheet means a room's real-time status — dirty, in progress, inspected, ready — is only ever as current as the last time someone walked to the office to update it.",
+        text: "Front desk software gets most of the attention in hotel technology conversations, but housekeeping is where a huge amount of quiet inefficiency actually lives. A paper log or a shared spreadsheet means a room's real-time status (dirty, in progress, inspected, ready) is only ever as current as the last time someone walked to the office to update it.",
       },
       { type: "h2", text: "The gap between 'clean' and 'known to be clean'" },
       {
@@ -205,7 +205,7 @@ export const BLOG_POSTS: BlogPost[] = [
       },
       {
         type: "p",
-        text: "This doesn't require handing every housekeeper a tablet, though some properties do exactly that. Even a simple status update from a shared device at the end of each corridor closes most of the gap. The point isn't the hardware — it's making sure the front desk and housekeeping are looking at the same, current information instead of two versions of it that are minutes or hours apart.",
+        text: "This doesn't require handing every housekeeper a tablet, though some properties do exactly that. Even a simple status update from a shared device at the end of each corridor closes most of the gap. The point isn't the hardware. It's making sure the front desk and housekeeping are looking at the same, current information instead of two versions of it that are minutes or hours apart.",
       },
     ],
   },
@@ -223,24 +223,24 @@ export const BLOG_POSTS: BlogPost[] = [
     body: [
       {
         type: "p",
-        text: "A lot of loyalty programme thinking is borrowed wholesale from global airline and hotel-chain models — points, tiers, a members' lounge. For an independent hotel or a small group, that model doesn't map well: the guest isn't flying forty segments a year with you, they might be staying three or four nights across an entire year. The mechanics need to fit the actual pattern of how people book.",
+        text: "A lot of loyalty programme thinking is borrowed wholesale from global airline and hotel-chain models: points, tiers, a members' lounge. For an independent hotel or a small group, that model doesn't map well: the guest isn't flying forty segments a year with you, they might be staying three or four nights across an entire year. The mechanics need to fit the actual pattern of how people book.",
       },
       { type: "h2", text: "What actually drives a second booking" },
       {
         type: "p",
-        text: "In conversations with guests across the properties we work with, the reasons for coming back rarely mentioned a points balance. They mentioned being remembered — a returning guest recognised at check-in, a preference noted from last time, a small gesture that acknowledged this wasn't their first stay. Loyalty, in this market, tends to be relational before it's transactional.",
+        text: "In conversations with guests across the properties we work with, the reasons for coming back rarely mentioned a points balance. They mentioned being remembered: a returning guest recognised at check-in, a preference noted from last time, a small gesture that acknowledged this wasn't their first stay. Loyalty, in this market, tends to be relational before it's transactional.",
       },
       {
         type: "quote",
-        text: "\"I don't need a discount. I need them to remember I don't take the room near the lift.\" — guest feedback shared with us by a partner hotel",
+        text: "\"I don't need a discount. I need them to remember I don't take the room near the lift.\" This is guest feedback shared with us by a partner hotel.",
       },
       { type: "h2", text: "A simpler model that fits" },
       {
         type: "list",
         items: [
-          "Recognise a returning guest at the point of booking, not just at check-in — a small note or acknowledgement goes further than a generic discount.",
+          "Recognise a returning guest at the point of booking, not just at check-in. A small note or acknowledgement goes further than a generic discount.",
           "Keep genuine preferences on file (room location, dietary needs) and act on them without being asked twice.",
-          "Reward direct bookings specifically — a modest, simple perk for booking without a third party, rather than a complex points system few guests will ever redeem.",
+          "Reward direct bookings specifically: a modest, simple perk for booking without a third party, rather than a complex points system few guests will ever redeem.",
         ],
       },
       {

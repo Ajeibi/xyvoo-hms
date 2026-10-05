@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getStoreTenantBySlug } from "@/lib/store/tenants";
@@ -65,7 +66,10 @@ function loggedOutContext(slug: string): StoreAccessContext {
  * tier for now (any store.memberships row grants full dashboard access) --
  * see /storefront module status for the staff/role-scoping follow-up.
  */
-export async function getStoreAccessContext(slug: string): Promise<StoreAccessContext> {
+/** Cached per request, so nested layouts and pages share one lookup. */
+export const getStoreAccessContext = cache(loadStoreAccessContext);
+
+async function loadStoreAccessContext(slug: string): Promise<StoreAccessContext> {
   const auth = await createSupabaseAuthServerClient();
   const {
     data: { user },

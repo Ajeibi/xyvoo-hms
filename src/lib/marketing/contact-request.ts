@@ -33,7 +33,7 @@ export const contactRequestSchema = z
   })
   .superRefine((value, ctx) => {
     if (value.type === "support" && !value.company) {
-      ctx.addIssue({ code: "custom", path: ["company"], message: "Please enter your hotel or storefront name." });
+      ctx.addIssue({ code: "custom", path: ["company"], message: "Please enter your hotel or store name." });
     }
   });
 

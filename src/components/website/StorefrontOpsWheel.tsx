@@ -44,7 +44,7 @@ const SEGMENTS: Segment[] = [
       </>
     ),
     descText:
-      "A ready-to-use storefront on your own subdomain — your logo, your colours, your identity.",
+      "A ready-to-use storefront on your own subdomain, with your logo, your colours, your identity.",
   },
   {
     key: "catalog",
@@ -126,7 +126,7 @@ const SEGMENTS: Segment[] = [
       </>
     ),
     descText:
-      "Paystack-ready checkout — card, transfer and USSD, with room to add more.",
+      "Paystack-ready checkout with card, transfer and USSD, and room to add more.",
   },
   {
     key: "marketing",
@@ -152,7 +152,7 @@ const SEGMENTS: Segment[] = [
       </>
     ),
     descText:
-      "SEO, discount codes and email campaigns — built in, not bolted on.",
+      "SEO, discount codes and email campaigns, built in, not bolted on.",
   },
   {
     key: "team",

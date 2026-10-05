@@ -5,7 +5,7 @@ export const RESOURCES: Resource[] = [
     slug: "front-desk-efficiency-checklist",
     title: "The Front Desk Efficiency Checklist",
     summary:
-      "A practical, print-and-use checklist for cutting check-in and check-out time without cutting corners — arranged by the four moments that actually cause delay.",
+      "A practical, print-and-use checklist for cutting check-in and check-out time without cutting corners, arranged by the four moments that actually cause delay.",
     category: "Operations",
     file: "front-desk-efficiency-checklist.pdf",
     pages: 14,
@@ -57,7 +57,7 @@ export const RESOURCES: Resource[] = [
     slug: "storefront-launch-checklist",
     title: "The Storefront Launch Checklist",
     summary:
-      "Everything to get right before you open your online storefront to real customers — in the order it actually matters, not the order it's easiest to do.",
+      "Everything to get right before you open your online storefront to real customers, in the order it actually matters, not the order it's easiest to do.",
     category: "Storefront",
     file: "storefront-launch-checklist.pdf",
     pages: 12,

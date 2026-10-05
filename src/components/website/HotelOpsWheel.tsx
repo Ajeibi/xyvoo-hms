@@ -70,7 +70,7 @@ const SEGMENTS: Segment[] = [
     label: "Food & Beverage",
     descTitle: "Food & Beverage",
     descText:
-      "Restaurants, bars and in-room dining — from menus and stock to service on the floor.",
+      "Restaurants, bars and in-room dining, from menus and stock to service on the floor.",
   },
   {
     key: "finance",
@@ -87,7 +87,7 @@ const SEGMENTS: Segment[] = [
     label: "Finance",
     descTitle: "Finance",
     descText:
-      "Revenue, expenses and invoicing — the numbers that keep the property financially healthy.",
+      "Revenue, expenses and invoicing: the numbers that keep the property financially healthy.",
   },
   {
     key: "reservations-booking",
@@ -209,7 +209,7 @@ const SEGMENTS: Segment[] = [
     label: "Accounts",
     descTitle: "Accounts",
     descText:
-      "Chart of accounts, vendor bills, customer invoices and night audit — the ledger behind every folio.",
+      "Chart of accounts, vendor bills, customer invoices and night audit: the ledger behind every folio.",
   },
   {
     key: "channel-management",

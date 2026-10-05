@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { getTenantIdByPaystackReference, getTenantPaystackSetup } from "@/lib/shop/tenants";
+import { getPaystackKeyForReference } from "@/lib/store/payments";
 import { toSubunitAmount } from "@/lib/shop/checkout";
 import { verifyTransaction } from "@/lib/shop/paystack";
 
@@ -17,11 +17,10 @@ export async function GET(req: Request) {
   const reference = searchParams.get("reference") || "";
   if (!reference) return NextResponse.json({ error: "Missing payment reference." }, { status: 400 });
 
-  const tenantId = await getTenantIdByPaystackReference(reference);
-  if (!tenantId) return NextResponse.json({ error: "Payment reference not found." }, { status: 404 });
-
-  const paystack = await getTenantPaystackSetup(tenantId);
-  if (!paystack) return NextResponse.json({ error: "This store's payment setup is unavailable." }, { status: 400 });
+  // Which account the payment ran on (XYVOO's for split payments, the store's
+  // own otherwise) comes from our own records, never from the request.
+  const paystack = await getPaystackKeyForReference(reference);
+  if (!paystack) return NextResponse.json({ error: "Payment reference not found." }, { status: 404 });
 
   const service = createServerSupabaseClient();
 

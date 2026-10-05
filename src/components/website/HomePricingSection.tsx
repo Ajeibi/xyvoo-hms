@@ -94,12 +94,12 @@ export function HomePricingSection({
       {standalonePage && (
         <DarkSplitHero
           eyebrow="Pricing"
-          title="Simple plans that scale with your business"
+          title="Plans That Grow With You"
           titleId="home-pricing-heading"
-          subtitle="Start free, grow at your pace, and move to advanced support only when you need it. No hidden lock-ins."
+          subtitle="Start free and scale when you're ready. Upgrade when you need more, with no hidden lock-ins."
           links={[
-            { title: "XYVOO HMS", description: "Front desk, housekeeping, F&B, billing and reporting — one system, fully under your brand.", actionLabel: "Explore HMS", href: "/solution/hms" },
-            { title: "XYVOO Storefront", description: "Catalogue, checkout and fulfilment — live in minutes, fully under your brand.", actionLabel: "Explore Storefront", href: "/solution/storefront" },
+            { title: "XYVOO HMS", description: "Front desk, housekeeping, F&B, billing and reporting in one system, fully under your brand.", actionLabel: "Explore HMS", href: "/solution/hms" },
+            { title: "XYVOO Storefront", description: "Catalogue, checkout and fulfilment, live in minutes and fully under your brand.", actionLabel: "Explore Storefront", href: "/solution/storefront" },
             { title: "Talk to sales", description: "Running several properties or need something bespoke? Let's talk it through.", actionLabel: "Contact us", href: "/contact" },
           ]}
         />
@@ -116,7 +116,7 @@ export function HomePricingSection({
             <div className="mx-auto max-w-[1200px] text-center">
               <SectionEyebrow
                 eyebrow="Pricing"
-                title="Simple plans that scale with your business"
+                title="Plans That Grow With You"
                 titleId="home-pricing-heading"
                 titleClassName="text-h3 font-extrabold leading-[1.12]"
                 className="[&>h3]:[color:var(--xyvoo-products-navy-alt)] [&>p]:[color:var(--xyvoo-blue)]"
@@ -125,8 +125,8 @@ export function HomePricingSection({
                 className="mx-auto mt-5 max-w-[720px] text-[16px] leading-[1.75]"
                 style={{ color: "var(--xyvoo-navy-muted-text)" }}
               >
-                Start free, grow at your pace, and move to advanced support only when
-                you need it. No hidden lock-ins.
+                Start free and scale when you&apos;re ready. Upgrade when you need
+                more, with no hidden lock-ins.
               </p>
             </div>
           </FadeIn>
