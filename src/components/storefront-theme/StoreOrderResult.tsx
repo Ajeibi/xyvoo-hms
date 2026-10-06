@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useCartStore } from "@/components/shop/CartProvider";
 import { formatShopCurrency } from "@/lib/shop/format";
+import { clearCheckoutToken } from "@/lib/store/analytics-client";
 import { STORE_PATHS } from "@/lib/store/site/links";
 import { useStorefront } from "./StorefrontProvider";
 import { Icon } from "./primitives";
@@ -34,7 +35,10 @@ export default function StoreOrderResult({ reference }: { reference: string }) {
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || "We couldn't confirm your payment.");
         setResult(data);
-        if (data.status === "success") clearCart();
+        if (data.status === "success") {
+          clearCart();
+          clearCheckoutToken(slug);
+        }
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Something went wrong."));
   }, [slug, reference, clearCart]);

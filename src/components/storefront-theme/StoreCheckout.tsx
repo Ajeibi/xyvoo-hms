@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useCartStore } from "@/components/shop/CartProvider";
+import { analyticsSessionId, checkoutToken, track } from "@/lib/store/analytics-client";
 import { calculateCartTotals, cartLineKey } from "@/lib/shop/cart";
 import { formatShopCurrency } from "@/lib/shop/format";
 import { STORE_PATHS } from "@/lib/store/site/links";
@@ -64,6 +65,45 @@ export default function StoreCheckout({
     return fee === 0 ? "Free" : formatShopCurrency(fee, currency);
   };
 
+  // Analytics (only sent with the shopper's consent) and the abandoned-cart save.
+  const started = useRef(false);
+  const detailsTracked = useRef(false);
+  const saveTimer = useRef<number | null>(null);
+  useEffect(() => {
+    if (!hasHydrated || lines.length === 0 || started.current) return;
+    started.current = true;
+    track({ type: "checkout_started", value: subtotal });
+  }, [hasHydrated, lines.length, subtotal]);
+
+  /** Saves the basket and contact details once there's a valid email or phone, so the shop can follow up if the shopper doesn't finish. */
+  const saveCheckout = (form: HTMLFormElement) => {
+    if (saveTimer.current !== null) window.clearTimeout(saveTimer.current);
+    saveTimer.current = window.setTimeout(() => {
+      const data = new FormData(form);
+      const get = (n: FieldName) => String(data.get(n) ?? "").trim();
+      const email = EMAIL_PATTERN.test(get("email")) ? get("email") : "";
+      const phone = get("phone").replace(/\D/g, "").length >= 7 ? get("phone") : "";
+      if (!email && !phone) return;
+      fetch(`/api/shop/${encodeURIComponent(slug)}/checkout-session`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token: checkoutToken(slug),
+          sessionId: analyticsSessionId(slug),
+          name: get("name") || undefined,
+          email: email || undefined,
+          phone: phone || undefined,
+          items: lines.map((l) => ({ productId: l.productId, variantId: l.variantId, quantity: l.quantity })),
+        }),
+        keepalive: true,
+      }).catch(() => undefined);
+      if (!detailsTracked.current) {
+        detailsTracked.current = true;
+        track({ type: "checkout_details", value: subtotal });
+      }
+    }, 400);
+  };
+
   const field = (name: FieldName) => ({
     id: `co-${name}`,
     name,
@@ -111,6 +151,7 @@ export default function StoreCheckout({
             : { country: countryCode },
           items: lines.map((l) => ({ productId: l.productId, variantId: l.variantId, quantity: l.quantity })),
           deliveryZoneId: zone?.id ?? null,
+          checkoutToken: checkoutToken(slug),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -119,6 +160,7 @@ export default function StoreCheckout({
         setSubmitting(false);
         return;
       }
+      track({ type: "payment_started", value: total });
       // The basket is kept until payment is confirmed, so an abandoned payment can be retried.
       window.location.assign(data.authorizationUrl);
     } catch {
@@ -150,7 +192,17 @@ export default function StoreCheckout({
 
   return (
     <div className="checkout-layout">
-      <form className="contact-form" onSubmit={submit} noValidate aria-label="Checkout">
+      <form
+        className="contact-form"
+        onSubmit={submit}
+        noValidate
+        aria-label="Checkout"
+        // Leaving the email, phone or name field saves the checkout for abandoned-cart follow-up.
+        onBlur={(e) => {
+          const target = e.target as EventTarget & { name?: string };
+          if (target.name === "email" || target.name === "phone" || target.name === "name") saveCheckout(e.currentTarget);
+        }}
+      >
         <p className="body-copy">All fields are required unless marked optional.</p>
 
         <section className="checkout-step" aria-labelledby="step-contact">
@@ -168,7 +220,10 @@ export default function StoreCheckout({
           <div className="field">
             <label htmlFor="co-email">Email address</label>
             <input className="input" type="email" autoComplete="email" inputMode="email" {...field("email")} />
-            <p className="hint">So the shop can contact you about your order.</p>
+            <p className="hint">
+              So the shop can contact you about your order. Your details and basket are saved as you type, so the shop can help if you don&rsquo;t
+              finish.
+            </p>
             {errorFor("email")}
           </div>
           <div className="field">

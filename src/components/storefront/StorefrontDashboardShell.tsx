@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CreditCard, ExternalLink, Globe, Layers, LayoutDashboard, LogOut, Package, Palette, Settings, ShoppingCart, Truck } from "lucide-react";
+import { BarChart3, Bell, CreditCard, ExternalLink, Globe, Layers, LayoutDashboard, LogOut, Package, Palette, Settings, ShoppingBasket, ShoppingCart, Truck, Users } from "lucide-react";
 
 type StorefrontDashboardShellProps = {
   children: React.ReactNode;
@@ -29,8 +29,12 @@ export default function StorefrontDashboardShell({
     { key: "products", label: "Products", path: `${base}/products`, icon: Package },
     { key: "collections", label: "Collections", path: `${base}/collections`, icon: Layers },
     { key: "orders", label: "Orders", path: `${base}/orders`, icon: ShoppingCart },
+    { key: "analytics", label: "Analytics", path: `${base}/analytics`, icon: BarChart3 },
+    { key: "abandoned-carts", label: "Abandoned carts", path: `${base}/abandoned-carts`, icon: ShoppingBasket },
+    { key: "customers", label: "Customers", path: `${base}/customers`, icon: Users },
     { key: "website", label: "Website", path: `${base}/website`, icon: Palette },
     { key: "domain", label: "Web address", path: `${base}/domain`, icon: Globe },
+    { key: "notifications", label: "Notifications", path: `${base}/notifications`, icon: Bell },
     { key: "delivery", label: "Delivery", path: `${base}/delivery`, icon: Truck },
     { key: "payments", label: "Payments", path: `${base}/payments`, icon: CreditCard },
     { key: "settings", label: "Settings", path: `${base}/settings`, icon: Settings },

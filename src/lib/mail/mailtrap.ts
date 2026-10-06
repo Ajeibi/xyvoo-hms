@@ -1,6 +1,6 @@
 import nodemailer from "nodemailer";
 import { getMailEnv } from "@/lib/env";
-import { badge, escapeHtml, logoAttachment, renderEmail } from "@/lib/mail/layout";
+import { badge, detailsPanel, escapeHtml, logoAttachment, renderEmail } from "@/lib/mail/layout";
 
 const mailEnv = getMailEnv();
 
@@ -135,6 +135,75 @@ export async function sendAccountCodeEmail({
       </div>
       <p style="margin:0;color:#64748b;font-size:14px;line-height:1.6">${escapeHtml(copy.ignore)}</p>`,
       footerNote: "You're receiving this because this address is linked to a XYVOO account.",
+    }),
+    attachments: [logoAttachment()],
+  });
+}
+
+/**
+ * Sent once, when a new shop owner confirms their email. It deliberately never
+ * includes the password: it gives the sign-in address and links instead, with a
+ * way to reset the password if they forget it.
+ */
+export async function sendStoreWelcomeEmail({
+  to,
+  name,
+  storeName,
+  dashboardUrl,
+  shopUrl,
+  signInUrl,
+  resetPasswordUrl,
+}: {
+  to: string;
+  name: string | null;
+  storeName: string;
+  dashboardUrl: string;
+  shopUrl: string;
+  signInUrl: string;
+  resetPasswordUrl: string;
+}) {
+  const greeting = name ? `Hello ${name}, ` : "Hello, ";
+  const intro = `${greeting}your shop ${storeName} is set up on XYVOO. Here's everything you need to come back to it.`;
+  await transporter.sendMail({
+    from: mailEnv.from,
+    to,
+    subject: `Welcome to XYVOO: ${storeName} is ready to set up`,
+    text: [
+      intro,
+      "",
+      `Shop name: ${storeName}`,
+      `Sign in with: ${to}`,
+      `Your dashboard: ${dashboardUrl}`,
+      `Your shop's web address: ${shopUrl} (customers can see it once you publish)`,
+      "",
+      `Sign in at ${signInUrl}. Forgotten your password? Reset it at ${resetPasswordUrl}`,
+      "",
+      "Next steps: add your first product, add your payout account, then publish your shop.",
+      "We'll never ask for your password by email.",
+    ].join("\n"),
+    html: renderEmail({
+      preheader: `${storeName} is set up. Your dashboard link and sign-in details are inside.`,
+      badges: [badge("Welcome", "green")],
+      title: `Welcome to XYVOO`,
+      intro,
+      body: `${detailsPanel([
+        { label: "Shop name", value: storeName },
+        { label: "Sign in with", value: to },
+        { label: "Your dashboard", value: dashboardUrl.replace(/^https?:\/\//, ""), href: dashboardUrl },
+        { label: "Your shop's web address", value: shopUrl.replace(/^https?:\/\//, ""), href: shopUrl },
+      ])}
+      <p style="margin:20px 0 8px;color:#1e293b;font-size:15px;font-weight:700">Next steps</p>
+      <ol style="margin:0 0 16px;padding-left:20px;color:#1e293b;font-size:15px;line-height:1.7">
+        <li>Add your first product.</li>
+        <li>Add your payout account, so you get paid.</li>
+        <li>Publish your shop. Until then, only you can see it.</li>
+      </ol>
+      <p style="margin:0;color:#64748b;font-size:14px;line-height:1.6">Forgotten your password? <a href="${escapeHtml(resetPasswordUrl)}" style="color:#007edf">Reset it here</a>. We'll never ask for your password by email.</p>`,
+      buttons: [
+        { label: "Go to my dashboard", href: dashboardUrl },
+        { label: "Sign in", href: signInUrl, variant: "secondary" },
+      ],
+      footerNote: "You're receiving this because you created a shop on XYVOO with this address.",
     }),
     attachments: [logoAttachment()],
   });

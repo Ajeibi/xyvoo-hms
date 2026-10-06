@@ -2,10 +2,12 @@ import Link from "next/link";
 import { menuItemPath, storeHref } from "@/lib/store/site/links";
 import type { Storefront } from "@/lib/store/site/storefront";
 import { Icon } from "./primitives";
+import StoreApp, { type StoreAppConfig } from "./StoreApp";
+import { CookieSettingsButton } from "./StoreAnalytics";
 import { storeSocialLinks } from "./socials";
 import { StoreLogo } from "./StoreHeader";
 
-export default function StoreFooter({ storefront, showMark }: { storefront: Storefront; showMark: boolean }) {
+export default function StoreFooter({ storefront, showMark, appConfig = null }: { storefront: Storefront; showMark: boolean; appConfig?: StoreAppConfig | null }) {
   const { site, storeName, basePath } = storefront;
   const socials = storeSocialLinks(storefront);
 
@@ -44,8 +46,10 @@ export default function StoreFooter({ storefront, showMark }: { storefront: Stor
             </nav>
           ))}
         </div>
+        {appConfig ? <StoreApp config={appConfig} variant="footer" /> : null}
         <div className="footer-bottom">
           <p>{site.content.copyright}</p>
+          {appConfig ? <CookieSettingsButton /> : null}
         </div>
       </div>
     </footer>

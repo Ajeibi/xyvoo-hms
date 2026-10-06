@@ -1,5 +1,6 @@
 "use client";
 
+import { TrackProductView } from "./StoreAnalytics";
 import { useState } from "react";
 import Link from "next/link";
 import { useCartStore } from "@/components/shop/CartProvider";
@@ -77,6 +78,7 @@ export default function ProductDetail({ product, details }: { product: ShopProdu
 
   return (
     <div className="pdp">
+      <TrackProductView productId={product.id} />
       <div className="pdp__gallery">
         <div className="media gallery-main tone-4">
           {shownImage ? (

@@ -8,6 +8,7 @@ import { deliveryFeeFor, mapDeliveryZone, type DeliveryZoneRow } from "@/lib/sto
 import { mapOrderErrorMessage, resolveCartCurrency, toSubunitAmount } from "@/lib/shop/checkout";
 import { initializeTransaction } from "@/lib/shop/paystack";
 import { getStoreSlugFromHost } from "@/lib/store/subdomain";
+import { linkCheckoutToOrder } from "@/lib/store/checkouts";
 
 const CheckoutSchema = z.object({
   customer: z.object({
@@ -36,6 +37,8 @@ const CheckoutSchema = z.object({
     .min(1, "Your cart is empty."),
   /** One of the store's active delivery options; required when the store has any. */
   deliveryZoneId: z.string().uuid().nullable().optional(),
+  /** The checkout saved while the shopper typed (abandoned-cart follow-up), if any. */
+  checkoutToken: z.string().optional(),
 });
 
 export async function POST(req: Request, { params }: { params: Promise<{ slug: string }> }) {
@@ -54,7 +57,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     return NextResponse.json({ error: parsed.error.issues[0]?.message || "Invalid checkout details." }, { status: 400 });
   }
 
-  const { customer, shippingAddress, items, deliveryZoneId } = parsed.data;
+  const { customer, shippingAddress, items, deliveryZoneId, checkoutToken } = parsed.data;
   const service = createServerSupabaseClient();
 
   // Delivery: the option must be one of this store's active ones, looked up
@@ -132,6 +135,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
       return NextResponse.json({ error: "We couldn't add delivery to your order. Please try again." }, { status: 500 });
     }
   }
+
+  if (checkoutToken) await linkCheckoutToOrder(tenant.id, checkoutToken, order.id).catch(() => undefined);
 
   const origin = new URL(req.url).origin;
   const reference = order.id;

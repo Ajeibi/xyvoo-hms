@@ -69,3 +69,6 @@ supabase/.temp/
 /design/
 /*.pdf
 /*.docx
+
+# Local QA scripts
+/.claude/tmp/

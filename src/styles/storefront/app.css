@@ -72,3 +72,38 @@
 .unknown-store__primary:hover { background: #1e40af; }
 .unknown-store__secondary { color: #1d4ed8; text-decoration: underline !important; text-underline-offset: 0.2em; }
 .unknown-store a:focus-visible { outline: 3px solid #1d4ed8; outline-offset: 3px; }
+
+/* Store app: "Get the app" and notifications (StoreApp.tsx). The prompt is fixed-position, so it never shifts the page. */
+.store-app { display: grid; gap: 0.5rem; }
+.store-app__title { margin: 0; font-family: var(--font-display); font-weight: var(--display-weight); font-size: 1.0625rem; }
+.store-app p { margin: 0; }
+.store-app__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 0.25rem; }
+.store-app__note { font-size: 0.875rem; color: var(--muted); }
+.store-app__note:empty { display: none; }
+.store-app__steps { margin: 0.25rem 0 0; padding-left: 1.25rem; font-size: 0.9375rem; line-height: 1.6; }
+.store-app__dismiss { background: none; border: 0; padding: 0.5rem; font: inherit; font-size: 0.875rem; color: var(--ink); text-decoration: underline; text-underline-offset: 0.2em; cursor: pointer; min-height: 2.75rem; }
+.store-app--footer { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid color-mix(in srgb, currentColor 20%, transparent); }
+.store-app--footer .store-app__note { color: inherit; opacity: 0.85; }
+.store-app--footer .btn--outline { border-color: currentColor; color: inherit; }
+.store-app--prompt {
+  position: fixed; z-index: 60; left: 1rem; right: 1rem; bottom: 1rem; max-width: 24rem; margin-left: auto;
+  padding: 1rem 1.125rem; background: var(--surface); color: var(--ink); border-radius: var(--card-radius, 0.75rem);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18); animation: store-app-in 0.25s ease-out;
+}
+@keyframes store-app-in { from { opacity: 0; transform: translateY(0.5rem); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .store-app--prompt { animation: none; } }
+.store-app button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+/* Cookie banner (StoreAnalytics.tsx): fixed, so it never moves the page; Accept and Reject are equally easy. */
+.cookie-banner {
+  position: fixed; z-index: 70; left: 1rem; right: 1rem; bottom: 1rem; max-width: 34rem;
+  display: grid; gap: 0.625rem; padding: 1.125rem 1.25rem;
+  background: var(--surface); color: var(--ink); border-radius: var(--card-radius, 0.75rem);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2); font-size: 0.9375rem; line-height: 1.55;
+}
+.cookie-banner__title { margin: 0; font-family: var(--font-display); font-weight: var(--display-weight); font-size: 1.0625rem; }
+.cookie-banner p { margin: 0; }
+.cookie-banner a { color: inherit; text-decoration: underline; text-underline-offset: 0.2em; }
+.cookie-banner__actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.cookie-banner button:focus-visible, .cookie-settings-link:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.cookie-settings-link { background: none; border: 0; padding: 0.5rem 0; min-height: 2.75rem; font: inherit; color: inherit; text-decoration: underline; text-underline-offset: 0.2em; cursor: pointer; }
