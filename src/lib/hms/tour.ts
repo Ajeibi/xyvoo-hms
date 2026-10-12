@@ -1,14 +1,11 @@
-import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
+import { createSupabaseAuthServerClient, getSessionUser } from "@/lib/supabase/auth-server";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
 import type { HotelDashboardTourStatus, HotelProfileTourStatusRow } from "@/types";
 
 export async function getDashboardTourStatus(slug: string): Promise<HotelDashboardTourStatus> {
-  const auth = await createSupabaseAuthServerClient();
-  const {
-    data: { user },
-  } = await auth.auth.getUser();
-
+  const user = await getSessionUser();
   if (!user) return "pending";
+  const auth = await createSupabaseAuthServerClient();
 
   const tenant = await getHotelTenantBySlug(slug);
   if (!tenant) return "pending";

@@ -32,8 +32,15 @@ export async function POST(req: Request) {
   const parsed = CompleteSchema.safeParse(body);
 
   if (!parsed.success) {
+    const errors = parsed.error.issues.map((i) => ({
+      field: String(i.path[0]),
+      message: i.message,
+    }));
     return NextResponse.json(
-      { error: parsed.error.issues[0]?.message || "Invalid store details." },
+      {
+        error: parsed.error.issues[0]?.message || "Invalid store details.",
+        errors,
+      },
       { status: 400 },
     );
   }
@@ -49,7 +56,13 @@ export async function POST(req: Request) {
     .maybeSingle();
 
   if (existingTenant) {
-    return NextResponse.json({ error: "That storefront address is already taken." }, { status: 409 });
+    return NextResponse.json(
+      {
+        error: "That storefront address is already taken.",
+        errors: [{ field: "slug", message: "That storefront address is already taken. Please choose another." }],
+      },
+      { status: 409 },
+    );
   }
 
   const { data: tenant, error: tenantError } = await service

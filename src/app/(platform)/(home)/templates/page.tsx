@@ -18,7 +18,7 @@ const HERO_GRID_STYLE: CSSProperties = {
 function TemplateCard({ template }: { template: WebsiteTemplate }) {
   return (
     <article className="flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <TemplateThumbnail src={`${template.previewPath}/index.html`} title={`${template.name} home page`} />
+      <TemplateThumbnail slug={template.slug} sizes="(min-width: 1024px) 600px, 100vw" />
       <div className="flex flex-1 flex-col gap-4 p-6 md:p-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-xyvoo-navy/60">{template.industry}</p>

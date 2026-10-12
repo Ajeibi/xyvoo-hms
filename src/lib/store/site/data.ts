@@ -55,6 +55,12 @@ export async function getStoreSite(tenantId: string): Promise<StoreSiteRecord | 
   return data ? mapSite(data as SiteRow) : null;
 }
 
+/** Whether the shop has been published and is open to the public (the same test the storefront uses). */
+export async function isShopLive(tenantId: string) {
+  const { data } = await storeDb().from("sites").select("status, published").eq("tenant_id", tenantId).maybeSingle();
+  return data?.status === "live" && data.published != null;
+}
+
 /**
  * Replaces the given top-level sections of the draft (theme, brand, sections,
  * navigation, content, seo); sections not passed are left as they are.

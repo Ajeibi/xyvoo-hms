@@ -107,3 +107,89 @@
 .cookie-banner__actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .cookie-banner button:focus-visible, .cookie-settings-link:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .cookie-settings-link { background: none; border: 0; padding: 0.5rem 0; min-height: 2.75rem; font: inherit; color: inherit; text-decoration: underline; text-underline-offset: 0.2em; cursor: pointer; }
+
+/* Order received page (offline orders). */
+.order-received__bank { display: grid; grid-template-columns: max-content 1fr; gap: 0.375rem 1.25rem; margin: 0.75rem 0 1rem; font-size: 1rem; }
+.order-received__bank dt { color: var(--muted); }
+.order-received__bank dd { margin: 0; }
+.order-received__items { list-style: none; margin: 0.75rem 0 0; padding: 0; max-width: 34rem; }
+.order-received__items li { display: flex; justify-content: space-between; gap: 1rem; padding: 0.625rem 0; border-bottom: 1px solid var(--line); }
+.order-received__total { font-weight: 700; border-bottom: 0 !important; }
+.radio-card .hint { display: block; margin-top: 0.25rem; font-weight: 400; }
+
+/* Currency switcher in the header: a compact native select, 44px tall for touch. */
+.currency-switch select {
+  min-height: 2.75rem; padding: 0 1.75rem 0 0.625rem; border: 1px solid var(--line-strong); border-radius: 999px;
+  background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23555' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 0.625rem center;
+  appearance: none; color: inherit; font: inherit; font-size: 0.875rem; font-weight: 600; cursor: pointer;
+}
+.currency-switch select:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.currency-switch { margin-right: 0.25rem; }
+
+/* Under basket and checkout totals when prices are shown in another currency. */
+.charge-note { margin: 0.75rem 0 0; font-size: 0.875rem; line-height: 1.5; color: var(--muted); }
+
+/* Brand icons from react-icons are filled shapes, unlike the template's outline sprite. */
+.icon--brand { fill: currentColor; stroke: none; }
+
+/* Under the checkout total when a free delivery rule applies. */
+.free-delivery-note { display: flex; align-items: center; gap: 0.375rem; margin: 0.75rem 0 0; font-size: 0.875rem; font-weight: 600; color: var(--ink); }
+
+/* A site's own icon, saved by us, for social links we have no logo for. */
+.icon--favicon { object-fit: contain; border-radius: 3px; }
+
+/* Checkout: discount code */
+.discount-code { display: grid; gap: 0.5rem; }
+.discount-code label { font-weight: 600; color: var(--ink); }
+.discount-code .hint:empty { display: none; }
+.discount-code__applied { display: flex; flex-wrap: wrap; align-items: center; gap: 0.375rem; margin: 0; font-size: 0.875rem; color: var(--ink); }
+.link-button { padding: 0; border: 0; background: none; color: var(--accent); font: inherit; text-decoration: underline; cursor: pointer; }
+.link-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Sale prices: when the sale ends, under the price */
+.sale-ends { display: block; margin-top: 0.125rem; font-size: 0.8125rem; font-weight: 600; color: var(--accent); }
+.pdp__price .sale-ends { font-size: 0.875rem; }
+
+/* Checkout: tax and delivery areas */
+.tax-note { margin: 0.5rem 0 0; font-size: 0.875rem; color: var(--muted); }
+.delivery-note { margin: 0 0 0.75rem; font-size: 0.875rem; color: var(--muted); }
+.delivery-note--warn { color: var(--ink); font-weight: 600; }
+.price-change { margin: 0 0 0.75rem; padding: 0.75rem; border-radius: 0.5rem; background: color-mix(in srgb, var(--accent) 8%, transparent); font-size: 0.875rem; color: var(--ink); }
+
+/* Content pages: story sections with one picture, pictures on the right, or words only */
+.split__media--single { grid-template-columns: 1fr; aspect-ratio: 4 / 3; }
+.split--text { grid-template-columns: minmax(0, 46rem); }
+@media (min-width: 64rem) {
+  .split--reverse > .split__media { order: 2; }
+  .split--text { grid-template-columns: minmax(0, 46rem); }
+}
+.section--tight-bottom { padding-bottom: 0; }
+.contact-aside .details > * + * { margin-top: 0.75rem; }
+
+/* Customer reviews: the review form and photos */
+.review-form { display: grid; gap: 1.5rem; max-width: 46rem; margin-top: 2rem; }
+.review-card { display: grid; gap: 1.25rem; padding: 1.5rem; border: 1px solid var(--line); background: var(--surface); }
+.review-card__product { display: flex; gap: 1rem; align-items: center; }
+.review-card__thumb { flex-shrink: 0; width: 4.5rem; height: 4.5rem; overflow: hidden; }
+.star-rating { margin: 0; padding: 0; border: 0; }
+.star-rating legend { margin-bottom: 0.5rem; font-weight: 600; color: var(--ink); }
+.star-rating__stars { display: flex; gap: 0.25rem; }
+.star-rating__stars label { position: relative; display: grid; place-items: center; width: 2.75rem; height: 2.75rem; color: var(--muted); cursor: pointer; }
+.star-rating__stars label.is-on { color: var(--accent); }
+.star-rating__stars input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+.star-rating__stars .icon { width: 1.75rem; height: 1.75rem; }
+.star-rating__stars label:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.field-label { display: block; margin-bottom: 0.375rem; font-weight: 600; color: var(--ink); }
+.review-photos { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 0 0 0.75rem; padding: 0; list-style: none; }
+.review-photos li { display: grid; gap: 0.25rem; justify-items: start; }
+.review-photos img { width: 6rem; height: 6rem; object-fit: cover; border: 1px solid var(--line); }
+.review-photos__add { position: relative; display: inline-flex; width: auto; cursor: pointer; }
+.review-photos__add:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.review-thanks { display: grid; gap: 1rem; justify-items: start; max-width: 40rem; margin-top: 2rem; }
+.review-thanks > .icon { width: 2.5rem; height: 2.5rem; color: var(--accent); }
+/* On product pages */
+.review-item .review-photos { margin-top: 0.25rem; }
+.review-item .review-photos a { display: block; }
+.review-verified { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.8125rem; font-weight: 600; color: var(--ink-2); }
+.review-reply { margin-top: 0.25rem; padding: 0.875rem 1rem; border-left: 3px solid var(--accent); background: var(--surface); }
+.review-reply strong { display: block; margin-bottom: 0.25rem; font-size: 0.875rem; color: var(--ink); }

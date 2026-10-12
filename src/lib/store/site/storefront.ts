@@ -5,6 +5,12 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getShopTenantBySlug, type ShopTenant } from "@/lib/shop/tenants";
 import { listShopCategories } from "@/lib/shop/products";
 import { getStorePaymentRoute } from "@/lib/store/payments";
+import { currencyForVisitorCountry, parseCurrencySettings, resolveDisplayCurrencies, shopCurrencyCookie, type DisplayCurrency } from "@/lib/store/currencies";
+import { getFxRates } from "@/lib/store/fx-rates";
+import { getStorePlan, storeHasFeature } from "@/lib/store/features";
+import { releaseExpiredOrdersSoon } from "@/lib/store/release-orders";
+import type { StoreSocials } from "@/lib/store/socials";
+import { availablePaymentMethods, parseOfflinePayments, type CheckoutPaymentMethod } from "@/lib/store/offline-payments";
 import { STOREFRONT_HOST_HEADER, STOREFRONT_PREVIEW_COOKIE, storefrontUrl } from "@/lib/store/subdomain";
 import { getStoreSite } from "./data";
 import { menuItemPath } from "./links";
@@ -22,7 +28,7 @@ export type StoreBusinessProfile = {
   state: string | null;
   countryCode: string;
   currencyCode: string;
-  socials: Partial<Record<"instagram" | "facebook" | "tiktok" | "x" | "youtube" | "pinterest", string>>;
+  socials: StoreSocials;
 };
 
 export type StoreCollectionSummary = {
@@ -51,7 +57,13 @@ export type Storefront = {
   isPreview: boolean;
   /** The store can take card payments: a payout account through XYVOO, or its own Paystack keys. */
   acceptsPayments: boolean;
+  /** How shoppers can pay at checkout: card (when payments are set up) and the shop's offline options. */
+  paymentMethods: CheckoutPaymentMethod[];
   profile: StoreBusinessProfile;
+  /** Currencies shoppers can see prices in, home currency first. */
+  currencies: DisplayCurrency[];
+  /** The currency this shopper sees: their earlier choice, else their country's, else the home currency. */
+  displayCurrency: string;
   collections: StoreCollectionSummary[];
   pages: StorePageSummary[];
   categories: string[];
@@ -103,9 +115,11 @@ export const getStorefront = cache(async (slug: string): Promise<Storefront | nu
   if (!/^[a-z0-9-]{1,63}$/i.test(slug)) return null;
   const tenant = await getShopTenantBySlug(slug);
   if (!tenant) return null;
+  // Puts back stock held by abandoned or failed card payments before the shop is shown.
+  releaseExpiredOrdersSoon(tenant.id);
 
   const db = createServerSupabaseClient().schema("store");
-  const [siteRecord, profileResult, collectionsResult, pagesResult, categoriesResult, requestHeaders, paymentRoute] = await Promise.all([
+  const [siteRecord, profileResult, collectionsResult, pagesResult, categoriesResult, requestHeaders, paymentRoute, offlineResult, currenciesResult] = await Promise.all([
     getStoreSite(tenant.id),
     db
       .from("business_profile")
@@ -122,6 +136,10 @@ export const getStorefront = cache(async (slug: string): Promise<Storefront | nu
     listShopCategories(tenant.id),
     headers(),
     getStorePaymentRoute(tenant.id),
+    // Separate query: if the offline payments column isn't there yet, only these options are missing.
+    db.from("business_profile").select("offline_payments").eq("tenant_id", tenant.id).maybeSingle(),
+    // Likewise for extra currencies.
+    db.from("business_profile").select("currencies").eq("tenant_id", tenant.id).maybeSingle(),
   ]);
 
   const isLive = siteRecord?.status === "live" && siteRecord.published !== null;
@@ -172,6 +190,17 @@ export const getStorefront = cache(async (slug: string): Promise<Storefront | nu
   const onSubdomain = Boolean(requestHeaders.get(STOREFRONT_HOST_HEADER));
   const basePath = onSubdomain ? "" : `/shop/${slug}`;
 
+  // Other currencies are a Standard feature: on Free the shop shows only its own (the saved list is kept).
+  const multiCurrency = storeHasFeature(await getStorePlan(tenant.id), "multiCurrency");
+  const currencySettings = multiCurrency ? parseCurrencySettings(currenciesResult.data?.currencies, profile.currencyCode) : { extra: [] };
+  // Only shops showing other currencies need the exchange rates.
+  const rates = currencySettings.extra.length ? (await getFxRates()).rates : {};
+  const currencies = resolveDisplayCurrencies(profile.currencyCode, currencySettings, rates);
+  const chosen = (await cookies()).get(shopCurrencyCookie(slug))?.value;
+  const visitorCurrency = currencyForVisitorCountry(requestHeaders.get("x-vercel-ip-country"));
+  const displayCurrency =
+    [chosen, visitorCurrency].find((code) => code && currencies.some((c) => c.code === code)) ?? profile.currencyCode;
+
   return {
     slug,
     tenant,
@@ -184,7 +213,10 @@ export const getStorefront = cache(async (slug: string): Promise<Storefront | nu
     isLive,
     isPreview,
     acceptsPayments: paymentRoute !== null,
+    paymentMethods: availablePaymentMethods({ acceptsCard: paymentRoute !== null, offline: parseOfflinePayments(offlineResult.data?.offline_payments), whatsappNumber: p?.whatsapp ?? null }),
     profile,
+    currencies,
+    displayCurrency,
     collections,
     pages,
     categories,

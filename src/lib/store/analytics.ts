@@ -135,6 +135,77 @@ export function rangeWindows(range: AnalyticsRange, timezone: string, now = new 
   return { from, to, previousFrom, previousTo };
 }
 
+/** How far a timezone is ahead of UTC at a given instant, in milliseconds. */
+function timezoneOffset(timezone: string, at: Date) {
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).formatToParts(at);
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value);
+  const localAsUtc = Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute"), get("second"));
+  return localAsUtc - Math.floor(at.getTime() / 1000) * 1000;
+}
+
+/** Midnight at the start of a calendar date ("2026-09-01") in the store's timezone, as a UTC instant. */
+export function startOfDateIn(date: string, timezone: string) {
+  const [y, m, d] = date.split("-").map(Number);
+  const guess = Date.UTC(y, m - 1, d);
+  const first = guess - timezoneOffset(timezone, new Date(guess));
+  return new Date(guess - timezoneOffset(timezone, new Date(first)));
+}
+
+/** Today's date in the store's timezone, as "YYYY-MM-DD". */
+export function todayIn(timezone: string, now = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+}
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+export const MAX_CUSTOM_RANGE_DAYS = 366;
+
+function isRealDate(value: string) {
+  if (!ISO_DATE.test(value)) return false;
+  const [y, m, d] = value.split("-").map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d));
+  return date.getUTCFullYear() === y && date.getUTCMonth() === m - 1 && date.getUTCDate() === d && y >= 2000;
+}
+
+/**
+ * A custom period chosen with from/to dates (both included, in the store's
+ * timezone), and the period of the same length just before it. Returns an
+ * error message in plain words when the dates can't be used.
+ */
+export type ReportWindows = { from: Date; to: Date; previousFrom: Date; previousTo: Date; days: number; fromDate: string; toDate: string };
+
+export function customRangeWindows(fromDate: string, toDate: string, timezone: string, now = new Date()): ReportWindows | { error: string } {
+  if (!isRealDate(fromDate) || !isRealDate(toDate)) return { error: "Choose a start date and an end date." };
+  if (fromDate > toDate) return { error: "The start date needs to be on or before the end date." };
+  const today = todayIn(timezone, now);
+  if (fromDate > today) return { error: "The start date can't be in the future." };
+  const lastDay = toDate > today ? today : toDate;
+  const from = startOfDateIn(fromDate, timezone);
+  const dayAfter = new Date(Date.UTC(+lastDay.slice(0, 4), +lastDay.slice(5, 7) - 1, +lastDay.slice(8, 10) + 1)).toISOString().slice(0, 10);
+  const end = startOfDateIn(dayAfter, timezone);
+  const to = end > now ? now : end;
+  const days = Math.round((end.getTime() - from.getTime()) / 86_400_000);
+  if (days > MAX_CUSTOM_RANGE_DAYS) return { error: "Choose a period of a year or less." };
+  return { from, to, previousFrom: new Date(from.getTime() - days * 86_400_000), previousTo: from, days, fromDate, toDate: lastDay };
+}
+
+/**
+ * The period a report request asks for: ?from=&to= dates, or ?range=.
+ * Shared by the analytics page and its downloads.
+ */
+export function windowsFromParams(params: URLSearchParams, timezone: string, now = new Date()): (ReportWindows & { range: AnalyticsRange | "custom" }) | { error: string } {
+  const fromDate = params.get("from");
+  const toDate = params.get("to");
+  if (fromDate || toDate) {
+    const custom = customRangeWindows(fromDate || "", toDate || "", timezone, now);
+    if ("error" in custom) return custom;
+    return { ...custom, range: "custom" as const };
+  }
+  const rangeParam = params.get("range") || "7d";
+  const range: AnalyticsRange = rangeParam in ANALYTICS_RANGES ? (rangeParam as AnalyticsRange) : "7d";
+  const w = rangeWindows(range, timezone, now);
+  return { ...w, range, days: ANALYTICS_RANGES[range], fromDate: todayIn(timezone, w.from), toDate: todayIn(timezone, now) };
+}
+
 export type AnalyticsSummary = {
   visitors: number;
   sessions: number;

@@ -8,7 +8,9 @@ import { CODE_TTL_MINUTES, issueAccountCode, maskEmail } from "@/lib/auth/accoun
 import { sendAccountCodeEmail } from "@/lib/mail/mailtrap";
 
 const RegisterSchema = z.object({
-  fullName: z.string().trim().min(2, "Enter your full name.").max(120),
+  fullName: z.string().trim().max(120).optional(),
+  firstName: z.string().trim().max(60).optional(),
+  lastName: z.string().trim().max(60).optional(),
   phone: z
     .string()
     .trim()
@@ -16,7 +18,14 @@ const RegisterSchema = z.object({
   storeName: z.string().trim().min(2, "Store name must be at least 2 characters."),
   slug: storeSubdomainSchema,
   email: z.string().trim().toLowerCase().email("Enter a valid email address."),
-  password: z.string().min(8, "Password must be at least 8 characters.").max(72, "Use 72 characters or fewer."),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters long.")
+    .max(72, "Use 72 characters or fewer.")
+    .refine((p) => /[A-Z]/.test(p), "Password must contain at least one capital letter.")
+    .refine((p) => /[a-z]/.test(p), "Password must contain at least one small letter.")
+    .refine((p) => /[0-9]/.test(p), "Password must contain at least one number.")
+    .refine((p) => /[^A-Za-z0-9]/.test(p), "Password must contain at least one special character."),
   acceptedTerms: z.literal(true, { error: "Please agree to the terms and privacy policy to continue." }),
   ...signupIntentSchema.shape,
 });
@@ -26,13 +35,38 @@ export async function POST(req: Request) {
   const parsed = RegisterSchema.safeParse(body);
 
   if (!parsed.success) {
+    const errors = parsed.error.issues.map((i) => ({
+      field: String(i.path[0]),
+      message: i.message,
+    }));
     return NextResponse.json(
-      { error: parsed.error.issues[0]?.message || "Invalid registration details." },
+      {
+        error: parsed.error.issues[0]?.message || "Invalid registration details.",
+        errors,
+      },
       { status: 400 },
     );
   }
 
-  const { fullName, phone, storeName, slug, email, password, plan, template } = parsed.data;
+  const { firstName, lastName, phone, storeName, slug, email, password, plan, template } = parsed.data;
+  const resolvedFullName = (
+    parsed.data.fullName ||
+    [firstName, lastName].filter(Boolean).join(" ")
+  ).trim();
+
+  if (resolvedFullName.length < 2) {
+    return NextResponse.json(
+      {
+        error: "Enter your first and last name.",
+        errors: [
+          { field: "firstName", message: "First name is required." },
+          { field: "lastName", message: "Last name is required." },
+        ],
+      },
+      { status: 400 },
+    );
+  }
+
   const service = createServerSupabaseClient();
 
   const { data: existingTenant } = await service
@@ -43,7 +77,13 @@ export async function POST(req: Request) {
     .maybeSingle();
 
   if (existingTenant) {
-    return NextResponse.json({ error: "That storefront address is already taken." }, { status: 409 });
+    return NextResponse.json(
+      {
+        error: "That storefront address is already taken.",
+        errors: [{ field: "slug", message: "That storefront address is already taken. Please choose another." }],
+      },
+      { status: 409 },
+    );
   }
 
   // Created unconfirmed: the owner confirms with an emailed code (see
@@ -52,14 +92,26 @@ export async function POST(req: Request) {
     email,
     password,
     email_confirm: false,
-    user_metadata: { full_name: fullName, phone, terms_accepted_at: new Date().toISOString() },
+    user_metadata: {
+      full_name: resolvedFullName,
+      first_name: firstName || resolvedFullName.split(" ")[0],
+      last_name: lastName || resolvedFullName.split(" ").slice(1).join(" "),
+      phone,
+      terms_accepted_at: new Date().toISOString(),
+    },
   });
 
   if (createUserError || !created.user) {
     const message = createUserError?.message.includes("already been registered")
       ? "An account with that email already exists. Try signing in instead."
       : createUserError?.message || "Failed to create account.";
-    return NextResponse.json({ error: message }, { status: 400 });
+    return NextResponse.json(
+      {
+        error: message,
+        errors: [{ field: "email", message }],
+      },
+      { status: 400 },
+    );
   }
 
   const userId = created.user.id;
@@ -103,7 +155,7 @@ export async function POST(req: Request) {
   try {
     const code = await issueAccountCode(userId, "verify_email");
     if (code) {
-      await sendAccountCodeEmail({ to: email, name: fullName, code, purpose: "verify_email", expiresInMinutes: CODE_TTL_MINUTES });
+      await sendAccountCodeEmail({ to: email, name: resolvedFullName, code, purpose: "verify_email", expiresInMinutes: CODE_TTL_MINUTES });
       codeSent = true;
     }
   } catch (error) {

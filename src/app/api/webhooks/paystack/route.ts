@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getTenantIdByPaystackReference, getTenantPaystackSetup } from "@/lib/shop/tenants";
-import { toSubunitAmount } from "@/lib/shop/checkout";
+import { finalizeCardPayment } from "@/lib/store/card-payments";
+import { alertCardPaymentFailedByReference } from "@/lib/store/merchant-alerts";
+import { applyPaystackRefundEvent } from "@/lib/store/refunds-server";
 import { isValidWebhookSignature } from "@/lib/shop/paystack";
 import { getPlatformPaystack } from "@/lib/payments/platform-paystack";
 import {
@@ -18,7 +19,12 @@ type PaystackEvent = {
   data?: {
     reference?: string;
     status?: string;
-    amount?: number;
+    amount?: number | string;
+    currency?: string;
+    /** Refund events name the original payment here, not in `reference`. */
+    transaction_reference?: string;
+    refund_reference?: string | null;
+    id?: number | string;
     paid_at?: string;
     metadata?: { purpose?: string } | string | null;
     plan?: { plan_code?: string } | Record<string, never> | null;
@@ -62,14 +68,10 @@ export async function POST(req: Request) {
   return handleOwnKeysEvent(payload, rawBody, signature);
 }
 
-async function markStoreOrderPaid(reference: string, amount: number | undefined) {
-  const service = createServerSupabaseClient();
-  const { data: intent } = await service.schema("store").from("payment_intents").select("order_id, amount").eq("paystack_reference", reference).maybeSingle();
-  if (!intent) return false;
-  // Defence in depth: the amount must match even with a valid signature.
-  if (typeof amount === "number" && amount !== toSubunitAmount(Number(intent.amount))) return true;
-  await service.schema("store").rpc("mark_order_paid", { p_order_id: intent.order_id, p_paystack_reference: reference });
-  return true;
+/** True when the reference is a store order (whether or not it could be marked paid). */
+async function markStoreOrderPaid(reference: string, amount: number | string | undefined, currency: string | undefined) {
+  const result = await finalizeCardPayment({ reference, amountSubunit: amount === undefined ? undefined : Number(amount), currency });
+  return result !== "unknown";
 }
 
 function isSubscriptionCharge(data: NonNullable<PaystackEvent["data"]>) {
@@ -80,6 +82,11 @@ function isSubscriptionCharge(data: NonNullable<PaystackEvent["data"]>) {
 async function handlePlatformEvent(payload: PaystackEvent) {
   const data = payload.data;
   if (!data) return;
+
+  if (isRefundEvent(payload)) {
+    await applyRefund(payload);
+    return;
+  }
 
   switch (payload.event) {
     case "charge.success": {
@@ -93,7 +100,7 @@ async function handlePlatformEvent(payload: PaystackEvent) {
         return;
       }
       // A split-payment store order.
-      if (await markStoreOrderPaid(data.reference, data.amount)) return;
+      if (await markStoreOrderPaid(data.reference, data.amount, data.currency)) return;
       // Otherwise a monthly renewal of the Standard plan (Paystack's own reference).
       if (customerCode && data.plan && "plan_code" in data.plan && data.plan.plan_code) {
         await recordRenewal({ customerCode, paidAt });
@@ -102,6 +109,8 @@ async function handlePlatformEvent(payload: PaystackEvent) {
     }
     case "charge.failed":
       if (data.reference && isSubscriptionCharge(data)) await markSubscriptionPaymentFailed(data.reference, "failed");
+      // A store order's card payment failed: tell the shop, once per order (never throws).
+      else if (data.reference) await alertCardPaymentFailedByReference(data.reference);
       return;
     case "subscription.create":
       if (data.customer?.customer_code && data.subscription_code && data.email_token) {
@@ -123,8 +132,24 @@ async function handlePlatformEvent(payload: PaystackEvent) {
   }
 }
 
+function isRefundEvent(payload: PaystackEvent) {
+  return payload.event?.startsWith("refund.") === true && Boolean(payload.data?.transaction_reference);
+}
+
+/** Paystack's refund updates: processed, failed (undone), needs attention. */
+function applyRefund(payload: PaystackEvent) {
+  const data = payload.data!;
+  return applyPaystackRefundEvent({
+    event: payload.event as string,
+    transactionReference: data.transaction_reference as string,
+    status: data.status ?? null,
+    amountSubunits: data.amount != null ? Number(data.amount) : null,
+    refundId: data.id != null ? String(data.id) : null,
+  }).catch((error) => console.error("[paystack webhook] refund update failed", error));
+}
+
 async function handleOwnKeysEvent(payload: PaystackEvent, rawBody: string, signature: string | null) {
-  const reference = payload.data?.reference;
+  const reference = payload.data?.reference ?? payload.data?.transaction_reference;
   if (!reference) return NextResponse.json({ received: true });
 
   const tenantId = await getTenantIdByPaystackReference(reference);
@@ -132,13 +157,22 @@ async function handleOwnKeysEvent(payload: PaystackEvent, rawBody: string, signa
   if (!tenantId) return NextResponse.json({ received: true });
 
   const paystack = await getTenantPaystackSetup(tenantId);
-  if (!paystack?.webhookSecret) return NextResponse.json({ received: true });
-  if (!isValidWebhookSignature(rawBody, signature, paystack.webhookSecret)) {
+  if (!paystack) return NextResponse.json({ received: true });
+  // Paystack signs webhooks with the account's secret key. Older setups also
+  // stored a separate "webhook secret"; accept either so neither breaks.
+  const valid =
+    isValidWebhookSignature(rawBody, signature, paystack.secretKey) ||
+    (Boolean(paystack.webhookSecret) && isValidWebhookSignature(rawBody, signature, paystack.webhookSecret));
+  if (!valid) {
     return NextResponse.json({ error: "Invalid signature." }, { status: 401 });
   }
 
   if (payload.event === "charge.success" && payload.data?.status === "success") {
-    await markStoreOrderPaid(reference, payload.data.amount);
+    await markStoreOrderPaid(reference, payload.data.amount, payload.data.currency);
+  } else if (payload.event === "charge.failed") {
+    await alertCardPaymentFailedByReference(reference);
+  } else if (isRefundEvent(payload)) {
+    await applyRefund(payload);
   }
   return NextResponse.json({ received: true });
 }

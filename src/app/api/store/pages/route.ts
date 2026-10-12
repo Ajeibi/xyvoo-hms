@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { resolveEditorRequest } from "@/lib/store/site/editor-api";
+import { ensureDefaultPages } from "@/lib/store/default-pages-server";
 import { mapPage, pageSchema, STARTER_PAGES, SYSTEM_PAGE_KEYS, toPageRow, type PageRow } from "@/lib/store/pages";
 
 const COLUMNS = "id, title, slug, body, system_key, status, show_in_menu, seo_title, seo_description";
@@ -21,6 +22,7 @@ export async function GET(req: Request) {
 }
 
 const CreateSchema = z.union([
+  z.object({ slug: z.string().min(1), defaults: z.literal(true) }),
   z.object({ slug: z.string().min(1), starter: z.enum(SYSTEM_PAGE_KEYS) }),
   z.object({ slug: z.string().min(1), page: pageSchema }),
 ]);
@@ -37,19 +39,30 @@ export async function POST(req: Request) {
   const parsed = CreateSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message || "Check the page details." }, { status: 400 });
 
+  // The full set of standard pages, written from the shop's details. Existing pages are kept.
+  if ("defaults" in parsed.data) {
+    try {
+      const added = await ensureDefaultPages(resolved.access.tenantId);
+      return NextResponse.json({ added }, { status: added.length ? 201 : 200 });
+    } catch (error) {
+      console.error("[pages] default pages failed", error);
+      return NextResponse.json({ error: "We couldn't create your pages just now. Please try again." }, { status: 500 });
+    }
+  }
+
   const store = resolved.service.schema("store");
   const { count } = await store.from("pages").select("id", { count: "exact", head: true }).eq("tenant_id", resolved.access.tenantId);
 
   const row =
     "starter" in parsed.data
       ? (() => {
-          const starter = STARTER_PAGES[parsed.data.starter];
+          const starter = STARTER_PAGES[(parsed.data as { starter: (typeof SYSTEM_PAGE_KEYS)[number] }).starter];
           return {
-            system_key: parsed.data.starter,
+            system_key: (parsed.data as { starter: (typeof SYSTEM_PAGE_KEYS)[number] }).starter,
             ...toPageRow({ title: starter.title, slug: starter.slug, body: starter.body, status: "draft", showInMenu: false, seoTitle: "", seoDescription: "" }),
           };
         })()
-      : { system_key: null, ...toPageRow(parsed.data.page) };
+      : { system_key: null, ...toPageRow((parsed.data as { page: z.infer<typeof pageSchema> }).page) };
 
   const { data, error } = await store
     .from("pages")

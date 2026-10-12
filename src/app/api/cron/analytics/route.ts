@@ -23,6 +23,8 @@ export async function GET(req: Request) {
   }
   const { error: purgeError } = await store.rpc("purge_old_analytics");
   if (purgeError) return NextResponse.json({ error: `Purge failed: ${purgeError.message}` }, { status: 500 });
+  // Shared rate-limit counters older than a day.
+  await createServerSupabaseClient().rpc("purge_rate_limits");
 
   return NextResponse.json({ ok: true, rolledUp: days });
 }

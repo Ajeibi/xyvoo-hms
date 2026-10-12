@@ -11,6 +11,7 @@ export async function GET(req: Request) {
   const resolved = await resolveStoreRequest(new URL(req.url).searchParams.get("slug") || "");
   if (resolved.error) return resolved.error;
   const { access, service } = resolved;
+  if (!resolved.capabilities.canViewReports) return NextResponse.json({ error: "Only the owner or an admin can see abandoned carts." }, { status: 403 });
   const blocked = await featureUnavailable(access.tenantId, "abandonedCarts");
   if (blocked) return blocked;
 
@@ -51,6 +52,7 @@ export async function PATCH(req: Request) {
   const body = await req.json().catch(() => null);
   const resolved = await resolveStoreRequest(typeof body?.slug === "string" ? body.slug : "");
   if (resolved.error) return resolved.error;
+  if (!resolved.capabilities.canViewReports) return NextResponse.json({ error: "Only the owner or an admin can update abandoned carts." }, { status: 403 });
   const parsed = PatchSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Check the request." }, { status: 400 });
 

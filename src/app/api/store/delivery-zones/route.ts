@@ -15,7 +15,10 @@ export async function GET(req: Request) {
     .eq("tenant_id", resolved.access.tenantId)
     .order("sort_order")
     .order("created_at");
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("[delivery-zones]", error);
+    return NextResponse.json({ error: "We couldn't save or load your delivery options. Please try again." }, { status: 500 });
+  }
   return NextResponse.json({ zones: ((data || []) as DeliveryZoneRow[]).map(mapDeliveryZone), canManage: resolved.capabilities.canManageSettings });
 }
 
@@ -36,6 +39,9 @@ export async function POST(req: Request) {
     .insert({ tenant_id: resolved.access.tenantId, sort_order: count ?? 0, ...toDeliveryZoneRow(parsed.data) })
     .select(COLUMNS)
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("[delivery-zones]", error);
+    return NextResponse.json({ error: "We couldn't save or load your delivery options. Please try again." }, { status: 500 });
+  }
   return NextResponse.json({ zone: mapDeliveryZone(data as DeliveryZoneRow) }, { status: 201 });
 }

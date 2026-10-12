@@ -6,6 +6,8 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { mapDeliveryZone, type DeliveryZoneRow } from "@/lib/store/delivery";
 import { STORE_PATHS, storeHref } from "@/lib/store/site/links";
 import { getStorefront } from "@/lib/store/site/storefront";
+import { getCheckoutFreeRules } from "@/lib/store/free-delivery-server";
+import { getTaxSettings } from "@/lib/store/tax-server";
 
 export const metadata: Metadata = { title: "Checkout", robots: { index: false, follow: false } };
 
@@ -18,13 +20,17 @@ export default async function StorefrontCheckoutPage({ params }: { params: Promi
     return page ? storeHref(basePath, STORE_PATHS.page(page.slug)) : null;
   };
 
-  const { data: zoneRows } = await createServerSupabaseClient()
-    .schema("store")
-    .from("delivery_zones")
-    .select("id, name, regions, fee, free_over, eta_text, is_pickup, is_active, sort_order")
-    .eq("tenant_id", storefront.tenant.id)
-    .eq("is_active", true)
-    .order("sort_order");
+  const [{ data: zoneRows }, freeRules, tax] = await Promise.all([
+    createServerSupabaseClient()
+      .schema("store")
+      .from("delivery_zones")
+      .select("id, name, regions, fee, free_over, eta_text, is_pickup, is_active, sort_order")
+      .eq("tenant_id", storefront.tenant.id)
+      .eq("is_active", true)
+      .order("sort_order"),
+    getCheckoutFreeRules(storefront.tenant.id),
+    getTaxSettings(storefront.tenant.id),
+  ]);
   const deliveryOptions: CheckoutDeliveryOption[] = ((zoneRows || []) as DeliveryZoneRow[]).map(mapDeliveryZone).map((z) => ({
     id: z.id,
     name: z.name,
@@ -32,6 +38,7 @@ export default async function StorefrontCheckoutPage({ params }: { params: Promi
     freeOver: z.freeOver,
     etaText: z.etaText,
     isPickup: z.isPickup,
+    regions: z.regions,
   }));
 
   return (
@@ -44,17 +51,20 @@ export default async function StorefrontCheckoutPage({ params }: { params: Promi
         <li aria-current="step">Details and payment</li>
         <li>Confirmation</li>
       </ol>
-      {storefront.acceptsPayments ? (
+      {storefront.paymentMethods.length ? (
         <StoreCheckout
           countryCode={storefront.profile.countryCode}
           termsHref={pageHref("terms")}
           privacyHref={pageHref("privacy")}
           deliveryOptions={deliveryOptions}
+          freeRules={freeRules}
+          tax={{ enabled: tax.enabled, name: tax.name, rate: tax.rate, inclusive: tax.inclusive, onDelivery: tax.onDelivery }}
+          paymentMethods={storefront.paymentMethods}
         />
       ) : (
         <div className="cart-empty">
-          <h2 className="h-section">Online payment isn&rsquo;t available yet</h2>
-          <p className="body-copy">This shop isn&rsquo;t taking card payments online at the moment. Please contact the shop to place your order.</p>
+          <h2 className="h-section">Ordering isn&rsquo;t open yet</h2>
+          <p className="body-copy">This shop isn&rsquo;t taking orders online at the moment. Please contact the shop to place your order.</p>
         </div>
       )}
     </div>

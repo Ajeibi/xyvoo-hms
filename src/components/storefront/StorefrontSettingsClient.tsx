@@ -1,8 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Eye, EyeOff, CircleAlert, CheckCircle2 } from "lucide-react";
+import { Eye, EyeOff, KeyRound } from "lucide-react";
 import { toastError, toastSuccess } from "@/lib/app-toast";
+import { DashAlert, dashButton, DashCard, DashField, dashInput, DashPill } from "./dashboard-ui";
+
+/** A clear keyboard focus ring for buttons. */
+const ring = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-xyvoo-blue";
+
+const CARD_TITLE = "Your own Paystack keys";
+const CARD_DESCRIPTION = "Only for shops set up before payouts through XYVOO.";
 
 type PaystackSetup = {
   enabled: boolean;
@@ -16,6 +23,8 @@ const EMPTY_SETUP: PaystackSetup = { enabled: false, mode: "test", publicKey: ""
 
 export default function StorefrontSettingsClient({ slug }: { slug: string }) {
   const [setup, setSetup] = useState<PaystackSetup>(EMPTY_SETUP);
+  /** Whether payments were on when last loaded or saved, for the status pill. */
+  const [savedEnabled, setSavedEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -36,7 +45,10 @@ export default function StorefrontSettingsClient({ slug }: { slug: string }) {
         const res = await fetch(`/api/store/settings?slug=${encodeURIComponent(slug)}`);
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || "Failed to load settings.");
-        if (!cancelled) setSetup({ ...EMPTY_SETUP, ...data.paystackSetup });
+        if (!cancelled) {
+          setSetup({ ...EMPTY_SETUP, ...data.paystackSetup });
+          setSavedEnabled(Boolean(data.paystackSetup?.enabled));
+        }
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : "Something went wrong.");
       } finally {
@@ -73,7 +85,9 @@ export default function StorefrontSettingsClient({ slug }: { slug: string }) {
         return;
       }
 
+      setSavedEnabled(setup.enabled);
       toastSuccess("Settings saved", "Your Paystack configuration has been updated.");
+      window.dispatchEvent(new Event("xyvoo:payments-changed"));
     } catch {
       const message = "We couldn't reach the server. Check your connection and try again.";
       setError(message);
@@ -84,77 +98,79 @@ export default function StorefrontSettingsClient({ slug }: { slug: string }) {
   };
 
   if (loading) {
-    return <p className="text-sm text-slate-500">Loading settings…</p>;
+    return (
+      <DashCard id="own-keys" icon={KeyRound} title={CARD_TITLE} description={CARD_DESCRIPTION}>
+        <div aria-hidden className="space-y-3">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="h-11 animate-pulse rounded-xl bg-slate-100 motion-reduce:animate-none" />
+          ))}
+        </div>
+      </DashCard>
+    );
   }
 
   return (
-    <div className="max-w-2xl">
-      <h2 className="text-base font-semibold text-slate-900">Your own Paystack keys</h2>
-      <p className="mt-1 text-sm text-slate-500">
-        For stores set up before payouts through XYVOO. Once you add a payout account above, payments go through XYVOO instead and these keys are
-        no longer used.
+    <DashCard
+      id="own-keys"
+      icon={KeyRound}
+      title={CARD_TITLE}
+      description={CARD_DESCRIPTION}
+      actions={savedEnabled ? <DashPill tone="green">Taking payments</DashPill> : <DashPill>Switched off</DashPill>}
+    >
+      <p className="text-sm text-slate-600">
+        Once you add a payout account above, payments go through XYVOO instead and these keys are no longer used.
       </p>
 
-      <form onSubmit={handleSave} className="mt-6 space-y-4 rounded-2xl border border-slate-200 bg-white p-6">
-        <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+      <form onSubmit={handleSave} className="mt-5 space-y-4">
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
           <div>
-            <p className="text-sm font-medium text-slate-800">Accept payments</p>
-            <p className="text-xs text-slate-500">Turn this on once your keys below are correct.</p>
+            <p id="paystack-enabled-label" className="text-sm font-medium text-slate-800">
+              Accept payments
+            </p>
+            <p id="paystack-enabled-hint" className="text-xs text-slate-600">
+              Turn this on once your keys below are correct.
+            </p>
           </div>
           <button
             type="button"
             role="switch"
             aria-checked={setup.enabled}
+            aria-labelledby="paystack-enabled-label"
+            aria-describedby="paystack-enabled-hint"
             onClick={() => field("enabled", !setup.enabled)}
-            className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
-              setup.enabled ? "bg-xyvoo-blue" : "bg-slate-300"
-            }`}
+            className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${ring} ${setup.enabled ? "bg-xyvoo-blue" : "bg-slate-400"}`}
           >
             <span
-              className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+              className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform motion-reduce:transition-none ${
                 setup.enabled ? "translate-x-5" : "translate-x-0.5"
               }`}
             />
           </button>
         </div>
 
-        <div>
-          <label htmlFor="paystack-mode" className="mb-1 block text-xs font-medium text-slate-600">
-            Mode
-          </label>
-          <select
-            id="paystack-mode"
-            className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"
-            value={setup.mode}
-            onChange={(e) => field("mode", e.target.value as PaystackSetup["mode"])}
-          >
+        <DashField id="paystack-mode" label="Mode">
+          <select id="paystack-mode" className={dashInput} value={setup.mode} onChange={(e) => field("mode", e.target.value as PaystackSetup["mode"])}>
             <option value="test">Test</option>
             <option value="live">Live</option>
           </select>
-        </div>
+        </DashField>
 
-        <div>
-          <label htmlFor="paystack-public-key" className="mb-1 block text-xs font-medium text-slate-600">
-            Public key
-          </label>
+        <DashField id="paystack-public-key" label="Public key">
           <input
             id="paystack-public-key"
-            className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"
+            className={dashInput}
             placeholder="pk_test_..."
             value={setup.publicKey}
             onChange={(e) => field("publicKey", e.target.value)}
             autoComplete="off"
           />
-        </div>
+        </DashField>
 
-        <div>
-          <label htmlFor="paystack-secret-key" className="mb-1 block text-xs font-medium text-slate-600">
-            Secret key
-          </label>
+        <DashField id="paystack-secret-key" label="Secret key">
           <div className="relative">
             <input
               id="paystack-secret-key"
-              className="w-full rounded-xl border border-slate-200 px-4 py-3 pr-11 text-sm"
+              className={`${dashInput} pr-11`}
               type={showSecret ? "text" : "password"}
               placeholder="sk_test_..."
               value={setup.secretKey}
@@ -164,52 +180,38 @@ export default function StorefrontSettingsClient({ slug }: { slug: string }) {
             <button
               type="button"
               aria-label={showSecret ? "Hide secret key" : "Show secret key"}
+              aria-pressed={showSecret}
               onClick={() => setShowSecret((v) => !v)}
-              className="absolute inset-y-0 right-0 px-3 text-slate-500 hover:text-slate-700"
+              className={`absolute inset-y-0 right-0 rounded-r-xl px-3 text-slate-600 hover:text-slate-800 ${ring}`}
             >
-              {showSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {showSecret ? <EyeOff className="h-4 w-4" aria-hidden /> : <Eye className="h-4 w-4" aria-hidden />}
             </button>
           </div>
-        </div>
+        </DashField>
 
-        <div>
-          <label htmlFor="paystack-webhook-secret" className="mb-1 block text-xs font-medium text-slate-600">
-            Webhook secret
-          </label>
+        <DashField id="paystack-webhook-secret" label="Webhook secret">
           <input
             id="paystack-webhook-secret"
-            className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm"
+            className={dashInput}
             placeholder="Paystack webhook signing secret"
             value={setup.webhookSecret}
             onChange={(e) => field("webhookSecret", e.target.value)}
             autoComplete="off"
           />
-        </div>
+        </DashField>
 
         <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-          <p className="text-xs font-medium text-slate-600">Webhook URL</p>
-          <p className="mt-1 break-all text-xs text-slate-500">{webhookUrl}</p>
-          <p className="mt-1 text-[11px] text-slate-400">
-            Paste this into your Paystack dashboard under Settings → API Keys & Webhooks.
-          </p>
+          <p className="text-sm font-medium text-slate-800">Webhook URL</p>
+          <p className="mt-1 break-all font-mono text-xs text-slate-700">{webhookUrl}</p>
+          <p className="mt-1 text-xs text-slate-600">Paste this into your Paystack dashboard under Settings → API Keys &amp; Webhooks.</p>
         </div>
 
-        {error ? (
-          <div role="alert" className="flex gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-            <CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-red-600" aria-hidden />
-            <p>{error}</p>
-          </div>
-        ) : null}
+        <DashAlert message={error} />
 
-        <button
-          type="submit"
-          disabled={saving}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-xyvoo-blue py-3 text-sm font-semibold text-white disabled:opacity-60"
-        >
-          <CheckCircle2 className="h-4 w-4" />
-          {saving ? "Saving…" : "Save settings"}
+        <button type="submit" disabled={saving} className={`${dashButton.primary} ${ring}`}>
+          {saving ? "Saving…" : "Save Paystack keys"}
         </button>
       </form>
-    </div>
+    </DashCard>
   );
 }

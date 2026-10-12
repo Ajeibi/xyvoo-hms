@@ -5,9 +5,11 @@ import { useState } from "react";
 import Link from "next/link";
 import { useCartStore } from "@/components/shop/CartProvider";
 import type { ShopProduct, ShopProductVariant } from "@/lib/shop/products";
+import { fixedLinePrices } from "@/lib/shop/cart";
 import { STORE_PATHS } from "@/lib/store/site/links";
 import { announce, useStorefront } from "./StorefrontProvider";
 import { Icon, Price, Rating, StoreImage } from "./primitives";
+import SaleEnds from "./SaleEnds";
 
 function findMatchingVariant(variants: ShopProductVariant[], selected: Record<string, string>) {
   return variants.find((v) => Object.entries(selected).every(([key, value]) => v.options[key] === value)) || null;
@@ -37,6 +39,10 @@ export default function ProductDetail({ product, details }: { product: ShopProdu
   const allChosen = product.productOptions.every((opt) => selected[opt.name]);
   const variant = hasVariants && allChosen ? findMatchingVariant(product.variants, selected) : null;
   const price = variant?.priceOverride ?? product.price;
+  // A variant on its own sale shows its normal price struck through; one that follows the product's price shows the product's.
+  const followsProduct = !variant || variant.priceOverride == null;
+  const compareAt = variant?.compareAtPrice ?? (followsProduct ? product.compareAtPrice : null);
+  const saleEndsAt = variant?.saleEndsAt ?? (followsProduct && product.onSale ? product.saleEndsAt : null);
   const stock = variant ? variant.stock : product.stock;
   const inStock = product.allowBackorder || (hasVariants && !allChosen ? product.inStock : stock > 0);
   const maxQty = product.allowBackorder ? 99 : Math.max(stock, 0);
@@ -68,6 +74,9 @@ export default function ProductDetail({ product, details }: { product: ShopProdu
       imageUrl: variant?.imageUrl || product.imageUrl,
       unitPrice: price,
       currency: product.currency,
+      // A variant with its own price is converted; the product's fixed prices are for its base price.
+      fixedPrices: variant?.priceOverride != null ? undefined : fixedLinePrices(product.fixedPrices),
+      deliveryExtra: product.deliveryExtra || undefined,
       quantity,
       maxQuantity: maxQty,
     });
@@ -121,7 +130,8 @@ export default function ProductDetail({ product, details }: { product: ShopProdu
             </a>
           ) : null}
           <p className="pdp__price">
-            <Price amount={price} compareAt={variant ? null : product.compareAtPrice} currency={product.currency} />
+            <Price amount={price} compareAt={compareAt} fixedPrices={variant?.priceOverride != null ? undefined : product.fixedPrices} />
+            {saleEndsAt ? <SaleEnds endsAt={saleEndsAt} /> : null}
           </p>
         </div>
         {product.shortDescription ? <p className="body-copy">{product.shortDescription}</p> : null}

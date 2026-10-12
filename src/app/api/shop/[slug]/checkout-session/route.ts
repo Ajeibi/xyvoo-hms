@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getShopTenantBySlug } from "@/lib/shop/tenants";
-import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { clientIp, rateLimitShared } from "@/lib/rate-limit";
 import { checkoutSessionSchema, saveCheckoutSession } from "@/lib/store/checkouts";
+import { isShopLive } from "@/lib/store/site/data";
 
 /**
  * POST /api/shop/<store>/checkout-session — saves the basket and contact
@@ -9,12 +10,12 @@ import { checkoutSessionSchema, saveCheckoutSession } from "@/lib/store/checkout
  * don't finish. The checkout page tells shoppers this happens.
  */
 export async function POST(req: Request, { params }: { params: Promise<{ slug: string }> }) {
-  if (!rateLimit(`checkout-session:${clientIp(req)}`, 30, 60_000).ok) {
+  if (!(await rateLimitShared(`checkout-session:${clientIp(req)}`, 30, 60_000)).ok) {
     return NextResponse.json({ error: "Too many requests." }, { status: 429 });
   }
   const slug = (await params).slug;
   const tenant = /^[a-z0-9-]{1,63}$/i.test(slug) ? await getShopTenantBySlug(slug) : null;
-  if (!tenant) return NextResponse.json({ error: "Shop not found." }, { status: 404 });
+  if (!tenant || !(await isShopLive(tenant.id))) return NextResponse.json({ error: "Shop not found." }, { status: 404 });
 
   const parsed = checkoutSessionSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ ok: false }, { status: 400 });

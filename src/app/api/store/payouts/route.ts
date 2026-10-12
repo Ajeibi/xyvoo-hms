@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { resolveStoreRequest } from "@/lib/store/api-helpers";
+import { diffFields, logActivity } from "@/lib/store/activity";
 import { createSubaccount, getPlatformPaystack, resolveAccount, updateSubaccount } from "@/lib/payments/platform-paystack";
 import { effectiveFeeRate } from "@/lib/store/billing";
 import { getActivePayoutAccount, getStoreSubscription } from "@/lib/store/payments";
@@ -10,6 +11,9 @@ import { paystackFailure, resolveBillingRequest } from "@/lib/store/payout-route
 export async function GET(req: Request) {
   const resolved = await resolveStoreRequest(new URL(req.url).searchParams.get("slug") || "");
   if (resolved.error) return resolved.error;
+  if (!resolved.capabilities.canManageSettings) {
+    return NextResponse.json({ error: "Only the store owner or an admin can see payout details." }, { status: 403 });
+  }
   const account = await getActivePayoutAccount(resolved.access.tenantId);
   return NextResponse.json({
     paymentsAvailable: Boolean(getPlatformPaystack()),
@@ -87,6 +91,17 @@ export async function POST(req: Request) {
       );
     if (error) throw new Error(error.message);
 
+    // Only the last four digits of the account number are ever logged.
+    await logActivity({
+      tenantId: access.tenantId,
+      actor: access,
+      area: "payouts",
+      action: "updated",
+      changes: diffFields(
+        existing ? { business_name: existing.business_name, bank_name: existing.bank_name, account_name: existing.account_name, account_number_last4: existing.account_number_last4 } : {},
+        { business_name: v.businessName, bank_name: v.bankName, account_name: accountName, account_number_last4: v.accountNumber.slice(-4) },
+      ),
+    });
     return NextResponse.json({ ok: true, accountName, accountNumberLast4: v.accountNumber.slice(-4) });
   } catch (error) {
     return paystackFailure(error, "We couldn't save your payout account just now. Please try again.");

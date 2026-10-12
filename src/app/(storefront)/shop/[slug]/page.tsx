@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { linksFromSocials } from "@/lib/store/socials";
 import { notFound } from "next/navigation";
 import HomeSections from "@/components/storefront-theme/sections";
 import { getStorefront } from "@/lib/store/site/storefront";
@@ -11,7 +12,8 @@ export default async function StorefrontHomePage({ params }: { params: Promise<{
   if (!storefront) notFound();
 
   const { profile, site, storeName, siteUrl } = storefront;
-  const sameAs = Object.values(profile.socials).filter((url): url is string => Boolean(url && /^https:\/\//.test(url)));
+  // Every social page, including ones on other platforms, tells search engines these profiles are this shop.
+  const sameAs = linksFromSocials(profile.socials).filter((url) => /^https:\/\//.test(url));
   // Store details for search engines; only fields the merchant has actually filled in.
   const jsonLd = {
     "@context": "https://schema.org",

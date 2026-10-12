@@ -135,14 +135,14 @@ export default function StorefrontLoginPage() {
   const verifyStep = needsVerification ? (
     <>
       <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-wider text-xyvoo-teal-product-hover">XYVOO Storefront</p>
-        <h1 className="text-4xl font-bold leading-tight text-slate-900">Confirm your email</h1>
-        <p className="text-base leading-relaxed text-slate-600">
+        <p className="text-sm font-bold uppercase tracking-wider text-xyvoo-teal-product-hover">XYVOO Storefront</p>
+        <h1 className="text-4xl font-bold leading-tight text-black">Confirm your email</h1>
+        <p className="text-base leading-relaxed text-black">
           You need to confirm your email address before you can sign in. We&rsquo;ve emailed a code to {email}.
         </p>
       </div>
       <EmailCodeForm email={email} autoSend onVerified={handleVerified} />
-      <button type="button" className="w-full text-center text-sm font-medium text-slate-500 hover:text-slate-900" onClick={() => setNeedsVerification(false)}>
+      <button type="button" className="w-full text-center text-sm font-semibold text-black hover:underline" onClick={() => setNeedsVerification(false)}>
         Use a different account
       </button>
     </>
@@ -156,12 +156,12 @@ export default function StorefrontLoginPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <p className="text-xs font-semibold uppercase tracking-wider text-xyvoo-teal-product-hover">
+        <p className="text-sm font-bold uppercase tracking-wider text-xyvoo-teal-product-hover">
           XYVOO Storefront
         </p>
-        <h1 className="text-4xl font-bold text-slate-900 leading-tight">Sign in</h1>
+        <h1 className="text-4xl font-bold text-black leading-tight">Sign in</h1>
         <motion.p
-          className="text-base text-slate-600 leading-relaxed"
+          className="text-base text-black leading-relaxed"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
@@ -191,13 +191,13 @@ export default function StorefrontLoginPage() {
         transition={{ duration: 0.5, delay: 0.2 }}
       >
         <div>
-          <label htmlFor="storefront-login-email" className="mb-1 block text-xs font-medium text-slate-600">
+          <label htmlFor="storefront-login-email" className="mb-1.5 block text-sm font-medium text-black">
             Email address
           </label>
           <input
             id="storefront-login-email"
             name="email"
-            className="w-full px-4 py-3 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-xyvoo-teal-product-hover focus:border-transparent"
+            className="w-full px-4 py-3 text-sm text-black placeholder:text-slate-400 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-xyvoo-teal-product-hover focus:border-transparent"
             type="email"
             placeholder="you@example.com"
             autoComplete="email"
@@ -210,14 +210,14 @@ export default function StorefrontLoginPage() {
           />
         </div>
         <div>
-          <label htmlFor="storefront-login-password" className="mb-1 block text-xs font-medium text-slate-600">
+          <label htmlFor="storefront-login-password" className="mb-1.5 block text-sm font-medium text-black">
             Password
           </label>
           <div className="relative">
             <input
               id="storefront-login-password"
               name="password"
-              className="w-full px-4 py-3 pr-11 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-xyvoo-teal-product-hover focus:border-transparent"
+              className="w-full px-4 py-3 pr-11 text-sm text-black placeholder:text-slate-400 bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-xyvoo-teal-product-hover focus:border-transparent"
               type={showPassword ? "text" : "password"}
               placeholder="Enter your password"
               autoComplete="current-password"
@@ -238,7 +238,7 @@ export default function StorefrontLoginPage() {
             </button>
           </div>
           <p className="mt-2 text-right text-sm">
-            <Link href="/auth/forgot-password?for=storefront" className="font-medium text-slate-600 hover:text-slate-900 hover:underline">
+            <Link href="/auth/forgot-password?for=storefront" className="font-medium text-black hover:underline">
               Forgot your password?
             </Link>
           </p>
@@ -252,22 +252,22 @@ export default function StorefrontLoginPage() {
         </button>
       </motion.form>
 
-      <div className="flex items-center gap-3 text-xs uppercase tracking-wider text-slate-400">
-        <span className="h-px flex-1 bg-slate-200" />
+      <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-wider text-black">
+        <span className="h-px flex-1 bg-slate-300" />
         or
-        <span className="h-px flex-1 bg-slate-200" />
+        <span className="h-px flex-1 bg-slate-300" />
       </div>
 
       <GoogleSignInButton onCredential={handleGoogleCredential} className="flex w-full justify-center" />
 
       <motion.p
-        className="text-center text-sm text-slate-500"
+        className="text-center text-sm font-medium text-black"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5, delay: 0.3 }}
       >
         Need a storefront?{" "}
-        <Link className="font-medium text-slate-900 hover:underline" href="/register/storefront">
+        <Link className="font-semibold text-black underline hover:text-xyvoo-teal-product-hover" href="/register/storefront">
           Register your storefront
         </Link>
       </motion.p>
@@ -280,13 +280,13 @@ export default function StorefrontLoginPage() {
       <div className="relative w-full overflow-hidden bg-white pt-[76px] pb-16 lg:grid lg:grid-cols-2 lg:overflow-visible lg:pb-0">
         {/* Mobile: faded image behind the form */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden lg:hidden" aria-hidden>
-          <Image src="/storefront-login.jpg" alt="" fill className="object-cover opacity-10" sizes="100vw" />
+          <Image src="/images/storefront/login.png" alt="" fill className="object-cover opacity-10" sizes="100vw" />
         </div>
 
         {/* Desktop: image sticks in view while the form scrolls past it, then the page continues into the CTA + footer */}
         <div className="relative hidden h-[calc(100vh-76px)] overflow-hidden bg-white lg:sticky lg:top-[76px] lg:block">
           <Image
-            src="/storefront-login.jpg"
+            src="/images/storefront/login.png"
             alt="Sign in to XYVOO Storefront"
             fill
             className="object-cover"
@@ -295,8 +295,10 @@ export default function StorefrontLoginPage() {
           />
         </div>
 
-        <div className="relative z-10 flex items-center justify-center p-6 lg:items-stretch lg:p-12">
-          <div className="w-full max-w-sm space-y-6 lg:max-w-md lg:pb-20">{form}</div>
+        <div className="relative z-10 flex items-center justify-center p-4 sm:p-6 lg:items-stretch lg:p-12">
+          <div className="w-full max-w-sm space-y-6 rounded-2xl bg-white/95 p-6 shadow-xl backdrop-blur-md border border-slate-100/80 sm:max-w-md sm:p-8 lg:max-w-md lg:rounded-none lg:bg-transparent lg:p-0 lg:shadow-none lg:border-0 lg:backdrop-blur-none lg:pb-20">
+            {form}
+          </div>
         </div>
       </div>
     </WebsiteLayout>

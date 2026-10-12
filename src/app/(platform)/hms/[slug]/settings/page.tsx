@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import HMSLayout from "@/components/hms/HMSLayout";
 import DepartmentAccessSetup from "@/components/hms/DepartmentAccessSetup";
 import { SmartLockSettingsCard } from "@/components/hms/settings/SmartLockSettingsCard";
@@ -27,6 +28,10 @@ import {
   listSuppliers,
   listUnits,
 } from "@/lib/hms/inventory-items";
+
+export const metadata: Metadata = {
+  title: "Hotel Settings",
+};
 
 export default async function SettingsPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;

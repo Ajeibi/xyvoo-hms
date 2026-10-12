@@ -1,6 +1,11 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
 import { getUserHotelDashboardPath, isPlatformAdminEmail } from "@/lib/auth/redirects";
+
+export const metadata: Metadata = {
+  title: "Onboard Hotel",
+};
 
 export default async function OnboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createSupabaseAuthServerClient();

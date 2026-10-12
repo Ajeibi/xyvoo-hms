@@ -11,6 +11,8 @@ export type CartState = {
   addLine: (line: CartLine) => void;
   updateQuantity: (productId: string, variantId: string | null, quantity: number) => void;
   removeLine: (productId: string, variantId: string | null) => void;
+  /** Today's unit prices from the shop (a sale may have started or ended). A changed line drops its fixed prices, which were for the old price. */
+  setPrices: (prices: Array<{ productId: string; variantId: string | null; unitPrice: number }>) => void;
   clear: () => void;
 };
 
@@ -48,7 +50,8 @@ export function createCartStore(slug: string) {
                 return {
                   lines: state.lines.map((l) =>
                     cartLineKey(l.productId, l.variantId) === key
-                      ? { ...l, quantity: Math.min(l.quantity + line.quantity, l.maxQuantity || Infinity) }
+                      ? // Take the latest prices too, in case they've changed since the first add.
+                        { ...l, unitPrice: line.unitPrice, fixedPrices: line.fixedPrices, deliveryExtra: line.deliveryExtra, quantity: Math.min(l.quantity + line.quantity, l.maxQuantity || Infinity) }
                       : l,
                   ),
                 };
@@ -74,6 +77,18 @@ export function createCartStore(slug: string) {
                 (l) => cartLineKey(l.productId, l.variantId) !== cartLineKey(productId, variantId),
               ),
             })),
+          setPrices: (prices) =>
+            set((state) => {
+              const byKey = new Map(prices.map((p) => [cartLineKey(p.productId, p.variantId), p.unitPrice]));
+              let changed = false;
+              const lines = state.lines.map((l) => {
+                const price = byKey.get(cartLineKey(l.productId, l.variantId));
+                if (price === undefined || Math.abs(price - l.unitPrice) < 0.005) return l;
+                changed = true;
+                return { ...l, unitPrice: price, fixedPrices: undefined };
+              });
+              return changed ? { lines } : state;
+            }),
           clear: () => set({ lines: [] }),
         };
       },

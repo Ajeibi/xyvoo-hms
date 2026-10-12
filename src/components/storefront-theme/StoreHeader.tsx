@@ -4,7 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCartStore } from "@/components/shop/CartProvider";
-import { Icon, type IconName } from "./primitives";
+import CurrencySwitcher from "./CurrencySwitcher";
+import type { StoreSocialLink } from "./socials";
+import { Icon } from "./primitives";
 
 export type HeaderNavItem = { label: string; href: string; children?: Array<{ label: string; href: string }> };
 
@@ -70,7 +72,7 @@ export default function StoreHeader({
   /** Sage and Stem centres the logo between the menu and the icons; its CSS expects it after the menu in the markup. */
   logoPosition?: "start" | "centre";
   /** Loftwood's announcement bar also carries the phone number and social links. */
-  topbarExtras?: { phone: string | null; socials: Array<{ href: string; label: string; icon: IconName }> };
+  topbarExtras?: { phone: string | null; socials: StoreSocialLink[] };
 }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -140,7 +142,7 @@ export default function StoreHeader({
                 {topbarExtras.socials.map((s) => (
                   <li key={s.href}>
                     <a className="icon-btn" href={s.href} aria-label={`${brand.storeName} on ${s.label}`} rel="noopener noreferrer" target="_blank">
-                      <Icon name={s.icon} size="sm" />
+                      {s.iconSm}
                     </a>
                   </li>
                 ))}
@@ -206,6 +208,7 @@ export default function StoreHeader({
           {logoPosition === "centre" ? <StoreLogo {...brand} /> : null}
 
           <div className="header-actions">
+            <CurrencySwitcher />
             <button
               ref={searchButton}
               className="icon-btn"

@@ -1,5 +1,6 @@
 import "./globals.css";
 import type { Metadata } from "next";
+import { platformFontVariables } from "./fonts";
 import { STOREFRONT_ROOT_DOMAIN } from "@/lib/store/subdomain";
 
 /*
@@ -20,7 +21,7 @@ export const metadata: Metadata = {
 
 export default function GlobalNotFound() {
   return (
-    <html lang="en-GB">
+    <html lang="en-GB" className={platformFontVariables}>
       <body className="min-h-screen bg-slate-50 font-sans text-slate-900 antialiased">
         <main className="mx-auto flex min-h-screen max-w-xl flex-col items-center justify-center px-6 py-16 text-center">
           <a href={appUrl} className="mb-10 inline-block rounded focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-700">

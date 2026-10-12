@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { resolveStoreRequest } from "@/lib/store/api-helpers";
+import { diffFields, logActivity } from "@/lib/store/activity";
 import { storeDetailsSchema, type StoreDetails } from "@/lib/store/store-details";
+import { linksFromSocials, socialsFromLinks, type StoreSocials } from "@/lib/store/socials";
+import { withSocialFavicons } from "@/lib/store/social-favicons";
 
 /** GET /api/store/profile?slug= — store details for Settings. */
 export async function GET(req: Request) {
@@ -24,9 +27,7 @@ export async function GET(req: Request) {
     addressLine1: data?.address_line1 ?? "",
     city: data?.city ?? "",
     state: data?.state ?? "",
-    instagram: socials.instagram ?? "",
-    facebook: socials.facebook ?? "",
-    tiktok: socials.tiktok ?? "",
+    socialLinks: linksFromSocials(socials),
   };
   return NextResponse.json({ details, canManage: resolved.capabilities.canManageSettings });
 }
@@ -44,7 +45,13 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: issue?.message || "Check the details.", field: issue?.path.join(".") }, { status: 400 });
   }
   const v = parsed.data;
-  const socials = Object.fromEntries((["instagram", "facebook", "tiktok"] as const).filter((k) => v[k]).map((k) => [k, v[k]]));
+  const { data: current } = await resolved.service
+    .schema("store")
+    .from("business_profile")
+    .select("socials, category, business_email, phone, whatsapp, address_line1, city, state")
+    .eq("tenant_id", resolved.access.tenantId)
+    .maybeSingle();
+  const socials = await withSocialFavicons(resolved.access.tenantId, socialsFromLinks(v.socialLinks), (current?.socials as StoreSocials | null) ?? null);
 
   const [tenantResult, profileResult] = await Promise.all([
     resolved.service.from("tenants").update({ display_name: v.storeName }).eq("id", resolved.access.tenantId),
@@ -64,6 +71,28 @@ export async function PATCH(req: Request) {
       .eq("tenant_id", resolved.access.tenantId),
   ]);
   const error = tenantResult.error || profileResult.error;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("[store profile] save failed", error);
+    return NextResponse.json({ error: "We couldn't save your store details. Please try again." }, { status: 500 });
+  }
+  await logActivity({
+    tenantId: resolved.access.tenantId,
+    actor: resolved.access,
+    area: "settings",
+    action: "updated",
+    changes: diffFields(
+      { ...current, display_name: resolved.access.storeDisplayName },
+      {
+        display_name: v.storeName,
+        category: v.category,
+        business_email: v.businessEmail,
+        phone: v.phone,
+        whatsapp: v.whatsapp || null,
+        address_line1: v.addressLine1,
+        city: v.city,
+        state: v.state,
+      },
+    ),
+  });
   return NextResponse.json({ ok: true });
 }

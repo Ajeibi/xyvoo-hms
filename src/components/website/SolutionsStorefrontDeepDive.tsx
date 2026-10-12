@@ -155,14 +155,14 @@ export function SolutionsStorefrontDeepDive() {
         <div className="mx-auto max-w-[1200px]">
           <FadeIn>
             <div className="px-5 pb-11 pt-11 text-center md:px-8 md:pb-[72px] md:pt-[72px]">
-              <h3
+              <h2
                 className="mb-4 text-balance text-h3 font-extrabold leading-[1.12]"
                 style={{ color: "var(--xyvoo-navy)" }}
               >
                 Every part of your shop,
                 <br />
                 one operating model.
-              </h3>
+              </h2>
             </div>
           </FadeIn>
 
@@ -208,12 +208,12 @@ export function SolutionsStorefrontDeepDive() {
           <div className="lg:sticky lg:top-28">
             <FadeIn>
               <div>
-                <h3
+                <h2
                   id="storefront-integrations-heading"
                   className="mb-3 text-h3 font-extrabold text-[var(--xyvoo-products-navy-alt)]"
                 >
                   {SOLUTIONS_STOREFRONT_INTEGRATIONS_TITLE}
-                </h3>
+                </h2>
                 <p
                   className="max-w-[42ch] text-p leading-relaxed"
                   style={{ color: "var(--xyvoo-navy-muted-text)" }}
@@ -235,11 +235,11 @@ export function SolutionsStorefrontDeepDive() {
                 >
                   {String(i + 1).padStart(2, "0")}
                 </span>
-                <h5
+                <h3
                   className="text-h5 font-semibold leading-snug text-[var(--xyvoo-products-navy-alt)] transition-colors duration-300 group-hover:text-[rgb(39_201_63)]"
                 >
                   {item.title}
-                </h5>
+                </h3>
                 <p
                   className="mt-2 max-w-[46ch] text-p leading-relaxed"
                   style={{ color: "var(--xyvoo-navy-muted-text)" }}

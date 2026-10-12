@@ -4,6 +4,7 @@ import { STORE_PATHS, storeHref } from "@/lib/store/site/links";
 import type { SiteTheme } from "@/lib/store/site/schema";
 import AddToBasketButton, { type BasketProduct } from "./AddToBasketButton";
 import { Icon, Price, Rating, StoreImage } from "./primitives";
+import SaleEnds from "./SaleEnds";
 
 const CARD_SIZES = "(min-width: 1024px) 25vw, (min-width: 600px) 33vw, 50vw";
 
@@ -14,6 +15,8 @@ function toBasketProduct(p: ShopProduct): BasketProduct {
     name: p.name,
     price: p.price,
     currency: p.currency,
+    fixedPrices: p.fixedPrices,
+    deliveryExtra: p.deliveryExtra,
     imageUrl: p.imageUrl,
     stock: p.stock,
     allowBackorder: p.allowBackorder,
@@ -65,7 +68,8 @@ export default function ProductCard({
   );
   const price = (
     <p className="card__price">
-      <Price amount={product.price} compareAt={product.compareAtPrice} currency={product.currency} />
+      <Price amount={product.price} compareAt={product.compareAtPrice} fixedPrices={product.fixedPrices} />
+      {product.onSale && product.saleEndsAt ? <SaleEnds endsAt={product.saleEndsAt} /> : null}
     </p>
   );
   const chooseLink = (

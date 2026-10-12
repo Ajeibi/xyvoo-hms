@@ -8,6 +8,9 @@ import { getStoreSubscription } from "@/lib/store/payments";
 export async function GET(req: Request) {
   const resolved = await resolveStoreRequest(new URL(req.url).searchParams.get("slug") || "");
   if (resolved.error) return resolved.error;
+  if (!resolved.capabilities.canManageSettings) {
+    return NextResponse.json({ error: "Only the store owner or an admin can see the plan." }, { status: 403 });
+  }
 
   const subscription = await getStoreSubscription(resolved.access.tenantId);
   const platform = getPlatformPaystack();

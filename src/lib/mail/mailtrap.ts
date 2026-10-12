@@ -1,10 +1,10 @@
 import nodemailer from "nodemailer";
 import { getMailEnv } from "@/lib/env";
-import { badge, detailsPanel, escapeHtml, logoAttachment, renderEmail } from "@/lib/mail/layout";
+import { badge, detailsPanel, escapeHtml, logoAttachment, renderEmail, type EmailLayout } from "@/lib/mail/layout";
 
 const mailEnv = getMailEnv();
 
-const transporter = nodemailer.createTransport({
+const smtp = nodemailer.createTransport({
   host: mailEnv.host,
   port: mailEnv.port,
   secure: false,
@@ -13,6 +13,58 @@ const transporter = nodemailer.createTransport({
     pass: mailEnv.pass,
   },
 });
+
+/** "Slow down" or "try later" from the mail server, or a dropped connection: worth another go. */
+function isTemporaryMailError(error: unknown) {
+  const e = error as { responseCode?: number; code?: string; response?: string; message?: string };
+  if (e?.responseCode && e.responseCode >= 420 && e.responseCode < 460) return true;
+  if (e?.code && ["ECONNECTION", "ETIMEDOUT", "ESOCKET", "ECONNRESET"].includes(e.code)) return true;
+  return /too many|rate limit|try again later/i.test(`${e?.response ?? ""} ${e?.message ?? ""}`);
+}
+
+/**
+ * The shortest gap between two emails from this server. Mailtrap's testing
+ * inbox takes one a second; set MAIL_MIN_INTERVAL_MS for a provider with its
+ * own limit.
+ */
+const MIN_INTERVAL_MS = Number(process.env.MAIL_MIN_INTERVAL_MS) || (mailEnv.host.startsWith("sandbox.") ? 1100 : 0);
+let queue: Promise<unknown> = Promise.resolve();
+let lastSentAt = 0;
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** One send at a time from this server, at least MIN_INTERVAL_MS apart. */
+function inTurn<T>(send: () => Promise<T>): Promise<T> {
+  const turn = queue.then(async () => {
+    const gap = lastSentAt + MIN_INTERVAL_MS - Date.now();
+    if (gap > 0) await wait(gap);
+    try {
+      return await send();
+    } finally {
+      lastSentAt = Date.now();
+    }
+  });
+  queue = turn.catch(() => undefined);
+  return turn;
+}
+
+/**
+ * Sends one email, trying twice more when the mail server asks us to slow
+ * down. The waits are a little random, so emails for the same order that
+ * were refused together don't all come back at the same moment.
+ */
+const transporter = {
+  async sendMail(options: Parameters<typeof smtp.sendMail>[0]) {
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        return await inTurn(() => smtp.sendMail(options));
+      } catch (error) {
+        if (attempt >= 2 || !isTemporaryMailError(error)) throw error;
+        await wait((attempt === 0 ? 1500 : 4000) + Math.random() * 2000);
+      }
+    }
+  },
+};
 
 export async function sendCheckoutReceiptEmail({
   to,
@@ -31,6 +83,36 @@ export async function sendCheckoutReceiptEmail({
     subject,
     text,
     html,
+  });
+}
+
+/** A file sent with a branded email, e.g. a PDF receipt. */
+export type EmailAttachment = { filename: string; content: Buffer | Uint8Array; contentType: string };
+
+/** Any email built with the branded layout (renderEmail), with the logo attached, plus any extra files. */
+export async function sendBrandedEmail({
+  to,
+  subject,
+  text,
+  layout,
+  replyTo,
+  attachments,
+}: {
+  to: string;
+  subject: string;
+  text: string;
+  layout: EmailLayout;
+  replyTo?: string | null;
+  attachments?: EmailAttachment[];
+}) {
+  await transporter.sendMail({
+    from: mailEnv.from,
+    to,
+    subject,
+    text,
+    html: renderEmail(layout),
+    attachments: [logoAttachment(), ...(attachments ?? []).map((a) => ({ filename: a.filename, content: Buffer.from(a.content), contentType: a.contentType }))],
+    ...(replyTo ? { replyTo } : {}),
   });
 }
 

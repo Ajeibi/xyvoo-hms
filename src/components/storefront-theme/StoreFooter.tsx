@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { menuItemPath, storeHref } from "@/lib/store/site/links";
 import type { Storefront } from "@/lib/store/site/storefront";
-import { Icon } from "./primitives";
 import StoreApp, { type StoreAppConfig } from "./StoreApp";
 import { CookieSettingsButton } from "./StoreAnalytics";
 import { storeSocialLinks } from "./socials";
@@ -23,7 +22,7 @@ export default function StoreFooter({ storefront, showMark, appConfig = null }: 
                 {socials.map((s) => (
                   <li key={s.href}>
                     <a className="icon-btn" href={s.href} aria-label={`${storeName} on ${s.label}`} rel="noopener noreferrer" target="_blank">
-                      <Icon name={s.icon} />
+                      {s.icon}
                     </a>
                   </li>
                 ))}

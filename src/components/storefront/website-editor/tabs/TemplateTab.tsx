@@ -27,7 +27,7 @@ export default function TemplateTab({ state, saving, saveDraft }: TabProps) {
         {TEMPLATES.map((t) => (
           <div key={t.slug} className={`overflow-hidden rounded-xl border-2 ${choice === t.slug ? "border-xyvoo-blue" : "border-slate-200"}`}>
             <label className="block cursor-pointer">
-              <TemplateThumbnail src={`${t.previewPath}/index.html`} title={t.name} />
+              <TemplateThumbnail slug={t.slug} sizes="(min-width: 768px) 400px, 100vw" />
               <span className="flex items-start gap-3 p-3">
                 <input type="radio" name="template" checked={choice === t.slug} onChange={() => setChoice(t.slug as StorefrontTemplateSlug)} className="mt-1" />
                 <span>

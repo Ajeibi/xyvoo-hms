@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
-import { resolveStoreRequest } from "@/lib/store/api-helpers";
+import { productNotFound, resolveStoreRequest, storeOwnsProducts } from "@/lib/store/api-helpers";
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { searchParams } = new URL(req.url);
   const result = await resolveStoreRequest(searchParams.get("slug") || "");
   if (result.error) return result.error;
+  if (!(await storeOwnsProducts(result.service, result.access.tenantId, [id]))) return productNotFound();
 
   const { data, error } = await result.service
     .schema("store")
@@ -26,6 +27,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   if (!body?.component_product_id) {
     return NextResponse.json({ error: "component_product_id is required." }, { status: 400 });
   }
+  // The bundle and its component must both be this store's.
+  if (!(await storeOwnsProducts(result.service, result.access.tenantId, [id, body.component_product_id]))) return productNotFound();
 
   const { data, error } = await result.service
     .schema("store")
@@ -42,14 +45,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   return NextResponse.json({ item: data }, { status: 201 });
 }
 
-export async function DELETE(req: Request) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const { searchParams } = new URL(req.url);
   const itemId = searchParams.get("itemId") || "";
   const result = await resolveStoreRequest(searchParams.get("slug") || "");
   if (result.error) return result.error;
   if (!itemId) return NextResponse.json({ error: "Missing itemId." }, { status: 400 });
+  if (!(await storeOwnsProducts(result.service, result.access.tenantId, [id]))) return productNotFound();
 
-  const { error } = await result.service.schema("store").from("product_bundle_items").delete().eq("id", itemId);
+  const { error } = await result.service.schema("store").from("product_bundle_items").delete().eq("id", itemId).eq("bundle_product_id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   return NextResponse.json({ success: true });
 }

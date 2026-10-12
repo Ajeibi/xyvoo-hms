@@ -42,6 +42,7 @@ export async function GET(req: Request) {
         reference,
         customerCode: raw.customer?.customer_code ?? null,
         paidAt: raw.paid_at ? new Date(raw.paid_at) : new Date(),
+        actor: resolved.access,
       });
     } else if (result.status === "failed" || result.status === "abandoned") {
       await markSubscriptionPaymentFailed(reference, result.status);

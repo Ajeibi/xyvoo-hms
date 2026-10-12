@@ -11,7 +11,44 @@ export type SystemPageKey = (typeof SYSTEM_PAGE_KEYS)[number];
 
 const shortText = (max: number) => z.string().trim().max(max);
 
+/** A picture on a page: an uploaded image (https only) and a description for screen readers. */
+const pageImageSchema = z.object({
+  url: z.string().trim().url().max(1000).refine((u) => u.startsWith("https://"), "Use an image uploaded to your shop."),
+  alt: shortText(200),
+});
+export type PageImage = z.infer<typeof pageImageSchema>;
+
+/** Where a button goes: the home page, the shop, or one of the shop's pages ("page:about"). */
+export const pageLinkSchema = z.string().trim().regex(/^(home|shop|page:[a-z0-9]+(?:-[a-z0-9]+)*)$/, "Choose where the button goes.");
+
 export const pageBlockSchema = z.discriminatedUnion("type", [
+  /** The top of a page: a big heading and an introduction, with a picture beside it if there is one. */
+  z.object({ type: z.literal("hero"), eyebrow: shortText(60).default(""), heading: shortText(120).min(1, "Give the top of the page a heading."), lead: shortText(400).default(""), image: pageImageSchema.nullable().default(null) }),
+  /** A story section: words on one side, up to three pictures on the other. */
+  z.object({
+    type: z.literal("split"),
+    eyebrow: shortText(60).default(""),
+    heading: shortText(120).min(1, "Give this section a heading."),
+    text: shortText(3000).min(1, "Write something for this section."),
+    images: z.array(pageImageSchema).max(3).default([]),
+    imageSide: z.enum(["left", "right"]).default("left"),
+  }),
+  /** Numbered points, e.g. how you make things or what you stand for. */
+  z.object({
+    type: z.literal("steps"),
+    eyebrow: shortText(60).default(""),
+    heading: shortText(120).default(""),
+    items: z.array(z.object({ title: shortText(80).min(1), text: shortText(400).min(1) })).min(1).max(6),
+  }),
+  /** A band with a heading and up to two buttons. */
+  z.object({
+    type: z.literal("cta"),
+    heading: shortText(120).min(1, "Give the band a heading."),
+    text: shortText(300).default(""),
+    buttons: z.array(z.object({ label: shortText(40).min(1), link: pageLinkSchema })).min(1).max(2),
+  }),
+  /** A message form that emails the shop, beside the shop's contact details and opening hours. */
+  z.object({ type: z.literal("contact_form"), heading: shortText(120).default("Send us a message"), intro: shortText(300).default(""), hours: shortText(300).default(""), replyTime: shortText(80).default("") }),
   z.object({ type: z.literal("heading"), text: shortText(120).min(1, "Headings can't be empty.") }),
   z.object({ type: z.literal("text"), text: shortText(5000).min(1, "Text blocks can't be empty.") }),
   z.object({ type: z.literal("list"), items: z.array(shortText(300).min(1)).min(1).max(30) }),

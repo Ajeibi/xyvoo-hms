@@ -15,7 +15,7 @@ export async function POST(req: Request) {
   if (!parsed.success) return jsonError(parsed.error.issues[0]?.message || "Enter a valid email address.");
   const { email } = parsed.data;
 
-  const limited = limitCodeRequests(req, "reset-request", email, { perIp: 10, perEmail: 5 });
+  const limited = await limitCodeRequests(req, "reset-request", email, { perIp: 10, perEmail: 5 });
   if (limited) return limited;
 
   const reply = NextResponse.json({ ok: true, sentTo: maskEmail(email) });

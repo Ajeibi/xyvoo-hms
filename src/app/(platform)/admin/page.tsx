@@ -1,7 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { AlertCircle, ArrowRight, Building2, CheckCircle2, Clock, PlusCircle } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { getPlatformTenants } from "@/lib/platform/tenants";
+
+export const metadata: Metadata = {
+  title: "Platform Admin",
+};
 
 const statusConfig: Record<string, { color: string; bg: string; dot: string }> = {
   active: { color: "text-emerald-600", bg: "bg-emerald-50", dot: "bg-emerald-500" },

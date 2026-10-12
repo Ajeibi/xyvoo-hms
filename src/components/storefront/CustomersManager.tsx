@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Download, Mail, MessageCircle, Phone, Search, X } from "lucide-react";
+import { Banknote, Download, Heart, Mail, MessageCircle, Phone, Search, SearchX, Sparkles, Users, X } from "lucide-react";
 import { formatShopCurrency } from "@/lib/shop/format";
 import { isSale } from "@/lib/store/sales";
 import { whatsappLink } from "@/lib/store/whatsapp";
-import { DashAlert, DashField, dashInput, DashStatus, sendJson } from "./dashboard-ui";
+import { DashAlert, dashButton, DashCard, DashEmptyState, DashField, dashInput, DashPill, DashSectionIntro, DashStatStrip, DashStatTile, DashStatus, sendJson } from "./dashboard-ui";
+import { MEANING } from "./meaning";
 
 type Segment = "vip" | "repeat" | "new" | "one_time" | "at_risk" | "lapsed" | "not_paid";
 
@@ -29,17 +30,47 @@ type Customer = {
 type SegmentInfo = { key: Segment; label: string; help: string; count: number };
 type Order = { id: string; createdAt: string; status: string; paymentStatus: string; total: number; deliveryMethod: string | null; items: { name: string; quantity: number; total: number }[] };
 
-const SEGMENT_STYLE: Record<Segment, string> = {
-  vip: "bg-violet-100 text-violet-900",
-  repeat: "bg-blue-100 text-blue-900",
-  new: "bg-emerald-100 text-emerald-900",
-  one_time: "bg-slate-100 text-slate-800",
-  at_risk: "bg-amber-100 text-amber-900",
-  lapsed: "bg-red-100 text-red-900",
-  not_paid: "bg-slate-100 text-slate-600",
+const SEGMENT_TONE: Record<Segment, "slate" | "green" | "amber" | "red" | "blue"> = {
+  vip: "blue",
+  repeat: "blue",
+  new: "green",
+  one_time: "slate",
+  at_risk: "amber",
+  lapsed: "red",
+  not_paid: "slate",
 };
 
+const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-xyvoo-blue focus-visible:ring-offset-2";
+const pulse = "animate-pulse rounded bg-slate-100 motion-reduce:animate-none";
+/** The WhatsApp brand green, dark enough for white text to pass contrast. */
+const whatsappButton =
+  "inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-800";
+
 const date = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—");
+
+function CustomersSkeleton() {
+  return (
+    <div className="space-y-6" aria-hidden>
+      <div className="flex flex-wrap gap-2">
+        {Array.from({ length: 5 }, (_, i) => (
+          <div key={i} className={`h-9 w-24 rounded-full ${pulse}`} />
+        ))}
+      </div>
+      <div className={`h-11 w-full max-w-sm rounded-xl ${pulse}`} />
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+        {Array.from({ length: 4 }, (_, i) => (
+          <div key={i} className="flex items-center gap-3 py-3">
+            <div className="min-w-0 flex-1 space-y-2">
+              <div className={`h-4 w-40 max-w-full ${pulse}`} />
+              <div className={`h-3 w-56 max-w-full ${pulse}`} />
+            </div>
+            <div className={`h-5 w-16 rounded-full ${pulse}`} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 /** Dashboard → Customers: everyone who has ordered, grouped automatically, with the shop's own notes. */
 export default function CustomersManager({ slug }: { slug: string }) {
@@ -51,6 +82,8 @@ export default function CustomersManager({ slug }: { slug: string }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState<Customer | null>(null);
   const [error, setError] = useState("");
+  // Read once, so "new this month" doesn't shift between renders.
+  const [monthAgo] = useState(() => Date.now() - 30 * 24 * 60 * 60 * 1000);
 
   useEffect(() => {
     fetch(`/api/store/customers?slug=${encodeURIComponent(slug)}`)
@@ -74,93 +107,176 @@ export default function CustomersManager({ slug }: { slug: string }) {
     );
   }, [customers, segment, query]);
 
-  if (!customers) return <p className="text-sm text-slate-500">{error || "Loading…"}</p>;
+  if (!customers) {
+    return error ? (
+      <DashAlert message={error} />
+    ) : (
+      <>
+        <p className="sr-only" role="status">
+          Loading your customers
+        </p>
+        <CustomersSkeleton />
+      </>
+    );
+  }
   const money = (v: number) => formatShopCurrency(v, currency);
   const label = (s: Segment) => segments.find((x) => x.key === s)?.label ?? s;
+  const chip = (active: boolean) =>
+    `rounded-full border px-3.5 py-1.5 text-sm font-medium ${focusRing} ${active ? `${MEANING.customers.chipOn} font-semibold` : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`;
+
+  if (customers.length === 0) {
+    return (
+      <div className="space-y-6">
+        <DashAlert message={error} />
+        <DashEmptyState
+          art="people"
+          meaning="customers"
+          title="No customers yet"
+          description="Everyone who orders from your shop will appear here after their first order, grouped automatically so you know who to thank and who to win back."
+        />
+      </div>
+    );
+  }
+
+  const segmentHelp = segment !== "all" ? segments.find((s) => s.key === segment)?.help : null;
+  const newThisMonth = customers.filter((c) => new Date(c.firstOrderAt).getTime() >= monthAgo).length;
+  const comeBack = customers.filter((c) => c.paidOrders > 1).length;
+  const spent = customers.reduce((total, c) => total + c.totalSpent, 0);
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Customer groups">
-        <button
-          type="button"
-          aria-pressed={segment === "all"}
-          onClick={() => setSegment("all")}
-          className={`rounded-full border px-3 py-1.5 text-sm ${segment === "all" ? "border-xyvoo-blue bg-blue-50 font-semibold text-blue-800" : "border-slate-200 bg-white text-slate-700"}`}
-        >
-          Everyone ({customers.length})
-        </button>
-        {segments.map((s) => (
-          <button
-            key={s.key}
-            type="button"
-            title={s.help}
-            aria-pressed={segment === s.key}
-            onClick={() => setSegment(s.key)}
-            className={`rounded-full border px-3 py-1.5 text-sm ${segment === s.key ? "border-xyvoo-blue bg-blue-50 font-semibold text-blue-800" : "border-slate-200 bg-white text-slate-700"}`}
-          >
-            {s.label} ({s.count})
-          </button>
-        ))}
-      </div>
-      {segment !== "all" ? <p className="text-sm text-slate-600">{segments.find((s) => s.key === segment)?.help}.</p> : null}
+      <DashSectionIntro
+        id="customers"
+        meaning="customers"
+        art="people"
+        title="Get to know your customers"
+        points={[
+          "Everyone who orders is added here and sorted into groups, such as new, regulars and people you haven't seen in a while.",
+          "Open a customer to see what they bought, and message them on WhatsApp, by email or by phone.",
+          "Add tags and a private note so you remember the little things.",
+        ]}
+      />
 
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="relative w-full max-w-sm">
+      <DashStatStrip label="Your customers in figures">
+        <DashStatTile label="Customers" meaning="customers" icon={Users} hint="Everyone who has ordered" value={String(customers.length)} />
+        <DashStatTile label="New this month" meaning="customers" icon={Sparkles} hint="First order in the last 30 days" value={String(newThisMonth)} />
+        <DashStatTile label="Came back" meaning="orders" icon={Heart} hint="Paid for more than one order" value={String(comeBack)} />
+        <DashStatTile
+          label="Spent with you"
+          meaning="money"
+          icon={Banknote}
+          hint={customers.length ? `About ${money(spent / customers.length)} each` : "Paid orders"}
+          value={money(spent)}
+        />
+      </DashStatStrip>
+
+      <div className="space-y-2">
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Customer groups">
+          <button type="button" aria-pressed={segment === "all"} onClick={() => setSegment("all")} className={chip(segment === "all")}>
+            Everyone ({customers.length})
+          </button>
+          {segments.map((s) => (
+            <button key={s.key} type="button" title={s.help} aria-pressed={segment === s.key} onClick={() => setSegment(s.key)} className={chip(segment === s.key)}>
+              {s.label} ({s.count})
+            </button>
+          ))}
+        </div>
+        {segmentHelp ? (
+          <p className="text-sm text-slate-600" aria-live="polite">
+            {segmentHelp}.
+          </p>
+        ) : null}
+      </div>
+
+      <DashAlert message={error} />
+
+      <DashCard
+        id="customers-list"
+        icon={Users}
+        title="Your customers"
+        description="Open a customer to see their orders, get in touch, or add tags and a private note."
+        actions={
+          canExport ? (
+            <a href={`/api/store/customers/export?slug=${encodeURIComponent(slug)}`} className={`${dashButton.secondary} ${focusRing}`}>
+              <Download className="h-4 w-4" aria-hidden /> Export to spreadsheet (CSV)
+            </a>
+          ) : null
+        }
+      >
+        <div className="relative mb-4 w-full max-w-sm">
           <label htmlFor="cust-search" className="sr-only">
             Search customers
           </label>
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden />
           <input id="cust-search" type="search" className={`${dashInput} pl-9`} placeholder="Search by name, email, phone or tag" value={query} onChange={(e) => setQuery(e.target.value)} />
         </div>
-        {canExport ? (
-          <a href={`/api/store/customers/export?slug=${encodeURIComponent(slug)}`} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50">
-            <Download className="h-4 w-4" aria-hidden /> Export to spreadsheet (CSV)
-          </a>
-        ) : null}
-      </div>
 
-      <DashAlert message={error} />
-
-      {customers.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-600">
-          Your customers will appear here after their first order.
+        <p className="sr-only" role="status">
+          {shown.length} {shown.length === 1 ? "customer" : "customers"} shown
         </p>
-      ) : (
-        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
-          <table className="w-full text-left text-sm">
-            <caption className="sr-only">Customers</caption>
-            <thead className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
-              <tr>
-                <th scope="col" className="px-4 py-3 font-semibold">Customer</th>
-                <th scope="col" className="px-4 py-3 font-semibold">Group</th>
-                <th scope="col" className="px-4 py-3 text-right font-semibold">Paid orders</th>
-                <th scope="col" className="px-4 py-3 text-right font-semibold">Total spent</th>
-                <th scope="col" className="px-4 py-3 font-semibold">Last order</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
+
+        {shown.length === 0 ? (
+          <DashEmptyState icon={SearchX} title="No customers match" description="Try a different name, email, phone number or tag, or choose “Everyone” to see all your customers." />
+        ) : (
+          <>
+            {/* Phones: one card per customer. */}
+            <ul className="divide-y divide-slate-100 sm:hidden" aria-label="Customers">
               {shown.map((c) => (
-                <tr key={c.key} className="hover:bg-slate-50">
-                  <th scope="row" className="px-4 py-3 font-normal">
-                    <button type="button" onClick={() => setOpen(c)} className="text-left font-medium text-blue-800 hover:underline">
-                      {c.name}
-                    </button>
-                    <span className="block text-xs text-slate-500">{c.email || c.phone}</span>
-                    {c.tags.length ? <span className="mt-1 block text-xs text-slate-500">{c.tags.map((t) => `#${t}`).join(" ")}</span> : null}
-                  </th>
-                  <td className="px-4 py-3">
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${SEGMENT_STYLE[c.segment]}`}>{label(c.segment)}</span>
-                  </td>
-                  <td className="px-4 py-3 text-right">{c.paidOrders}</td>
-                  <td className="px-4 py-3 text-right">{money(c.totalSpent)}</td>
-                  <td className="px-4 py-3">{date(c.lastOrderAt)}</td>
-                </tr>
+                <li key={c.key} className="py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <button type="button" onClick={() => setOpen(c)} className={`break-words rounded text-left font-medium text-blue-800 hover:underline ${focusRing}`}>
+                        {c.name}
+                      </button>
+                      <p className="break-words text-xs text-slate-500">{c.email || c.phone}</p>
+                    </div>
+                    <DashPill tone={SEGMENT_TONE[c.segment]}>{label(c.segment)}</DashPill>
+                  </div>
+                  <p className="mt-1 text-sm text-slate-700">
+                    {money(c.totalSpent)} · {c.paidOrders} paid {c.paidOrders === 1 ? "order" : "orders"} · last ordered {date(c.lastOrderAt)}
+                  </p>
+                  {c.tags.length ? <p className="mt-1 break-words text-xs text-slate-500">{c.tags.map((t) => `#${t}`).join(" ")}</p> : null}
+                </li>
               ))}
-            </tbody>
-          </table>
-          {shown.length === 0 ? <p className="p-6 text-center text-sm text-slate-500">No customers match.</p> : null}
-        </div>
-      )}
+            </ul>
+
+            {/* Larger screens: a table, scrolling inside the card if it needs to. */}
+            <div className="-mx-5 hidden overflow-x-auto px-5 sm:-mx-6 sm:block sm:px-6">
+              <table className="w-full min-w-[36rem] text-left text-sm">
+                <caption className="sr-only">Customers. Select a name to see their orders and notes.</caption>
+                <thead className="border-b border-slate-200 text-xs text-slate-600">
+                  <tr>
+                    <th scope="col" className="py-3 pr-4 font-semibold">Customer</th>
+                    <th scope="col" className="py-3 pr-4 font-semibold">Group</th>
+                    <th scope="col" className="py-3 pr-4 text-right font-semibold">Paid orders</th>
+                    <th scope="col" className="py-3 pr-4 text-right font-semibold">Total spent</th>
+                    <th scope="col" className="py-3 font-semibold">Last order</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {shown.map((c) => (
+                    <tr key={c.key} className="hover:bg-slate-50">
+                      <th scope="row" className="py-3 pr-4 font-normal">
+                        <button type="button" onClick={() => setOpen(c)} className={`rounded text-left font-medium text-blue-800 hover:underline ${focusRing}`}>
+                          {c.name}
+                        </button>
+                        <span className="block text-xs text-slate-500">{c.email || c.phone}</span>
+                        {c.tags.length ? <span className="mt-1 block text-xs text-slate-500">{c.tags.map((t) => `#${t}`).join(" ")}</span> : null}
+                      </th>
+                      <td className="py-3 pr-4">
+                        <DashPill tone={SEGMENT_TONE[c.segment]}>{label(c.segment)}</DashPill>
+                      </td>
+                      <td className="py-3 pr-4 text-right text-slate-700">{c.paidOrders}</td>
+                      <td className="py-3 pr-4 text-right font-medium text-slate-900">{money(c.totalSpent)}</td>
+                      <td className="py-3 text-slate-700">{date(c.lastOrderAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </DashCard>
 
       {open ? (
         <CustomerPanel
@@ -168,6 +284,7 @@ export default function CustomersManager({ slug }: { slug: string }) {
           customer={open}
           money={money}
           segmentLabel={label(open.segment)}
+          segmentTone={SEGMENT_TONE[open.segment]}
           onClose={() => setOpen(null)}
           onSaved={(updated) => {
             setCustomers((list) => list?.map((c) => (c.key === updated.key ? updated : c)) ?? null);
@@ -184,6 +301,7 @@ function CustomerPanel({
   customer,
   money,
   segmentLabel,
+  segmentTone,
   onClose,
   onSaved,
 }: {
@@ -191,6 +309,7 @@ function CustomerPanel({
   customer: Customer;
   money: (v: number) => string;
   segmentLabel: string;
+  segmentTone: "slate" | "green" | "amber" | "red" | "blue";
   onClose: () => void;
   onSaved: (c: Customer) => void;
 }) {
@@ -240,39 +359,39 @@ function CustomerPanel({
         role="dialog"
         aria-modal="true"
         aria-labelledby="cust-panel-title"
-        className="h-full w-full max-w-lg overflow-y-auto bg-white p-6 shadow-xl"
+        className="h-full w-full max-w-lg overflow-y-auto bg-white p-5 shadow-xl sm:p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 id="cust-panel-title" className="text-lg font-semibold text-slate-900">
+          <div className="min-w-0">
+            <h2 id="cust-panel-title" className="break-words text-xl font-semibold tracking-tight text-slate-900">
               {customer.name}
             </h2>
-            <p className="text-sm text-slate-600">{segmentLabel}</p>
+            <p className="mt-1">
+              <DashPill tone={segmentTone}>{segmentLabel}</DashPill>
+            </p>
           </div>
-          <button type="button" onClick={onClose} autoFocus className="rounded-lg p-2 text-slate-500 hover:bg-slate-100">
+          <button type="button" onClick={onClose} autoFocus className={`rounded-lg p-2 text-slate-600 hover:bg-slate-100 ${focusRing}`}>
             <X className="h-5 w-5" aria-hidden />
             <span className="sr-only">Close</span>
           </button>
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
-          {customer.email ? (
-            <a href={`mailto:${encodeURIComponent(customer.email)}`} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 hover:bg-slate-50">
-              <Mail className="h-4 w-4" aria-hidden /> {customer.email}
+          {digits && whatsapp ? (
+            <a href={whatsapp} target="_blank" rel="noreferrer" className={`${whatsappButton} ${focusRing}`}>
+              <MessageCircle className="h-4 w-4" aria-hidden /> WhatsApp <span className="sr-only">(opens WhatsApp)</span>
             </a>
           ) : null}
           {digits ? (
-            <>
-              <a href={`tel:${digits}`} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 hover:bg-slate-50">
-                <Phone className="h-4 w-4" aria-hidden /> {customer.phone}
-              </a>
-              {whatsapp ? (
-                <a href={whatsapp} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700">
-                  <MessageCircle className="h-4 w-4" aria-hidden /> WhatsApp <span className="sr-only">(opens WhatsApp)</span>
-                </a>
-              ) : null}
-            </>
+            <a href={`tel:${digits}`} className={`${dashButton.secondary} ${focusRing}`}>
+              <Phone className="h-4 w-4" aria-hidden /> {customer.phone}
+            </a>
+          ) : null}
+          {customer.email ? (
+            <a href={`mailto:${encodeURIComponent(customer.email)}`} className={`${dashButton.secondary} max-w-full break-all ${focusRing}`}>
+              <Mail className="h-4 w-4 shrink-0" aria-hidden /> {customer.email}
+            </a>
           ) : null}
         </div>
 
@@ -284,20 +403,21 @@ function CustomerPanel({
             ["Customer since", date(customer.firstOrderAt)],
           ].map(([k, v]) => (
             <div key={k} className="rounded-xl bg-slate-50 p-3">
-              <dt className="text-xs text-slate-500">{k}</dt>
+              <dt className="text-xs text-slate-600">{k}</dt>
               <dd className="font-semibold text-slate-900">{v}</dd>
             </div>
           ))}
         </dl>
 
         <form onSubmit={save} className="mt-6 space-y-3">
+          <h3 className="text-sm font-semibold text-slate-900">Your notes</h3>
           <DashField id="cust-tags" label="Tags" hint="Separate with commas, e.g. wholesale, lagos" optional>
             <input id="cust-tags" className={dashInput} value={tags} onChange={(e) => setTags(e.target.value)} aria-describedby="cust-tags-hint" />
           </DashField>
           <DashField id="cust-note" label="Private note" hint="Only your team sees this." optional>
             <textarea id="cust-note" className={`${dashInput} min-h-24`} value={note} maxLength={2000} onChange={(e) => setNote(e.target.value)} aria-describedby="cust-note-hint" />
           </DashField>
-          <button type="submit" disabled={busy} className="rounded-lg bg-xyvoo-blue px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+          <button type="submit" disabled={busy} className={`${dashButton.primary} ${focusRing}`}>
             {busy ? "Saving…" : "Save"}
           </button>
           {status ? <DashStatus message={status} /> : null}
@@ -306,24 +426,38 @@ function CustomerPanel({
 
         <h3 className="mt-8 text-sm font-semibold text-slate-900">Orders</h3>
         {orders === null ? (
-          <p className="mt-2 text-sm text-slate-500">Loading…</p>
+          <div className="mt-2 space-y-3" aria-hidden>
+            {Array.from({ length: 3 }, (_, i) => (
+              <div key={i} className="space-y-2 py-2">
+                <div className={`h-4 w-48 max-w-full ${pulse}`} />
+                <div className={`h-3 w-64 max-w-full ${pulse}`} />
+              </div>
+            ))}
+          </div>
+        ) : orders.length === 0 ? (
+          <p className="mt-2 text-sm text-slate-600">No orders to show for this customer.</p>
         ) : (
           <ul className="mt-2 divide-y divide-slate-100 text-sm">
-            {orders.map((o) => (
-              <li key={o.id} className="py-3">
-                <div className="flex justify-between gap-2">
-                  <span className="font-medium text-slate-900">
-                    {date(o.createdAt)} · {o.id.slice(0, 8).toUpperCase()}
-                  </span>
-                  <span className="font-medium text-slate-900">{money(o.total)}</span>
-                </div>
-                <p className="text-xs text-slate-500">
-                  {o.paymentStatus === "paid" ? "Paid online" : isSale(o.paymentStatus, o.status) ? "Paid offline" : o.paymentStatus === "failed" ? "Payment failed" : "Not paid yet"} · {o.status}
-                  {o.deliveryMethod ? ` · ${o.deliveryMethod}` : ""}
-                </p>
-                <p className="text-slate-700">{o.items.map((i) => `${i.quantity} × ${i.name}`).join(", ")}</p>
-              </li>
-            ))}
+            {orders.map((o) => {
+              const paid = o.paymentStatus === "refunded" ? "Refunded" : o.paymentStatus === "paid" ? "Paid online" : isSale(o.paymentStatus, o.status) ? "Paid offline" : o.paymentStatus === "failed" ? "Payment failed" : "Not paid yet";
+              const tone = o.paymentStatus === "failed" ? "red" : paid.startsWith("Paid") ? "green" : "amber";
+              return (
+                <li key={o.id} className="py-3">
+                  <div className="flex justify-between gap-2">
+                    <span className="font-medium text-slate-900">
+                      {date(o.createdAt)} · {o.id.slice(0, 8).toUpperCase()}
+                    </span>
+                    <span className="shrink-0 font-medium text-slate-900">{money(o.total)}</span>
+                  </div>
+                  <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-600">
+                    <DashPill tone={tone}>{paid}</DashPill>
+                    <DashPill>{o.status}</DashPill>
+                    {o.deliveryMethod ? <span>{o.deliveryMethod}</span> : null}
+                  </p>
+                  <p className="mt-1 text-slate-700">{o.items.map((i) => `${i.quantity} × ${i.name}`).join(", ")}</p>
+                </li>
+              );
+            })}
           </ul>
         )}
       </aside>

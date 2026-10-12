@@ -4,10 +4,17 @@ import { useEffect, useState } from "react";
 import { CircleAlert } from "lucide-react";
 import WebsiteLayout from "@/components/website/WebsiteLayout";
 import { SubdomainInput } from "@/components/forms/SubdomainInput";
+import StorefrontValidationModal, { type ValidationErrorItem } from "@/components/storefront/StorefrontValidationModal";
 import { supabaseAuthBrowser } from "@/lib/supabase/auth-browser";
 import { toastError, toastSuccess } from "@/lib/app-toast";
-import { slugifyStoreName as slugify } from "@/lib/store/subdomain";
+import { slugifyStoreName as slugify, storeSubdomainSchema } from "@/lib/store/subdomain";
 import { readSignupIntent } from "@/lib/store/site/signup-intent";
+import { cn } from "@/lib/utils";
+
+const FIELD_LABELS: Record<string, string> = {
+  storeName: "Store name",
+  slug: "Storefront URL",
+};
 
 export default function StorefrontCompleteRegistrationPage() {
   const [checkingSession, setCheckingSession] = useState(true);
@@ -16,6 +23,10 @@ export default function StorefrontCompleteRegistrationPage() {
   const [slugTouched, setSlugTouched] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [validationModalErrors, setValidationModalErrors] = useState<ValidationErrorItem[]>([]);
+  const [showValidationModal, setShowValidationModal] = useState(false);
 
   useEffect(() => {
     supabaseAuthBrowser.auth.getUser().then(({ data }) => {
@@ -31,6 +42,29 @@ export default function StorefrontCompleteRegistrationPage() {
     if (error) setError("");
   };
 
+  const clearFieldError = (fieldKey: string) => {
+    if (fieldErrors[fieldKey]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next[fieldKey];
+        return next;
+      });
+    }
+    if (error) setError("");
+  };
+
+  const handleCloseModal = () => {
+    setShowValidationModal(false);
+    if (validationModalErrors.length > 0) {
+      const first = validationModalErrors[0]?.field;
+      if (first === "storeName") {
+        document.getElementById("complete-store-name")?.focus();
+      } else if (first === "slug") {
+        document.getElementById("complete-store-slug")?.focus();
+      }
+    }
+  };
+
   const handleStoreNameChange = (value: string) => {
     setStoreName(value);
     if (!slugTouched) setSlug(slugify(value));
@@ -39,6 +73,37 @@ export default function StorefrontCompleteRegistrationPage() {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError("");
+
+    const nextErrors: Record<string, string> = {};
+    const modalItems: ValidationErrorItem[] = [];
+
+    if (!storeName.trim()) {
+      nextErrors.storeName = "Please enter your store name.";
+      modalItems.push({ field: "storeName", label: "Store name", message: "Please enter your store name." });
+    } else if (storeName.trim().length < 2) {
+      nextErrors.storeName = "Store name must be at least 2 characters.";
+      modalItems.push({ field: "storeName", label: "Store name", message: "Store name must be at least 2 characters." });
+    }
+
+    if (!slug.trim()) {
+      nextErrors.slug = "Please enter your storefront web address.";
+      modalItems.push({ field: "slug", label: "Storefront URL", message: "Please enter your storefront web address." });
+    } else {
+      const slugValidation = storeSubdomainSchema.safeParse(slug);
+      if (!slugValidation.success) {
+        const msg = slugValidation.error.issues[0]?.message || "Invalid web address.";
+        nextErrors.slug = msg;
+        modalItems.push({ field: "slug", label: "Storefront URL", message: msg });
+      }
+    }
+
+    if (modalItems.length > 0) {
+      setFieldErrors(nextErrors);
+      setValidationModalErrors(modalItems);
+      setShowValidationModal(true);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -52,8 +117,24 @@ export default function StorefrontCompleteRegistrationPage() {
       if (!res.ok) {
         const message =
           typeof data.error === "string" ? data.error : "Failed to finish setting up your storefront.";
-        setError(message);
-        toastError("Setup failed", message);
+        if (Array.isArray(data.errors) && data.errors.length > 0) {
+          const map: Record<string, string> = {};
+          const list: ValidationErrorItem[] = [];
+          for (const item of data.errors) {
+            map[item.field] = item.message;
+            list.push({
+              field: item.field,
+              label: FIELD_LABELS[item.field] || item.field,
+              message: item.message,
+            });
+          }
+          setFieldErrors(map);
+          setValidationModalErrors(list);
+          setShowValidationModal(true);
+        } else {
+          setError(message);
+          toastError("Setup failed", message);
+        }
         return;
       }
 
@@ -102,28 +183,35 @@ export default function StorefrontCompleteRegistrationPage() {
             </div>
           ) : null}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} noValidate className="space-y-4">
             <div>
-              <label htmlFor="complete-store-name" className="mb-1 block text-xs font-medium text-slate-600">
+              <label htmlFor="complete-store-name" className={cn("mb-1 block text-xs font-medium", fieldErrors.storeName ? "text-rose-700" : "text-slate-600")}>
                 Store name
               </label>
               <input
                 id="complete-store-name"
                 name="storeName"
-                className="w-full px-4 py-3 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-xyvoo-teal-product-hover focus:border-transparent"
+                className={cn(
+                  "w-full px-4 py-3 text-sm bg-white border rounded-xl focus:outline-none focus:ring-2 transition-colors",
+                  fieldErrors.storeName
+                    ? "border-rose-500 focus:ring-rose-400 bg-rose-50/20"
+                    : "border-slate-200 focus:ring-xyvoo-teal-product-hover focus:border-transparent",
+                )}
                 placeholder="e.g. Kaine & Co"
                 autoComplete="organization"
                 value={storeName}
                 onChange={(e) => {
-                  clearError();
+                  clearFieldError("storeName");
                   handleStoreNameChange(e.target.value);
                 }}
-                required
               />
+              {fieldErrors.storeName ? (
+                <p className="mt-1.5 text-xs font-semibold text-rose-600">{fieldErrors.storeName}</p>
+              ) : null}
             </div>
 
             <div>
-              <label htmlFor="complete-store-slug" className="mb-1 block text-xs font-medium text-slate-600">
+              <label htmlFor="complete-store-slug" className={cn("mb-1 block text-xs font-medium", fieldErrors.slug ? "text-rose-700" : "text-slate-600")}>
                 Storefront URL
               </label>
               <SubdomainInput
@@ -131,17 +219,21 @@ export default function StorefrontCompleteRegistrationPage() {
                 name="slug"
                 placeholder="your-store"
                 value={slug}
+                hasError={Boolean(fieldErrors.slug)}
                 onChange={(e) => {
-                  clearError();
+                  clearFieldError("slug");
                   setSlugTouched(true);
                   setSlug(slugify(e.target.value));
                 }}
-                required
                 ringClassName="focus-within:ring-xyvoo-teal-product-hover"
               />
-              <p className="mt-1 text-xs text-slate-400">
-                Lowercase letters, numbers, and hyphens only. This becomes your shop&rsquo;s web address.
-              </p>
+              {fieldErrors.slug ? (
+                <p className="mt-1.5 text-xs font-semibold text-rose-600">{fieldErrors.slug}</p>
+              ) : (
+                <p className="mt-1 text-xs text-slate-400">
+                  Lowercase letters, numbers, and hyphens only. This becomes your shop&rsquo;s web address. You can switch to your own custom domain later.
+                </p>
+              )}
             </div>
 
             <button
@@ -152,6 +244,15 @@ export default function StorefrontCompleteRegistrationPage() {
               {loading ? "Setting up..." : "Continue"}
             </button>
           </form>
+
+          <StorefrontValidationModal
+            isOpen={showValidationModal}
+            onClose={handleCloseModal}
+            errors={validationModalErrors}
+            title="Incomplete Store Details"
+            description="Please review and complete the following fields before continuing:"
+            confirmText="Okay, I will complete them"
+          />
         </div>
       </div>
     </WebsiteLayout>

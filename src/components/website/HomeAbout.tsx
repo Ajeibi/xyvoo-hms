@@ -34,8 +34,8 @@ export function HomeAbout() {
                 alt="XYVOO team and platform preview"
                 width={1536}
                 height={1024}
+                sizes="(min-width: 1024px) 40vw, 100vw"
                 className="w-full h-auto"
-                priority
               />
             </div>
           </motion.div>

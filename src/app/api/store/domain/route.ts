@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { resolveStoreRequest } from "@/lib/store/api-helpers";
+import { logActivity } from "@/lib/store/activity";
+import { getStorePlan, storeHasFeature } from "@/lib/store/features";
 import {
   changeStoreSlug,
   checkSlugAvailable,
@@ -22,13 +24,19 @@ export async function GET(req: Request) {
   if (resolved.error) return resolved.error;
   const { access, service, capabilities } = resolved;
 
-  const [slug, previous] = await Promise.all([currentSlug(service, access.tenantId), listPreviousAddresses(access.tenantId).catch(() => [])]);
+  const [slug, previous, plan] = await Promise.all([
+    currentSlug(service, access.tenantId),
+    listPreviousAddresses(access.tenantId).catch(() => []),
+    getStorePlan(access.tenantId),
+  ]);
   return NextResponse.json({
     slug,
     url: storefrontUrl(slug),
     previous,
     changesLeft: Math.max(0, MAX_SLUG_CHANGES_PER_30_DAYS - slugChangesInLast30Days(previous)),
     canManage: capabilities.canManageSettings,
+    // Linking the shop's own domain (e.g. www.adashop.com) is a Standard feature; the XYVOO address above is for everyone.
+    customDomainAvailable: storeHasFeature(plan, "customDomain"),
   });
 }
 
@@ -65,5 +73,12 @@ export async function POST(req: Request) {
   if (!check.available) return NextResponse.json({ error: check.reason }, { status: 409 });
 
   await changeStoreSlug(access.tenantId, oldSlug, newSlug);
+  await logActivity({
+    tenantId: access.tenantId,
+    actor: access,
+    area: "domain",
+    action: "updated",
+    changes: { web_address: { from: storefrontUrl(oldSlug).replace(/^https?:\/\//, ""), to: storefrontUrl(newSlug).replace(/^https?:\/\//, "") } },
+  });
   return NextResponse.json({ slug: newSlug, url: storefrontUrl(newSlug) });
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { resolveStoreRequest } from "@/lib/store/api-helpers";
 import { listShopProducts } from "@/lib/shop/products";
 import { rateLimit } from "@/lib/rate-limit";
+import { featureUnavailable } from "@/lib/store/features";
 import {
   countPushSubscribers,
   getPushConfig,
@@ -24,6 +25,9 @@ export async function GET(req: Request) {
   const resolved = await resolveStoreRequest(new URL(req.url).searchParams.get("slug") || "");
   if (resolved.error) return resolved.error;
   const { access, service, capabilities } = resolved;
+  if (!capabilities.canManageSettings) return NextResponse.json({ error: "Only the owner or an admin can manage notifications." }, { status: 403 });
+  const blocked = await featureUnavailable(access.tenantId, "pushNotifications");
+  if (blocked) return blocked;
 
   const [subscribers, sent, site, collections, products] = await Promise.all([
     countPushSubscribers(access.tenantId).catch(() => 0),
@@ -60,6 +64,8 @@ export async function POST(req: Request) {
   const { access, capabilities } = resolved;
 
   if (!capabilities.canManageSettings) return NextResponse.json({ error: "Only the owner or an admin can send notifications." }, { status: 403 });
+  const blocked = await featureUnavailable(access.tenantId, "pushNotifications");
+  if (blocked) return blocked;
   if (!getPushConfig()) return NextResponse.json({ error: "Notifications aren't switched on yet." }, { status: 503 });
   if (!rateLimit(`store-push-send:${access.tenantId}`, 5, 60 * 60_000).ok) {
     return NextResponse.json({ error: "Please wait a while before sending another notification." }, { status: 429 });

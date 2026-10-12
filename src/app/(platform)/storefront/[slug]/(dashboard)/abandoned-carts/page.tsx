@@ -1,16 +1,16 @@
 import type { Metadata } from "next";
 import AbandonedCarts from "@/components/storefront/AbandonedCarts";
+import { DashPageHeader } from "@/components/storefront/dashboard-blocks";
+import { requireStoreSection } from "@/lib/store/access";
 
 export const metadata: Metadata = { title: "Abandoned carts" };
 
 export default async function StorefrontAbandonedCartsPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
+  await requireStoreSection(slug, "abandoned-carts");
   return (
-    <div className="max-w-6xl space-y-6">
-      <div>
-        <h1 className="text-lg font-semibold text-slate-900">Abandoned carts</h1>
-        <p className="mt-1 text-sm text-slate-500">Shoppers who started checkout but didn&rsquo;t pay. Follow up with a friendly message.</p>
-      </div>
+    <div className="space-y-6">
+      <DashPageHeader title="Abandoned carts" description="Shoppers who started checkout but didn’t pay. A friendly message often turns them into a sale." />
       <AbandonedCarts slug={slug} />
     </div>
   );

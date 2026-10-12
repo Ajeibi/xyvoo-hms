@@ -7,8 +7,9 @@ const Schema = z.object({ slug: z.string().min(1), action: z.enum(["publish", "u
 
 /**
  * POST /api/store/site/publish { slug, action } — owner or admin. Publishing
- * needs a product on sale and a way to take payment; unpublishing shows
- * customers "opening soon" again.
+ * needs a product on sale. It goes ahead without a way to pay, and the reply
+ * carries a `warning`: checkout then tells shoppers ordering isn't open yet.
+ * Unpublishing shows customers "opening soon" again.
  */
 export async function POST(req: Request) {
   const parsed = Schema.safeParse(await req.json().catch(() => null));
@@ -26,8 +27,7 @@ export async function POST(req: Request) {
     } else {
       const status = await getGoLiveStatus(resolved.access.tenantId);
       if (!status.canPublish) {
-        const missing = status.items.filter((i) => i.required && !i.done && i.key !== "publish").map((i) => i.label.toLowerCase());
-        return NextResponse.json({ error: `Before publishing, please ${missing.join(" and ")}.` }, { status: 409 });
+        return NextResponse.json({ error: "Before you open your shop, please add your first product and make sure it's on sale." }, { status: 409 });
       }
       await publishSite(resolved.access.tenantId, resolved.access.userId);
     }
@@ -36,5 +36,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "We couldn't update your shop just now. Please try again." }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, status: await getGoLiveStatus(resolved.access.tenantId) });
+  const status = await getGoLiveStatus(resolved.access.tenantId);
+  const warning =
+    parsed.data.action === "publish" && !status.paymentsReady
+      ? "Your shop is live, but customers can't pay yet, so checkout will say ordering isn't open. Choose how you get paid in Payments and plan."
+      : null;
+  return NextResponse.json({ ok: true, status, warning });
 }

@@ -1,5 +1,10 @@
+import type { Metadata } from "next";
 import StorefrontProducts from "@/components/storefront/StorefrontProducts";
 import { getStoreAccessContext, getStoreCapabilities } from "@/lib/store/access";
+
+export const metadata: Metadata = {
+  title: "Products",
+};
 
 export default async function StorefrontProductsPage({
   params,

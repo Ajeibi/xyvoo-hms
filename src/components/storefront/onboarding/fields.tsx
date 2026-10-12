@@ -5,7 +5,7 @@ import { CircleAlert } from "lucide-react";
 /** Form pieces shared by the onboarding wizard steps. */
 
 export const inputClass =
-  "w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-xyvoo-teal-product-hover aria-[invalid=true]:border-red-500";
+  "w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-xyvoo-teal-product-hover aria-[invalid=true]:border-rose-500 aria-[invalid=true]:ring-2 aria-[invalid=true]:ring-rose-200 aria-[invalid=true]:bg-rose-50/20 transition-colors";
 
 export function Field({
   id,

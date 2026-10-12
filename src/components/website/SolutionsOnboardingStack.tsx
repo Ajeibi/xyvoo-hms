@@ -249,9 +249,9 @@ export function SolutionsOnboardingStack({
     >
       <div className={styles.container}>
         <div className={styles.grid}>
-          <h3 className={styles.heading} ref={headingRef}>
+          <h2 className={styles.heading} ref={headingRef}>
             {heading}
-          </h3>
+          </h2>
           {/* Invisible — reserves the layout space the stacked deck starts
               in; its measured rect is the FLIP animation's start point. */}
           <div className={styles.startSlot} ref={startSlotRef} />
@@ -272,7 +272,7 @@ export function SolutionsOnboardingStack({
             }}
           >
             <span className={styles.num}>{String(i + 1).padStart(2, "0")}</span>
-            <h5>{card.title}</h5>
+            <h3>{card.title}</h3>
             <p>{card.description}</p>
             <p
               className={styles.explanation}

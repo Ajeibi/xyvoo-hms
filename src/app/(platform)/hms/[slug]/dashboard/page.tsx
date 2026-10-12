@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import {
   AttentionCenterCard,
   FinancialPerformanceSection,
@@ -31,6 +32,10 @@ import {
 import { getDashboardSetupSummary } from "@/lib/hms/setup";
 import { getDashboardTourStatus } from "@/lib/hms/tour";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+
+export const metadata: Metadata = {
+  title: "Dashboard",
+};
 
 export default async function HMSDashboardPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;

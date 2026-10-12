@@ -575,12 +575,12 @@ export function SolutionsHotelWorkflow() {
             <p className="mb-4 text-eyebrow font-bold uppercase tracking-[0.22em] text-xyvoo-blue">
               How it really works
             </p>
-            <h3
+            <h2
               id="hotel-workflow-heading"
               className="mb-5 text-balance text-h3 font-extrabold leading-[1.15] text-xyvoo-navy"
             >
               One stay. Every department, at once.
-            </h3>
+            </h2>
             <p className="mx-auto text-p leading-[1.75] text-xyvoo-navy/65">
               To the guest, it's one simple visit. Underneath, every
               department is working off the exact same booking. Here's what

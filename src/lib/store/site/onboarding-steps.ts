@@ -1,7 +1,11 @@
 import { z } from "zod";
 import { storeSubdomainSchema } from "@/lib/store/subdomain";
+import { SHOP_CURRENCIES } from "@/lib/store/currencies";
+import { isCountryCode } from "@/lib/store/countries";
+import { socialLinksSchema } from "@/lib/store/socials";
 import { HEX_COLOUR_PATTERN } from "./contrast";
 import { FONT_PAIRING_IDS } from "./fonts";
+import { customFontSchema } from "./schema";
 import { STORE_PLANS, type OnboardingStep } from "./onboarding";
 import { STORE_CATEGORIES, STOREFRONT_TEMPLATE_SLUGS } from "./templates";
 
@@ -18,7 +22,21 @@ export const STORE_COUNTRIES = [
   { code: "ZA", name: "South Africa", currency: "ZAR" },
 ] as const;
 export type StoreCountryCode = (typeof STORE_COUNTRIES)[number]["code"];
-const COUNTRY_CODES = STORE_COUNTRIES.map((c) => c.code) as [StoreCountryCode, ...StoreCountryCode[]];
+
+/** Currencies a shop can charge in: the ones Paystack settles to in the countries above, plus US dollars. */
+export const PAYMENT_CURRENCIES = ["NGN", "GHS", "KES", "ZAR", "USD"] as const;
+export type PaymentCurrency = (typeof PAYMENT_CURRENCIES)[number];
+
+export function isPaymentCountry(code: string) {
+  return STORE_COUNTRIES.some((c) => c.code === code);
+}
+
+/** A shop in a country we take payments in charges in its currency; anywhere else, in the one the merchant chose. */
+export function homeCurrencyFor(countryCode: string, chosen: string | null | undefined): PaymentCurrency {
+  const local = STORE_COUNTRIES.find((c) => c.code === countryCode)?.currency;
+  if (local) return local;
+  return (PAYMENT_CURRENCIES as readonly string[]).includes(chosen ?? "") ? (chosen as PaymentCurrency) : "NGN";
+}
 
 export function currencyForCountry(code: string) {
   return STORE_COUNTRIES.find((c) => c.code === code)?.currency ?? "NGN";
@@ -26,18 +44,15 @@ export function currencyForCountry(code: string) {
 
 export const CATEGORY_LABELS: Record<(typeof STORE_CATEGORIES)[number], string> = {
   fashion: "Fashion and accessories",
-  beauty: "Beauty and skincare",
+  beauty: "Hair, beauty and skincare",
   home: "Home and furniture",
   food: "Food and drink",
   electronics: "Electronics and gadgets",
+  health: "Health and wellness",
+  kids: "Baby and kids",
   other: "Something else",
 };
 
-const httpsUrl = z
-  .string()
-  .trim()
-  .max(300)
-  .refine((v) => v === "" || /^https:\/\/[^\s]+$/.test(v), "Use a full link starting with https://");
 const phone = z
   .string()
   .trim()
@@ -54,7 +69,17 @@ export const basicsSchema = z.object({
   storeName: z.string().trim().min(2, "Enter your store's name.").max(80, "Keep the name to 80 characters or fewer."),
   subdomain: storeSubdomainSchema,
   category: z.enum(STORE_CATEGORIES, { error: "Choose what you sell." }),
-  countryCode: z.enum(COUNTRY_CODES, { error: "Choose your country." }),
+  /** What the merchant sells, in their words, when none of the categories fit. */
+  categoryOther: z.string().trim().max(80, "Keep this to 80 characters or fewer.").default(""),
+  countryCode: z.string().refine(isCountryCode, "Choose your country."),
+  /** The currency to charge in when the country isn't one we take payments in. */
+  currencyCode: z.enum(PAYMENT_CURRENCIES).default("NGN"),
+  /** Other currencies to show prices in. Optional; priced fully in Payments later. */
+  extraCurrencies: z.array(z.enum(SHOP_CURRENCIES)).max(SHOP_CURRENCIES.length).default([]),
+}).superRefine((v, ctx) => {
+  if (v.category === "other" && v.categoryOther.length < 2) {
+    ctx.addIssue({ code: "custom", path: ["categoryOther"], message: "Tell us what you sell, for example hand-made candles." });
+  }
 });
 
 export const templateSchema = z.object({
@@ -66,6 +91,8 @@ export const brandSchema = z.object({
   /** Null keeps the template's own colours. */
   accent: z.string().regex(HEX_COLOUR_PATTERN, "Choose a colour.").nullable(),
   fontPairing: z.enum(FONT_PAIRING_IDS),
+  /** The merchant's own font, used instead of the pairing's heading font. Null uses the pairing. */
+  customFont: customFontSchema.nullable().default(null),
   tagline: z.string().trim().max(140, "Keep the tagline to 140 characters or fewer."),
 });
 
@@ -75,11 +102,10 @@ export const contactFields = {
   phone,
   whatsapp: optionalPhone,
   addressLine1: z.string().trim().min(3, "Enter your street address.").max(200),
-  city: z.string().trim().min(2, "Enter your town or city.").max(100),
-  state: z.string().trim().min(2, "Enter your state or region.").max(100),
-  instagram: httpsUrl,
-  facebook: httpsUrl,
-  tiktok: httpsUrl,
+  city: z.string().trim().min(2, "Search for your town or city, then choose it from the list.").max(100),
+  state: z.string().trim().min(2, "Choose your state or region.").max(100),
+  /** Links to the shop's social pages, any platform; see lib/store/socials. */
+  socialLinks: socialLinksSchema,
 };
 
 export const essentialsSchema = z

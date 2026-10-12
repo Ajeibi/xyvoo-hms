@@ -1,7 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Building2, ExternalLink, PlusCircle, Search } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { getPlatformTenants } from "@/lib/platform/tenants";
+
+export const metadata: Metadata = {
+  title: "Tenants",
+};
 
 const statusConfig: Record<string, { color: string; bg: string; dot: string }> = {
   active: { color: "text-emerald-600", bg: "bg-emerald-50", dot: "bg-emerald-500" },

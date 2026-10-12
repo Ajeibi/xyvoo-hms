@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getShopTenantBySlug } from "@/lib/shop/tenants";
-import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { clientIp, rateLimitShared } from "@/lib/rate-limit";
 import { getPushConfig, pushSubscriptionSchema, removePushSubscription, savePushSubscription } from "@/lib/store/push";
 import { getStoreSite } from "@/lib/store/site/data";
+import { getStorePlan, storeHasFeature } from "@/lib/store/features";
 
 /**
  * POST   /api/shop/<store>/push  { subscription }  turn on a store's notifications
@@ -22,12 +23,16 @@ async function liveStore(slug: string) {
 
 export async function POST(req: Request, { params }: { params: Promise<{ slug: string }> }) {
   if (!getPushConfig()) return NextResponse.json({ error: "Notifications aren't available yet." }, { status: 503 });
-  if (!rateLimit(`push-subscribe:${clientIp(req)}`, 20, 60 * 60_000).ok) {
+  if (!(await rateLimitShared(`push-subscribe:${clientIp(req)}`, 20, 60 * 60_000)).ok) {
     return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
   }
 
   const tenant = await liveStore((await params).slug);
   if (!tenant) return NextResponse.json({ error: "Shop not found." }, { status: 404 });
+  // Customer notifications are a Standard feature; a Free shop doesn't offer them.
+  if (!storeHasFeature(await getStorePlan(tenant.id), "pushNotifications")) {
+    return NextResponse.json({ error: "This shop doesn't send notifications." }, { status: 404 });
+  }
 
   const body = await req.json().catch(() => null);
   const parsed = pushSubscriptionSchema.safeParse(body?.subscription);
@@ -38,7 +43,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
 }
 
 export async function DELETE(req: Request, { params }: { params: Promise<{ slug: string }> }) {
-  if (!rateLimit(`push-unsubscribe:${clientIp(req)}`, 30, 60 * 60_000).ok) {
+  if (!(await rateLimitShared(`push-unsubscribe:${clientIp(req)}`, 30, 60 * 60_000)).ok) {
     return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
   }
   const slug = (await params).slug;

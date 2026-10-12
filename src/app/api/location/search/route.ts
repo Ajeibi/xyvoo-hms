@@ -37,21 +37,31 @@ function mapCityResults(rows: LocationNominatimRow[]) {
   return mapped.filter((city, i, arr) => arr.findIndex((x) => x.name.toLowerCase() === city.name.toLowerCase()) === i);
 }
 
+/** States, regions, provinces and the like: a country's first level down. */
+function mapStateResults(rows: LocationNominatimRow[]) {
+  const names = rows.map((r) => r.address?.state || r.address?.region || r.address?.province || r.name).filter((n): n is string => Boolean(n));
+  return Array.from(new Set(names)).map((name) => ({ name, display: rows.find((r) => (r.address?.state || r.name) === name)?.display_name ?? name }));
+}
+
 export async function GET(request: NextRequest) {
   const q = request.nextUrl.searchParams.get("q")?.trim() || "";
   const type = (request.nextUrl.searchParams.get("type") || "city") as LocationLookupKind;
   const country = request.nextUrl.searchParams.get("country");
 
   if (!q) return NextResponse.json({ results: [] });
-  if (type !== "city" && type !== "address") return NextResponse.json({ error: "Invalid type" }, { status: 400 });
+  if (type !== "city" && type !== "address" && type !== "state") return NextResponse.json({ error: "Invalid type" }, { status: 400 });
 
-  const minLength = type === "city" ? 2 : 4;
+  const minLength = type === "address" ? 4 : 2;
   if (q.length < minLength) return NextResponse.json({ results: [] });
 
   const countryCode = resolveCountryCode(country);
   const cc = countryCode ? `&countrycodes=${countryCode}` : "";
-  const limit = type === "city" ? 8 : 6;
-  const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}${cc}&format=json&addressdetails=1&limit=${limit}`;
+  const limit = type === "address" ? 6 : 8;
+  // A town search can be narrowed to the state already chosen.
+  const state = request.nextUrl.searchParams.get("state")?.trim().slice(0, 100) || "";
+  const query = type === "city" && state ? `${q}, ${state}` : q;
+  const feature = type === "state" ? "&featureType=state" : "";
+  const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}${cc}${feature}&format=json&addressdetails=1&limit=${limit}`;
 
   try {
     const res = await fetch(url, {
@@ -69,6 +79,9 @@ export async function GET(request: NextRequest) {
     const data = (await res.json()) as LocationNominatimRow[];
     if (type === "city") {
       return NextResponse.json({ results: mapCityResults(data) });
+    }
+    if (type === "state") {
+      return NextResponse.json({ results: mapStateResults(data) });
     }
 
     return NextResponse.json({

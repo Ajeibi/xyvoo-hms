@@ -4,6 +4,7 @@ import { resolveStoreRequest } from "@/lib/store/api-helpers";
 import { getOnboardingProgress, saveOnboardingProgress } from "@/lib/store/site/data";
 import { canOpenStep, completeStep, ONBOARDING_STEPS } from "@/lib/store/site/onboarding";
 import { STEP_SCHEMAS } from "@/lib/store/site/onboarding-steps";
+import { ensureDefaultPages } from "@/lib/store/default-pages-server";
 import { saveBasics, saveBrand, saveEssentials, savePlan, saveTemplate, StepError } from "@/lib/store/site/onboarding-save";
 
 const BodySchema = z.object({
@@ -38,8 +39,18 @@ export async function POST(req: Request) {
 
   const parsed = STEP_SCHEMAS[step].safeParse(body.data.values);
   if (!parsed.success) {
-    const issue = parsed.error.issues[0];
-    return NextResponse.json({ error: issue?.message || "Please check the form.", field: issue?.path.join(".") }, { status: 400 });
+    const errors = parsed.error.issues.map((i) => ({
+      field: i.path.join("."),
+      message: i.message,
+    }));
+    return NextResponse.json(
+      {
+        error: parsed.error.issues[0]?.message || "Please check the form.",
+        field: parsed.error.issues[0]?.path.join("."),
+        errors,
+      },
+      { status: 400 },
+    );
   }
 
   const ctx = { tenantId: access.tenantId, slug, userEmail: null as string | null };
@@ -57,6 +68,8 @@ export async function POST(req: Request) {
         break;
       case "essentials":
         await saveEssentials(ctx, STEP_SCHEMAS.essentials.parse(parsed.data));
+        // The shop's About, Contact, FAQs and policy pages, written from what it's told us so far.
+        await ensureDefaultPages(access.tenantId).catch((error) => console.error("[onboarding] default pages not created", error));
         break;
       case "plan": {
         const { data } = await resolved.service.auth.admin.getUserById(access.userId);
@@ -75,5 +88,8 @@ export async function POST(req: Request) {
   const next = completeStep(progress, step);
   await saveOnboardingProgress(access.tenantId, next);
 
-  return NextResponse.json({ ok: true, slug: nextSlug, nextStep: next.completedAt ? null : next.currentStep });
+  // Going back through a finished setup moves on step by step; the last step returns to the dashboard.
+  const following = ONBOARDING_STEPS[ONBOARDING_STEPS.indexOf(step) + 1] ?? null;
+  const nextStep = progress.completedAt ? following : next.completedAt ? null : next.currentStep;
+  return NextResponse.json({ ok: true, slug: nextSlug, nextStep });
 }

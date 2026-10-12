@@ -1,8 +1,8 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,10 +18,16 @@ import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import { cn } from "@/lib/utils";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { FrontDeskCheckInSuccessBanner } from "@/components/hms/frontdesk/FrontDeskCheckInSuccessBanner";
-import type { ReservationListRow, ReservationsListPayload } from "@/lib/hms/reservations-list";
+import type {
+  ReservationListRow,
+  ReservationsListPayload,
+  ReservationsListQuery,
+} from "@/lib/hms/reservations-list";
 import type { ArrivalsRoleCapabilities } from "@/lib/hms/arrivals-rbac";
 
-const RESERVATIONS_PAGE_SIZE = 5;
+const SEARCH_DEBOUNCE_MS = 350;
+
+type StatusFilter = ReservationListRow["status"] | null;
 
 const STATUS_LABELS: Record<ReservationListRow["status"], string> = {
   confirmed: "Confirmed",
@@ -57,15 +63,6 @@ function SummaryCard({
   );
 }
 
-function matchesSearch(row: ReservationListRow, q: string) {
-  const needle = q.toLowerCase();
-  return (
-    row.guestName.toLowerCase().includes(needle) ||
-    row.confirmationCode.toLowerCase().includes(needle) ||
-    (row.roomCode?.toLowerCase().includes(needle) ?? false)
-  );
-}
-
 function statusBadgeClass(status: ReservationListRow["status"]) {
   switch (status) {
     case "checked_in":
@@ -84,17 +81,20 @@ export function ReservationsListClient({
   slug,
   currency,
   initial,
+  query,
   capabilities,
 }: {
   slug: string;
   currency: string;
   initial: ReservationsListPayload;
+  query: ReservationsListQuery;
   capabilities: ArrivalsRoleCapabilities;
 }) {
   const router = useRouter();
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<ReservationListRow["status"] | null>(null);
-  const [page, setPage] = useState(1);
+  const pathname = usePathname();
+  const [isNavigating, startNavigation] = useTransition();
+  const [search, setSearch] = useState(query.search);
+  const statusFilter = query.status;
   const [cancelRow, setCancelRow] = useState<ReservationListRow | null>(null);
   const [cancelling, setCancelling] = useState(false);
 
@@ -120,21 +120,44 @@ export function ReservationsListClient({
     }
   }
 
-  const filteredRows = useMemo(() => {
-    const q = search.trim();
-    return initial.rows.filter((r) => {
-      if (statusFilter && r.status !== statusFilter) return false;
-      if (q && !matchesSearch(r, q)) return false;
-      return true;
+  /** Search, status and page live in the URL; the server loads just the matching page. */
+  function navigate(next: Partial<ReservationsListQuery>, { replace = false } = {}) {
+    const merged = { ...query, ...next };
+    const params = new URLSearchParams();
+    if (merged.search) params.set("q", merged.search);
+    if (merged.status) params.set("status", merged.status);
+    if (merged.page > 1) params.set("page", String(merged.page));
+    const qs = params.toString();
+    const href = qs ? `${pathname}?${qs}` : pathname;
+    startNavigation(() => {
+      if (replace) router.replace(href, { scroll: false });
+      else router.push(href, { scroll: false });
     });
-  }, [initial.rows, search, statusFilter]);
+  }
 
-  const totalPages = Math.max(1, Math.ceil(filteredRows.length / RESERVATIONS_PAGE_SIZE));
-  const currentPage = Math.min(page, totalPages);
-  const pageRows = useMemo(
-    () => filteredRows.slice((currentPage - 1) * RESERVATIONS_PAGE_SIZE, currentPage * RESERVATIONS_PAGE_SIZE),
-    [filteredRows, currentPage],
-  );
+  function setStatusFilter(update: StatusFilter | ((current: StatusFilter) => StatusFilter)) {
+    const status = typeof update === "function" ? update(statusFilter) : update;
+    navigate({ status, page: 1 });
+  }
+
+  function setPage(page: number) {
+    navigate({ page });
+  }
+
+  useEffect(() => {
+    const trimmed = search.trim();
+    if (trimmed === query.search) return;
+    const timer = setTimeout(() => navigate({ search: trimmed, page: 1 }, { replace: true }), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+    // navigate is recreated every render; only a change to the typed search should restart the timer.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, query.search]);
+
+  const pageSize = initial.pageSize;
+  const filteredCount = initial.filteredTotal;
+  const totalPages = Math.max(1, Math.ceil(filteredCount / pageSize));
+  const currentPage = initial.page;
+  const pageRows = initial.rows;
 
   return (
     <div className="px-8 py-8">
@@ -162,7 +185,6 @@ export function ReservationsListClient({
           active={!statusFilter}
           onClick={() => {
             setStatusFilter(null);
-            setPage(1);
           }}
         />
         <SummaryCard
@@ -171,7 +193,6 @@ export function ReservationsListClient({
           active={statusFilter === "confirmed"}
           onClick={() => {
             setStatusFilter((s) => (s === "confirmed" ? null : "confirmed"));
-            setPage(1);
           }}
         />
         <SummaryCard
@@ -180,7 +201,6 @@ export function ReservationsListClient({
           active={statusFilter === "checked_in"}
           onClick={() => {
             setStatusFilter((s) => (s === "checked_in" ? null : "checked_in"));
-            setPage(1);
           }}
         />
         <SummaryCard
@@ -189,7 +209,6 @@ export function ReservationsListClient({
           active={statusFilter === "checked_out"}
           onClick={() => {
             setStatusFilter((s) => (s === "checked_out" ? null : "checked_out"));
-            setPage(1);
           }}
         />
         <SummaryCard
@@ -198,7 +217,6 @@ export function ReservationsListClient({
           active={statusFilter === "cancelled" || statusFilter === "no_show"}
           onClick={() => {
             setStatusFilter((s) => (s === "cancelled" ? "no_show" : s === "no_show" ? null : "cancelled"));
-            setPage(1);
           }}
         />
       </div>
@@ -210,10 +228,7 @@ export function ReservationsListClient({
             className="max-w-xs"
             placeholder="Guest, confirmation code, room…"
             value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
+            onChange={(e) => setSearch(e.target.value)}
           />
         </div>
         <div>
@@ -221,10 +236,7 @@ export function ReservationsListClient({
           <select
             className="h-10 rounded-lg border border-input bg-white px-3 text-sm"
             value={statusFilter ?? ""}
-            onChange={(e) => {
-              setStatusFilter((e.target.value || null) as ReservationListRow["status"] | null);
-              setPage(1);
-            }}
+            onChange={(e) => setStatusFilter((e.target.value || null) as StatusFilter)}
           >
             <option value="">All statuses</option>
             <option value="confirmed">Confirmed</option>
@@ -236,10 +248,16 @@ export function ReservationsListClient({
         </div>
       </div>
 
-      <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
-        {filteredRows.length === 0 ? (
+      <div
+        className={cn(
+          "mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white transition-opacity",
+          isNavigating && "opacity-60",
+        )}
+        aria-busy={isNavigating}
+      >
+        {filteredCount === 0 ? (
           <p className="p-16 text-center text-sm text-slate-500">
-            {initial.rows.length === 0 ? "No reservations yet." : "No reservations match your filters."}
+            {initial.summary.total === 0 ? "No reservations yet." : "No reservations match your filters."}
           </p>
         ) : (
           <div className="overflow-x-auto">
@@ -334,11 +352,11 @@ export function ReservationsListClient({
         )}
       </div>
 
-      {filteredRows.length > 0 ? (
+      {filteredCount > 0 ? (
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
           <p>
-            Showing {(currentPage - 1) * RESERVATIONS_PAGE_SIZE + 1}–
-            {Math.min(currentPage * RESERVATIONS_PAGE_SIZE, filteredRows.length)} of {filteredRows.length}
+            Showing {(currentPage - 1) * pageSize + 1}–
+            {Math.min(currentPage * pageSize, filteredCount)} of {filteredCount}
           </p>
           <div className="flex items-center gap-2">
             <Button

@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { AlertTriangle, RotateCcw } from "lucide-react";
-import { FONT_PAIRINGS, type FontPairingId } from "@/lib/store/site/fonts";
+import { FONT_PAIRINGS, type CustomFont, type FontPairingId } from "@/lib/store/site/fonts";
+import CustomFontPicker from "../../onboarding/CustomFontPicker";
 import { resolveSite } from "@/lib/store/site/resolve";
 import { BUTTON_SHAPES, CARD_VARIANTS, CORNER_STYLES, THEME_COLOUR_KEYS, type SiteTheme, type ThemeColourKey } from "@/lib/store/site/schema";
 import { getStorefrontTemplate } from "@/lib/store/site/templates";
@@ -28,6 +29,8 @@ export default function ThemeTab({ slug, state, saving, saveDraft }: TabProps) {
   const template = getStorefrontTemplate(state.templateSlug);
   const [colours, setColours] = useState<Record<ThemeColourKey, string>>(state.resolved.theme.colours);
   const [fontPairing, setFontPairing] = useState<FontPairingId>(state.resolved.theme.fontPairing as FontPairingId);
+  const [ownFont, setOwnFont] = useState(Boolean(state.resolved.theme.customFont));
+  const [customFont, setCustomFont] = useState<CustomFont | null>(state.resolved.theme.customFont ?? null);
   const [buttonShape, setButtonShape] = useState<SiteTheme["buttonShape"]>(state.resolved.theme.buttonShape);
   const [cornerStyle, setCornerStyle] = useState<SiteTheme["cornerStyle"]>(state.resolved.theme.cornerStyle);
   const [cardVariant, setCardVariant] = useState<SiteTheme["cardVariant"]>(state.resolved.theme.cardVariant);
@@ -46,7 +49,9 @@ export default function ThemeTab({ slug, state, saving, saveDraft }: TabProps) {
   const save = (e: React.FormEvent) => {
     e.preventDefault();
     if (brand.logoUrl && !brand.logoAlt.trim()) return;
-    void saveDraft({ patch: { theme: { colours: changedColours, fontPairing, buttonShape, cornerStyle, cardVariant }, brand } });
+    // The whole theme is saved at once, so the custom font has to go with it or it would be lost.
+    const font = ownFont ? customFont : null;
+    void saveDraft({ patch: { theme: { colours: changedColours, fontPairing, customFont: font, buttonShape, cornerStyle, cardVariant }, brand } });
   };
 
   const radios = <T extends string>(name: string, legend: string, options: readonly T[], labels: Record<T, string>, value: T, set: (v: T) => void) => (
@@ -130,12 +135,25 @@ export default function ThemeTab({ slug, state, saving, saveDraft }: TabProps) {
       <fieldset className="space-y-2">
         <legend className="text-base font-semibold text-slate-900">Fonts</legend>
         {FONT_PAIRINGS.map((p) => (
-          <label key={p.id} className={`flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm ${fontPairing === p.id ? "border-xyvoo-blue bg-blue-50" : "border-slate-300"}`}>
-            <input type="radio" name="fonts" checked={fontPairing === p.id} onChange={() => setFontPairing(p.id)} />
+          <label key={p.id} className={`flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm ${!ownFont && fontPairing === p.id ? "border-xyvoo-blue bg-blue-50" : "border-slate-300"}`}>
+            <input
+              type="radio"
+              name="fonts"
+              checked={!ownFont && fontPairing === p.id}
+              onChange={() => {
+                setFontPairing(p.id);
+                setOwnFont(false);
+              }}
+            />
             {p.label}
             {template.recommendedFonts.includes(p.id) ? <span className="text-xs text-slate-500">Suits {template.name}</span> : null}
           </label>
         ))}
+        <label className={`flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm ${ownFont ? "border-xyvoo-blue bg-blue-50" : "border-slate-300"}`}>
+          <input type="radio" name="fonts" checked={ownFont} onChange={() => setOwnFont(true)} />
+          Use my own font
+        </label>
+        {ownFont ? <CustomFontPicker slug={slug} value={customFont} onChange={setCustomFont} /> : null}
       </fieldset>
 
       <section aria-labelledby="style-title" className="space-y-4">

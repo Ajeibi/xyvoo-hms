@@ -1,8 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CircleAlert, CreditCard } from "lucide-react";
+import { CreditCard } from "lucide-react";
 import { formatShopCurrency } from "@/lib/shop/format";
+import { DashAlert, dashButton, DashCard, DashPill } from "./dashboard-ui";
+
+/** A clear keyboard focus ring for buttons. */
+const ring = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-xyvoo-blue";
+
+const PLAN_NAMES: Record<string, string> = { free: "Free plan", standard: "Standard plan", enterprise: "Enterprise plan" };
 
 type Billing = {
   plan: "free" | "standard" | "enterprise";
@@ -58,6 +64,7 @@ export default function PlanBillingCard({ slug }: { slug: string }) {
       await post("/api/store/billing/cancel");
       setConfirmCancel(false);
       load();
+      window.dispatchEvent(new Event("xyvoo:payments-changed"));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -68,34 +75,32 @@ export default function PlanBillingCard({ slug }: { slug: string }) {
   const fee = billing ? `${Math.round(billing.feeRate * 10_000) / 100}%` : "";
 
   return (
-    <section aria-labelledby="plan-title" className="rounded-2xl border border-slate-200 bg-white p-6">
-      <div className="flex items-start gap-3">
-        <CreditCard className="mt-0.5 h-5 w-5 text-slate-500" aria-hidden />
-        <div>
-          <h2 id="plan-title" className="text-base font-semibold text-slate-900">
-            Plan and fees
-          </h2>
-          {billing ? (
-            <p className="mt-1 text-sm text-slate-600">
-              {billing.summary} XYVOO&rsquo;s fee on your sales is currently <strong>{fee}</strong>.
-            </p>
-          ) : (
-            <p className="mt-1 text-sm text-slate-500">Loading…</p>
-          )}
-        </div>
-      </div>
+    <DashCard
+      id="plan"
+      icon={CreditCard}
+      meaning="money"
+      title="Plan and fees"
+      description="Your XYVOO plan, and what we charge on your sales."
+      actions={billing ? <DashPill tone={billing.plan === "free" ? "slate" : "blue"}>{PLAN_NAMES[billing.plan] ?? billing.plan}</DashPill> : null}
+    >
+      {billing ? (
+        <p className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
+          {billing.summary} XYVOO&rsquo;s fee on your sales is currently <strong>{fee}</strong>.
+        </p>
+      ) : error ? null : (
+        <div aria-hidden className="h-12 animate-pulse rounded-xl bg-slate-100 motion-reduce:animate-none" />
+      )}
 
       {error ? (
-        <div role="alert" className="mt-4 flex gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-          <CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-red-600" aria-hidden />
-          <p>{error}</p>
+        <div className="mt-4">
+          <DashAlert message={error} />
         </div>
       ) : null}
 
       {billing && billing.canManage ? (
         <div className="mt-5 flex flex-wrap items-center gap-3">
           {billing.canSubscribe ? (
-            <button type="button" onClick={subscribe} disabled={busy} className="rounded-xl bg-xyvoo-blue px-5 py-3 text-sm font-semibold text-white disabled:opacity-60">
+            <button type="button" onClick={subscribe} disabled={busy} className={`${dashButton.primary} ${ring} text-left`}>
               {busy ? "Opening Paystack…" : `Switch to Standard: ${formatShopCurrency(billing.standardPrice, billing.standardCurrency)} a month, 0% fees`}
             </button>
           ) : null}
@@ -103,18 +108,24 @@ export default function PlanBillingCard({ slug }: { slug: string }) {
             <p className="text-sm text-slate-600">Paying for Standard online isn&rsquo;t switched on yet.</p>
           ) : null}
           {billing.canCancel && !confirmCancel ? (
-            <button type="button" onClick={() => setConfirmCancel(true)} className="text-sm font-medium text-slate-600 hover:text-red-700 hover:underline">
+            <button type="button" onClick={() => setConfirmCancel(true)} className={`${dashButton.danger} ${ring}`}>
               Cancel Standard
             </button>
           ) : null}
           {confirmCancel ? (
-            <div className="w-full rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-              <p>Your plan won&rsquo;t renew. You keep 0% fees until the end of the month you&rsquo;ve paid for, then the Free plan&rsquo;s 4% applies.</p>
-              <div className="mt-3 flex gap-3">
-                <button type="button" onClick={cancel} disabled={busy} className="rounded-lg bg-red-700 px-4 py-2 font-semibold text-white disabled:opacity-60">
+            <div role="alert" className="w-full rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900">
+              <p className="font-medium">Cancel your Standard plan?</p>
+              <p className="mt-1">Your plan won&rsquo;t renew. You keep 0% fees until the end of the month you&rsquo;ve paid for, then the Free plan&rsquo;s 4% applies.</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={cancel}
+                  disabled={busy}
+                  className={`inline-flex items-center justify-center rounded-xl bg-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-800 disabled:opacity-60 ${ring}`}
+                >
                   {busy ? "Cancelling…" : "Yes, cancel Standard"}
                 </button>
-                <button type="button" onClick={() => setConfirmCancel(false)} className="font-medium text-slate-700 hover:underline">
+                <button type="button" onClick={() => setConfirmCancel(false)} className={`${dashButton.secondary} ${ring}`}>
                   Keep Standard
                 </button>
               </div>
@@ -122,6 +133,6 @@ export default function PlanBillingCard({ slug }: { slug: string }) {
           ) : null}
         </div>
       ) : null}
-    </section>
+    </DashCard>
   );
 }

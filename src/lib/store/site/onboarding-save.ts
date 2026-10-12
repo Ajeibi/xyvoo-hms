@@ -4,7 +4,11 @@ import { contactRequestSchema, teamEmail } from "@/lib/marketing/contact-request
 import { sendContactRequestEmail } from "@/lib/mail/mailtrap";
 import { getStoreSite, saveSiteDraft, setSiteTemplate } from "./data";
 import { PLAN_FEE_RATES } from "./onboarding";
-import { currencyForCountry, type StepValues } from "./onboarding-steps";
+import { isStandardPaidUp, type SubscriptionState } from "@/lib/store/billing";
+import { homeCurrencyFor, type StepValues } from "./onboarding-steps";
+import { socialsFromLinks, type StoreSocials } from "@/lib/store/socials";
+import { withSocialFavicons } from "@/lib/store/social-favicons";
+import { newExtraCurrency, parseCurrencySettings } from "@/lib/store/currencies";
 import { resolveSite } from "./resolve";
 import { getStorefrontTemplate } from "./templates";
 
@@ -38,10 +42,22 @@ export async function saveBasics(ctx: Ctx, v: StepValues<"basics">): Promise<str
     .eq("id", ctx.tenantId);
   if (tenantError) throw new Error(tenantError.message);
 
+  // Keep the pricing already set for currencies still ticked; new ones start converting automatically.
+  const homeCurrency = homeCurrencyFor(v.countryCode, v.currencyCode);
+  const { data: current } = await service.schema("store").from("business_profile").select("currencies").eq("tenant_id", ctx.tenantId).maybeSingle();
+  const existing = parseCurrencySettings(current?.currencies, homeCurrency).extra;
+  const extra = v.extraCurrencies.filter((code) => code !== homeCurrency).map((code) => existing.find((c) => c.code === code) ?? newExtraCurrency(code));
+
   const { error } = await service
     .schema("store")
     .from("business_profile")
-    .update({ category: v.category, country_code: v.countryCode, currency_code: currencyForCountry(v.countryCode) })
+    .update({
+      category: v.category,
+      category_detail: v.category === "other" ? v.categoryOther : null,
+      country_code: v.countryCode,
+      currency_code: homeCurrency,
+      currencies: { extra },
+    })
     .eq("tenant_id", ctx.tenantId);
   if (error) throw new Error(error.message);
   return slug;
@@ -60,7 +76,7 @@ export async function saveBrand(ctx: Ctx, v: StepValues<"brand">, storeName: str
   delete colours.accent;
   delete colours.accentHover;
   if (v.accent) colours.accent = v.accent;
-  const theme = { ...site.draft.theme, colours, fontPairing: v.fontPairing };
+  const theme = { ...site.draft.theme, colours, fontPairing: v.fontPairing, customFont: v.customFont };
 
   // Refuse colours that would make the shop's buttons hard to read.
   const check = resolveSite(template.slug, { theme }, { storeName });
@@ -82,9 +98,8 @@ const PICKUP_ZONE = "Collect in person";
 
 export async function saveEssentials(ctx: Ctx, v: StepValues<"essentials">) {
   const store = db().schema("store");
-  const socials = Object.fromEntries(
-    (["instagram", "facebook", "tiktok"] as const).filter((k) => v[k]).map((k) => [k, v[k]]),
-  );
+  const { data: current } = await store.from("business_profile").select("socials").eq("tenant_id", ctx.tenantId).maybeSingle();
+  const socials = await withSocialFavicons(ctx.tenantId, socialsFromLinks(v.socialLinks), (current?.socials as StoreSocials | null) ?? null);
 
   const { error: profileError } = await store
     .from("business_profile")
@@ -124,13 +139,29 @@ export async function saveEssentials(ctx: Ctx, v: StepValues<"essentials">) {
 }
 
 /**
- * Records the plan choice. Standard can't be charged until platform billing
- * exists (Phase 6), so it's held as pending payment and the store keeps the
- * Free fee meanwhile. Enterprise enquiries go to the sales inbox and the
- * store starts on Free until terms are agreed.
+ * Records the plan choice. Standard is paid for on Paystack from the plan
+ * step (see PlanStep); a store that chooses it without paying is held as
+ * pending payment and keeps the Free fee and features until it pays. A store
+ * that has already paid keeps its Standard plan whatever is resubmitted here:
+ * cancelling is done from Payments and plan, so Paystack stops charging too.
+ * Enterprise enquiries go to the sales inbox and the store starts on Free
+ * until terms are agreed.
  */
 export async function savePlan(ctx: Ctx, v: StepValues<"plan">, storeName: string) {
   const subscriptions = db().schema("store").from("subscriptions");
+
+  const { data: current } = await db()
+    .schema("store")
+    .from("subscriptions")
+    .select("plan, status, platform_fee_rate, current_period_end, grace_ends_at")
+    .eq("tenant_id", ctx.tenantId)
+    .maybeSingle();
+  if (isStandardPaidUp(current as SubscriptionState | null)) {
+    if (v.plan === "free") {
+      throw new StepError("You've already paid for Standard. To move to Free, cancel Standard in Payments and plan once setup is finished.");
+    }
+    if (v.plan === "standard") return;
+  }
 
   if (v.plan === "free") {
     const { error } = await subscriptions.update({ plan: "free", status: "active", platform_fee_rate: PLAN_FEE_RATES.free }).eq("tenant_id", ctx.tenantId);
@@ -146,7 +177,11 @@ export async function savePlan(ctx: Ctx, v: StepValues<"plan">, storeName: strin
 
   const enquiry = { ...v.enquiry, submitted_at: new Date().toISOString() };
   const { error } = await subscriptions
-    .update({ plan: "free", status: "active", platform_fee_rate: PLAN_FEE_RATES.free, enterprise_enquiry: enquiry })
+    .update(
+      isStandardPaidUp(current as SubscriptionState | null)
+        ? { enterprise_enquiry: enquiry }
+        : { plan: "free", status: "active", platform_fee_rate: PLAN_FEE_RATES.free, enterprise_enquiry: enquiry },
+    )
     .eq("tenant_id", ctx.tenantId);
   if (error) throw new Error(error.message);
 

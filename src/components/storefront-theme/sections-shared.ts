@@ -58,6 +58,7 @@ export async function loadHomeReviews(storefront: Storefront): Promise<CarouselR
     .from("product_reviews")
     .select("id, customer_name, rating, title, comment")
     .eq("tenant_id", storefront.tenant.id)
+    .eq("status", "published")
     .gte("rating", 4)
     .not("comment", "is", null)
     .order("created_at", { ascending: false })

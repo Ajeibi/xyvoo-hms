@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, Smartphone, Users } from "lucide-react";
-import { DashAlert, DashField, dashInput, DashStatus, sendJson } from "./dashboard-ui";
+import { Bell, CircleHelp, Gift, History, PackageCheck, Send, Smartphone, Sparkles, Tag, TriangleAlert, Users } from "lucide-react";
+import { DashAlert, dashButton, DashCard, DashEmptyState, DashField, dashInput, DashPill, DashSectionIntro, DashStatStrip, DashStatTile, DashStatus, sendJson } from "./dashboard-ui";
+import { MEANING, type Meaning } from "./meaning";
 
 type Sent = { id: string; title: string; body: string; path: string; recipients: number; delivered: number; failed: number; createdAt: string };
 
@@ -16,6 +17,40 @@ type NotificationsState = {
   limits: { perDay: number; title: number; body: number };
   links: { label: string; path: string }[];
 };
+
+const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-xyvoo-blue focus-visible:ring-offset-2";
+const pulse = "animate-pulse rounded bg-slate-100 motion-reduce:animate-none";
+
+function NotificationsSkeleton() {
+  return (
+    <div className="space-y-6" aria-hidden>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {Array.from({ length: 2 }, (_, i) => (
+          <div key={i} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className={`h-10 w-10 rounded-xl ${pulse}`} />
+            <div className="flex-1 space-y-2">
+              <div className={`h-6 w-12 ${pulse}`} />
+              <div className={`h-3 w-40 max-w-full ${pulse}`} />
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+        <div className={`h-5 w-40 ${pulse}`} />
+        <div className={`mt-5 h-11 w-full rounded-xl ${pulse}`} />
+        <div className={`mt-4 h-24 w-full rounded-xl ${pulse}`} />
+      </div>
+    </div>
+  );
+}
+
+/** Ready-made starting points: one tap fills the title and message, which the shop then edits. */
+const IDEAS: Array<{ label: string; icon: typeof Users; meaning: Meaning; title: string; body: string }> = [
+  { label: "New arrivals", icon: Sparkles, meaning: "stock", title: "New in this week", body: "Fresh stock has just landed. Take a look before it sells out." },
+  { label: "A sale", icon: Tag, meaning: "marketing", title: "Our sale is on", body: "Prices are down for a few days only. Treat yourself today." },
+  { label: "Back in stock", icon: PackageCheck, meaning: "orders", title: "It's back in stock", body: "A customer favourite is available again. Order now while it lasts." },
+  { label: "Say thank you", icon: Gift, meaning: "customers", title: "Thank you for shopping with us", body: "We're grateful for your support. Here's to many more orders together." },
+];
 
 const when = (iso: string) => new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
@@ -41,7 +76,18 @@ export default function NotificationsManager({ slug, storeName }: { slug: string
     // eslint-disable-next-line react-hooks/exhaustive-deps -- load once per store
   }, [slug]);
 
-  if (!state) return <p className="text-sm text-slate-500">{error || "Loading…"}</p>;
+  if (!state) {
+    return error ? (
+      <DashAlert message={error} />
+    ) : (
+      <>
+        <p className="sr-only" role="status">
+          Loading notifications
+        </p>
+        <NotificationsSkeleton />
+      </>
+    );
+  }
 
   const blocked = !state.configured
     ? "Notifications aren't switched on for XYVOO yet. We'll let you know when you can send them."
@@ -80,44 +126,68 @@ export default function NotificationsManager({ slug, storeName }: { slug: string
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-5">
-          <Users className="h-5 w-5 text-slate-500" aria-hidden />
-          <div>
-            <p className="text-2xl font-semibold text-slate-900">{state.subscribers}</p>
-            <p className="text-sm text-slate-600">{state.subscribers === 1 ? "customer gets" : "customers get"} your notifications</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-5">
-          <Bell className="h-5 w-5 text-slate-500" aria-hidden />
-          <div>
-            <p className="text-2xl font-semibold text-slate-900">{state.leftToday}</p>
-            <p className="text-sm text-slate-600">left to send today (up to {state.limits.perDay} a day)</p>
-          </div>
-        </div>
-      </div>
+      <DashSectionIntro
+        id="notifications"
+        meaning="marketing"
+        art="bell"
+        title="Reach customers on their phones"
+        points={[
+          "Your message pops up on their phone or computer, like a notification from any app.",
+          "Only customers who said yes to notifications receive them, and they can turn them off at any time.",
+          "Keep it short and useful: new stock, a sale or an important update.",
+        ]}
+      />
 
-      <section aria-labelledby="notify-new" className="rounded-2xl border border-slate-200 bg-white p-6">
-        <h2 id="notify-new" className="text-base font-semibold text-slate-900">
-          New notification
-        </h2>
-        <p className="mt-1 text-sm text-slate-600">
-          It pops up on customers&rsquo; phones and computers like a message from an app. Keep it short and useful: a new arrival, an offer or an
-          important update.
-        </p>
+      <DashStatStrip label="Your notifications in figures" columns={3}>
+        <DashStatTile label="Customers you can reach" meaning="customers" icon={Users} hint="People who turned on your notifications" value={String(state.subscribers)} />
+        <DashStatTile label="Left to send today" meaning="marketing" icon={Bell} hint={`Up to ${state.limits.perDay} a day`} value={String(state.leftToday)} />
+        <DashStatTile label="Sent so far" meaning="orders" icon={Send} hint="Shown in the list below" value={String(state.sent.length)} />
+      </DashStatStrip>
 
+      <DashCard
+        id="notify-new"
+        icon={Send}
+        meaning="marketing"
+        title="New notification"
+        description="It pops up on customers’ phones and computers like a message from an app. Keep it short and useful: a new arrival, an offer or an important update."
+      >
         {blocked ? (
-          <p className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">{blocked}</p>
+          <p className="mb-5 flex gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" aria-hidden />
+            <span>{blocked}</span>
+          </p>
         ) : null}
 
-        <div className="mt-5 grid gap-6 lg:grid-cols-[1fr_20rem]">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
           <form
-            className="space-y-4"
+            className="min-w-0 space-y-4"
+            aria-labelledby="notify-new-title"
             onSubmit={(e) => {
               e.preventDefault();
               if (ready) setConfirming(true);
             }}
           >
+            <div>
+              <p className="mb-2 text-sm font-medium text-slate-800">Start from an idea</p>
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Ideas for a notification">
+                {IDEAS.map((idea) => (
+                  <button
+                    key={idea.label}
+                    type="button"
+                    disabled={Boolean(blocked)}
+                    onClick={() => {
+                      setTitle(idea.title.slice(0, state.limits.title));
+                      setBody(idea.body.slice(0, state.limits.body));
+                      setConfirming(false);
+                    }}
+                    className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-medium text-slate-800 transition-shadow hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 ${MEANING[idea.meaning].tint} ${focusRing}`}
+                  >
+                    <idea.icon className={`h-4 w-4 ${MEANING[idea.meaning].icon}`} aria-hidden />
+                    {idea.label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <DashField id="notify-title" label="Title" hint={`${title.length} of ${state.limits.title} characters`}>
               <input
                 id="notify-title"
@@ -164,79 +234,106 @@ export default function NotificationsManager({ slug, storeName }: { slug: string
                   Send this to {state.subscribers} {state.subscribers === 1 ? "customer" : "customers"} now? It can&rsquo;t be taken back.
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <button type="button" onClick={send} disabled={busy} className="rounded-lg bg-xyvoo-blue px-4 py-2 font-semibold text-white disabled:opacity-50">
-                    {busy ? "Sending…" : "Yes, send it"}
+                  <button type="button" onClick={send} disabled={busy} className={`${dashButton.primary} ${focusRing}`}>
+                    <Send className="h-4 w-4" aria-hidden /> {busy ? "Sending…" : "Yes, send it"}
                   </button>
-                  <button type="button" onClick={() => setConfirming(false)} disabled={busy} className="rounded-lg px-4 py-2 font-medium text-slate-700 hover:bg-white">
+                  <button type="button" onClick={() => setConfirming(false)} disabled={busy} className={`${dashButton.secondary} ${focusRing}`}>
                     Cancel
                   </button>
                 </div>
               </div>
             ) : (
-              <button type="submit" disabled={!ready} className="rounded-lg bg-xyvoo-blue px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50">
-                Send notification
+              <button type="submit" disabled={!ready} className={`${dashButton.primary} ${focusRing}`}>
+                <Send className="h-4 w-4" aria-hidden /> Send notification
               </button>
             )}
             {status ? <DashStatus message={status} /> : null}
             <DashAlert message={error} />
           </form>
 
-          <div aria-label="Preview of the notification on a phone" role="group">
-            <p className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-700">
-              <Smartphone className="h-4 w-4" aria-hidden /> Preview
+          <div aria-label="Preview of the notification on a phone" role="group" className="min-w-0">
+            <p className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-800">
+              <Smartphone className="h-4 w-4 text-slate-500" aria-hidden /> Preview
             </p>
-            <div className="rounded-3xl bg-slate-800 p-3">
-              <div className="rounded-2xl bg-white/95 p-3 shadow">
-                <div className="flex items-center gap-2 text-xs text-slate-500">
+            <div className="rounded-[2rem] bg-gradient-to-br from-rose-200 via-sky-200 to-teal-200 p-4 pb-16 shadow-inner">
+              <p aria-hidden className="mb-3 text-center font-heading text-3xl font-bold text-slate-800/80">
+                9:41
+              </p>
+              <div className="rounded-2xl bg-white/95 p-3 shadow-lg">
+                <div className="flex items-center gap-2 text-xs text-slate-600">
                   {/* eslint-disable-next-line @next/next/no-img-element -- the store's own generated app icon */}
                   <img src={`/shop/${slug}/app-icon/192`} alt="" width={20} height={20} className="h-5 w-5 rounded" />
-                  <span className="font-medium text-slate-700">{storeName}</span>
+                  <span className="truncate font-medium text-slate-800">{storeName}</span>
                   <span aria-hidden>·</span>
                   <span>now</span>
                 </div>
-                <p className="mt-1.5 text-sm font-semibold text-slate-900">{title || "Your title"}</p>
-                <p className="text-sm text-slate-700">{body || "Your message appears here."}</p>
+                <p className="mt-1.5 break-words text-sm font-semibold text-slate-900">{title || "Your title"}</p>
+                <p className="break-words text-sm text-slate-700">{body || "Your message appears here."}</p>
               </div>
             </div>
-            <p className="mt-2 text-xs text-slate-500">Phones show it slightly differently, but with your shop&rsquo;s name and icon.</p>
+            <p className="mt-2 text-xs text-slate-600">Phones show it slightly differently, but with your shop&rsquo;s name and icon.</p>
           </div>
         </div>
-      </section>
+      </DashCard>
 
-      <section aria-labelledby="notify-how" className="rounded-2xl border border-slate-200 bg-white p-6">
-        <h2 id="notify-how" className="text-base font-semibold text-slate-900">
-          How customers get your notifications
-        </h2>
-        <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-700">
-          <li>Your shop offers &ldquo;Get the app&rdquo; and &ldquo;Turn on notifications&rdquo; to visitors. Only people who say yes receive them.</li>
-          <li>Android phones and computers: they can turn notifications on straight from your shop.</li>
-          <li>iPhone and iPad: they add your shop to their home screen first (Share, then Add to Home Screen), then turn notifications on from the app.</li>
-          <li>Customers can turn notifications off at any time.</li>
-        </ul>
-      </section>
-
-      {state.sent.length ? (
-        <section aria-labelledby="notify-history" className="rounded-2xl border border-slate-200 bg-white p-6">
-          <h2 id="notify-history" className="text-base font-semibold text-slate-900">
-            Sent
-          </h2>
-          <ul className="mt-3 divide-y divide-slate-100">
+      <DashCard
+        id="notify-history"
+        icon={History}
+        meaning="orders"
+        title="Sent"
+        description="Notifications you’ve sent, and how many customers they reached."
+      >
+        {state.sent.length ? (
+          <ul className="-my-1 divide-y divide-slate-100">
             {state.sent.map((n) => (
               <li key={n.id} className="py-3 text-sm">
-                <div className="flex flex-wrap justify-between gap-2">
-                  <p className="font-medium text-slate-900">{n.title}</p>
-                  <p className="text-slate-500">{when(n.createdAt)}</p>
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                  <p className="min-w-0 break-words font-medium text-slate-900">{n.title}</p>
+                  <p className="text-slate-600">{when(n.createdAt)}</p>
                 </div>
-                <p className="text-slate-700">{n.body}</p>
-                <p className="mt-1 text-xs text-slate-500">
-                  Delivered to {n.delivered} of {n.recipients}
-                  {n.failed ? ` · ${n.failed} couldn't be reached` : ""}
+                <p className="break-words text-slate-700">{n.body}</p>
+                <p className="mt-1.5 flex flex-wrap gap-1.5">
+                  <DashPill tone={n.recipients && n.delivered === n.recipients ? "green" : "slate"}>
+                    Delivered to {n.delivered} of {n.recipients}
+                  </DashPill>
+                  {n.failed ? <DashPill tone="amber">{n.failed} couldn&rsquo;t be reached</DashPill> : null}
                 </p>
               </li>
             ))}
           </ul>
-        </section>
-      ) : null}
+        ) : (
+          <DashEmptyState
+            art="bell"
+            meaning="marketing"
+            title="Nothing sent yet"
+            description="Each notification you send will be listed here with how many customers received it. Write your first one above."
+          />
+        )}
+      </DashCard>
+
+      <DashCard
+        id="notify-how"
+        icon={CircleHelp}
+        meaning="customers"
+        title="How customers get your notifications"
+        description="Only customers who choose to receive them do, so the more who say yes, the more people you can reach."
+      >
+        <ol className="grid gap-3 text-sm text-slate-700 sm:grid-cols-2">
+          {[
+            { tone: "marketing" as const, text: <>Your shop offers &ldquo;Get the app&rdquo; and &ldquo;Turn on notifications&rdquo; to visitors. Only people who say yes receive them.</> },
+            { tone: "orders" as const, text: <>Android phones and computers: they can turn notifications on straight from your shop.</> },
+            { tone: "stock" as const, text: <>iPhone and iPad: they add your shop to their home screen first (Share, then Add to Home Screen), then turn notifications on from the app.</> },
+            { tone: "customers" as const, text: <>Customers can turn notifications off at any time.</> },
+          ].map((step, i) => (
+            <li key={i} className={`flex gap-3 rounded-xl p-4 ${MEANING[step.tone].tint}`}>
+              <span aria-hidden className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full font-heading text-sm font-bold shadow-sm ${MEANING[step.tone].iconBox}`}>
+                {i + 1}
+              </span>
+              <span>{step.text}</span>
+            </li>
+          ))}
+        </ol>
+      </DashCard>
     </div>
   );
 }

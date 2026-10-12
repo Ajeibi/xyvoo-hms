@@ -1,12 +1,18 @@
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getStoreAccessContext } from "@/lib/store/access";
+import { logActivity } from "@/lib/store/activity";
 import { mapProductRowToDashboard, pickWritableProductFields, type StoreProductRow } from "@/lib/store/products";
+import { checkPricingWrite, withCheckedPricing } from "@/lib/store/sale-price-server";
+import { saleColumns } from "@/lib/store/variants";
 
 type VariantInput = {
   options: Record<string, string>;
   sku?: string;
   price_override?: number;
+  sale_price?: number | null;
+  sale_starts_at?: string | null;
+  sale_ends_at?: string | null;
   stock?: number;
   image_url?: string;
   barcode?: string;
@@ -37,11 +43,15 @@ export async function POST(req: Request) {
   }
 
   const service = createServerSupabaseClient();
+  // Sale price and dates (Standard plan) and tax class are checked before anything is written.
+  const pricing = await checkPricingWrite(service, access.tenantId, body, null);
+  if (pricing.error) return pricing.error;
+  if (pricing.variants) body.variants = pricing.variants;
   const { data: product, error } = await service
     .schema("store")
     .from("products")
     .insert({
-      ...pickWritableProductFields(body),
+      ...withCheckedPricing(pickWritableProductFields(body), pricing.fields),
       tenant_id: access.tenantId,
     })
     .select("*")
@@ -68,6 +78,7 @@ export async function POST(req: Request) {
           image_url: variant.image_url || null,
           barcode: variant.barcode || null,
           weight_kg: variant.weight_kg ?? null,
+          ...saleColumns(variant),
         })),
       )
       .select("*");
@@ -77,6 +88,8 @@ export async function POST(req: Request) {
     }
     insertedVariants = variantRows || [];
   }
+
+  await logActivity({ tenantId: access.tenantId, actor: access, area: "products", action: "created", targetId: product.id, targetLabel: product.name });
 
   const row = { ...product, product_variants: insertedVariants } as StoreProductRow;
   return NextResponse.json({ product: mapProductRowToDashboard(row) }, { status: 201 });

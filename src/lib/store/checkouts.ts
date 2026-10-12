@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { isSale } from "./sales";
+import { priceBasketLines } from "./discounts-server";
+import { storeCurrency } from "./payout-routes";
 
 /*
  * Checkouts in progress, for abandoned-cart follow-up. The checkout page saves
@@ -35,16 +37,19 @@ export async function saveCheckoutSession(tenantId: string, input: CheckoutSessi
   if (!email && !phone) return false;
 
   const productIds = [...new Set(input.items.map((i) => i.productId))];
-  const { data: products, error } = await db().from("products").select("id, name, price, currency").eq("tenant_id", tenantId).in("id", productIds);
+  const { data: products, error } = await db().from("products").select("id, name, price").eq("tenant_id", tenantId).in("id", productIds);
   if (error) throw new Error(error.message);
   const byId = new Map((products || []).map((p) => [p.id as string, p]));
 
-  const items = input.items
-    .filter((i) => byId.has(i.productId))
-    .map((i) => {
-      const p = byId.get(i.productId)!;
-      return { productId: i.productId, variantId: i.variantId ?? null, name: String(p.name), quantity: i.quantity, unitPrice: Number(p.price) || 0 };
-    });
+  // Valued at today's price for each line: a size's own price, and any sale that's running.
+  const known = input.items.filter((i) => byId.has(i.productId));
+  const priced = await priceBasketLines(tenantId, known);
+  const items = known.map((i, index) => {
+    const p = byId.get(i.productId)!;
+    const lineTotal = priced[index]?.lineTotal;
+    const unitPrice = lineTotal != null && i.quantity > 0 ? Math.round((lineTotal / i.quantity) * 100) / 100 : Number(p.price) || 0;
+    return { productId: i.productId, variantId: i.variantId ?? null, name: String(p.name), quantity: i.quantity, unitPrice };
+  });
   if (!items.length) return false;
 
   const subtotal = Math.round(items.reduce((sum, i) => sum + i.unitPrice * i.quantity, 0) * 100) / 100;
@@ -60,7 +65,7 @@ export async function saveCheckoutSession(tenantId: string, input: CheckoutSessi
         customer_phone: phone,
         items,
         subtotal,
-        currency: String(byId.get(items[0].productId)?.currency || "NGN"),
+        currency: await storeCurrency(tenantId, createServerSupabaseClient()),
         updated_at: new Date().toISOString(),
       },
       { onConflict: "tenant_id,token" },
@@ -107,7 +112,8 @@ export async function listAbandonedCheckouts(tenantId: string, now = Date.now())
 
   const rows = (data || []).filter((r) => {
     const order = r.orders as unknown as { payment_status: string; status: string } | null;
-    return !order || !isSale(order.payment_status, order.status);
+    // They paid, even if the money was later refunded: not an abandoned basket.
+    return !order || (!isSale(order.payment_status, order.status) && order.payment_status !== "refunded");
   });
 
   // Did they buy afterwards? Look for a later sale with the same email or phone.

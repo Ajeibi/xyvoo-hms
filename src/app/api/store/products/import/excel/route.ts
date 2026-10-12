@@ -1,26 +1,26 @@
 import ExcelJS from "exceljs";
 import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { getStoreAccessContext, getStoreCapabilities } from "@/lib/store/access";
-import { friendlyColumnList, parseExcelRows, splitImportRows } from "@/lib/store/product-import";
+import { resolveStoreRequest } from "@/lib/store/api-helpers";
+import { friendlyColumnList, parseExcelRows } from "@/lib/store/product-import";
+import { MAX_IMPORT_FILE_BYTES, respondToImport } from "@/lib/store/product-import-server";
 
+/** POST /api/store/products/import/excel (form: slug, file, mode=preview|save). Preview first; save once the merchant confirms. */
 export async function POST(req: Request) {
-  const formData = await req.formData();
-  const slug = String(formData.get("slug") || "");
-  const file = formData.get("file");
+  const formData = await req.formData().catch(() => null);
+  if (!formData) return NextResponse.json({ error: "Please choose an Excel file to import." }, { status: 400 });
 
-  if (!slug) return NextResponse.json({ error: "Missing slug." }, { status: 400 });
-
-  const access = await getStoreAccessContext(slug);
-  if (!access.userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!access.tenantId || !access.role) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  if (!getStoreCapabilities(access.role).canImportProducts) {
+  const resolved = await resolveStoreRequest(String(formData.get("slug") || ""));
+  if (resolved.error) return resolved.error;
+  if (!resolved.capabilities.canImportProducts) {
     return NextResponse.json({ error: "Only an owner or admin can bulk-import products." }, { status: 403 });
   }
-  const tenantId = access.tenantId;
 
+  const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
     return NextResponse.json({ error: "Please choose an Excel file to import." }, { status: 400 });
+  }
+  if (file.size > MAX_IMPORT_FILE_BYTES) {
+    return NextResponse.json({ error: "That file is larger than 5 MB. Please split it into smaller files and import them one at a time." }, { status: 400 });
   }
 
   const workbook = new ExcelJS.Workbook();
@@ -29,7 +29,7 @@ export async function POST(req: Request) {
   } catch (err) {
     console.error("Excel import: failed to open workbook", err);
     return NextResponse.json(
-      { error: "We couldn't open that file. Please make sure it's a real Excel (.xlsx) file, not a renamed .csv or .xls, and try again." },
+      { error: "We couldn't open that file. Please make sure it's an Excel (.xlsx) file, not a renamed .csv or an old .xls, and try again." },
       { status: 400 },
     );
   }
@@ -44,37 +44,17 @@ export async function POST(req: Request) {
   const { hasRecognizedColumns, rows } = parseExcelRows(workbook);
   if (!hasRecognizedColumns) {
     return NextResponse.json(
-      {
-        error: `We couldn't find any recognizable column headers in the first row. Make sure the first row of your sheet has column titles like: ${friendlyColumnList()}.`,
-      },
+      { error: `We couldn't find any column titles we recognise in the first row. Use titles like: ${friendlyColumnList()}. The template shows the layout.` },
       { status: 400 },
     );
   }
 
-  const { toInsert, skipped } = splitImportRows(rows, tenantId);
-
-  if (!toInsert.length) {
-    return NextResponse.json(
-      {
-        error:
-          skipped.length > 0
-            ? "We couldn't import any products from that file — every row is missing a name, a price, or both. Please check the file and try again."
-            : "That sheet doesn't have any product rows below the header. Please check the file and try again.",
-      },
-      { status: 400 },
-    );
-  }
-
-  const service = createServerSupabaseClient();
-  const { data, error } = await service.schema("store").from("products").insert(toInsert).select("id");
-
-  if (error) {
-    console.error("Excel import: insert failed", error);
-    return NextResponse.json(
-      { error: "We read your file, but couldn't save the products. Please try again — if this keeps happening, contact support." },
-      { status: 400 },
-    );
-  }
-
-  return NextResponse.json({ imported: data?.length || 0, skipped });
+  return respondToImport({
+    service: resolved.service,
+    tenantId: resolved.access.tenantId,
+    userId: resolved.access.userId,
+    rows,
+    mode: formData.get("mode") === "save" ? "save" : "preview",
+    source: "excel",
+  });
 }

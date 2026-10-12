@@ -12,12 +12,13 @@ import StoreFooter from "@/components/storefront-theme/StoreFooter";
 import StoreHeader, { type HeaderNavItem } from "@/components/storefront-theme/StoreHeader";
 import { StorefrontProvider } from "@/components/storefront-theme/StorefrontProvider";
 import { storeSocialLinks } from "@/components/storefront-theme/socials";
-import { getFontPairing, type FontPairing } from "@/lib/store/site/fonts";
+import { getFontPairing, googleFontCssUrl, uploadedFontFace, type FontPairing } from "@/lib/store/site/fonts";
 import { menuItemPath, STORE_PATHS, storeHref } from "@/lib/store/site/links";
 import { fontVariableClasses } from "@/lib/store/site/next-fonts";
 import { getStorefront, type Storefront } from "@/lib/store/site/storefront";
 import { storeAppPath, storeAppScope } from "@/lib/store/app";
 import { getPushPublicKey } from "@/lib/store/push";
+import { getStorePlan, storeHasFeature } from "@/lib/store/features";
 import { findSlugRedirect } from "@/lib/store/slugs";
 import { movedStoreLocation, STOREFRONT_HOST_HEADER, STOREFRONT_PATH_HEADER, STOREFRONT_PREVIEW_PARAM } from "@/lib/store/subdomain";
 
@@ -81,7 +82,8 @@ export async function generateMetadata({ params }: LayoutParams): Promise<Metada
     // Relative canonical paths on each page resolve against the store's subdomain.
     metadataBase: new URL(storefront.siteUrl),
     title: { default: seo.title, template: `%s | ${storefront.storeName}` },
-    description: seo.description || undefined,
+    // Search results show this under the store's name; until the merchant writes one, say what the site is.
+    description: seo.description || `Shop online at ${storefront.storeName}.`,
     // Unpublished stores (and draft previews) stay out of search results.
     robots: storefront.isLive ? undefined : { index: false, follow: false },
     icons: icon ? { icon } : undefined,
@@ -161,10 +163,17 @@ export default async function StorefrontLayout({ children, params }: LayoutParam
   const showMark = site.template.slug === "loftwood";
   const visible = storefront.isLive || storefront.isPreview;
   const fontPairing = getFontPairing(site.theme.fontPairing);
-  // Published shops are installable apps that can send notifications. Drafts aren't.
+  const customFont = site.theme.customFont ?? null;
+  // Published shops are installable apps. Drafts aren't. Only Standard shops offer notifications.
   const appConfig: StoreAppConfig | null =
     storefront.isLive && !storefront.isPreview
-      ? { slug, storeName, swUrl: storeAppPath(basePath, "sw.js"), scope: storeAppScope(basePath), pushPublicKey: getPushPublicKey() }
+      ? {
+          slug,
+          storeName,
+          swUrl: storeAppPath(basePath, "sw.js"),
+          scope: storeAppScope(basePath),
+          pushPublicKey: storeHasFeature(await getStorePlan(storefront.tenant.id), "pushNotifications") ? getPushPublicKey() : null,
+        }
       : null;
 
   return (
@@ -177,6 +186,15 @@ export default async function StorefrontLayout({ children, params }: LayoutParam
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: ENHANCE_SCRIPT }} />
+        {customFont?.source === "google" ? (
+          <>
+            {/* The merchant chose a Google Font, so this is the one font a shop loads from outside XYVOO. */}
+            <link rel="preconnect" href="https://fonts.googleapis.com" />
+            <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+            <link rel="stylesheet" href={googleFontCssUrl(customFont.family, customFont.hasBold)} />
+          </>
+        ) : null}
+        {uploadedFontFace(customFont) ? <style dangerouslySetInnerHTML={{ __html: uploadedFontFace(customFont)! }} /> : null}
         {appConfig ? (
           <>
             <link rel="manifest" href={storeAppPath(basePath, "manifest.webmanifest")} />
@@ -215,7 +233,9 @@ export default async function StorefrontLayout({ children, params }: LayoutParam
         ) : null}
 
         {visible ? (
-          <StorefrontProvider value={{ slug, basePath, currency: storefront.profile.currencyCode }}>
+          <StorefrontProvider
+            value={{ slug, basePath, currency: storefront.profile.currencyCode, currencies: storefront.currencies, displayCurrency: storefront.displayCurrency }}
+          >
             <StoreHeader
               brand={{ storeName, homeHref: storeHref(basePath, "/"), logoUrl: site.brand.logoUrl, logoAlt: site.brand.logoAlt, showMark }}
               navItems={headerNavItems(storefront)}

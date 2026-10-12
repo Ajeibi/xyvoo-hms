@@ -13,7 +13,7 @@ export async function POST(req: Request) {
   if (!parsed.success) return jsonError(parsed.error.issues[0]?.message || "Enter the 6-digit code from the email.");
   const { email, code } = parsed.data;
 
-  const limited = limitCodeRequests(req, "verify-confirm", email, { perIp: 20, perEmail: 10 });
+  const limited = await limitCodeRequests(req, "verify-confirm", email, { perIp: 20, perEmail: 10 });
   if (limited) return limited;
 
   const user = await findAuthUserByEmail(email);

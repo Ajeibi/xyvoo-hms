@@ -19,7 +19,7 @@ export type StorefrontTemplateDefinition = {
   sections: SiteSection[];
 };
 
-export const STORE_CATEGORIES = ["fashion", "beauty", "home", "food", "electronics", "other"] as const;
+export const STORE_CATEGORIES = ["fashion", "beauty", "home", "food", "electronics", "health", "kids", "other"] as const;
 export type StoreCategory = (typeof STORE_CATEGORIES)[number];
 
 export const STOREFRONT_TEMPLATE_SLUGS = ["linden-home", "sage-and-stem", "loftwood"] as const;
@@ -95,7 +95,7 @@ export const STOREFRONT_TEMPLATES: Record<StorefrontTemplateSlug, StorefrontTemp
       cardVariant: "basket",
     },
     recommendedFonts: ["jost-dm-sans", "playfair-source-sans", "fraunces-inter"],
-    suggestedFor: ["home", "other"],
+    suggestedFor: ["home", "kids", "other"],
     sections: [
       hero("Welcome to our store"),
       valueStrip,
@@ -127,7 +127,7 @@ export const STOREFRONT_TEMPLATES: Record<StorefrontTemplateSlug, StorefrontTemp
       cardVariant: "view",
     },
     recommendedFonts: ["dm-serif-dm-sans", "fraunces-inter", "playfair-source-sans"],
-    suggestedFor: ["beauty", "food", "fashion"],
+    suggestedFor: ["beauty", "food", "health", "fashion"],
     sections: [
       hero("Welcome to our store"),
       productList("featured", "Featured collection", "featured"),
