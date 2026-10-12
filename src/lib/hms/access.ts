@@ -1,4 +1,5 @@
-import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
+import { cache } from "react";
+import { getSessionUser } from "@/lib/supabase/auth-server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
 import {
@@ -42,11 +43,9 @@ export async function getHotelRoleAccess(slug: string) {
   };
 }
 
-export async function getHmsAccessContext(slug: string): Promise<HmsAccessContext> {
-  const auth = await createSupabaseAuthServerClient();
-  const {
-    data: { user },
-  } = await auth.auth.getUser();
+/** Cached per server render: the layout, its metadata, HMSLayout and the page all ask for this. */
+export const getHmsAccessContext = cache(async (slug: string): Promise<HmsAccessContext> => {
+  const user = await getSessionUser();
 
   if (!user) {
     return {
@@ -170,7 +169,7 @@ export async function getHmsAccessContext(slug: string): Promise<HmsAccessContex
     navItems: [],
     allowedSections: ["notifications"],
   };
-}
+});
 
 export function hasSectionAccess(access: HmsAccessContext, requiredSection: HmsSectionKey) {
   return access.allowedSections.includes(requiredSection);

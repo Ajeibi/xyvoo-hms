@@ -1,5 +1,5 @@
 import { contrastRatio, darken, MIN_TEXT_CONTRAST } from "./contrast";
-import { fontStack, getFontPairing } from "./fonts";
+import { customFontStack, fontStack, getFontPairing } from "./fonts";
 import type {
   SiteBrand,
   SiteContent,
@@ -78,6 +78,7 @@ function checkContrast(theme: ResolvedSite["theme"]): ContrastIssue[] {
 function toCssVariables(theme: ResolvedSite["theme"]): ResolvedSite["cssVariables"] {
   const { colours } = theme;
   const fonts = getFontPairing(theme.fontPairing);
+  const custom = theme.customFont ?? null;
   const corners = CORNER_RADIUS[theme.cornerStyle];
 
   return {
@@ -90,9 +91,10 @@ function toCssVariables(theme: ResolvedSite["theme"]): ResolvedSite["cssVariable
     "--on-accent": theme.onAccent,
     "--dark": colours.dark,
     "--on-dark": colours.onDark,
-    "--font-display": fontStack(fonts.display),
-    "--font-body": fontStack(fonts.body),
-    "--display-weight": String(fonts.display.weight),
+    "--font-display": custom ? customFontStack(custom, fonts.display.fallback) : fontStack(fonts.display),
+    "--font-body": custom?.useForBody ? customFontStack(custom, fonts.body.fallback) : fontStack(fonts.body),
+    // An uploaded file is usually a single weight; asking for bolder would make the browser fake it.
+    "--display-weight": custom?.source === "upload" ? "400" : String(fonts.display.weight),
     "--btn-radius": BUTTON_RADIUS[theme.buttonShape],
     "--card-radius": corners.card,
     "--media-radius": corners.media,

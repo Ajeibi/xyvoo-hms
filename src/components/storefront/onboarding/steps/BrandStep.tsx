@@ -2,10 +2,13 @@
 
 import { useMemo, useRef, useState } from "react";
 import { ImagePlus, Trash2 } from "lucide-react";
-import { FONT_PAIRINGS, type FontPairingId } from "@/lib/store/site/fonts";
+import { FONT_PAIRINGS, type CustomFont, type FontPairingId } from "@/lib/store/site/fonts";
+import CustomFontPicker from "../CustomFontPicker";
 import { brandSchema } from "@/lib/store/site/onboarding-steps";
+import { colourFromText, PRESET_COLOURS } from "@/lib/store/site/colour-names";
 import { resolveSite } from "@/lib/store/site/resolve";
 import { getStorefrontTemplate, type StorefrontTemplateSlug } from "@/lib/store/site/templates";
+import StorefrontValidationModal, { type ValidationErrorItem } from "@/components/storefront/StorefrontValidationModal";
 import type { StepProps, WizardInitial } from "../OnboardingWizard";
 import { describedBy, ErrorBanner, Field, inputClass, StepActions } from "../fields";
 
@@ -26,10 +29,15 @@ export default function BrandStep({
   const [logoUrl, setLogoUrl] = useState(initial.logoUrl);
   const [useCustom, setUseCustom] = useState(Boolean(initial.accent));
   const [accent, setAccent] = useState(initial.accent ?? template.theme.colours.accent);
+  const [colourText, setColourText] = useState("");
   const [fontPairing, setFontPairing] = useState<FontPairingId>(initial.fontPairing);
+  const [ownFont, setOwnFont] = useState(Boolean(initial.customFont));
+  const [customFont, setCustomFont] = useState<CustomFont | null>(initial.customFont);
   const [tagline, setTagline] = useState(initial.tagline);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
+  const [modalErrors, setModalErrors] = useState<ValidationErrorItem[]>([]);
+  const [showModal, setShowModal] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
   // Same check the server makes: can button text be read on this colour?
@@ -64,10 +72,52 @@ export default function BrandStep({
     }
   };
 
+  const handleCloseModal = () => {
+    setShowModal(false);
+    if (modalErrors.length > 0) {
+      const first = modalErrors[0]?.field;
+      if (first === "accent") {
+        document.getElementById("brand-accent")?.focus();
+      }
+    }
+  };
+
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
-    if (buttonProblem) return document.getElementById("brand-accent")?.focus();
-    onSubmit(brandSchema.parse({ logoUrl, accent: useCustom ? accent.toUpperCase() : null, fontPairing, tagline }));
+    if (buttonProblem) {
+      setModalErrors([
+        {
+          field: "accent",
+          label: "Accent colour",
+          message: "Button text is hard to read against this colour. Please choose a different shade for better contrast.",
+        },
+      ]);
+      setShowModal(true);
+      return;
+    }
+    if (ownFont && !customFont) {
+      setModalErrors([{ field: "customFont", label: "Your font", message: "Choose your font, or pick one of ours." }]);
+      setShowModal(true);
+      return;
+    }
+    const parsed = brandSchema.safeParse({
+      logoUrl,
+      accent: useCustom ? accent.toUpperCase() : null,
+      fontPairing,
+      customFont: ownFont ? customFont : null,
+      tagline,
+    });
+    if (!parsed.success) {
+      const list: ValidationErrorItem[] = parsed.error.issues.map((i) => ({
+        field: String(i.path[0]),
+        label: "Brand details",
+        message: i.message,
+      }));
+      setModalErrors(list);
+      setShowModal(true);
+      return;
+    }
+    onSubmit(parsed.data);
   };
 
   return (
@@ -134,23 +184,76 @@ export default function BrandStep({
           <Field
             id="brand-accent"
             label="Brand colour"
-            hint="Pick your main brand colour. We'll check that button text stays easy to read."
+            hint="Choose your main brand colour. We'll check that button text stays easy to read."
             error={buttonProblem ? "Button text wouldn't be easy to read on this colour. Try a darker or lighter shade." : undefined}
           >
-            <div className="flex items-center gap-3">
-              <input
-                id="brand-accent"
-                type="color"
-                value={accent}
-                onChange={(e) => setAccent(e.target.value)}
-                className="h-12 w-20 cursor-pointer rounded-lg border border-slate-300 bg-white p-1"
-                aria-invalid={Boolean(buttonProblem) || undefined}
-                aria-describedby={describedBy("brand-accent", { hint: true, error: buttonProblem ? "x" : undefined })}
-              />
-              <span className="font-mono text-sm text-slate-700">{accent.toUpperCase()}</span>
-              <span className="rounded-lg px-4 py-2 text-sm font-semibold" style={{ background: accent, color: resolveSite(template.slug, { theme: { colours: { accent } } }, { storeName }).theme.onAccent }}>
-                Sample button
-              </span>
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-2" role="group" aria-label="Quick colours">
+                {PRESET_COLOURS.map((c) => (
+                  <button
+                    key={c.hex}
+                    type="button"
+                    aria-label={c.name}
+                    aria-pressed={accent.toUpperCase() === c.hex}
+                    title={c.name}
+                    onClick={() => {
+                      setAccent(c.hex);
+                      setColourText(c.name);
+                    }}
+                    className={`h-10 w-10 rounded-full border-2 transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-xyvoo-teal-product-hover focus-visible:ring-offset-2 ${accent.toUpperCase() === c.hex ? "border-slate-900 ring-2 ring-white ring-inset" : "border-white shadow-[0_0_0_1px_rgb(203_213_225)]"}`}
+                    style={{ background: c.hex }}
+                  />
+                ))}
+              </div>
+
+              <div>
+                <label htmlFor="brand-accent-text" className="mb-1 block text-sm text-slate-700">
+                  Or type a colour, like &ldquo;wine&rdquo; or &ldquo;navy blue&rdquo;
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    id="brand-accent-text"
+                    className={`${inputClass} max-w-xs`}
+                    value={colourText}
+                    onChange={(e) => {
+                      setColourText(e.target.value);
+                      const hex = colourFromText(e.target.value);
+                      if (hex) setAccent(hex);
+                    }}
+                    aria-describedby="brand-accent-text-status"
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                  <label className="relative h-12 w-12 shrink-0 cursor-pointer overflow-hidden rounded-xl border border-slate-300" title="Pick any shade">
+                    <span className="sr-only">Pick any shade</span>
+                    <span className="absolute inset-1 rounded-lg" style={{ background: accent }} aria-hidden />
+                    <input
+                      id="brand-accent"
+                      type="color"
+                      value={accent}
+                      onChange={(e) => {
+                        setAccent(e.target.value);
+                        setColourText(e.target.value.toUpperCase());
+                      }}
+                      className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                      aria-invalid={Boolean(buttonProblem) || undefined}
+                      aria-describedby={describedBy("brand-accent", { hint: true, error: buttonProblem ? "x" : undefined })}
+                    />
+                  </label>
+                </div>
+                <p id="brand-accent-text-status" role="status" className="mt-1 text-xs text-slate-500">
+                  {colourText.trim() && !colourFromText(colourText)
+                    ? "We don't know that colour. Try a simple name like “green”, or tap one above."
+                    : "Tap the square to fine-tune the shade."}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <span className="rounded-lg px-4 py-2 text-sm font-semibold" style={{ background: accent, color: resolveSite(template.slug, { theme: { colours: { accent } } }, { storeName }).theme.onAccent }}>
+                  Sample button
+                </span>
+                <span className="text-xs text-slate-500">How your buttons will look</span>
+              </div>
             </div>
           </Field>
         ) : null}
@@ -163,16 +266,32 @@ export default function BrandStep({
           {fonts.map((pairing) => (
             <label
               key={pairing.id}
-              className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-sm ${fontPairing === pairing.id ? "border-xyvoo-teal-product-hover" : "border-slate-300"}`}
+              className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-sm ${!ownFont && fontPairing === pairing.id ? "border-xyvoo-teal-product-hover" : "border-slate-300"}`}
             >
-              <input type="radio" name="fonts" checked={fontPairing === pairing.id} onChange={() => setFontPairing(pairing.id)} className="accent-xyvoo-teal-product-hover" />
+              <input
+                type="radio"
+                name="fonts"
+                checked={!ownFont && fontPairing === pairing.id}
+                onChange={() => {
+                  setFontPairing(pairing.id);
+                  setOwnFont(false);
+                }}
+                className="accent-xyvoo-teal-product-hover"
+              />
               <span>
                 {pairing.label}
                 {pairing.id === template.theme.fontPairing ? <span className="ml-2 text-xs text-slate-500">(template default)</span> : null}
               </span>
             </label>
           ))}
+          <label
+            className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-sm ${ownFont ? "border-xyvoo-teal-product-hover" : "border-slate-300"}`}
+          >
+            <input type="radio" name="fonts" checked={ownFont} onChange={() => setOwnFont(true)} className="accent-xyvoo-teal-product-hover" />
+            <span>Use my own font</span>
+          </label>
         </div>
+        {ownFont ? <CustomFontPicker slug={slug} value={customFont} onChange={setCustomFont} /> : null}
       </fieldset>
 
       <Field id="brand-tagline" label="Tagline" optional hint="A short line about your store, used in your footer and search results.">
@@ -188,6 +307,15 @@ export default function BrandStep({
       </Field>
 
       <StepActions busy={busy || uploading} backHref={backHref} />
+
+      <StorefrontValidationModal
+        isOpen={showModal}
+        onClose={handleCloseModal}
+        errors={modalErrors}
+        title="Incomplete Brand Details"
+        description="Please review and resolve the following issue before continuing:"
+        confirmText="Okay, I will fix it"
+      />
     </form>
   );
 }

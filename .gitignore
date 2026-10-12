@@ -55,6 +55,7 @@ supabase/.temp/
 *.test.tsx
 *.test.js
 *.test.mjs
+/load-tests/
 # Seed data and demo-data tooling (the scripts import the seed code, so they go together)
 /scripts/seed-*
 /scripts/clear-tenant-cli.ts
@@ -69,3 +70,6 @@ supabase/.temp/
 /design/
 /*.pdf
 /*.docx
+
+# Local QA scripts
+/.claude/tmp/

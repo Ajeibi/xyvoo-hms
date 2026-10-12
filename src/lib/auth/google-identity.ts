@@ -9,6 +9,7 @@ interface GoogleRenderButtonOptions {
   theme?: "outline" | "filled_blue" | "filled_black";
   size?: "large" | "medium" | "small";
   shape?: "rectangular" | "pill" | "circle" | "square";
+  logo_alignment?: "left" | "center";
   width?: number;
 }
 

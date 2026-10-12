@@ -1,6 +1,5 @@
 import Image from "next/image";
 import Link from "next/link";
-import { formatShopCurrency } from "@/lib/shop/format";
 
 export const ICON_SPRITE = "/sf-assets/icons.svg";
 
@@ -63,17 +62,8 @@ export function StoreImage({
   );
 }
 
-export function Price({ amount, compareAt, currency }: { amount: number; compareAt?: number | null; currency: string | null }) {
-  if (compareAt != null && compareAt > amount) {
-    return (
-      <>
-        <span className="visually-hidden">Sale price </span>
-        {formatShopCurrency(amount, currency)} <s><span className="visually-hidden">was </span>{formatShopCurrency(compareAt, currency)}</s>
-      </>
-    );
-  }
-  return <>{formatShopCurrency(amount, currency)}</>;
-}
+/** In the shopper's chosen currency, so it lives in a client component. */
+export { default as Price } from "./Price";
 
 export function Rating({ value, count }: { value: number; count?: number }) {
   const rounded = Math.round(value);

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
-import { resolveStoreRequest } from "@/lib/store/api-helpers";
+import { productNotFound, resolveStoreRequest, storeOwnsProducts } from "@/lib/store/api-helpers";
 
 const BUCKET = "store-products";
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -11,12 +11,14 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const { searchParams } = new URL(req.url);
   const result = await resolveStoreRequest(searchParams.get("slug") || "");
   if (result.error) return result.error;
+  if (!(await storeOwnsProducts(result.service, result.access.tenantId, [id]))) return productNotFound();
 
   const { data, error } = await result.service
     .schema("store")
     .from("product_documents")
     .select("*")
     .eq("product_id", id)
+    .eq("tenant_id", result.access.tenantId)
     .order("created_at", { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
@@ -33,6 +35,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
   const result = await resolveStoreRequest(slug);
   if (result.error) return result.error;
+  if (!(await storeOwnsProducts(result.service, result.access.tenantId, [id]))) return productNotFound();
 
   if (!label) return NextResponse.json({ error: "Missing label." }, { status: 400 });
   if (!DOCUMENT_TYPES.has(documentType)) {
@@ -72,14 +75,22 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   return NextResponse.json({ document: data }, { status: 201 });
 }
 
-export async function DELETE(req: Request) {
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const { searchParams } = new URL(req.url);
   const itemId = searchParams.get("itemId") || "";
   const result = await resolveStoreRequest(searchParams.get("slug") || "");
   if (result.error) return result.error;
   if (!itemId) return NextResponse.json({ error: "Missing itemId." }, { status: 400 });
+  if (!(await storeOwnsProducts(result.service, result.access.tenantId, [id]))) return productNotFound();
 
-  const { error } = await result.service.schema("store").from("product_documents").delete().eq("id", itemId);
+  const { error } = await result.service
+    .schema("store")
+    .from("product_documents")
+    .delete()
+    .eq("id", itemId)
+    .eq("product_id", id)
+    .eq("tenant_id", result.access.tenantId);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   return NextResponse.json({ success: true });
 }

@@ -31,7 +31,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     .eq("tenant_id", resolved.access.tenantId)
     .select(COLUMNS)
     .maybeSingle();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("[delivery-zones]", error);
+    return NextResponse.json({ error: "We couldn't save or load your delivery options. Please try again." }, { status: 500 });
+  }
   if (!data) return NextResponse.json({ error: "Delivery option not found." }, { status: 404 });
   return NextResponse.json({ zone: mapDeliveryZone(data as DeliveryZoneRow) });
 }
@@ -41,6 +44,9 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   const resolved = await authorise({ slug: new URL(req.url).searchParams.get("slug") });
   if (resolved.error) return resolved.error;
   const { error } = await resolved.service.schema("store").from("delivery_zones").delete().eq("id", (await params).id).eq("tenant_id", resolved.access.tenantId);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("[delivery-zones]", error);
+    return NextResponse.json({ error: "We couldn't save or load your delivery options. Please try again." }, { status: 500 });
+  }
   return NextResponse.json({ ok: true });
 }

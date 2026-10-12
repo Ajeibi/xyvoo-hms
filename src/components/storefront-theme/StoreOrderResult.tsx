@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useCartStore } from "@/components/shop/CartProvider";
 import { formatShopCurrency } from "@/lib/shop/format";
+import { clearCheckoutToken } from "@/lib/store/analytics-client";
 import { STORE_PATHS } from "@/lib/store/site/links";
 import { useStorefront } from "./StorefrontProvider";
 import { Icon } from "./primitives";
@@ -34,7 +35,10 @@ export default function StoreOrderResult({ reference }: { reference: string }) {
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || "We couldn't confirm your payment.");
         setResult(data);
-        if (data.status === "success") clearCart();
+        if (data.status === "success") {
+          clearCart();
+          clearCheckoutToken(slug);
+        }
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Something went wrong."));
   }, [slug, reference, clearCart]);
@@ -61,18 +65,23 @@ export default function StoreOrderResult({ reference }: { reference: string }) {
     return (
       <div className="cart-empty">
         <h1 className="h-page" tabIndex={-1} ref={heading}>
-          {pending ? "Your payment is still processing" : "Your payment wasn't completed"}
+          {pending ? "Your payment is still processing" : error ? "We couldn't confirm your payment" : "Your payment wasn't completed"}
         </h1>
         <p className="body-copy">
+          {/* Only a confirmed failure means nothing was taken; a checking error doesn't tell us either way. */}
           {pending
             ? "This can take a minute. Refresh this page shortly to check again. You won't be charged twice."
             : error || "Nothing has been taken from your account. Your basket has been kept so you can try again."}
         </p>
-        {!pending ? (
+        {pending ? null : error ? (
+          <Link className="btn btn--primary" href={href("/")}>
+            Back to the shop
+          </Link>
+        ) : (
           <Link className="btn btn--primary" href={href(STORE_PATHS.checkout)}>
             Try again
           </Link>
-        ) : null}
+        )}
       </div>
     );
   }

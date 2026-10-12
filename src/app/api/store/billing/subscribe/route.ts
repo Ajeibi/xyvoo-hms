@@ -5,7 +5,11 @@ import { initializeSubscription } from "@/lib/payments/platform-paystack";
 import { STANDARD_CURRENCY, STANDARD_PRICE } from "@/lib/store/billing";
 import { paystackFailure, resolveBillingRequest } from "@/lib/store/payout-routes";
 
-const Schema = z.object({ slug: z.string().min(1) });
+const Schema = z.object({
+  slug: z.string().min(1),
+  /** Where Paystack sends the owner back: the plan step of setup, or (by default) the dashboard. */
+  returnTo: z.enum(["dashboard", "setup"]).default("dashboard"),
+});
 
 /**
  * POST /api/store/billing/subscribe — starts the Standard plan: records the
@@ -36,7 +40,10 @@ export async function POST(req: Request) {
       email,
       amountSubunits: STANDARD_PRICE * 100,
       reference,
-      callbackUrl: `${new URL(req.url).origin}/storefront/${encodeURIComponent(parsed.data.slug)}/billing/callback`,
+      callbackUrl:
+        parsed.data.returnTo === "setup"
+          ? `${new URL(req.url).origin}/storefront/${encodeURIComponent(parsed.data.slug)}/welcome/plan`
+          : `${new URL(req.url).origin}/storefront/${encodeURIComponent(parsed.data.slug)}/billing/callback`,
       metadata: { purpose: "store_subscription", tenant_id: access.tenantId },
     });
     return NextResponse.json({ authorizationUrl });

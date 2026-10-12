@@ -1,5 +1,6 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { addDays, addMonths, GRACE_DAYS } from "./billing";
+import { logActivity, type ActivityActor } from "./activity";
 
 /**
  * Standard plan state changes, driven by Paystack (the sign-up return page
@@ -10,13 +11,23 @@ import { addDays, addMonths, GRACE_DAYS } from "./billing";
 const subscriptions = () => createServerSupabaseClient().schema("store").from("subscriptions");
 const payments = () => createServerSupabaseClient().schema("store").from("subscription_payments");
 
-/** First Standard payment succeeded: the store moves to 0% straight away. */
-export async function activateStandard(input: { reference: string; customerCode: string | null; paidAt: Date }) {
+/**
+ * First Standard payment succeeded: the store moves to 0% straight away.
+ * Whichever of the return page and the webhook gets here first records it in
+ * the activity log (with the owner's name from the return page, or "Paystack").
+ */
+export async function activateStandard(input: { reference: string; customerCode: string | null; paidAt: Date; actor?: ActivityActor }) {
   const { data: payment } = await payments().select("tenant_id, status").eq("reference", input.reference).maybeSingle();
   if (!payment) return null;
 
+  let firstToConfirm = false;
   if (payment.status !== "success") {
-    await payments().update({ status: "success", paid_at: input.paidAt.toISOString() }).eq("reference", input.reference);
+    const { data: flipped } = await payments()
+      .update({ status: "success", paid_at: input.paidAt.toISOString() })
+      .eq("reference", input.reference)
+      .neq("status", "success")
+      .select("reference");
+    firstToConfirm = (flipped?.length ?? 0) > 0;
   }
 
   const { error } = await subscriptions()
@@ -31,6 +42,9 @@ export async function activateStandard(input: { reference: string; customerCode:
     })
     .eq("tenant_id", payment.tenant_id);
   if (error) throw new Error(error.message);
+  if (firstToConfirm) {
+    await logActivity({ tenantId: payment.tenant_id as string, actor: input.actor ?? { userId: null, name: "Paystack" }, area: "plan", action: "subscribed" });
+  }
   return payment.tenant_id as string;
 }
 

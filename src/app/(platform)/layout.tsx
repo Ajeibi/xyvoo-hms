@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "../globals.css";
+import { platformFontVariables } from "../fonts";
 import { Toaster } from "@/components/ui/toaster";
 import { SupabaseNetworkErrorGuard } from "@/components/SupabaseNetworkErrorGuard";
 
@@ -59,7 +60,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full antialiased font-sans" suppressHydrationWarning>
+    <html lang="en" className={`${platformFontVariables} h-full antialiased font-sans`} suppressHydrationWarning>
       <body
         className="relative flex min-h-full w-full flex-col"
         suppressHydrationWarning

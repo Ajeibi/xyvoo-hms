@@ -245,7 +245,7 @@
   letter-spacing: 0.04em;
 }
 
-.card h5 {
+.card h3 {
   font-size: var(--text-h5);
   font-weight: 700;
   margin: 0 0 10px;
@@ -311,10 +311,6 @@
 
   .card {
     padding: 22px 24px;
-  }
-
-  .card h3 {
-    font-size: 20px;
   }
 }
 

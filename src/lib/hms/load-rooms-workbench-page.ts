@@ -3,7 +3,7 @@ import { getFrontDeskBoardData } from "@/lib/hms/front-desk-board";
 import { normalizePricingSetup, normalizeRoomTypes } from "@/lib/hms/room-pricing";
 import { getRoomsCapabilities, type RoomsRoleCapabilities } from "@/lib/hms/rooms-rbac";
 import { getRoomsWorkbenchData, type RoomsWorkbenchPayload } from "@/lib/hms/rooms-workbench";
-import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
+import { getSessionUser } from "@/lib/supabase/auth-server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export type RoomsWorkbenchPageModel = {
@@ -57,10 +57,7 @@ export async function loadRoomsWorkbenchPageModel(slug: string): Promise<RoomsWo
       roomTypes,
     });
 
-    const auth = await createSupabaseAuthServerClient();
-    const {
-      data: { user },
-    } = await auth.auth.getUser();
+    const user = await getSessionUser();
     if (user) {
       const service = createServerSupabaseClient();
       const { data: membership } = await service

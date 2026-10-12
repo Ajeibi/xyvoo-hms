@@ -5,7 +5,7 @@ import { getArrivalsWorkbenchData, type ArrivalsWorkbenchPayload } from "@/lib/h
 import { getArrivalsCapabilities } from "@/lib/hms/arrivals-rbac";
 import { fetchCheckInStaffOptions, checkInStaffOptionsForSessionUser } from "@/lib/hms/check-in-staff-options";
 import { normalizePricingSetup } from "@/lib/hms/room-pricing";
-import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
+import { getSessionUser } from "@/lib/supabase/auth-server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export default async function FrontDeskArrivalsPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -44,10 +44,7 @@ export default async function FrontDeskArrivalsPage({ params }: { params: Promis
     const service = createServerSupabaseClient();
     checkInStaffOptions = await fetchCheckInStaffOptions(service, tenant.id);
 
-    const auth = await createSupabaseAuthServerClient();
-    const {
-      data: { user },
-    } = await auth.auth.getUser();
+    const user = await getSessionUser();
     if (user) {
       checkInStaffOptions = checkInStaffOptionsForSessionUser(checkInStaffOptions, user.id);
       if (checkInStaffOptions.length > 0) {

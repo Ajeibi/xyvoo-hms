@@ -1,23 +1,42 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Pencil, Plus, Trash2, Truck } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Clock, MapPin, Pencil, Plus, Store, Trash2, Truck } from "lucide-react";
 import { formatShopCurrency } from "@/lib/shop/format";
 import type { DeliveryZone } from "@/lib/store/delivery";
-import { DashAlert, DashField, dashInput, DashStatus, sendJson } from "./dashboard-ui";
+import AreaPicker from "./AreaPicker";
+import { DashAlert, dashButton, DashCard, DashEmptyState, DashField, dashInput, DashPill, DashStatus, sendJson } from "./dashboard-ui";
 
-type Draft = { id: string | null; name: string; regions: string; fee: string; freeOver: string; etaText: string; isPickup: boolean; isActive: boolean };
+type Draft = { id: string | null; name: string; regions: string[]; fee: string; freeOver: string; etaText: string; isPickup: boolean; isActive: boolean };
 
-const EMPTY: Draft = { id: null, name: "", regions: "", fee: "0", freeOver: "", etaText: "", isPickup: false, isActive: true };
+const EMPTY: Draft = { id: null, name: "", regions: [], fee: "0", freeOver: "", etaText: "", isPickup: false, isActive: true };
+
+/** A clear keyboard focus ring for buttons. */
+const ring = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-xyvoo-blue";
+
+function SkeletonRows() {
+  return (
+    <div className="space-y-3" aria-hidden>
+      {[0, 1].map((i) => (
+        <div key={i} className="rounded-xl border border-slate-100 p-4">
+          <div className="h-4 w-40 animate-pulse rounded bg-slate-100 motion-reduce:animate-none" />
+          <div className="mt-2 h-3 w-64 max-w-full animate-pulse rounded bg-slate-100 motion-reduce:animate-none" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 /** Delivery options customers choose from at checkout. */
-export default function DeliveryManager({ slug, currency }: { slug: string; currency: string }) {
+export default function DeliveryManager({ slug, currency, countryCode = "NG" }: { slug: string; currency: string; countryCode?: string }) {
   const [zones, setZones] = useState<DeliveryZone[] | null>(null);
   const [canManage, setCanManage] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
+  const nameRef = useRef<HTMLInputElement>(null);
+  const formKey = draft ? (draft.id ?? "new") : null;
 
   const load = () =>
     fetch(`/api/store/delivery-zones?slug=${encodeURIComponent(slug)}`)
@@ -34,17 +53,29 @@ export default function DeliveryManager({ slug, currency }: { slug: string; curr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
 
-  const edit = (z: DeliveryZone) =>
+  // Take keyboard and screen reader users straight to the form when it opens.
+  useEffect(() => {
+    if (formKey) nameRef.current?.focus();
+  }, [formKey]);
+
+  const startNew = () => {
+    setStatus("");
+    setDraft(EMPTY);
+  };
+
+  const edit = (z: DeliveryZone) => {
+    setStatus("");
     setDraft({
       id: z.id,
       name: z.name,
-      regions: z.regions.join(", "),
+      regions: z.regions,
       fee: String(z.fee),
       freeOver: z.freeOver == null ? "" : String(z.freeOver),
       etaText: z.etaText ?? "",
       isPickup: z.isPickup,
       isActive: z.isActive,
     });
+  };
 
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -54,7 +85,7 @@ export default function DeliveryManager({ slug, currency }: { slug: string; curr
     const body = {
       slug,
       name: draft.name,
-      regions: draft.regions.split(",").map((r) => r.trim()).filter(Boolean),
+      regions: draft.isPickup ? [] : draft.regions,
       fee: draft.fee === "" ? 0 : draft.fee,
       freeOver: draft.freeOver === "" ? null : draft.freeOver,
       etaText: draft.etaText || null,
@@ -74,11 +105,12 @@ export default function DeliveryManager({ slug, currency }: { slug: string; curr
   };
 
   const remove = async (z: DeliveryZone) => {
-    if (!window.confirm(`Delete “${z.name}”? Customers won't be able to choose it any more.`)) return;
+    if (!window.confirm(`Remove “${z.name}”? Customers won't be able to choose it any more.`)) return;
     setError("");
     try {
       await sendJson(`/api/store/delivery-zones/${z.id}?slug=${encodeURIComponent(slug)}`, "DELETE");
-      setStatus(`“${z.name}” deleted.`);
+      setStatus(`“${z.name}” removed.`);
+      if (draft?.id === z.id) setDraft(null);
       await load();
     } catch (e) {
       setError((e as Error).message);
@@ -88,52 +120,90 @@ export default function DeliveryManager({ slug, currency }: { slug: string; curr
   const price = (z: DeliveryZone) =>
     z.isPickup
       ? "Free collection"
-      : `${z.fee === 0 ? "Free" : formatShopCurrency(z.fee, currency)}${z.freeOver != null ? `, free over ${formatShopCurrency(z.freeOver, currency)}` : ""}`;
+      : `${z.fee === 0 ? "Free" : formatShopCurrency(z.fee, currency)}${z.freeOver != null ? `, free on orders over ${formatShopCurrency(z.freeOver, currency)}` : ""}`;
+
+  const shown = zones?.filter((z) => z.isActive).length ?? 0;
+  const summary =
+    zones === null || zones.length === 0
+      ? null
+      : shown === 0
+        ? "None of your delivery options are switched on, so customers can't choose one at checkout."
+        : `Customers can choose from ${shown} delivery ${shown === 1 ? "option" : "options"} at checkout.`;
 
   return (
-    <div className="space-y-6">
-      <DashAlert message={error} />
+    <DashCard
+      id="zones"
+      icon={Truck}
+      title="Delivery options"
+      description="How customers can get their order, and what each way costs."
+      actions={
+        canManage && !draft && zones?.length ? (
+          <button type="button" onClick={startNew} className={`${dashButton.primary} ${ring}`}>
+            <Plus className="h-4 w-4" aria-hidden /> Add an option
+          </button>
+        ) : null
+      }
+    >
+      {/* Always in the page so screen readers announce changes to it. */}
       <DashStatus message={status} />
+      <div className={`space-y-4 ${status ? "mt-3" : ""}`}>
+        <DashAlert message={error} />
+        {summary ? <p className={`text-sm ${shown === 0 ? "text-amber-800" : "text-slate-700"}`}>{summary}</p> : null}
 
-      <section aria-labelledby="zones-title" className="rounded-2xl border border-slate-200 bg-white">
-        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-          <h2 id="zones-title" className="text-base font-semibold text-slate-900">
-            Delivery options
-          </h2>
-          {canManage && !draft ? (
-            <button type="button" onClick={() => setDraft(EMPTY)} className="inline-flex items-center gap-2 rounded-xl bg-xyvoo-blue px-4 py-2 text-sm font-semibold text-white">
-              <Plus className="h-4 w-4" aria-hidden /> Add an option
-            </button>
-          ) : null}
-        </div>
         {zones === null ? (
-          <p className="px-6 py-4 text-sm text-slate-500">Loading…</p>
+          <>
+            <p className="sr-only" role="status">
+              Loading your delivery options
+            </p>
+            <SkeletonRows />
+          </>
         ) : zones.length === 0 ? (
-          <div className="px-6 py-10 text-center">
-            <Truck className="mx-auto h-8 w-8 text-slate-300" aria-hidden />
-            <p className="mt-2 text-sm text-slate-600">No delivery options yet. Without one, customers pay for their items only.</p>
-          </div>
+          draft ? null : (
+            <DashEmptyState
+              icon={Truck}
+              title="No delivery options yet"
+              description="Add the ways you deliver, such as a local courier or collection from your shop. Until you do, customers pay for their items only."
+              action={
+                canManage ? (
+                  <button type="button" onClick={startNew} className={`${dashButton.primary} ${ring}`}>
+                    <Plus className="h-4 w-4" aria-hidden /> Add a delivery option
+                  </button>
+                ) : null
+              }
+            />
+          )
         ) : (
-          <ul className="divide-y divide-slate-100">
+          <ul className="space-y-3">
             {zones.map((z) => (
-              <li key={z.id} className="flex flex-wrap items-center justify-between gap-3 px-6 py-4">
-                <div className="text-sm">
-                  <p className="font-medium text-slate-900">
-                    {z.name} {!z.isActive ? <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">Hidden</span> : null}
+              <li key={z.id} className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-slate-200 p-4">
+                <div className="min-w-0 flex-1 text-sm">
+                  <p className="flex flex-wrap items-center gap-2">
+                    <span className="font-semibold text-slate-900">{z.name}</span>
+                    {z.isActive ? <DashPill tone="green">Shown at checkout</DashPill> : <DashPill>Hidden</DashPill>}
                   </p>
-                  <p className="text-slate-600">
-                    {price(z)}
-                    {z.etaText ? ` · ${z.etaText}` : ""}
-                    {z.regions.length ? ` · ${z.regions.join(", ")}` : ""}
-                  </p>
+                  <p className="mt-1 text-base font-medium text-slate-900">{price(z)}</p>
+                  <ul className="mt-1 space-y-0.5 text-slate-600">
+                    {z.isPickup || z.regions.length ? (
+                      <li className="flex items-start gap-1.5">
+                        {z.isPickup ? <Store className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden /> : <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />}
+                        <span className="min-w-0 break-words">{z.isPickup ? "Collection in person" : z.regions.join(", ")}</span>
+                      </li>
+                    ) : null}
+                    {z.etaText ? (
+                      <li className="flex items-start gap-1.5">
+                        <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                        <span className="min-w-0 break-words">{z.etaText}</span>
+                      </li>
+                    ) : null}
+                  </ul>
                 </div>
                 {canManage ? (
-                  <div className="flex gap-2">
-                    <button type="button" onClick={() => edit(z)} className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100">
+                  <div className="flex shrink-0 gap-1">
+                    <button type="button" onClick={() => edit(z)} className={`${dashButton.quiet} ${ring}`}>
                       <Pencil className="h-3.5 w-3.5" aria-hidden /> Edit<span className="sr-only"> {z.name}</span>
                     </button>
-                    <button type="button" onClick={() => remove(z)} className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm text-slate-700 hover:bg-red-50 hover:text-red-700">
-                      <Trash2 className="h-3.5 w-3.5" aria-hidden /> Delete<span className="sr-only"> {z.name}</span>
+                    <button type="button" onClick={() => remove(z)} className={`${dashButton.danger} ${ring}`}>
+                      <Trash2 className="h-3.5 w-3.5" aria-hidden /> Remove<span className="sr-only"> {z.name}</span>
                     </button>
                   </div>
                 ) : null}
@@ -141,52 +211,61 @@ export default function DeliveryManager({ slug, currency }: { slug: string; curr
             ))}
           </ul>
         )}
-      </section>
 
-      {draft ? (
-        <form onSubmit={save} className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6" noValidate aria-labelledby="zone-form-title">
-          <h2 id="zone-form-title" className="text-base font-semibold text-slate-900">
-            {draft.id ? `Edit “${draft.name}”` : "New delivery option"}
-          </h2>
-          <DashField id="zone-name" label="Name customers see" hint="For example “Lagos delivery” or “Nationwide courier”.">
-            <input id="zone-name" className={dashInput} value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} aria-describedby="zone-name-hint" />
-          </DashField>
-          <label className="flex items-center gap-3 text-sm text-slate-800">
-            <input type="checkbox" checked={draft.isPickup} onChange={(e) => setDraft({ ...draft, isPickup: e.target.checked })} className="h-4 w-4" />
-            This is collection in person (always free, no address needed)
-          </label>
-          {!draft.isPickup ? (
-            <div className="grid gap-4 sm:grid-cols-2">
-              <DashField id="zone-fee" label="Charge per order">
-                <input id="zone-fee" className={dashInput} type="number" min={0} step="any" inputMode="decimal" value={draft.fee} onChange={(e) => setDraft({ ...draft, fee: e.target.value })} />
-              </DashField>
-              <DashField id="zone-free" label="Free on orders over" optional>
-                <input id="zone-free" className={dashInput} type="number" min={0} step="any" inputMode="decimal" value={draft.freeOver} onChange={(e) => setDraft({ ...draft, freeOver: e.target.value })} />
-              </DashField>
-            </div>
-          ) : null}
-          <DashField id="zone-eta" label={draft.isPickup ? "Collection details" : "Delivery time"} optional hint={draft.isPickup ? "For example “Ready in 24 hours from our Ikeja shop”." : "For example “1 to 3 working days”."}>
-            <input id="zone-eta" className={dashInput} value={draft.etaText} onChange={(e) => setDraft({ ...draft, etaText: e.target.value })} aria-describedby="zone-eta-hint" />
-          </DashField>
-          {!draft.isPickup ? (
-            <DashField id="zone-regions" label="Areas covered" optional hint="Separate with commas, for example “Lagos, Ogun”. For your own reference.">
-              <input id="zone-regions" className={dashInput} value={draft.regions} onChange={(e) => setDraft({ ...draft, regions: e.target.value })} aria-describedby="zone-regions-hint" />
+        {draft ? (
+          <form onSubmit={save} className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4 sm:p-5" noValidate aria-labelledby="zone-form-title">
+            <h3 id="zone-form-title" className="text-base font-semibold text-slate-900">
+              {draft.id ? `Edit “${draft.name}”` : "New delivery option"}
+            </h3>
+            <DashField id="zone-name" label="Name customers see" hint="For example “Lagos delivery” or “Nationwide courier”.">
+              <input ref={nameRef} id="zone-name" className={dashInput} value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} aria-describedby="zone-name-hint" />
             </DashField>
-          ) : null}
-          <label className="flex items-center gap-3 text-sm text-slate-800">
-            <input type="checkbox" checked={draft.isActive} onChange={(e) => setDraft({ ...draft, isActive: e.target.checked })} className="h-4 w-4" />
-            Customers can choose this option
-          </label>
-          <div className="flex gap-3">
-            <button type="submit" disabled={busy} className="rounded-xl bg-xyvoo-blue px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">
-              {busy ? "Saving…" : "Save option"}
-            </button>
-            <button type="button" onClick={() => setDraft(null)} className="text-sm font-medium text-slate-600 hover:underline">
-              Cancel
-            </button>
-          </div>
-        </form>
-      ) : null}
-    </div>
+            <label className="flex items-start gap-3 text-sm text-slate-800">
+              <input type="checkbox" checked={draft.isPickup} onChange={(e) => setDraft({ ...draft, isPickup: e.target.checked })} className="mt-0.5 h-4 w-4" />
+              This is collection in person (always free, no address needed)
+            </label>
+            {!draft.isPickup ? (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <DashField id="zone-fee" label={`Charge per order (${currency})`}>
+                  <input id="zone-fee" className={dashInput} type="number" min={0} step="any" inputMode="decimal" value={draft.fee} onChange={(e) => setDraft({ ...draft, fee: e.target.value })} />
+                </DashField>
+                <DashField id="zone-free" label={`Free on orders over (${currency})`} optional>
+                  <input id="zone-free" className={dashInput} type="number" min={0} step="any" inputMode="decimal" value={draft.freeOver} onChange={(e) => setDraft({ ...draft, freeOver: e.target.value })} />
+                </DashField>
+              </div>
+            ) : null}
+            <DashField
+              id="zone-eta"
+              label={draft.isPickup ? "Collection details" : "Delivery time"}
+              optional
+              hint={draft.isPickup ? "For example “Ready in 24 hours from our Ikeja shop”." : "For example “1 to 3 working days”."}
+            >
+              <input id="zone-eta" className={dashInput} value={draft.etaText} onChange={(e) => setDraft({ ...draft, etaText: e.target.value })} aria-describedby="zone-eta-hint" />
+            </DashField>
+            {!draft.isPickup ? (
+              <fieldset className="space-y-2 rounded-xl border border-slate-200 bg-white p-4">
+                <legend className="px-1 text-sm font-medium text-slate-800">Where it delivers</legend>
+                <p className="text-sm text-slate-600">
+                  Customers only see this option when their address is in one of these places. Choose nothing to offer it everywhere.
+                </p>
+                <AreaPicker id="zone-areas" countryCode={countryCode} value={draft.regions} onChange={(regions) => setDraft((d) => (d ? { ...d, regions } : d))} />
+              </fieldset>
+            ) : null}
+            <label className="flex items-start gap-3 text-sm text-slate-800">
+              <input type="checkbox" checked={draft.isActive} onChange={(e) => setDraft({ ...draft, isActive: e.target.checked })} className="mt-0.5 h-4 w-4" />
+              Customers can choose this option
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <button type="submit" disabled={busy} className={`${dashButton.primary} ${ring}`}>
+                {busy ? "Saving…" : "Save option"}
+              </button>
+              <button type="button" onClick={() => setDraft(null)} className={`${dashButton.secondary} ${ring}`}>
+                Cancel
+              </button>
+            </div>
+          </form>
+        ) : null}
+      </div>
+    </DashCard>
   );
 }

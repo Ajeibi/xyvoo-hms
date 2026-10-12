@@ -1,9 +1,11 @@
 import { Fragment } from "react";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Breadcrumb } from "@/components/storefront-theme/primitives";
+import { Breadcrumb, StoreImage } from "@/components/storefront-theme/primitives";
+import ContactForm from "@/components/storefront-theme/ContactForm";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { parsePageBlocks } from "@/lib/store/pages";
+import { parsePageBlocks, type PageBlock, type PageImage } from "@/lib/store/pages";
 import { STORE_PATHS, storeHref } from "@/lib/store/site/links";
 import { getStorefront, type Storefront } from "@/lib/store/site/storefront";
 
@@ -65,53 +67,245 @@ function ContactDetails({ storefront }: { storefront: Storefront }) {
   );
 }
 
+/** Where a page button goes: "shop", "home" or "page:<slug>". */
+function linkHref(storefront: Storefront, link: string) {
+  if (link === "shop") return storeHref(storefront.basePath, STORE_PATHS.products);
+  if (link === "home") return storeHref(storefront.basePath, STORE_PATHS.home);
+  return storeHref(storefront.basePath, STORE_PATHS.page(link.replace(/^page:/, "")));
+}
+
+function Picture({ image, sizes, className = "", priority = false }: { image: PageImage; sizes: string; className?: string; priority?: boolean }) {
+  return (
+    <div className={`media tone-2 ${className}`.trim()}>
+      <StoreImage src={image.url} alt={image.alt} sizes={sizes} priority={priority} />
+    </div>
+  );
+}
+
+/** Headings, text, lists, FAQs and contact details: the reading-column blocks. */
+function FlowBlock({ block, storefront }: { block: PageBlock; storefront: Storefront }) {
+  switch (block.type) {
+    case "heading":
+      return <h2 className="h-card">{block.text}</h2>;
+    case "text":
+      return (
+        <>
+          {block.text.split(/\n{2,}/).map((para, j) => (
+            <p key={j}>{para}</p>
+          ))}
+        </>
+      );
+    case "list":
+      return (
+        <ul>
+          {block.items.map((item, j) => (
+            <li key={j}>{item}</li>
+          ))}
+        </ul>
+      );
+    case "faq":
+      return (
+        <div className="accordion">
+          {block.items.map((item, j) => (
+            <details key={j}>
+              <summary>{item.question}</summary>
+              <div className="accordion__body">
+                <p>{item.answer}</p>
+              </div>
+            </details>
+          ))}
+        </div>
+      );
+    case "contact":
+      return <ContactDetails storefront={storefront} />;
+    default:
+      return null;
+  }
+}
+
+const FULL_WIDTH = new Set<PageBlock["type"]>(["hero", "split", "steps", "cta", "contact_form"]);
+
 export default async function StorefrontContentPage({ params }: Props) {
   const found = await load(params);
   if (!found) notFound();
   const { storefront, page } = found;
   const blocks = parsePageBlocks(page.body);
+  const crumbs = [{ label: "Home", href: storeHref(storefront.basePath, "/") }, { label: page.title }];
+  const privacy = storefront.pages.find((p) => p.systemKey === "privacy");
+  const privacyHref = privacy ? storeHref(storefront.basePath, STORE_PATHS.page(privacy.slug)) : null;
+
+  // Runs of reading-column blocks are grouped into one section; the rest are sections of their own.
+  const groups: Array<{ full: true; block: PageBlock; index: number } | { full: false; blocks: PageBlock[]; index: number }> = [];
+  blocks.forEach((block, index) => {
+    if (FULL_WIDTH.has(block.type)) groups.push({ full: true, block, index });
+    else {
+      const last = groups[groups.length - 1];
+      if (last && !last.full) last.blocks.push(block);
+      else groups.push({ full: false, blocks: [block], index });
+    }
+  });
+  const startsWithHero = blocks[0]?.type === "hero";
 
   return (
-    <div className="container section">
-      <Breadcrumb items={[{ label: "Home", href: storeHref(storefront.basePath, "/") }, { label: page.title }]} />
-      <h1 className="h-page">{page.title}</h1>
-      <div className="page-body body-copy">
-        {blocks.map((block, i) => {
-          switch (block.type) {
-            case "heading":
-              return (
-                <h2 className="h-card" key={i}>
-                  {block.text}
-                </h2>
-              );
-            case "text":
-              return block.text.split(/\n{2,}/).map((para, j) => <p key={`${i}-${j}`}>{para}</p>);
-            case "list":
-              return (
-                <ul key={i}>
-                  {block.items.map((item, j) => (
-                    <li key={j}>{item}</li>
-                  ))}
-                </ul>
-              );
-            case "faq":
-              return (
-                <div className="accordion" key={i}>
-                  {block.items.map((item, j) => (
-                    <details key={j}>
-                      <summary>{item.question}</summary>
-                      <div className="accordion__body">
-                        <p>{item.answer}</p>
-                      </div>
-                    </details>
-                  ))}
-                </div>
-              );
-            case "contact":
-              return <ContactDetails key={i} storefront={storefront} />;
+    <>
+      {startsWithHero ? null : (
+        <div className="container section section--tight-bottom">
+          <Breadcrumb items={crumbs} />
+          <h1 className="h-page">{page.title}</h1>
+        </div>
+      )}
+      {groups.map((group) => {
+        if (!group.full) {
+          return (
+            <section className="section section--tight-top" key={group.index}>
+              <div className="container page-body body-copy">
+                {group.blocks.map((block, i) => (
+                  <FlowBlock key={i} block={block} storefront={storefront} />
+                ))}
+              </div>
+            </section>
+          );
+        }
+        const block = group.block;
+        const id = `block-${group.index}`;
+        switch (block.type) {
+          case "hero": {
+            const isTop = group.index === 0;
+            const Heading = isTop ? "h1" : "h2";
+            const content = (
+              <>
+                {isTop ? <Breadcrumb items={crumbs} /> : null}
+                {block.eyebrow ? <p className="eyebrow">{block.eyebrow}</p> : null}
+                <Heading className="h-page" id={`${id}-title`}>
+                  {block.heading}
+                </Heading>
+                {block.lead ? <p className="lead">{block.lead}</p> : null}
+              </>
+            );
+            return (
+              <section className="page-hero" aria-labelledby={`${id}-title`} key={group.index}>
+                {block.image ? (
+                  <div className="page-hero__grid">
+                    <div className="page-hero__content">{content}</div>
+                    <Picture image={block.image} sizes="(min-width: 64rem) 50vw, 100vw" className="page-hero__media" priority={isTop} />
+                  </div>
+                ) : (
+                  <div className="container page-hero__simple">{content}</div>
+                )}
+              </section>
+            );
           }
-        })}
-      </div>
-    </div>
+          case "split": {
+            const [main, ...rest] = block.images;
+            const media = main ? (
+              <div className={`split__media${rest.length ? "" : " split__media--single"}`}>
+                <Picture image={main} sizes="(min-width: 64rem) 30vw, 60vw" />
+                {rest.length ? (
+                  <div>
+                    {rest.map((img, j) => (
+                      <Picture key={j} image={img} sizes="(min-width: 64rem) 20vw, 40vw" />
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null;
+            return (
+              <section className="section" aria-labelledby={`${id}-title`} key={group.index}>
+                <div className={`container split${block.imageSide === "right" ? " split--reverse" : ""}${media ? "" : " split--text"}`}>
+                  {media}
+                  <div className="split__content">
+                    {block.eyebrow ? <p className="eyebrow">{block.eyebrow}</p> : null}
+                    <h2 className="h-section" id={`${id}-title`}>
+                      {block.heading}
+                    </h2>
+                    {block.text.split(/\n{2,}/).map((para, j) => (
+                      <p className="body-copy" key={j}>
+                        {para}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              </section>
+            );
+          }
+          case "steps":
+            return (
+              <section className="section" aria-labelledby={block.heading ? `${id}-title` : undefined} aria-label={block.heading ? undefined : "Our approach"} key={group.index}>
+                <div className="container">
+                  {block.heading || block.eyebrow ? (
+                    <div className="section-head section-head--center">
+                      <div>
+                        {block.eyebrow ? <p className="eyebrow">{block.eyebrow}</p> : null}
+                        {block.heading ? (
+                          <h2 className="h-section" id={`${id}-title`}>
+                            {block.heading}
+                          </h2>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : null}
+                  <ol className="steps">
+                    {block.items.map((item, j) => (
+                      <li key={j}>
+                        <span className="steps__num" aria-hidden="true">
+                          {String(j + 1).padStart(2, "0")}
+                        </span>
+                        <h3>{item.title}</h3>
+                        <p>{item.text}</p>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              </section>
+            );
+          case "cta":
+            return (
+              <section className="cta-band" aria-labelledby={`${id}-title`} key={group.index}>
+                <div className="container cta-band__inner">
+                  <div>
+                    <h2 className="h-section" id={`${id}-title`}>
+                      {block.heading}
+                    </h2>
+                    {block.text ? <p className="body-copy">{block.text}</p> : null}
+                  </div>
+                  <div className="cta-band__actions">
+                    {block.buttons.map((b, j) => (
+                      <Link key={j} className={`btn ${j === 0 ? "btn--primary" : "btn--outline"}`} href={linkHref(storefront, b.link)}>
+                        {b.label}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              </section>
+            );
+          case "contact_form":
+            return (
+              <section className="section" aria-label="Contact details and form" key={group.index}>
+                <div className="container contact-grid">
+                  <ContactForm heading={block.heading} intro={block.intro} replyTime={block.replyTime} privacyHref={privacyHref} />
+                  <div className="contact-aside">
+                    <div className="details">
+                      <h2 className="h-card">Other ways to reach us</h2>
+                      <ContactDetails storefront={storefront} />
+                      {block.hours ? (
+                        <>
+                          <h3 className="h-card">Opening hours</h3>
+                          {block.hours.split(/\n+/).map((line, j) => (
+                            <p className="body-copy" key={j}>
+                              {line}
+                            </p>
+                          ))}
+                        </>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              </section>
+            );
+          default:
+            return null;
+        }
+      })}
+    </>
   );
 }

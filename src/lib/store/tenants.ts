@@ -9,6 +9,8 @@ export type StoreTenant = {
 };
 
 export async function getStoreTenantBySlug(slug: string): Promise<StoreTenant | null> {
+  // The slug goes into a PostgREST .or() filter, so only a plain label is allowed.
+  if (!/^[a-z0-9-]{1,63}$/i.test(slug)) return null;
   const supabase = createServerSupabaseClient();
 
   const { data: tenant } = await supabase

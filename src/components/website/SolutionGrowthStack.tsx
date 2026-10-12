@@ -202,7 +202,7 @@ export function SolutionGrowthStack({
                 can independently reorder just the subtitle to come after
                 the card stack — via grid-area, not DOM order — while
                 desktop keeps heading/subtitle/ticks stacked as before. */}
-            <h3 className={styles.heading}>{heading.title}</h3>
+            <h2 className={styles.heading}>{heading.title}</h2>
 
             <div className={styles.ticks}>
               {modules.map((module, i) => (
@@ -231,7 +231,7 @@ export function SolutionGrowthStack({
                   <span className={styles.num}>
                     {String(i + 1).padStart(2, "0")}. {shortName(module.number)}
                   </span>
-                  <h5>{module.title}</h5>
+                  <h3>{module.title}</h3>
                   <p>{module.description}</p>
                 </article>
               ))}

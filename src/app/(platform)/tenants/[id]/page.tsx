@@ -1,7 +1,14 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft, Building2, ExternalLink, Save } from "lucide-react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { getPlatformTenantById } from "@/lib/platform/tenants";
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const tenant = await getPlatformTenantById(id);
+  return { title: tenant ? `${tenant.hotel_name} · Tenant Details` : "Tenant Details" };
+}
 
 export default async function TenantDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

@@ -5,7 +5,7 @@ import { FrontDeskCheckInForm } from "@/components/hms/frontdesk/FrontDeskCheckI
 import { fetchCheckInStaffOptions, checkInStaffOptionsForSessionUser } from "@/lib/hms/check-in-staff-options";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
+import { getSessionUser } from "@/lib/supabase/auth-server";
 import type { CheckInRoomUnit } from "@/lib/hms/check-in-room-units";
 import { normalizePricingSetup, normalizeRoomTypes } from "@/lib/hms/room-pricing";
 
@@ -53,10 +53,7 @@ export default async function NewReservationPage({ params }: { params: Promise<{
   }
 
   let defaultCheckedInByUserId: string | null = null;
-  const authClient = await createSupabaseAuthServerClient();
-  const {
-    data: { user: sessionUser },
-  } = await authClient.auth.getUser();
+  const sessionUser = await getSessionUser();
   if (sessionUser) {
     checkInStaffOptions = checkInStaffOptionsForSessionUser(checkInStaffOptions, sessionUser.id);
     if (checkInStaffOptions.length > 0) {

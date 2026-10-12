@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { bookingReference, bookingRequestSchema, guestEmail, hotelEmail } from "@/lib/hms/booking-request";
 import { sendBookingRequestEmail } from "@/lib/mail/mailtrap";
-import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { clientIp, rateLimitShared } from "@/lib/rate-limit";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 /**
@@ -13,7 +13,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
  * guest gets an acknowledgement saying the stay is not yet confirmed.
  */
 export async function POST(request: Request) {
-  const limit = rateLimit(`booking-request:${clientIp(request)}`, 5, 10 * 60 * 1000);
+  const limit = await rateLimitShared(`booking-request:${clientIp(request)}`, 5, 10 * 60 * 1000);
   if (!limit.ok) {
     return NextResponse.json(
       { error: "Too many booking requests. Please try again shortly." },

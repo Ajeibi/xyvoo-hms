@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Check, Copy, ExternalLink } from "lucide-react";
+import { Check, Copy, ExternalLink, Globe, History, PencilLine } from "lucide-react";
 import { STOREFRONT_ROOT_DOMAIN } from "@/lib/store/subdomain";
-import { DashAlert, DashField, dashInput, DashStatus, sendJson } from "./dashboard-ui";
+import { DashAlert, dashButton, DashCard, DashField, dashInput, DashPill, DashStatus, sendJson } from "./dashboard-ui";
 
 type DomainState = {
   slug: string;
@@ -18,6 +18,9 @@ type Availability = { state: "idle" | "checking" | "available" } | { state: "tak
 
 const dateFormat: Intl.DateTimeFormatOptions = { day: "numeric", month: "long", year: "numeric" };
 
+/** A clear keyboard focus ring for buttons and links. */
+const ring = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-xyvoo-blue";
+
 /** Tidies what the owner types without fighting them: a trailing hyphen stays until they type the next part. */
 function normaliseAddress(value: string) {
   return value
@@ -26,6 +29,22 @@ function normaliseAddress(value: string) {
     .replace(/-{2,}/g, "-")
     .replace(/^-+/, "")
     .slice(0, 63);
+}
+
+function LoadingCards() {
+  return (
+    <div className="space-y-6" aria-hidden>
+      {[0, 1].map((i) => (
+        <div key={i} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 animate-pulse rounded-xl bg-slate-100 motion-reduce:animate-none" />
+            <div className="h-4 w-40 animate-pulse rounded bg-slate-100 motion-reduce:animate-none" />
+          </div>
+          <div className="mt-5 h-11 animate-pulse rounded-xl bg-slate-100 motion-reduce:animate-none" />
+        </div>
+      ))}
+    </div>
+  );
 }
 
 /** Dashboard → Web address: copy the shop's link, or move it to a new address. */
@@ -62,7 +81,18 @@ export default function DomainSettings({ slug }: { slug: string }) {
     return () => window.clearTimeout(timer);
   }, [candidate, currentSlug, slug]);
 
-  if (!domain) return <p className="text-sm text-slate-500">{error || "Loading…"}</p>;
+  if (!domain) {
+    return error ? (
+      <DashAlert message={error} />
+    ) : (
+      <>
+        <p className="sr-only" role="status">
+          Loading your web address
+        </p>
+        <LoadingCards />
+      </>
+    );
+  }
 
   const copy = async () => {
     try {
@@ -100,24 +130,20 @@ export default function DomainSettings({ slug }: { slug: string }) {
 
   return (
     <div className="space-y-6">
-      {justChanged ? <DashStatus message="Your web address has changed. Links to your old address will forward here for 90 days." /> : null}
+      {justChanged ? (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+          <DashStatus message="Your web address has changed. Links to your old address will forward here for 90 days." />
+        </div>
+      ) : null}
 
-      <section aria-labelledby="domain-current" className="rounded-2xl border border-slate-200 bg-white p-6">
-        <h2 id="domain-current" className="text-base font-semibold text-slate-900">
-          Your shop&rsquo;s address
-        </h2>
-        <p className="mt-3 break-all rounded-xl bg-slate-50 px-4 py-3 font-mono text-sm text-slate-900">{domain.url}</p>
+      <DashCard id="domain-current" icon={Globe} title="Your shop’s address" description="The link customers use to visit your shop. Share it anywhere.">
+        <p className="break-all rounded-xl bg-slate-50 px-4 py-3 font-mono text-sm text-slate-900">{domain.url}</p>
         <div className="mt-4 flex flex-wrap gap-2">
-          <button type="button" onClick={copy} className="inline-flex items-center gap-2 rounded-lg bg-xyvoo-blue px-4 py-2 text-sm font-semibold text-white">
+          <button type="button" onClick={copy} className={`${dashButton.primary} ${ring}`}>
             {copied ? <Check className="h-4 w-4" aria-hidden /> : <Copy className="h-4 w-4" aria-hidden />}
             {copied ? "Copied" : "Copy link"}
           </button>
-          <a
-            href={domain.url}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-          >
+          <a href={domain.url} target="_blank" rel="noreferrer" className={`${dashButton.secondary} ${ring}`}>
             Visit your shop <ExternalLink className="h-3.5 w-3.5" aria-hidden />
             <span className="sr-only">(opens in a new tab)</span>
           </a>
@@ -125,21 +151,30 @@ export default function DomainSettings({ slug }: { slug: string }) {
         <p className="sr-only" role="status">
           {copied ? "Link copied" : ""}
         </p>
-      </section>
+      </DashCard>
 
-      <section aria-labelledby="domain-change" className="rounded-2xl border border-slate-200 bg-white p-6">
-        <h2 id="domain-change" className="text-base font-semibold text-slate-900">
-          Change your address
-        </h2>
-        <p className="mt-1 text-sm text-slate-600">
-          Links to your current address will keep working for 90 days and forward customers to the new one. Before then, update anywhere
-          you&rsquo;ve shared it, such as social media profiles and printed materials.
+      <DashCard
+        id="domain-change"
+        icon={PencilLine}
+        title="Change your address"
+        description="Choose a new link for your shop. The old one keeps working for 90 days."
+        actions={
+          domain.canManage ? (
+            <DashPill tone={domain.changesLeft > 0 ? "slate" : "amber"}>
+              {domain.changesLeft === 0 ? "No changes left for now" : `${domain.changesLeft} ${domain.changesLeft === 1 ? "change" : "changes"} left`}
+            </DashPill>
+          ) : null
+        }
+      >
+        <p className="text-sm text-slate-600">
+          Links to your current address will forward customers to the new one for 90 days. Before then, update anywhere you&rsquo;ve shared it, such as
+          social media profiles and printed materials.
         </p>
 
         {!domain.canManage ? (
-          <p className="mt-4 text-sm text-slate-600">Only the shop&rsquo;s owner or an admin can change the address.</p>
+          <p className="mt-4 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700">Only the shop&rsquo;s owner or an admin can change the address.</p>
         ) : domain.changesLeft === 0 ? (
-          <p className="mt-4 text-sm text-slate-600">
+          <p className="mt-4 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
             You&rsquo;ve changed your address three times in the last 30 days. You can change it again later, or contact us if you need help.
           </p>
         ) : null}
@@ -153,10 +188,10 @@ export default function DomainSettings({ slug }: { slug: string }) {
             }}
           >
             <DashField id="domain-new" label="New address" hint="Lowercase letters, numbers and hyphens, 3 to 63 characters.">
-              <div className="flex items-stretch">
+              <div className="flex min-w-0 items-stretch">
                 <input
                   id="domain-new"
-                  className={`${dashInput} rounded-r-none`}
+                  className={`${dashInput} min-w-0 rounded-r-none`}
                   value={candidate}
                   onChange={(e) => onCandidate(e.target.value)}
                   autoComplete="off"
@@ -166,7 +201,7 @@ export default function DomainSettings({ slug }: { slug: string }) {
                   aria-describedby="domain-new-hint domain-new-availability"
                   aria-invalid={availability.state === "taken"}
                 />
-                <span className="flex items-center rounded-r-xl border border-l-0 border-slate-300 bg-slate-50 px-3 text-sm text-slate-600">
+                <span className="flex shrink-0 items-center rounded-r-xl border border-l-0 border-slate-300 bg-slate-50 px-3 text-sm text-slate-600">
                   .{STOREFRONT_ROOT_DOMAIN}
                 </span>
               </div>
@@ -183,20 +218,16 @@ export default function DomainSettings({ slug }: { slug: string }) {
                   Move your shop from <strong>{domain.slug}</strong> to <strong>{candidate}</strong>? Your dashboard will reload at the new address.
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <button type="button" onClick={change} disabled={busy} className="rounded-lg bg-xyvoo-blue px-4 py-2 font-semibold text-white disabled:opacity-50">
+                  <button type="button" onClick={change} disabled={busy} className={`${dashButton.primary} ${ring}`}>
                     {busy ? "Changing…" : "Yes, change my address"}
                   </button>
-                  <button type="button" onClick={() => setConfirming(false)} disabled={busy} className="rounded-lg px-4 py-2 font-medium text-slate-700 hover:bg-white">
+                  <button type="button" onClick={() => setConfirming(false)} disabled={busy} className={`${dashButton.secondary} ${ring}`}>
                     Cancel
                   </button>
                 </div>
               </div>
             ) : (
-              <button
-                type="submit"
-                disabled={!ready}
-                className="rounded-lg bg-xyvoo-blue px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
-              >
+              <button type="submit" disabled={!ready} className={`${dashButton.primary} ${ring}`}>
                 Change address
               </button>
             )}
@@ -208,24 +239,21 @@ export default function DomainSettings({ slug }: { slug: string }) {
             <DashAlert message={error} />
           </div>
         ) : null}
-      </section>
+      </DashCard>
 
       {domain.previous.length ? (
-        <section aria-labelledby="domain-previous" className="rounded-2xl border border-slate-200 bg-white p-6">
-          <h2 id="domain-previous" className="text-base font-semibold text-slate-900">
-            Old addresses still forwarding
-          </h2>
-          <ul className="mt-3 divide-y divide-slate-100 text-sm">
+        <DashCard id="domain-previous" icon={History} title="Old addresses still forwarding" description="Customers who use these links are taken to your current address.">
+          <ul className="divide-y divide-slate-100 text-sm">
             {domain.previous.map((p) => (
-              <li key={p.slug} className="flex flex-wrap justify-between gap-2 py-2">
-                <span className="font-mono text-slate-800">
+              <li key={p.slug} className="flex flex-wrap justify-between gap-2 py-2.5">
+                <span className="break-all font-mono text-slate-800">
                   {p.slug}.{STOREFRONT_ROOT_DOMAIN}
                 </span>
                 <span className="text-slate-600">Forwards until {new Date(p.expiresAt).toLocaleDateString("en-GB", dateFormat)}</span>
               </li>
             ))}
           </ul>
-        </section>
+        </DashCard>
       ) : null}
     </div>
   );

@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ExternalLink, History, Monitor, Smartphone } from "lucide-react";
+import { CircleCheck, Eye, ExternalLink, FileText, History, Home, Image as ImageIcon, LayoutTemplate, Menu, Monitor, Palette, Rocket, Search, Smartphone, Type } from "lucide-react";
+import { MEANING, type Meaning } from "../meaning";
 import type { EditorState } from "@/lib/store/site/editor-api";
 import type { SiteOverrides } from "@/lib/store/site/schema";
 import type { StorefrontTemplateSlug } from "@/lib/store/site/templates";
@@ -26,15 +27,16 @@ export type TabProps = {
   refresh: () => Promise<void>;
 };
 
+// Each tab has its own colour and a line saying what it's for, so it's easy to find your way back.
 const TABS = [
-  { key: "template", label: "Template" },
-  { key: "theme", label: "Theme and brand" },
-  { key: "homepage", label: "Homepage" },
-  { key: "content", label: "Words" },
-  { key: "pages", label: "Pages" },
-  { key: "navigation", label: "Menus" },
-  { key: "media", label: "Images" },
-  { key: "seo", label: "Search and sharing" },
+  { key: "template", label: "Template", icon: LayoutTemplate, meaning: "marketing", help: "Pick the look of your whole shop. Your words and pictures come with you." },
+  { key: "theme", label: "Theme and brand", icon: Palette, meaning: "customers", help: "Your logo, colours and fonts." },
+  { key: "homepage", label: "Homepage", icon: Home, meaning: "orders", help: "Choose and order the sections on your front page." },
+  { key: "content", label: "Words", icon: Type, meaning: "stock", help: "The headings, buttons and messages shoppers read." },
+  { key: "pages", label: "Pages", icon: FileText, meaning: "marketing", help: "About, Contact, FAQs and any other pages for your brand." },
+  { key: "navigation", label: "Menus", icon: Menu, meaning: "orders", help: "What shows in your shop's top menu and footer." },
+  { key: "media", label: "Images", icon: ImageIcon, meaning: "money", help: "Every picture you've uploaded, in one place." },
+  { key: "seo", label: "Search and sharing", icon: Search, meaning: "customers", help: "How your shop looks on Google and when its link is shared." },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -125,18 +127,34 @@ export default function WebsiteEditor({ slug }: { slug: string }) {
 
   const live = state.status === "live";
   const tabProps: TabProps = { slug, state, saving, saveDraft, refresh };
+  const current = TABS.find((t) => t.key === tab) ?? TABS[0];
+  const currentTone = MEANING[current.meaning as Meaning];
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3">
-        <p className="text-sm text-slate-700" role="status">
-          <span className={`mr-2 inline-block h-2 w-2 rounded-full ${live ? "bg-emerald-500" : "bg-amber-500"}`} aria-hidden />
-          {live ? "Live" : state.status === "paused" ? "Offline" : "Not published yet"}
-          {state.hasUnpublishedChanges ? " · You have unpublished changes" : live ? " · Up to date" : ""}
-        </p>
+      <div
+        className={`flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3 ${live ? "border-emerald-200 bg-emerald-50" : "border-amber-200 bg-amber-50"}`}
+      >
+        <div className="flex items-center gap-3" role="status">
+          <span aria-hidden className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm ${live ? "text-emerald-600" : "text-amber-600"}`}>
+            {live ? <CircleCheck className="h-5 w-5" /> : <Rocket className="h-5 w-5" />}
+          </span>
+          <div className="text-sm">
+            <p className="font-heading font-semibold text-slate-900">
+              {live ? "Your shop is live" : state.status === "paused" ? "Your shop is offline" : "Your shop isn't published yet"}
+            </p>
+            <p className="text-slate-700">
+              {state.hasUnpublishedChanges
+                ? "You have changes customers can't see yet. Publish when you're happy."
+                : live
+                  ? "Customers see exactly what's in the preview."
+                  : "Shape it here, then publish to open it to customers."}
+            </p>
+          </div>
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
-            <button type="button" onClick={() => setShowHistory((s) => !s)} aria-expanded={showHistory} className="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100">
+            <button type="button" onClick={() => setShowHistory((s) => !s)} aria-expanded={showHistory} className="inline-flex items-center gap-1.5 rounded-xl border border-white bg-white/80 px-3 py-2 text-sm font-medium text-slate-800 shadow-sm hover:bg-white">
               <History className="h-4 w-4" aria-hidden /> History
             </button>
             {showHistory ? (
@@ -176,7 +194,7 @@ export default function WebsiteEditor({ slug }: { slug: string }) {
               </div>
             ) : null}
           </div>
-          <a href={`/shop/${slug}?sfpreview=1`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100">
+          <a href={`/shop/${slug}?sfpreview=1`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-xl border border-white bg-white/80 px-3 py-2 text-sm font-medium text-slate-800 shadow-sm hover:bg-white">
             Open preview <ExternalLink className="h-3.5 w-3.5" aria-hidden />
             <span className="sr-only">(opens in a new tab)</span>
           </a>
@@ -184,8 +202,9 @@ export default function WebsiteEditor({ slug }: { slug: string }) {
             type="button"
             onClick={publish}
             disabled={saving || (live && !state.hasUnpublishedChanges)}
-            className="rounded-lg bg-xyvoo-blue px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-xyvoo-blue px-4 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
+            <Rocket className="h-4 w-4" aria-hidden />
             {live ? "Publish changes" : "Publish shop"}
           </button>
         </div>
@@ -199,8 +218,8 @@ export default function WebsiteEditor({ slug }: { slug: string }) {
       ) : null}
 
       <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[minmax(22rem,28rem)_1fr]">
-        <div className="flex min-h-0 flex-col rounded-2xl border border-slate-200 bg-white">
-          <div role="tablist" aria-label="Website settings" className="flex flex-wrap gap-1 border-b border-slate-200 p-2">
+        <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div role="tablist" aria-label="Website settings" className="flex flex-wrap gap-1.5 border-b border-slate-200 bg-slate-50/70 p-2.5">
             {TABS.map((t) => (
               <button
                 key={t.key}
@@ -220,13 +239,25 @@ export default function WebsiteEditor({ slug }: { slug: string }) {
                   setTab(next.key);
                   document.getElementById(`tab-${next.key}`)?.focus();
                 }}
-                className={`rounded-lg px-3 py-1.5 text-sm ${tab === t.key ? "bg-blue-50 font-semibold text-blue-700" : "text-slate-600 hover:bg-slate-50"}`}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-xyvoo-blue ${
+                  tab === t.key ? MEANING[t.meaning as Meaning].chipOn : "border-transparent text-slate-700 hover:bg-white"
+                }`}
               >
+                <t.icon className={`h-4 w-4 ${MEANING[t.meaning as Meaning].icon}`} aria-hidden />
                 {t.label}
               </button>
             ))}
           </div>
           <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} className="min-h-0 flex-1 overflow-y-auto p-5">
+            <div className={`mb-5 flex items-start gap-3 rounded-xl p-3.5 ${currentTone.tint}`}>
+              <span aria-hidden className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-sm ${currentTone.iconBox}`}>
+                <current.icon className="h-[18px] w-[18px]" />
+              </span>
+              <div className="min-w-0 text-sm">
+                <p className="font-heading font-semibold text-slate-900">{current.label}</p>
+                <p className="text-slate-700">{current.help}</p>
+              </div>
+            </div>
             {tab === "template" ? <TemplateTab {...tabProps} /> : null}
             {tab === "theme" ? <ThemeTab key={previewKey} {...tabProps} /> : null}
             {tab === "homepage" ? <HomepageTab key={previewKey} {...tabProps} /> : null}
@@ -238,27 +269,37 @@ export default function WebsiteEditor({ slug }: { slug: string }) {
           </div>
         </div>
 
-        <section aria-label="Preview of your shop" className="flex min-h-[32rem] flex-col rounded-2xl border border-slate-200 bg-white">
-          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-2">
-            <p className="text-sm font-medium text-slate-700">Preview (only you can see unpublished changes)</p>
-            <div className="flex gap-1" role="group" aria-label="Preview size">
-              <button type="button" onClick={() => setDevice("desktop")} aria-pressed={device === "desktop"} className={`rounded-lg p-1.5 ${device === "desktop" ? "bg-slate-100 text-slate-900" : "text-slate-500"}`}>
+        <section aria-label="Preview of your shop" className="flex min-h-[32rem] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-2.5">
+            <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-slate-800">
+              <span aria-hidden className="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-50 text-rose-600">
+                <Eye className="h-4 w-4" />
+              </span>
+              Preview
+              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-900">Only you can see unpublished changes</span>
+            </p>
+            <div className="flex gap-1 rounded-xl bg-slate-100 p-1" role="group" aria-label="Preview size">
+              <button type="button" onClick={() => setDevice("desktop")} aria-pressed={device === "desktop"} className={`rounded-lg p-1.5 ${device === "desktop" ? "bg-white text-sky-700 shadow-sm" : "text-slate-600"}`}>
                 <Monitor className="h-4 w-4" aria-hidden />
                 <span className="sr-only">Desktop</span>
               </button>
-              <button type="button" onClick={() => setDevice("mobile")} aria-pressed={device === "mobile"} className={`rounded-lg p-1.5 ${device === "mobile" ? "bg-slate-100 text-slate-900" : "text-slate-500"}`}>
+              <button type="button" onClick={() => setDevice("mobile")} aria-pressed={device === "mobile"} className={`rounded-lg p-1.5 ${device === "mobile" ? "bg-white text-sky-700 shadow-sm" : "text-slate-600"}`}>
                 <Smartphone className="h-4 w-4" aria-hidden />
                 <span className="sr-only">Phone</span>
               </button>
             </div>
           </div>
-          <div className="flex flex-1 justify-center overflow-hidden bg-slate-100 p-3">
-            <iframe
-              key={previewKey}
-              src={`/shop/${slug}?sfpreview=1`}
-              title="Preview of your shop"
-              className={`h-full rounded-lg border border-slate-200 bg-white ${device === "mobile" ? "w-[390px]" : "w-full"}`}
-            />
+          <div className="flex flex-1 justify-center overflow-hidden bg-gradient-to-br from-sky-50 via-rose-50 to-amber-50 p-4">
+            <div className={`flex h-full flex-col overflow-hidden border border-slate-200 bg-white shadow-lg ${device === "mobile" ? "w-[390px] rounded-[1.75rem]" : "w-full rounded-xl"}`}>
+              {/* A little browser bar, so it reads as "your shop in a browser". */}
+              <div aria-hidden className="flex shrink-0 items-center gap-1.5 border-b border-slate-100 bg-slate-50 px-3 py-2">
+                <span className="h-2.5 w-2.5 rounded-full bg-rose-400" />
+                <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
+                <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+                <span className="ml-2 truncate rounded-md bg-white px-2 py-0.5 text-[11px] text-slate-500">/shop/{slug}</span>
+              </div>
+              <iframe key={previewKey} src={`/shop/${slug}?sfpreview=1`} title="Preview of your shop" className="min-h-0 w-full flex-1 bg-white" />
+            </div>
           </div>
         </section>
       </div>

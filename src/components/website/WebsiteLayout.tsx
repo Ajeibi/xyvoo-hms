@@ -1204,13 +1204,13 @@ function BrandCtaSection() {
 
       <div className="relative z-10 mx-auto max-w-[1200px] w-full flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div className="flex flex-col text-left max-w-2xl">
-          <h4 id="brand-cta-heading" className="text-h4 font-bold tracking-tight text-white leading-tight">
+          <h2 id="brand-cta-heading" className="text-h4 font-bold tracking-tight text-white leading-tight">
             {isHms
               ? "Ready to run your property on XYVOO?"
               : isStorefront
                 ? "Ready to run your business on your own storefront?"
                 : "Ready to see it running your business?"}
-          </h4>
+          </h2>
           <p className="mt-2 text-p text-slate-300 leading-relaxed">
             {isHms
               ? "Start free or compare HMS plans. Our team can help you migrate without downtime."

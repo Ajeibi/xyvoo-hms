@@ -1,4 +1,4 @@
-import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
+import { getSessionUser } from "@/lib/supabase/auth-server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getHotelTenantBySlug, getRoomUnitCountForTenant, getTenantRoomCount } from "@/lib/hms/data";
 import {
@@ -32,10 +32,7 @@ export type HMSDashboardSetupSummary = {
 };
 
 export async function getDashboardSetupSummary(slug: string): Promise<HMSDashboardSetupSummary> {
-  const auth = await createSupabaseAuthServerClient();
-  const {
-    data: { user },
-  } = await auth.auth.getUser();
+  const user = await getSessionUser();
 
   if (!user) {
     return {

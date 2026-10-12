@@ -8,6 +8,7 @@ type Props = Omit<InputHTMLAttributes<HTMLInputElement>, "value"> & {
   value: string;
   /** Focus ring colour for the product, e.g. `focus-within:ring-xyvoo-teal-product-hover`. */
   ringClassName?: string;
+  hasError?: boolean;
 };
 
 /**
@@ -15,13 +16,16 @@ type Props = Omit<InputHTMLAttributes<HTMLInputElement>, "value"> & {
  * A hidden copy of the text sets the input's width, so the domain sits right after
  * what's typed instead of at the far edge of the box.
  */
-export function SubdomainInput({ value, placeholder, ringClassName, className, ...props }: Props) {
+export function SubdomainInput({ value, placeholder, ringClassName, className, hasError, ...props }: Props) {
   return (
     <div
       onClick={(e) => e.currentTarget.querySelector("input")?.focus()}
       className={cn(
-        "flex cursor-text items-center overflow-hidden rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm focus-within:ring-2",
-        ringClassName,
+        "flex cursor-text items-center overflow-hidden rounded-xl border bg-white px-4 py-3 text-sm text-black focus-within:ring-2 transition-colors",
+        hasError
+          ? "border-red-500 focus-within:ring-red-400 bg-red-50/20"
+          : "border-slate-300",
+        !hasError && ringClassName,
         className,
       )}
     >
@@ -37,10 +41,10 @@ export function SubdomainInput({ value, placeholder, ringClassName, className, .
           autoCapitalize="none"
           autoCorrect="off"
           spellCheck={false}
-          className="absolute inset-0 w-full min-w-0 bg-transparent outline-none"
+          className="absolute inset-0 w-full min-w-0 bg-transparent text-black placeholder:text-slate-400 outline-none"
         />
       </span>
-      <span className="shrink-0 text-slate-400">.{STOREFRONT_ROOT_DOMAIN}</span>
+      <span className="shrink-0 font-medium text-slate-700">.{STOREFRONT_ROOT_DOMAIN}</span>
     </div>
   );
 }

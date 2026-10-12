@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { clientIp, rateLimitShared } from "@/lib/rate-limit";
 
 /** Shared pieces for the /api/auth/verify-email and /api/auth/password-reset routes. */
 
@@ -15,10 +15,13 @@ export function jsonError(message: string, status = 400) {
  * Per-IP and per-email limits, so codes can't be sprayed at inboxes or guessed
  * at speed. Returns a 429 response when over the limit, otherwise null.
  */
-export function limitCodeRequests(req: Request, action: string, email: string, { perIp, perEmail }: { perIp: number; perEmail: number }) {
+export async function limitCodeRequests(req: Request, action: string, email: string, { perIp, perEmail }: { perIp: number; perEmail: number }) {
   const windowMs = 15 * 60_000;
-  const byIp = rateLimit(`${action}:ip:${clientIp(req)}`, perIp, windowMs);
-  const byEmail = rateLimit(`${action}:email:${email}`, perEmail, windowMs);
+  // Shared by every server, so the limits hold however many copies of the app are running.
+  const [byIp, byEmail] = await Promise.all([
+    rateLimitShared(`${action}:ip:${clientIp(req)}`, perIp, windowMs),
+    rateLimitShared(`${action}:email:${email}`, perEmail, windowMs),
+  ]);
   if (byIp.ok && byEmail.ok) return null;
   const wait = Math.max(byIp.retryAfterSeconds, byEmail.retryAfterSeconds);
   return NextResponse.json(

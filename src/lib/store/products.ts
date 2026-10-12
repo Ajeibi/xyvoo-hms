@@ -4,10 +4,16 @@ export type StoreProductVariantRow = {
   options: Record<string, string>;
   sku: string | null;
   price_override: number | null;
+  /** A sale price for this variant and when it runs (see src/lib/store/sale-price.ts). */
+  sale_price?: number | null;
+  sale_starts_at?: string | null;
+  sale_ends_at?: string | null;
   stock: number;
   image_url: string | null;
   barcode: string | null;
   weight_kg: number | null;
+  /** Set when the merchant removed a variant that past orders still point at. */
+  archived_at?: string | null;
 };
 
 export type StoreProductRow = {
@@ -42,8 +48,14 @@ export type StoreProductRow = {
   // Pricing & profit
   price: number;
   compare_at_price: number | null;
+  /** Sale price and when it runs; empty dates mean from now / until removed. Absent before the sale columns exist. */
+  sale_price?: number | null;
+  sale_starts_at?: string | null;
+  sale_ends_at?: string | null;
   cost_price: number | null;
   currency: string | null;
+  /** Extra delivery charge per item, on top of the delivery area's fee. */
+  delivery_extra: number | null;
   taxable: boolean;
   tax_class: string | null;
   minimum_order_qty: number;
@@ -133,8 +145,12 @@ export type DashboardProduct = {
 
   sellingPrice: number;
   compareAtPrice: number | null;
+  salePrice: number | null;
+  saleStartsAt: string | null;
+  saleEndsAt: string | null;
   costPrice: number;
   currency: string | null;
+  deliveryExtra: number | null;
   taxable: boolean;
   taxClass: string | null;
   minimumOrderQty: number;
@@ -221,8 +237,13 @@ export const WRITABLE_PRODUCT_FIELDS = [
   // Pricing & profit
   "price",
   "compare_at_price",
+  // Sale price and window (flash sales, Standard plan): checked by checkSaleWrite.
+  "sale_price",
+  "sale_starts_at",
+  "sale_ends_at",
   "cost_price",
   "currency",
+  "delivery_extra",
   "taxable",
   "tax_class",
   "minimum_order_qty",
@@ -312,8 +333,12 @@ export function mapProductRowToDashboard(row: StoreProductRow): DashboardProduct
 
     sellingPrice: price,
     compareAtPrice: row.compare_at_price,
+    salePrice: row.sale_price != null ? Number(row.sale_price) : null,
+    saleStartsAt: row.sale_starts_at ?? null,
+    saleEndsAt: row.sale_ends_at ?? null,
     costPrice,
     currency: row.currency,
+    deliveryExtra: row.delivery_extra != null ? Number(row.delivery_extra) : null,
     taxable: row.taxable,
     taxClass: row.tax_class,
     minimumOrderQty: row.minimum_order_qty,
@@ -364,7 +389,7 @@ export function mapProductRowToDashboard(row: StoreProductRow): DashboardProduct
     profitMargin,
     stockStatus,
 
-    variants: row.product_variants || [],
+    variants: (row.product_variants || []).filter((v) => !v.archived_at),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

@@ -1,4 +1,4 @@
-export type LocationLookupKind = "city" | "address";
+export type LocationLookupKind = "city" | "address" | "state";
 
 export type LocationNominatimRow = {
   display_name: string;

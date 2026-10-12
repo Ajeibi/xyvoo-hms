@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { HEX_COLOUR_PATTERN } from "./contrast";
-import { FONT_PAIRING_IDS } from "./fonts";
+import { CUSTOM_FONT_FORMATS, FONT_PAIRING_IDS, GOOGLE_FONT_NAME } from "./fonts";
 
 /**
  * Shape of store.sites.draft / store.sites.published.
@@ -27,9 +27,34 @@ export const BUTTON_SHAPES = ["square", "rounded", "pill"] as const;
 export const CORNER_STYLES = ["square", "soft", "round"] as const;
 export const CARD_VARIANTS = ["basket", "view", "icons"] as const;
 
+/** Uploaded fonts must live in our own storage, so a font URL can't point anywhere else. */
+const STORAGE_PREFIX = `${(process.env.NEXT_PUBLIC_SUPABASE_URL || "").replace(/\/$/, "")}/storage/v1/object/public/`;
+
+export const customFontSchema = z.discriminatedUnion("source", [
+  z.object({
+    source: z.literal("google"),
+    family: z.string().trim().regex(GOOGLE_FONT_NAME, "Enter a Google Font name, for example Poppins."),
+    hasBold: z.boolean(),
+    useForBody: z.boolean().default(false),
+  }),
+  z.object({
+    source: z.literal("upload"),
+    label: z.string().trim().min(1).max(80),
+    url: z
+      .string()
+      .url()
+      .max(1000)
+      .refine((v) => Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) && v.startsWith(STORAGE_PREFIX), "Upload your font file again."),
+    format: z.enum(CUSTOM_FONT_FORMATS),
+    useForBody: z.boolean().default(false),
+  }),
+]);
+
 export const themeSchema = z.object({
   colours: z.object(Object.fromEntries(THEME_COLOUR_KEYS.map((k) => [k, hex.optional()])) as Record<ThemeColourKey, z.ZodOptional<typeof hex>>),
   fontPairing: z.enum(FONT_PAIRING_IDS),
+  /** The merchant's own font, used instead of the pairing's heading font (and body font, if chosen). */
+  customFont: customFontSchema.nullable().optional(),
   buttonShape: z.enum(BUTTON_SHAPES),
   cornerStyle: z.enum(CORNER_STYLES),
   cardVariant: z.enum(CARD_VARIANTS),

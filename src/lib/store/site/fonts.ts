@@ -76,3 +76,41 @@ export function fontCssVar(key: FontFamilyKey) {
 export function fontStack(font: FontRef) {
   return `var(${fontCssVar(font.key)}), ${font.fallback}`;
 }
+
+// ------------------------------------------------------------- custom fonts
+
+/**
+ * A merchant's own font, used for headings (and body text if they choose).
+ * Either a Google Font by name, loaded from Google, or a file they uploaded to
+ * our storage. Validated by customFontSchema in schema.ts.
+ */
+export type CustomFont =
+  | { source: "google"; family: string; /** Whether the family has bold (700) as well as regular. */ hasBold: boolean; useForBody: boolean }
+  | { source: "upload"; /** Shown to the merchant, e.g. the file's name. */ label: string; url: string; format: CustomFontFormat; useForBody: boolean };
+
+export const CUSTOM_FONT_FORMATS = ["woff2", "woff", "truetype", "opentype"] as const;
+export type CustomFontFormat = (typeof CUSTOM_FONT_FORMATS)[number];
+
+/** CSS family name for an uploaded font; fixed, so nothing the merchant types ends up in CSS. */
+export const UPLOADED_FONT_FAMILY = "sf-custom";
+
+/** Letters, numbers and spaces only, as Google Fonts names are. */
+export const GOOGLE_FONT_NAME = /^[A-Za-z0-9][A-Za-z0-9 ]{0,59}$/;
+
+export function googleFontCssUrl(family: string, hasBold: boolean) {
+  return `https://fonts.googleapis.com/css2?family=${family.trim().replace(/ /g, "+")}${hasBold ? ":wght@400;700" : ""}&display=swap`;
+}
+
+/** The @font-face rule for an uploaded font, or null for a Google Font (which brings its own). */
+export function uploadedFontFace(font: CustomFont | null | undefined) {
+  if (!font || font.source !== "upload") return null;
+  return `@font-face{font-family:"${UPLOADED_FONT_FAMILY}";src:url("${encodeURI(font.url)}") format("${font.format}");font-display:swap}`;
+}
+
+export function customFontStack(font: CustomFont, fallback: string) {
+  return `"${font.source === "google" ? font.family : UPLOADED_FONT_FAMILY}", ${fallback}`;
+}
+
+export function customFontLabel(font: CustomFont) {
+  return font.source === "google" ? font.family : font.label;
+}

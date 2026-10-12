@@ -1,3 +1,6 @@
+import { createHash } from "node:crypto";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
+
 /**
  * Minimal fixed-window rate limiter, in memory.
  *
@@ -19,6 +22,31 @@ export function rateLimit(key: string, limit: number, windowMs: number): { ok: b
   }
   bucket.count += 1;
   if (bucket.count > limit) return { ok: false, retryAfterSeconds: Math.ceil((bucket.resetAt - now) / 1000) };
+  return { ok: true, retryAfterSeconds: 0 };
+}
+
+/**
+ * Rate limit shared by every server (public.rate_limit_hit), for public
+ * endpoints where abuse costs money or sends messages. The in-memory check runs
+ * first, so repeat offenders on this server never reach the database. If the
+ * database can't be reached, the in-memory result stands, so shoppers are
+ * never locked out by an outage.
+ */
+export async function rateLimitShared(key: string, limit: number, windowMs: number): Promise<{ ok: boolean; retryAfterSeconds: number }> {
+  const local = rateLimit(key, limit, windowMs);
+  if (!local.ok) return local;
+  try {
+    const keyHash = createHash("sha256").update(key).digest("hex");
+    const windowSeconds = Math.max(1, Math.round(windowMs / 1000));
+    const { data, error } = await createServerSupabaseClient().rpc("rate_limit_hit", { p_key_hash: keyHash, p_limit: limit, p_window_seconds: windowSeconds });
+    if (error) throw new Error(error.message);
+    if (data === false) {
+      const now = Date.now();
+      return { ok: false, retryAfterSeconds: Math.ceil((windowSeconds * 1000 - (now % (windowSeconds * 1000))) / 1000) };
+    }
+  } catch (error) {
+    console.error("[rate limit] shared check unavailable, using this server's count", error);
+  }
   return { ok: true, retryAfterSeconds: 0 };
 }
 

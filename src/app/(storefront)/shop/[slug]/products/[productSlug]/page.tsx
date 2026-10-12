@@ -5,6 +5,7 @@ import ProductDetail from "@/components/storefront-theme/ProductDetail";
 import { ProductGridList } from "@/components/storefront-theme/ProductCard";
 import { Breadcrumb, Icon, Rating, SectionHead } from "@/components/storefront-theme/primitives";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { parseReviewImages } from "@/lib/store/reviews";
 import { getShopProductBySlug, listShopProducts, type ShopProduct } from "@/lib/shop/products";
 import { STORE_PATHS, storeHref } from "@/lib/store/site/links";
 import { getStorefront } from "@/lib/store/site/storefront";
@@ -102,19 +103,34 @@ export default async function StorefrontProductPage({ params }: Props) {
   const { storefront, product } = found;
   const { basePath, site, siteUrl } = storefront;
 
-  const [reviewsResult, related] = await Promise.all([
-    createServerSupabaseClient()
+  const reviewsQuery = (withExtras: boolean) => {
+    const q = createServerSupabaseClient()
       .schema("store")
       .from("product_reviews")
-      .select("id, customer_name, rating, title, comment, created_at")
-      .eq("product_id", product.id)
-      .order("created_at", { ascending: false })
-      .limit(10),
+      .select(withExtras ? "id, customer_name, rating, title, comment, created_at, images, verified, reply" : "id, customer_name, rating, title, comment, created_at")
+      .eq("tenant_id", storefront.tenant.id)
+      .eq("product_id", product.id);
+    // Only reviews the shop has approved.
+    return (withExtras ? q.eq("status", "published") : q).order("created_at", { ascending: false }).limit(10);
+  };
+  const [reviewsResult, related] = await Promise.all([
+    // Before the reviews migration there are no photos, replies or approval: fall back to the plain list.
+    reviewsQuery(true).then((r) => (r.error?.code === "42703" ? reviewsQuery(false) : r)),
     product.category
       ? listShopProducts(storefront.tenant.id, { category: product.category, pageSize: 5 }).then((r) => r.products.filter((p) => p.id !== product.id).slice(0, 4))
       : Promise.resolve([] as ShopProduct[]),
   ]);
-  const reviews = reviewsResult.data || [];
+  const reviews = ((reviewsResult.data || []) as unknown as Array<{
+    id: string;
+    customer_name: string;
+    rating: number;
+    title: string | null;
+    comment: string | null;
+    created_at: string;
+    images?: Array<{ url: string }> | null;
+    verified?: boolean;
+    reply?: string | null;
+  }>).map((r) => ({ ...r, images: parseReviewImages(r.images) }));
 
   const productUrl = `${siteUrl}${STORE_PATHS.product(product.slug || product.id)}`;
   const jsonLd = {
@@ -130,6 +146,8 @@ export default async function StorefrontProductPage({ params }: Props) {
       url: productUrl,
       price: product.price.toFixed(2),
       priceCurrency: product.currency,
+      // A sale price is only good until the sale ends.
+      ...(product.onSale && product.saleEndsAt ? { priceValidUntil: product.saleEndsAt.slice(0, 10) } : {}),
       availability: product.inStock ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
     },
     ...(product.ratingCount > 0
@@ -174,10 +192,34 @@ export default async function StorefrontProductPage({ params }: Props) {
                   <Rating value={review.rating} />
                   {review.title ? <h3>{review.title}</h3> : null}
                   {review.comment ? <p>{review.comment}</p> : null}
+                  {review.images.length ? (
+                    <ul className="review-photos" aria-label={`Photos from ${review.customer_name}`}>
+                      {review.images.map((img, j) => (
+                        <li key={img.url}>
+                          <a href={img.url} target="_blank" rel="noopener noreferrer">
+                            <img src={img.url} alt={`Photo ${j + 1} from ${review.customer_name}'s review`} loading="lazy" decoding="async" />
+                            <span className="visually-hidden"> (opens full size in a new tab)</span>
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
                   <p className="review-meta">
                     {review.customer_name} ·{" "}
                     {new Date(review.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
+                    {review.verified ? (
+                      <>
+                        {" "}
+                        · <span className="review-verified">Verified purchase</span>
+                      </>
+                    ) : null}
                   </p>
+                  {review.reply ? (
+                    <div className="review-reply">
+                      <strong>Reply from {storefront.tenant.displayName || storefront.tenant.name}</strong>
+                      <p>{review.reply}</p>
+                    </div>
+                  ) : null}
                 </li>
               ))}
             </ul>

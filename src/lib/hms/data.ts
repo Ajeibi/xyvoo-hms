@@ -1,7 +1,9 @@
+import { cache } from "react";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { HotelProfileRoomCountRow, HotelTenantBySlugRow } from "@/types";
 
-export async function getHotelTenantBySlug(slug: string) {
+/** Cached per server render: most HMS pages look the tenant up several times. */
+export const getHotelTenantBySlug = cache(async (slug: string) => {
   const supabase = createServerSupabaseClient();
 
   const { data: tenant } = await supabase
@@ -14,7 +16,7 @@ export async function getHotelTenantBySlug(slug: string) {
     .maybeSingle();
 
   return (tenant as HotelTenantBySlugRow | null) || null;
-}
+});
 
 export async function getTenantRoomCount(tenantId: string) {
   const supabase = createServerSupabaseClient();

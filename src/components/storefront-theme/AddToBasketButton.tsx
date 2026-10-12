@@ -3,12 +3,13 @@
 import { useState } from "react";
 import { useCartStore } from "@/components/shop/CartProvider";
 import type { ShopProduct } from "@/lib/shop/products";
+import { fixedLinePrices } from "@/lib/shop/cart";
 import { announce } from "./StorefrontProvider";
 import { Icon } from "./primitives";
 
 export type BasketProduct = Pick<
   ShopProduct,
-  "id" | "name" | "price" | "currency" | "imageUrl" | "stock" | "allowBackorder" | "minimumOrderQty"
+  "id" | "name" | "price" | "currency" | "fixedPrices" | "deliveryExtra" | "imageUrl" | "stock" | "allowBackorder" | "minimumOrderQty"
 >;
 
 /** Quick add from a product card, for products without options to choose. */
@@ -26,6 +27,8 @@ export default function AddToBasketButton({ product, variant }: { product: Baske
       imageUrl: product.imageUrl,
       unitPrice: product.price,
       currency: product.currency,
+      fixedPrices: fixedLinePrices(product.fixedPrices),
+      deliveryExtra: product.deliveryExtra || undefined,
       quantity: Math.max(1, product.minimumOrderQty || 1),
       maxQuantity: product.allowBackorder ? 999 : Math.max(product.stock, 0),
     });

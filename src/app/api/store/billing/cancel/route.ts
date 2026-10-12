@@ -3,6 +3,7 @@ import { z } from "zod";
 import { disableSubscription } from "@/lib/payments/platform-paystack";
 import { paystackFailure, resolveBillingRequest } from "@/lib/store/payout-routes";
 import { recordCancelled } from "@/lib/store/subscriptions";
+import { logActivity } from "@/lib/store/activity";
 
 const Schema = z.object({ slug: z.string().min(1) });
 
@@ -34,6 +35,7 @@ export async function POST(req: Request) {
   try {
     await disableSubscription(resolved.platform, sub.paystack_subscription_code, sub.paystack_email_token);
     await recordCancelled(sub.paystack_subscription_code);
+    await logActivity({ tenantId: resolved.access.tenantId, actor: resolved.access, area: "plan", action: "cancelled" });
     return NextResponse.json({ ok: true });
   } catch (error) {
     return paystackFailure(error, "We couldn't cancel the plan just now. Please try again.");

@@ -12,13 +12,15 @@ export const AUTH_PREVIEW_PARAM = "preview";
 export const COMING_SOON_PATH = "/coming-soon";
 
 /** Pages that redirect to the coming-soon page while locked. */
-export const LOCKED_PAGE_PREFIXES = ["/auth/login", "/auth/forgot-password", "/register"];
+// /join creates accounts for invited team members, so it is locked with sign-up.
+export const LOCKED_PAGE_PREFIXES = ["/auth/login", "/auth/forgot-password", "/register", "/join"];
 
 /** API routes that return 403 while locked. */
 export const LOCKED_API_PREFIXES = [
   "/api/auth",
   "/api/store/auth",
   "/api/store/register",
+  "/api/store/team/join",
   "/api/hotel/register",
   "/api/platform/onboard-hotel",
 ];

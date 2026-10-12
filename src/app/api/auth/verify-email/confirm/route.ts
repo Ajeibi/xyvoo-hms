@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { z } from "zod";
 import { CODE_CHECK_MESSAGES, findAuthUserByEmail, redeemAccountCode } from "@/lib/auth/account-codes";
 import { codeSchema, emailSchema, jsonError, limitCodeRequests } from "@/lib/auth/code-routes";
+import { sendStoreWelcomeEmailFor } from "@/lib/store/welcome-email";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 const Schema = z.object({ email: emailSchema, code: codeSchema });
@@ -12,7 +13,7 @@ export async function POST(req: Request) {
   if (!parsed.success) return jsonError(parsed.error.issues[0]?.message || "Enter the 6-digit code from the email.");
   const { email, code } = parsed.data;
 
-  const limited = limitCodeRequests(req, "verify-confirm", email, { perIp: 20, perEmail: 10 });
+  const limited = await limitCodeRequests(req, "verify-confirm", email, { perIp: 20, perEmail: 10 });
   if (limited) return limited;
 
   const user = await findAuthUserByEmail(email);
@@ -27,5 +28,7 @@ export async function POST(req: Request) {
     console.error("[verify-email/confirm] confirm failed", error);
     return jsonError("We couldn't confirm your email just now. Please try again.", 500);
   }
+  // Welcome a new shop owner once, after the response, so confirming stays quick.
+  after(() => sendStoreWelcomeEmailFor(user));
   return NextResponse.json({ ok: true });
 }

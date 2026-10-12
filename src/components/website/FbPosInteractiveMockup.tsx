@@ -176,9 +176,9 @@ export function FbPosInteractiveMockup() {
                 <span className="inline-flex items-center gap-1 rounded bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-800 uppercase tracking-wider">
                   Dashboard 1: Restaurant POS
                 </span>
-                <h2 className="mt-1 text-sm sm:text-base font-bold text-slate-900">
+                <p className="mt-1 text-sm sm:text-base font-bold text-slate-900">
                   Tableside Order Terminal · Table 04
-                </h2>
+                </p>
                 <p className="text-[11px] text-slate-500">
                   Server: <strong className="text-slate-700">Tunde Adeyemi</strong> · Dining Area:{" "}
                   <strong className="text-slate-700">Main Restaurant & Grill</strong>
@@ -299,9 +299,9 @@ export function FbPosInteractiveMockup() {
                 <span className="inline-flex items-center gap-1 rounded bg-orange-100 px-2 py-0.5 text-[10px] font-bold text-orange-800 uppercase tracking-wider">
                   Dashboard 2: Kitchen Display System (KDS)
                 </span>
-                <h2 className="mt-1 text-sm sm:text-base font-bold text-slate-900">
+                <p className="mt-1 text-sm sm:text-base font-bold text-slate-900">
                   Live Chef & Preparation Station Display
-                </h2>
+                </p>
                 <p className="text-[11px] text-slate-500">
                   Tickets appear in real-time as servers take orders on POS or room service.
                 </p>

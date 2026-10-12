@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { contactRequestSchema, teamEmail } from "@/lib/marketing/contact-request";
 import { sendContactRequestEmail } from "@/lib/mail/mailtrap";
-import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { clientIp, rateLimitShared } from "@/lib/rate-limit";
 
 /**
  * POST /api/public/contact
@@ -11,7 +11,7 @@ import { clientIp, rateLimit } from "@/lib/rate-limit";
  * form can't be used to push content to arbitrary inboxes.
  */
 export async function POST(request: Request) {
-  const limit = rateLimit(`contact:${clientIp(request)}`, 5, 10 * 60 * 1000);
+  const limit = await rateLimitShared(`contact:${clientIp(request)}`, 5, 10 * 60 * 1000);
   if (!limit.ok) {
     return NextResponse.json(
       { error: "Too many messages. Please try again shortly." },

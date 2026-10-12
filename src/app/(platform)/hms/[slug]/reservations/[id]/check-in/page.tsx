@@ -7,7 +7,7 @@ import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { getCheckInFormInitialData } from "@/lib/hms/check-in-form-initial-data";
 import { fetchCheckInStaffOptions, checkInStaffOptionsForSessionUser } from "@/lib/hms/check-in-staff-options";
 import { normalizePricingSetup, normalizeRoomTypes } from "@/lib/hms/room-pricing";
-import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
+import { getSessionUser } from "@/lib/supabase/auth-server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { CheckInRoomUnit } from "@/lib/hms/check-in-room-units";
 
@@ -63,10 +63,7 @@ export default async function ReservationCheckInPage({
   });
 
   let defaultCheckedInByUserId: string | null = null;
-  const auth = await createSupabaseAuthServerClient();
-  const {
-    data: { user },
-  } = await auth.auth.getUser();
+  const user = await getSessionUser();
   if (user) {
     checkInStaffOptions = checkInStaffOptionsForSessionUser(checkInStaffOptions, user.id);
     if (checkInStaffOptions.length > 0) {

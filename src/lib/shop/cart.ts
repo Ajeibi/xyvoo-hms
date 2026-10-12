@@ -1,16 +1,30 @@
+import type { FixedPrices } from "@/lib/store/currencies";
+
 export type CartLine = {
   productId: string;
   variantId: string | null;
   name: string;
   variantLabel: string | null;
   imageUrl: string | null;
+  /** In the shop's home currency, which is what the shopper is charged in. */
   unitPrice: number;
   currency: string;
+  /** The merchant's own unit price in other currencies, shown instead of converting. */
+  fixedPrices?: Record<string, number>;
+  /** The product's extra delivery charge per item, for showing the delivery total; checkout works it out again. */
+  deliveryExtra?: number;
   quantity: number;
   /** Snapshot at add-to-cart time, purely for UI hints (e.g. disabling "+" past
    * stock) -- the checkout API always re-validates against live stock. */
   maxQuantity: number;
 };
+
+/** Just the unit prices, which is all a basket line needs. */
+export function fixedLinePrices(prices: FixedPrices | undefined): Record<string, number> | undefined {
+  if (!prices) return undefined;
+  const entries = Object.entries(prices).map(([code, p]) => [code, p.price] as const);
+  return entries.length ? Object.fromEntries(entries) : undefined;
+}
 
 export function cartLineKey(productId: string, variantId: string | null): string {
   return `${productId}:${variantId || ""}`;

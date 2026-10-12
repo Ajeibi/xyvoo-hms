@@ -1,7 +1,12 @@
+import type { Metadata } from "next";
 import HMSLayout from "@/components/hms/HMSLayout";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { getGuestsDirectory } from "@/lib/hms/guests-directory";
 import { GuestsDirectoryClient } from "@/components/hms/guests/GuestsDirectoryClient";
+
+export const metadata: Metadata = {
+  title: "Guests",
+};
 
 export default async function GuestsPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;

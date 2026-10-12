@@ -1,5 +1,6 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getStoreSite } from "./site/data";
+import { availablePaymentMethods, parseOfflinePayments } from "./offline-payments";
 import { getStorePaymentRoute } from "./payments";
 
 /**
@@ -21,7 +22,10 @@ export type ChecklistItem = {
 
 export type GoLiveStatus = {
   items: ChecklistItem[];
+  /** A shop can open once it has a product on sale. */
   canPublish: boolean;
+  /** Whether customers have a way to pay. A shop can open without one, with a warning. */
+  paymentsReady: boolean;
   status: "draft" | "live" | "paused";
   publishedAt: string | null;
   hasUnpublishedChanges: boolean;
@@ -29,29 +33,36 @@ export type GoLiveStatus = {
 
 export async function getGoLiveStatus(tenantId: string): Promise<GoLiveStatus> {
   const store = createServerSupabaseClient().schema("store");
-  const [products, zones, collections, paymentRoute, site] = await Promise.all([
+  const [products, zones, collections, paymentRoute, site, profile] = await Promise.all([
     store.from("products").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("status", "active").eq("visibility", "visible"),
     store.from("delivery_zones").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("is_active", true),
     store.from("collections").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId),
     getStorePaymentRoute(tenantId),
     getStoreSite(tenantId),
+    store.from("business_profile").select("offline_payments, whatsapp").eq("tenant_id", tenantId).maybeSingle(),
   ]);
 
   const hasProducts = (products.count ?? 0) > 0;
-  const hasPayments = paymentRoute !== null;
+  // Any way to get paid: card payouts, or bank transfer, pay on delivery or WhatsApp orders.
+  const hasPayments =
+    availablePaymentMethods({
+      acceptsCard: paymentRoute !== null,
+      offline: parseOfflinePayments(profile.data?.offline_payments),
+      whatsappNumber: (profile.data?.whatsapp as string | null) ?? null,
+    }).length > 0;
   const status = site?.status ?? "draft";
   const live = status === "live" && site?.published != null;
   const hasUnpublishedChanges = Boolean(site && JSON.stringify(site.draft) !== JSON.stringify(site.published ?? {}));
 
   const items: ChecklistItem[] = [
     { key: "products", label: "Add your first product", description: "Customers need something to buy.", done: hasProducts, required: true, path: "/products" },
-    { key: "payments", label: "Add your payout account", description: "So customers can pay and you get paid.", done: hasPayments, required: true, path: "/payments" },
+    { key: "payments", label: "Choose how customers pay", description: "Card payments, bank transfer, pay on delivery or orders on WhatsApp.", done: hasPayments, required: true, path: "/payments" },
     { key: "delivery", label: "Set your delivery options", description: "What delivery costs, or if customers can collect.", done: (zones.count ?? 0) > 0, required: false, path: "/delivery" },
-    { key: "collections", label: "Group products into collections", description: "Helps customers browse. Optional.", done: (collections.count ?? 0) > 0, required: false, path: "/collections" },
+    { key: "collections", label: "Group products into collections", description: "Helps customers browse.", done: (collections.count ?? 0) > 0, required: false, path: "/collections" },
     { key: "publish", label: "Publish your shop", description: "Make your shop visible to customers.", done: live, required: true, path: "/dashboard" },
   ];
 
-  return { items, canPublish: hasProducts && hasPayments, status, publishedAt: site?.publishedAt ?? null, hasUnpublishedChanges };
+  return { items, canPublish: hasProducts, paymentsReady: hasPayments, status, publishedAt: site?.publishedAt ?? null, hasUnpublishedChanges };
 }
 
 /** Makes the current draft the live site and keeps a copy of it as a numbered version. */

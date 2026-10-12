@@ -1,8 +1,13 @@
+import type { Metadata } from "next";
 import HMSLayout from "@/components/hms/HMSLayout";
 import { FrontDeskAreaView } from "@/components/hms/frontdesk/FrontDeskAreaView";
 import { getHotelTenantBySlug, getTenantRoomCount } from "@/lib/hms/data";
 import { getFrontDeskBoardData } from "@/lib/hms/front-desk-board";
 import { normalizePricingSetup, normalizeRoomTypes } from "@/lib/hms/room-pricing";
+
+export const metadata: Metadata = {
+  title: "Front Desk",
+};
 
 export default async function FrontDeskPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;

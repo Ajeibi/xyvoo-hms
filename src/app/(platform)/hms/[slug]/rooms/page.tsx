@@ -1,7 +1,12 @@
 import { Suspense } from "react";
+import type { Metadata } from "next";
 import HMSLayout from "@/components/hms/HMSLayout";
 import { FrontDeskRoomsClient } from "@/components/hms/frontdesk/rooms/FrontDeskRoomsClient";
 import { loadRoomsWorkbenchPageModel } from "@/lib/hms/load-rooms-workbench-page";
+
+export const metadata: Metadata = {
+  title: "Rooms & Floors",
+};
 
 export default async function RoomsPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;

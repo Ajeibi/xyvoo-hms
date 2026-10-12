@@ -28,7 +28,7 @@ export default function TemplateStep({ initial, busy, backHref, onSubmit }: Step
             return (
               <div key={t.slug} className={`overflow-hidden rounded-2xl border-2 ${selected ? "border-xyvoo-teal-product-hover" : "border-slate-200"}`}>
                 <label className="block cursor-pointer">
-                  <TemplateThumbnail src={`${t.previewPath}/index.html`} title={t.name} />
+                  <TemplateThumbnail slug={t.slug} sizes="(min-width: 768px) 33vw, 100vw" />
                   <span className="flex items-start gap-3 p-4">
                     <input
                       type="radio"

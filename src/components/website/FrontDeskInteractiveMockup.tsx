@@ -170,9 +170,9 @@ export function FrontDeskInteractiveMockup() {
               </div>
 
               <div className="flex-1 min-w-0">
-                <h2 className="text-sm sm:text-base font-bold text-slate-900">
+                <p className="text-sm sm:text-base font-bold text-slate-900">
                   Property snapshot
-                </h2>
+                </p>
                 <p className="text-[11px] text-slate-500">
                   32 rooms · 48 guests on property · 25 rooms occupied (78%)
                 </p>
@@ -225,7 +225,7 @@ export function FrontDeskInteractiveMockup() {
             <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">
               Room status
             </p>
-            <h2 className="mt-1 text-sm sm:text-base font-bold text-slate-900">Status summary</h2>
+            <p className="mt-1 text-sm sm:text-base font-bold text-slate-900">Status summary</p>
             <p className="text-[11px] text-slate-500">Real-time room count breakdown across all floors.</p>
 
             <div className="mt-3.5 grid grid-cols-3 sm:grid-cols-6 gap-2">
@@ -286,7 +286,7 @@ export function FrontDeskInteractiveMockup() {
                 <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">
                   Floor plan
                 </p>
-                <h2 className="text-sm sm:text-base font-bold text-slate-900">Room grid</h2>
+                <p className="text-sm sm:text-base font-bold text-slate-900">Room grid</p>
                 <p className="text-[11px] text-slate-500">
                   Click a room to inspect live stay details or test check-in.
                 </p>
@@ -526,9 +526,9 @@ export function FrontDeskInteractiveMockup() {
             <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">
               Movement timeline
             </p>
-            <h2 className="mt-1 text-sm sm:text-base font-bold text-slate-900">
+            <p className="mt-1 text-sm sm:text-base font-bold text-slate-900">
               Today&apos;s arrivals and departures
-            </h2>
+            </p>
 
             <div className="mt-3.5 grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Arrivals */}

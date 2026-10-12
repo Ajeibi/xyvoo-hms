@@ -1,27 +1,54 @@
 import { NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { getStoreAccessContext } from "@/lib/store/access";
-import { mapOrderRowToDashboard, type StoreOrderRow } from "@/lib/store/orders";
+import { resolveStoreRequest } from "@/lib/store/api-helpers";
+import { featureUnavailable } from "@/lib/store/features";
+import { ORDERS_PAGE_SIZE, ordersToCsv, parseOrderListQuery } from "@/lib/store/order-list";
+import { countAttention, listOrdersForExport, listOrdersPage } from "@/lib/store/order-list-server";
+import { storeCurrency } from "@/lib/store/payout-routes";
+import { releaseExpiredOrders } from "@/lib/store/release-orders";
 
+/**
+ * GET /api/store/orders/list?slug=&show=&status=&payment=&q=&from=&to=&page=
+ * One page of 25 orders, newest first, with the quick-view counts.
+ * Add format=csv for every matching order as a spreadsheet (Standard plan).
+ */
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
-  const slug = searchParams.get("slug") || "";
-  if (!slug) return NextResponse.json({ error: "Missing slug." }, { status: 400 });
+  const resolved = await resolveStoreRequest(searchParams.get("slug") || "");
+  if (resolved.error) return resolved.error;
+  const { tenantId } = resolved.access;
+  const query = parseOrderListQuery(searchParams);
 
-  const access = await getStoreAccessContext(slug);
-  if (!access.userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!access.tenantId || !access.role) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (searchParams.get("format") === "csv") {
+    const blocked = await featureUnavailable(tenantId, "exports");
+    if (blocked) return blocked;
+    try {
+      const orders = await listOrdersForExport(tenantId, query, await storeCurrency(tenantId, resolved.service));
+      const day = new Date().toISOString().slice(0, 10);
+      return new NextResponse(ordersToCsv(orders), {
+        headers: {
+          "Content-Type": "text/csv; charset=utf-8",
+          "Content-Disposition": `attachment; filename="orders-${day}.csv"`,
+          "Cache-Control": "no-store",
+        },
+      });
+    } catch (error) {
+      console.error("[orders export] failed", error);
+      return NextResponse.json({ error: "We couldn't prepare your download. Please try again." }, { status: 500 });
+    }
+  }
 
-  const service = createServerSupabaseClient();
-  const { data, error } = await service
-    .schema("store")
-    .from("orders")
-    .select("*, store_order_items:order_items(*)")
-    .eq("tenant_id", access.tenantId)
-    .order("created_at", { ascending: false });
+  // Expired and failed card orders are shown as cancelled, with their stock back.
+  await releaseExpiredOrders(tenantId).catch(() => 0);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-
-  const orders = ((data || []) as StoreOrderRow[]).map(mapOrderRowToDashboard);
-  return NextResponse.json({ orders });
+  try {
+    const currency = await storeCurrency(tenantId, resolved.service);
+    const [page, counts] = await Promise.all([listOrdersPage(tenantId, query, currency), countAttention(tenantId)]);
+    return NextResponse.json(
+      { orders: page.orders, total: page.total, page: query.page, pageSize: ORDERS_PAGE_SIZE, counts, currency },
+      { headers: { "Cache-Control": "no-store" } },
+    );
+  } catch (error) {
+    console.error("[orders list] failed", error);
+    return NextResponse.json({ error: "We couldn't load your orders. Please refresh the page." }, { status: 500 });
+  }
 }

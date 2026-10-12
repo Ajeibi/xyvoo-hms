@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
-import { resolveStoreRequest } from "@/lib/store/api-helpers";
+import { productNotFound, resolveStoreRequest, storeOwnsProducts } from "@/lib/store/api-helpers";
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { searchParams } = new URL(req.url);
   const result = await resolveStoreRequest(searchParams.get("slug") || "");
   if (result.error) return result.error;
+  if (!(await storeOwnsProducts(result.service, result.access.tenantId, [id]))) return productNotFound();
 
   const { data, error } = await result.service
     .schema("store")

@@ -1,10 +1,27 @@
 import { Suspense } from "react";
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getHmsAccessContext } from "@/lib/hms/access";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { normalizePricingSetup } from "@/lib/hms/room-pricing";
 import HMSLayoutShell from "@/components/hms/HMSLayoutShell";
 import { CardBlockSkeleton, PageHeaderSkeleton } from "@/components/hms/PageSkeletons";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const access = await getHmsAccessContext(slug);
+  const name = access.hotelDisplayName || "Hotel Management";
+  return {
+    title: {
+      default: `${name} · Dashboard | XYVOO HMS`,
+      template: `%s · ${name} | XYVOO HMS`,
+    },
+  };
+}
 
 /**
  * Persistent HMS shell layout for all /hms/[slug]/* routes.

@@ -235,9 +235,9 @@ export function FolioFinanceInteractiveMockup() {
                     Room 102 · Deluxe King
                   </span>
                 </div>
-                <h2 className="mt-1.5 text-base sm:text-lg font-bold text-slate-900">
+                <p className="mt-1.5 text-base sm:text-lg font-bold text-slate-900">
                   Guest: Dr. Sophia Loren
-                </h2>
+                </p>
                 <p className="text-[11px] text-slate-500">
                   Confirmation: <strong className="text-slate-700">XY-4892</strong> · Corporate Account:{" "}
                   <strong className="text-slate-700">Shell Petroleum Direct-Bill</strong>
@@ -403,9 +403,9 @@ export function FolioFinanceInteractiveMockup() {
             <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">
               General ledger integration
             </p>
-            <h2 className="mt-1 text-sm sm:text-base font-bold text-slate-900">
+            <p className="mt-1 text-sm sm:text-base font-bold text-slate-900">
               Automated Journal Postings
-            </h2>
+            </p>
             <p className="text-[11px] text-slate-500">
               Every room folio, F&B order, and payment automatically books double-entry journal entries.
             </p>

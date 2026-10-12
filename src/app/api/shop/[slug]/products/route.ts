@@ -1,21 +1,28 @@
 import { NextResponse } from "next/server";
 import { getShopTenantBySlug } from "@/lib/shop/tenants";
 import { listShopProducts } from "@/lib/shop/products";
+import { isShopLive } from "@/lib/store/site/data";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 export async function GET(req: Request, { params }: { params: Promise<{ slug: string }> }) {
+  if (!rateLimit(`shop-products:${clientIp(req)}`, 120, 60_000).ok) {
+    return NextResponse.json({ error: "Too many requests. Please slow down." }, { status: 429 });
+  }
   const { slug } = await params;
   const tenant = await getShopTenantBySlug(slug);
-  if (!tenant) return NextResponse.json({ error: "Storefront not found." }, { status: 404 });
+  // An unpublished shop's catalogue isn't public yet.
+  if (!tenant || !(await isShopLive(tenant.id))) return NextResponse.json({ error: "Storefront not found." }, { status: 404 });
 
   const { searchParams } = new URL(req.url);
-  const category = searchParams.get("category") || undefined;
-  const search = searchParams.get("search") || undefined;
-  const page = Number(searchParams.get("page")) || 1;
+  const category = searchParams.get("category")?.slice(0, 100) || undefined;
+  const search = searchParams.get("search")?.slice(0, 100) || undefined;
+  const page = Math.min(Math.max(Number(searchParams.get("page")) || 1, 1), 500);
 
   try {
     const result = await listShopProducts(tenant.id, { category, search, page });
     return NextResponse.json(result);
   } catch (err) {
-    return NextResponse.json({ error: err instanceof Error ? err.message : "Failed to load products." }, { status: 400 });
+    console.error("[shop products] list failed", err);
+    return NextResponse.json({ error: "We couldn't load products just now." }, { status: 500 });
   }
 }
