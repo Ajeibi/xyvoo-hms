@@ -38,6 +38,16 @@ export function effectiveFeeRate(sub: SubscriptionState | null, now = Date.now()
   return Number.isFinite(rate) && rate >= 0 && rate <= 1 ? rate : PLAN_FEE_RATES.free;
 }
 
+/**
+ * Who pays Paystack's own charge on a store sale. A store that pays XYVOO a platform
+ * fee (Free terms) has Paystack's charge taken out of that fee, so XYVOO bears it
+ * ("account"). A store that pays no platform fee (paid-up Standard) pays Paystack's
+ * charge itself, deducted from its payout ("subaccount").
+ */
+export function splitBearerFor(feeRate: number): "account" | "subaccount" {
+  return feeRate > 0 ? "account" : "subaccount";
+}
+
 /** XYVOO's share of a payment, in the currency's smallest unit (kobo for naira). */
 export function platformFeeSubunits(totalSubunits: number, rate: number) {
   return Math.round(totalSubunits * rate);

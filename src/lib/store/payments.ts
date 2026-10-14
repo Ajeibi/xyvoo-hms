@@ -1,7 +1,7 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getTenantPaystackSetup } from "@/lib/shop/tenants";
 import { getPlatformPaystack } from "@/lib/payments/platform-paystack";
-import { effectiveFeeRate, type SubscriptionState } from "./billing";
+import { effectiveFeeRate, splitBearerFor, type SubscriptionState } from "./billing";
 
 /**
  * How a store takes payment.
@@ -41,13 +41,8 @@ export async function getStorePaymentRoute(tenantId: string): Promise<PaymentRou
   if (platform) {
     const payout = await getActivePayoutAccount(tenantId);
     if (payout) {
-      return {
-        kind: "split",
-        secretKey: platform.secretKey,
-        subaccountCode: payout.subaccount_code,
-        bearer: platform.splitBearer,
-        feeRate: effectiveFeeRate(await getStoreSubscription(tenantId)),
-      };
+      const feeRate = effectiveFeeRate(await getStoreSubscription(tenantId));
+      return { kind: "split", secretKey: platform.secretKey, subaccountCode: payout.subaccount_code, bearer: splitBearerFor(feeRate), feeRate };
     }
   }
   const own = await getTenantPaystackSetup(tenantId);

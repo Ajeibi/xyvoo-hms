@@ -6,8 +6,10 @@
  *
  *   PAYSTACK_PLATFORM_SECRET_KEY   required for split payments and billing
  *   PAYSTACK_STANDARD_PLAN_CODE    the ₦10,000/month plan created in Paystack (PLN_…)
- *   PAYSTACK_SPLIT_BEARER          who pays Paystack's own charge on store sales:
- *                                  "subaccount" (the store, default) or "account" (XYVOO)
+ *
+ * Who pays Paystack's own charge on a store sale follows the store's plan
+ * (see splitBearerFor in store/billing): XYVOO out of its platform fee on Free
+ * terms, the store itself once it pays no platform fee.
  */
 
 const PAYSTACK_BASE_URL = "https://api.paystack.co";
@@ -15,7 +17,6 @@ const PAYSTACK_BASE_URL = "https://api.paystack.co";
 export type PlatformPaystack = {
   secretKey: string;
   standardPlanCode: string | null;
-  splitBearer: "subaccount" | "account";
 };
 
 export function getPlatformPaystack(): PlatformPaystack | null {
@@ -24,7 +25,6 @@ export function getPlatformPaystack(): PlatformPaystack | null {
   return {
     secretKey,
     standardPlanCode: process.env.PAYSTACK_STANDARD_PLAN_CODE || null,
-    splitBearer: process.env.PAYSTACK_SPLIT_BEARER === "account" ? "account" : "subaccount",
   };
 }
 
