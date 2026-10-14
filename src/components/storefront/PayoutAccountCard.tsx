@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { BadgeCheck, Landmark } from "lucide-react";
+import BankCombobox from "./BankCombobox";
 import { DashAlert, dashButton, DashCard, DashField, dashInput, DashPill, DashStatus } from "./dashboard-ui";
 
 type Account = { businessName: string; bankName: string; bankCode: string; accountName: string; accountNumberLast4: string; verifiedAt: string };
@@ -148,22 +149,16 @@ export default function PayoutAccountCard({ slug }: { slug: string }) {
         {editing && available && canManage ? (
           <form onSubmit={save} className="space-y-4" noValidate>
             <DashField id="payout-bank" label="Bank">
-              <select
+              <BankCombobox
                 id="payout-bank"
-                className={dashInput}
+                banks={banks}
                 value={bankCode}
-                onChange={(e) => {
-                  setBankCode(e.target.value);
+                loading={banks.length === 0 && !error}
+                onChange={(code) => {
+                  setBankCode(code);
                   setAccountName("");
                 }}
-              >
-                <option value="">{banks.length ? "Choose your bank" : "Loading banks…"}</option>
-                {banks.map((b) => (
-                  <option key={b.code} value={b.code}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
+              />
             </DashField>
             <div>
               <label htmlFor="payout-account" className="mb-1 block text-sm font-medium text-slate-800">
