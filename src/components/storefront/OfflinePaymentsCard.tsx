@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { HandCoins } from "lucide-react";
 import type { OfflinePayments } from "@/lib/store/offline-payments";
+import BankCombobox from "./BankCombobox";
 import { DashAlert, dashButton, DashCard, DashField, dashInput, DashPill, DashStatus, sendJson } from "./dashboard-ui";
 
 /** A clear keyboard focus ring for buttons. */
@@ -30,6 +31,22 @@ export default function OfflinePaymentsCard({ slug }: { slug: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
+  const [banks, setBanks] = useState<{ name: string; code: string }[]>([]);
+  const [banksFailed, setBanksFailed] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const wantsBanks = Boolean(settings?.bankTransfer.enabled) && canManage;
+
+  // The same bank list the payout account uses, so the account name can be checked.
+  useEffect(() => {
+    if (!wantsBanks || banks.length || banksFailed) return;
+    fetch(`/api/store/payouts/banks?slug=${encodeURIComponent(slug)}`)
+      .then(async (r) => {
+        const data = await r.json();
+        if (!r.ok) throw new Error();
+        setBanks(data.banks);
+      })
+      .catch(() => setBanksFailed(true));
+  }, [wantsBanks, banks.length, banksFailed, slug]);
 
   useEffect(() => {
     fetch(`/api/store/offline-payments?slug=${encodeURIComponent(slug)}`)
@@ -64,6 +81,25 @@ export default function OfflinePaymentsCard({ slug }: { slug: string }) {
     setStatus("");
   };
   const bank = settings.bankTransfer;
+  // With the bank list we can check the name; without it (Paystack not set up) it stays a plain field.
+  const canCheck = banks.length > 0;
+  const bankCode = banks.find((b) => b.name === bank.bankName)?.code ?? "";
+
+  const checkName = async () => {
+    setError("");
+    setStatus("");
+    if (!bankCode || !/^\d{8,16}$/.test(bank.accountNumber)) return setError("Choose your bank and enter your account number first (8 to 16 digits).");
+    setChecking(true);
+    try {
+      const data = await sendJson("/api/store/payouts/resolve", "POST", { slug, bankCode, accountNumber: bank.accountNumber });
+      update({ ...settings, bankTransfer: { ...bank, accountName: data.accountName } });
+      setStatus(`Account found: ${data.accountName}.`);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setChecking(false);
+    }
+  };
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -120,14 +156,51 @@ export default function OfflinePaymentsCard({ slug }: { slug: string }) {
         {bank.enabled ? (
           <div className="grid gap-4 sm:grid-cols-2 sm:pl-7">
             <DashField id="op-bank" label="Bank name">
-              <input id="op-bank" className={dashInput} value={bank.bankName} maxLength={80} onChange={(e) => update({ ...settings, bankTransfer: { ...bank, bankName: e.target.value } })} disabled={!canManage} />
+              {canCheck ? (
+                <BankCombobox
+                  id="op-bank"
+                  banks={banks}
+                  value={bankCode}
+                  onChange={(code) => update({ ...settings, bankTransfer: { ...bank, bankName: banks.find((b) => b.code === code)?.name ?? "", accountName: "" } })}
+                />
+              ) : (
+                <input id="op-bank" className={dashInput} value={bank.bankName} maxLength={80} onChange={(e) => update({ ...settings, bankTransfer: { ...bank, bankName: e.target.value } })} disabled={!canManage} />
+              )}
             </DashField>
-            <DashField id="op-number" label="Account number">
-              <input id="op-number" className={dashInput} value={bank.accountNumber} inputMode="numeric" maxLength={20} onChange={(e) => update({ ...settings, bankTransfer: { ...bank, accountNumber: e.target.value.replace(/\D/g, "") } })} disabled={!canManage} />
-            </DashField>
+            <div>
+              <label htmlFor="op-number" className="mb-1 block text-sm font-medium text-slate-800">
+                Account number
+              </label>
+              <div className="flex gap-2">
+                <input
+                  id="op-number"
+                  className={`${dashInput} min-w-0`}
+                  value={bank.accountNumber}
+                  inputMode="numeric"
+                  autoComplete="off"
+                  maxLength={canCheck ? 16 : 20}
+                  onChange={(e) => update({ ...settings, bankTransfer: { ...bank, accountNumber: e.target.value.replace(/\D/g, ""), ...(canCheck ? { accountName: "" } : {}) } })}
+                  disabled={!canManage}
+                />
+                {canCheck && canManage ? (
+                  <button type="button" onClick={checkName} disabled={busy || checking} className={`${dashButton.secondary} ${ring} shrink-0`}>
+                    {checking ? "Checking…" : "Check name"}
+                  </button>
+                ) : null}
+              </div>
+            </div>
             <div className="sm:col-span-2">
-              <DashField id="op-name" label="Account name">
-                <input id="op-name" className={dashInput} value={bank.accountName} maxLength={120} onChange={(e) => update({ ...settings, bankTransfer: { ...bank, accountName: e.target.value } })} disabled={!canManage} />
+              <DashField id="op-name" label="Account name" hint={canCheck ? "Filled in from your bank when you press Check name, so customers pay the right account." : undefined}>
+                <input
+                  id="op-name"
+                  className={dashInput}
+                  value={bank.accountName}
+                  maxLength={120}
+                  readOnly={canCheck}
+                  placeholder={canCheck ? "Press Check name" : undefined}
+                  onChange={(e) => update({ ...settings, bankTransfer: { ...bank, accountName: e.target.value } })}
+                  disabled={!canManage}
+                />
               </DashField>
             </div>
             <div className="sm:col-span-2">
