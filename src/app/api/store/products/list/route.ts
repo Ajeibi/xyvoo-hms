@@ -61,7 +61,7 @@ export async function GET(req: Request) {
       .from("product_variants")
       .select("product_id, products!inner(tenant_id)")
       .eq("products.tenant_id", tenantId)
-      .ilike("sku", `%${term}%`)
+      .or(`sku.ilike.%${term}%,barcode.eq.${term}`)
       .limit(200);
     variantMatches = [...new Set((data || []).map((r) => r.product_id as string))];
   }

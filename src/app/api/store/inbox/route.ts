@@ -1,5 +1,10 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { resolveStoreRequest } from "@/lib/store/api-helpers";
+import { runCartRemindersIfDue } from "@/lib/store/cart-reminders";
+import { runStockAlertsIfDue } from "@/lib/store/stock-alerts";
+import { runGiftCardEmailsIfDue } from "@/lib/store/gift-cards";
+import { runCampaignsIfDue } from "@/lib/store/campaigns-server";
+import { runLoyaltyExpiryIfDue } from "@/lib/store/loyalty-server";
 import { formatShopCurrency } from "@/lib/shop/format";
 import type { InboxItem } from "@/lib/store/inbox";
 import { reviewerName } from "@/lib/store/reviews";
@@ -15,6 +20,12 @@ export async function GET(req: Request) {
   const resolved = await resolveStoreRequest(slug);
   if (resolved.error) return resolved.error;
   const tenantId = resolved.access.tenantId;
+  // Shop owners using the dashboard also keep basket reminders on time (at most every ten minutes).
+  after(runCartRemindersIfDue);
+  after(runStockAlertsIfDue);
+  after(runGiftCardEmailsIfDue);
+  after(runCampaignsIfDue);
+  after(runLoyaltyExpiryIfDue);
   const db = resolved.service.schema("store");
   const since = new Date(Date.now() - 14 * DAY_MS).toISOString();
   const base = `/storefront/${encodeURIComponent(slug)}`;

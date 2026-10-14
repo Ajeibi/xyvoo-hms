@@ -3,6 +3,7 @@ import { z } from "zod";
 import { resolveStoreRequest } from "@/lib/store/api-helpers";
 import { ABANDONED_AFTER_MINUTES, listAbandonedCheckouts, setCheckoutFollowUp, whatsappLink } from "@/lib/store/checkouts";
 import { featureUnavailable } from "@/lib/store/features";
+import { getCartReminderSetting, setCartReminderSetting } from "@/lib/store/cart-reminders";
 import { formatShopCurrency } from "@/lib/shop/format";
 import { storefrontUrl } from "@/lib/store/subdomain";
 
@@ -23,9 +24,10 @@ export async function GET(req: Request) {
   const storeName = access.storeDisplayName;
 
   try {
-    const carts = await listAbandonedCheckouts(access.tenantId);
+    const [carts, reminders] = await Promise.all([listAbandonedCheckouts(access.tenantId), getCartReminderSetting(access.tenantId)]);
     return NextResponse.json({
       abandonedAfterMinutes: ABANDONED_AFTER_MINUTES,
+      reminders,
       carts: carts.map((c) => {
         const first = c.name?.split(/\s+/)[0] || "there";
         const itemsText = c.items.map((i) => `${i.quantity} × ${i.name}`).join(", ");
@@ -58,4 +60,24 @@ export async function PATCH(req: Request) {
 
   await setCheckoutFollowUp(resolved.access.tenantId, parsed.data.id, parsed.data.followUp);
   return NextResponse.json({ ok: true });
+}
+
+const ReminderSchema = z.object({ slug: z.string(), reminders: z.union([z.literal(0), z.literal(1), z.literal(2)]) });
+
+/** PUT /api/store/abandoned-carts { slug, reminders: 0 | 1 | 2 } — how many automatic email reminders to send. */
+export async function PUT(req: Request) {
+  const body = await req.json().catch(() => null);
+  const resolved = await resolveStoreRequest(typeof body?.slug === "string" ? body.slug : "");
+  if (resolved.error) return resolved.error;
+  if (!resolved.capabilities.canViewReports) return NextResponse.json({ error: "Only the owner or an admin can change basket reminders." }, { status: 403 });
+  const parsed = ReminderSchema.safeParse(body);
+  if (!parsed.success) return NextResponse.json({ error: "Check the request." }, { status: 400 });
+
+  try {
+    await setCartReminderSetting(resolved.access.tenantId, parsed.data.reminders);
+    return NextResponse.json({ ok: true, reminders: parsed.data.reminders });
+  } catch (error) {
+    console.error("[cart reminders] setting not saved", error);
+    return NextResponse.json({ error: "We couldn't save that just now. Please try again." }, { status: 500 });
+  }
 }

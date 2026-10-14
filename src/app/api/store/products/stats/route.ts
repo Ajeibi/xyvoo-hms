@@ -1,21 +1,26 @@
 import { NextResponse } from "next/server";
 import { resolveStoreRequest } from "@/lib/store/api-helpers";
+import { waitingCounts } from "@/lib/store/stock-alerts";
 
 /**
  * GET /api/store/products/stats?slug= — the figures at the top of the Products page:
  * how many products, what the stock on hand would sell for and what it cost,
- * and how many have sold out or are running low. Archived products are left out.
+ * how many have sold out or are running low, and how many shoppers are waiting
+ * for each product to be back in stock. Archived products are left out.
  */
 export async function GET(req: Request) {
   const resolved = await resolveStoreRequest(new URL(req.url).searchParams.get("slug") || "");
   if (resolved.error) return resolved.error;
-  const { data, error } = await resolved.service
-    .schema("store")
-    .from("products")
-    .select("price, cost_price, stock, stock_state, status")
-    .eq("tenant_id", resolved.access.tenantId)
-    .neq("status", "archived")
-    .limit(20000);
+  const [{ data, error }, waiting] = await Promise.all([
+    resolved.service
+      .schema("store")
+      .from("products")
+      .select("price, cost_price, stock, stock_state, status")
+      .eq("tenant_id", resolved.access.tenantId)
+      .neq("status", "archived")
+      .limit(20000),
+    waitingCounts(resolved.access.tenantId).catch(() => ({}) as Record<string, number>),
+  ]);
   if (error) {
     console.error("[products stats] failed", error);
     return NextResponse.json({ error: "We couldn't work out your stock figures." }, { status: 500 });
@@ -31,5 +36,6 @@ export async function GET(req: Request) {
     if (p.stock_state === "out") soldOut += 1;
     else if (p.stock_state === "low") low += 1;
   }
-  return NextResponse.json({ products: (data || []).length, retailValue, costValue, soldOut, low }, { headers: { "Cache-Control": "no-store" } });
+  const waitingTotal = Object.values(waiting).reduce((sum, n) => sum + n, 0);
+  return NextResponse.json({ products: (data || []).length, retailValue, costValue, soldOut, low, waiting, waitingTotal }, { headers: { "Cache-Control": "no-store" } });
 }

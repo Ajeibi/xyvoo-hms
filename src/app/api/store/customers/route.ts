@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { resolveStoreRequest } from "@/lib/store/api-helpers";
 import { customerKeySchema, customerNoteSchema, getCustomerOrders, listCustomers, saveCustomerNote, SEGMENT_HELP, SEGMENT_LABELS, SEGMENTS } from "@/lib/store/customers";
+import { listCustomerGroups } from "@/lib/store/customer-groups-server";
 import { featureUnavailable, getStorePlan, storeHasFeature } from "@/lib/store/features";
 
 /**
@@ -23,8 +24,9 @@ export async function GET(req: Request) {
       return NextResponse.json({ orders: await getCustomerOrders(access.tenantId, parsed.data) });
     }
 
-    const [customers, plan, { data: profile }] = await Promise.all([
+    const [customers, groups, plan, { data: profile }] = await Promise.all([
       listCustomers(access.tenantId),
+      listCustomerGroups(access.tenantId).catch(() => []),
       getStorePlan(access.tenantId),
       service.schema("store").from("business_profile").select("currency_code").eq("tenant_id", access.tenantId).maybeSingle(),
     ]);
@@ -32,6 +34,8 @@ export async function GET(req: Request) {
     return NextResponse.json({
       currency: profile?.currency_code || "NGN",
       customers,
+      groups,
+      canManageGroups: capabilities.canManageSettings,
       segments: SEGMENTS.map((s) => ({ key: s, label: SEGMENT_LABELS[s], help: SEGMENT_HELP[s], count: counts[s] })),
       canExport: capabilities.canManageSettings && storeHasFeature(plan, "customerExport"),
     });

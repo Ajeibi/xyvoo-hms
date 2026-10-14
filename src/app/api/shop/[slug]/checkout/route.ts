@@ -2,9 +2,13 @@ import { after, NextResponse } from "next/server";
 import { z } from "zod";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getShopTenantBySlug } from "@/lib/shop/tenants";
+import { recordMarketingConsent } from "@/lib/store/campaigns-server";
+import { referralCodeCheck } from "@/lib/store/referrals-server";
+import { tradeUnitPrice } from "@/lib/store/wholesale";
+import { activeTrade, tradePricing } from "@/lib/store/wholesale-server";
 import { getStorePaymentRoute } from "@/lib/store/payments";
 import { platformFeeSubunits } from "@/lib/store/billing";
-import { mapDeliveryZone, zoneCovers, type DeliveryZoneRow } from "@/lib/store/delivery";
+import { fitsWeight, mapDeliveryZone, orderWeightKg, zoneCovers, type DeliveryZoneRow } from "@/lib/store/delivery";
 import { allocateDiscount, computeTax, lineTaxRate } from "@/lib/store/tax";
 import { getTaxSettings } from "@/lib/store/tax-server";
 import { deliveryWithRules } from "@/lib/store/free-delivery";
@@ -14,6 +18,7 @@ import { storeCurrency } from "@/lib/store/payout-routes";
 import { initializeTransaction } from "@/lib/shop/paystack";
 import { getStoreSlugFromHost } from "@/lib/store/subdomain";
 import { linkCheckoutToOrder } from "@/lib/store/checkouts";
+import { accountForCheckout, getCustomerSession, startCustomerSession } from "@/lib/store/customer-accounts";
 import { clientIp, rateLimitShared } from "@/lib/rate-limit";
 import { availablePaymentMethods, OFFLINE_METHODS, parseOfflinePayments, PAYMENT_METHOD_LABELS } from "@/lib/store/offline-payments";
 import { sendOrderPaidEmails, sendOrderReceivedEmails } from "@/lib/store/order-emails";
@@ -21,6 +26,7 @@ import { isShopLive } from "@/lib/store/site/data";
 import { checkDiscount } from "@/lib/store/discounts";
 import { discountProductIds, findDiscountByCode } from "@/lib/store/discounts-server";
 import { formatShopCurrency } from "@/lib/shop/format";
+import { GIFT_CARD_PROBLEMS, giftCardPurchaseSchema } from "@/lib/store/gift-cards";
 
 /** Generous limits that no real order reaches, so junk can't fill the database. */
 const text = (max: number) => z.string().trim().max(max, "That's longer than we can take. Please shorten it.");
@@ -59,6 +65,14 @@ const CheckoutSchema = z.object({
   paymentMethod: z.enum(["card", ...OFFLINE_METHODS]).default("card"),
   /** A discount code the shopper applied; worked out again here from the order's own lines. */
   discountCode: text(40).optional(),
+  /** A gift card to pay with: as much of the total as its balance covers. */
+  giftCardCode: text(40).optional(),
+  /** Buying a gift card: who it's for. The basket is then just the gift card, with no delivery. */
+  giftCard: giftCardPurchaseSchema.optional(),
+  /** Ticked the box to hear from the shop by email. Never ticked for them. */
+  marketingConsent: z.boolean().optional(),
+  /** Loyalty points the signed-in shopper wants to use; checked and worked out again here. */
+  loyaltyPoints: z.number().int().min(0).max(1_000_000).optional(),
 });
 
 const DISCOUNT_CLAIM_ERRORS: Record<string, string> = {
@@ -92,7 +106,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     return NextResponse.json({ error: parsed.error.issues[0]?.message || "Invalid checkout details." }, { status: 400 });
   }
 
-  const { customer, shippingAddress, items, deliveryZoneId, checkoutToken, paymentMethod, discountCode } = parsed.data;
+  const { customer, shippingAddress, items, deliveryZoneId, checkoutToken, paymentMethod, discountCode, giftCardCode, giftCard, marketingConsent, loyaltyPoints } = parsed.data;
   const service = createServerSupabaseClient();
   const onStoreSubdomain = getStoreSlugFromHost(req.headers.get("host")) === slug;
   const receivedUrl = (orderId: string) => `${onStoreSubdomain ? "" : `/shop/${slug}`}/checkout/received?order=${orderId}`;
@@ -125,7 +139,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
   // The chosen way to pay must be one this shop offers right now.
   const [paymentRoute, { data: profile }] = await Promise.all([
     getStorePaymentRoute(tenant.id),
-    service.schema("store").from("business_profile").select("offline_payments, whatsapp").eq("tenant_id", tenant.id).maybeSingle(),
+    service.schema("store").from("business_profile").select("*").eq("tenant_id", tenant.id).maybeSingle(),
   ]);
   const offline = parseOfflinePayments(profile?.offline_payments);
   const methods = availablePaymentMethods({ acceptsCard: paymentRoute !== null, offline, whatsappNumber: (profile?.whatsapp as string | null) ?? null });
@@ -133,17 +147,32 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     return NextResponse.json({ error: methods.length ? "That way to pay isn't available. Please choose another." : "This store isn't taking orders online yet." }, { status: 400 });
   }
 
+  // Gift cards are bought on their own (no delivery, discount or tax), and never paid for with another gift card.
+  const giftProductId = (profile?.gift_card_product_id as string | null | undefined) ?? null;
+  const buyingGiftCard = Boolean(giftCard);
+  if (buyingGiftCard) {
+    const line = items[0];
+    if (!profile?.gift_cards_enabled || !giftProductId || items.length !== 1 || line.productId !== giftProductId || line.quantity !== 1 || !line.variantId) {
+      return NextResponse.json({ error: "Gift cards can't be bought here right now. Please refresh the page and try again." }, { status: 400 });
+    }
+    if (discountCode || giftCardCode) {
+      return NextResponse.json({ error: "Discount codes and gift cards can't be used to buy a gift card." }, { status: 400 });
+    }
+  } else if (giftProductId && items.some((i) => i.productId === giftProductId)) {
+    return NextResponse.json({ error: "Gift cards are bought on their own page. Remove the gift card from your basket, then buy it from its page." }, { status: 400 });
+  }
+
   // Delivery: the option must be one of this store's active ones, looked up
   // here rather than trusting any price from the browser.
   const { data: zoneRows } = await service
     .schema("store")
     .from("delivery_zones")
-    .select("id, name, regions, fee, free_over, eta_text, is_pickup, is_active, sort_order")
+    .select("id, name, regions, fee, weight_bands, free_over, eta_text, is_pickup, is_active, sort_order")
     .eq("tenant_id", tenant.id)
     .eq("is_active", true);
   const zones = ((zoneRows || []) as DeliveryZoneRow[]).map(mapDeliveryZone);
-  const zone = zones.find((z) => z.id === deliveryZoneId) ?? null;
-  if (zones.length > 0 && !zone) {
+  const zone = buyingGiftCard ? null : (zones.find((z) => z.id === deliveryZoneId) ?? null);
+  if (!buyingGiftCard && zones.length > 0 && !zone) {
     return NextResponse.json({ error: "Please choose a delivery option." }, { status: 400 });
   }
   if (zone && !zone.isPickup && (!shippingAddress.line1 || !shippingAddress.city)) {
@@ -154,10 +183,42 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     return NextResponse.json({ error: `${zone.name} doesn't deliver to that address. Please choose another delivery option.` }, { status: 400 });
   }
 
+  // An option that charges by weight can only carry an order up to its heaviest band.
+  const { data: weightRows } = await service
+    .schema("store")
+    .from("products")
+    .select("id, weight_kg")
+    .eq("tenant_id", tenant.id)
+    .in("id", [...new Set(items.map((i) => i.productId))]);
+  const weightFor = new Map((weightRows || []).map((r) => [r.id as string, Number(r.weight_kg) || 0]));
+  if (zone && !fitsWeight(zone, orderWeightKg(items.map((i) => ({ weightKg: weightFor.get(i.productId), quantity: i.quantity }))))) {
+    return NextResponse.json({ error: `This order is too heavy for ${zone.name}. Please choose another delivery option, or contact the shop to arrange it.` }, { status: 400 });
+  }
+
   // The discount code must exist before any stock is reserved.
   const discount = discountCode ? await findDiscountByCode(tenant.id, discountCode) : null;
   if (discountCode && !discount) {
     return NextResponse.json({ error: "That discount code isn't valid. Remove it or check the spelling." }, { status: 400 });
+  }
+
+  // A confirmed customer with an approved trade account pays trade prices, worked out here
+  // from the shop's own prices. They must order with their account's email, and a discount
+  // code doesn't stack on trade prices unless the shop allows it.
+  const tradeSettings = buyingGiftCard ? null : await activeTrade(tenant.id, await getCustomerSession(tenant.id));
+  if (tradeSettings) {
+    const tradeSession = await getCustomerSession(tenant.id);
+    if (tradeSession && tradeSession.account.email !== customer.email.trim().toLowerCase()) {
+      return NextResponse.json({ error: "To get your trade prices, please order with the email address on your account." }, { status: 400 });
+    }
+    if (discountCode && !tradeSettings.allowDiscounts) {
+      return NextResponse.json({ error: "Discount codes can't be used with trade prices. Remove the code to continue." }, { status: 400 });
+    }
+  }
+
+  // A friend code is for a first order, and not for the customer who shared it.
+  if (discount?.referralAccountId) {
+    const problem = await referralCodeCheck(tenant.id, discount.referralAccountId, customer.email);
+    if (problem) return NextResponse.json({ error: problem }, { status: 400 });
   }
 
   // Merge duplicate lines for the same product+variant before they reach
@@ -189,9 +250,34 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
   }
 
   const created = orderResult as { id: string; total_amount: number };
-  const itemsTotal = Number(created.total_amount);
+  let itemsTotal = Number(created.total_amount);
 
-  const { data: lineRows } = await service.schema("store").from("order_items").select("product_id, quantity, cost_price, line_total").eq("order_id", created.id);
+  const { data: lineData } = await service.schema("store").from("order_items").select("id, product_id, quantity, cost_price, unit_price, line_total").eq("order_id", created.id);
+  let lineRows = lineData;
+
+  // Trade prices: each line at its trade price where the quantity qualifies; the rest stay at the normal price.
+  let tradeApplied = false;
+  if (tradeSettings && lineRows?.length) {
+    const pricing = await tradePricing(tenant.id, lineRows.map((l) => l.product_id as string));
+    const repriced = [] as { id: string; unit: number; total: number }[];
+    lineRows = lineRows.map((l) => {
+      const p = pricing.get(l.product_id as string);
+      const unit = tradeUnitPrice({ unit: Number(l.unit_price), productPrice: p?.productPrice ?? 0, wholesalePrice: p?.wholesalePrice ?? null, minQty: p?.minQty ?? 1, quantity: Number(l.quantity) });
+      if (unit >= Number(l.unit_price)) return l;
+      const total = Math.round(unit * Number(l.quantity) * 100) / 100;
+      repriced.push({ id: l.id as string, unit, total });
+      return { ...l, unit_price: unit, line_total: total };
+    });
+    if (repriced.length) {
+      for (const r of repriced) await service.schema("store").from("order_items").update({ unit_price: r.unit, line_total: r.total }).eq("id", r.id);
+      itemsTotal = Math.round(lineRows.reduce((sum, l) => sum + Number(l.line_total), 0) * 100) / 100;
+      tradeApplied = true;
+      if (itemsTotal < tradeSettings.minOrder) {
+        await service.schema("store").rpc("cancel_order", { p_tenant_id: tenant.id, p_order_id: created.id });
+        return NextResponse.json({ error: `A trade order needs to come to at least ${formatShopCurrency(tradeSettings.minOrder, currency)} in items. Add a little more to your basket.` }, { status: 400 });
+      }
+    }
+  }
 
   const orderLines = (lineRows || []).map((l) => ({ productId: l.product_id as string, lineTotal: Number(l.line_total) }));
 
@@ -226,7 +312,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
       .select("id, delivery_extra, taxable, tax_class")
       .eq("tenant_id", tenant.id)
       .in("id", [...new Set(items.map((i) => i.productId))]),
-    getTaxSettings(tenant.id),
+    getTaxSettings(tenant.id).then((t) => (buyingGiftCard ? { ...t, enabled: false } : t)),
   ]);
   const productInfo = new Map((productRows || []).map((r) => [r.id as string, r]));
 
@@ -243,7 +329,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
         state: shippingAddress.state ?? "",
         city: shippingAddress.city ?? "",
         subtotal,
-        lines: [...mergedItems.values()].map((i) => ({ productId: i.product_id, quantity: i.quantity, deliveryExtra: extraFor.get(i.product_id) })),
+        lines: [...mergedItems.values()].map((i) => ({ productId: i.product_id, quantity: i.quantity, deliveryExtra: extraFor.get(i.product_id), weightKg: weightFor.get(i.product_id) })),
       },
       await getCheckoutFreeRules(tenant.id),
     );
@@ -266,8 +352,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
   const addedTax = taxResult.inclusive ? 0 : taxResult.amount;
 
   // Profit for the dashboard: what the items sold for, less what they cost the shop, any discount, and tax that was in the prices.
-  const profit =
-    Math.round(
+  const profit = buyingGiftCard
+    ? 0
+    : Math.round(
       ((lineRows || []).reduce((sum, l) => sum + Number(l.line_total) - Number(l.cost_price || 0) * Number(l.quantity), 0) -
         discountAmount -
         (taxResult.inclusive ? taxResult.itemsTax : 0)) *
@@ -275,10 +362,67 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     ) / 100;
   const order = { id: created.id, total_amount: Math.round((subtotal + deliveryFee + addedTax) * 100) / 100 };
 
+  // A gift card pays as much of the total as its balance covers. The card is
+  // locked while it's charged, and the money goes back on it automatically if
+  // this order is cancelled or never paid (see the gift cards migration).
+  let giftCardAmount = 0;
+  if (giftCardCode) {
+    const { data: redeemed, error: redeemError } = await service
+      .schema("store")
+      .rpc("redeem_gift_card", { p_tenant_id: tenant.id, p_order_id: order.id, p_code: giftCardCode, p_max: order.total_amount });
+    const result = redeemed as { status: string; amount?: number } | null;
+    if (redeemError || result?.status !== "ok") {
+      await service.schema("store").rpc("cancel_order", { p_tenant_id: tenant.id, p_order_id: order.id });
+      if (redeemError) console.error("[checkout] gift card not applied", { orderId: order.id, error: redeemError });
+      return NextResponse.json({ error: GIFT_CARD_PROBLEMS[String(result?.status)] ?? "We couldn't use that gift card. Please try again." }, { status: 409 });
+    }
+    giftCardAmount = Number(result.amount) || 0;
+    order.total_amount = Math.round((order.total_amount - giftCardAmount) * 100) / 100;
+  }
+
+  // Loyalty points come off what is left. Only a shopper who has confirmed their
+  // email with a code can spend points, and only on an order with that email.
+  if (loyaltyPoints && loyaltyPoints > 0 && !buyingGiftCard) {
+    const session = await getCustomerSession(tenant.id);
+    const problem =
+      !session?.verified || session.account.email !== customer.email.trim().toLowerCase()
+        ? "To use your points, sign in with the code we email you, and order with the email address on your account."
+        : null;
+    let redeemFailed = problem;
+    let result = null as { status: string; points?: number; amount?: number; minimum?: number } | null;
+    if (!problem && session) {
+      const { data: redeemed, error: redeemError } = await service
+        .schema("store")
+        .rpc("redeem_loyalty_points", { p_tenant_id: tenant.id, p_order_id: order.id, p_account_id: session.account.id, p_points: loyaltyPoints, p_max: order.total_amount });
+      result = redeemed as typeof result;
+      if (redeemError) console.error("[checkout] points not applied", { orderId: order.id, error: redeemError });
+      if (redeemError || result?.status !== "ok") {
+        redeemFailed =
+          result?.status === "below_minimum"
+            ? `You need to use at least ${result.minimum} points at once.`
+            : result?.status === "no_points"
+              ? "You don't have any points to use on this order."
+              : "We couldn't use your points. Please try again, or untick “Use my points”.";
+      }
+    }
+    if (redeemFailed || !result) {
+      await service.schema("store").rpc("cancel_order", { p_tenant_id: tenant.id, p_order_id: order.id });
+      return NextResponse.json({ error: redeemFailed || "We couldn't use your points. Please try again." }, { status: 409 });
+    }
+    order.total_amount = Math.round((order.total_amount - (Number(result.amount) || 0)) * 100) / 100;
+  }
+
   const { error: totalsError } = await service
     .schema("store")
     .from("orders")
-    .update(zone ? { delivery_fee: deliveryFee, delivery_method: deliveryMethod, total_amount: order.total_amount, profit } : { total_amount: order.total_amount, profit })
+    .update({
+      ...(zone ? { delivery_fee: deliveryFee, delivery_method: deliveryMethod } : {}),
+      total_amount: order.total_amount,
+      profit,
+      ...(giftCardAmount > 0 ? { gift_card_amount: giftCardAmount } : {}),
+      ...(tradeApplied ? { trade_order: true } : {}),
+      ...(giftCard ? { gift_card_purchase: giftCard, delivery_method: "Sent by email" } : {}),
+    })
     .eq("id", order.id);
   if (totalsError) {
     return NextResponse.json({ error: "We couldn't finish your order. Please try again." }, { status: 500 });
@@ -307,13 +451,31 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
 
   if (checkoutToken) await linkCheckoutToOrder(tenant.id, checkoutToken, order.id).catch(() => undefined);
 
+  // Every buyer gets an account, made from the details they've just typed (no
+  // extra step). A new account signs this device in; an existing one is only
+  // linked to the order, and its owner signs in with an emailed code as usual.
+  const accountCookie = await linkOrderToAccount(tenant.id, order.id, customer, checkoutToken).catch((err) => {
+    console.error("[checkout] account not linked", { orderId: order.id, err });
+    return null;
+  });
+  if (marketingConsent) await recordMarketingConsent(tenant.id, customer.email, customer.name, "checkout");
+  const json = (body: Record<string, unknown>) => {
+    const res = NextResponse.json(body);
+    if (accountCookie) res.cookies.set(accountCookie.name, accountCookie.value, accountCookie.options);
+    return res;
+  };
+
   if (order.total_amount <= 0) {
-    // Fully covered by a discount: nothing to collect, so it's paid now.
+    // Fully covered by a discount or gift card: nothing to collect, so it's paid now.
     const { error: freeError } = await service.schema("store").rpc("mark_order_paid", { p_order_id: order.id, p_paystack_reference: `discount-${order.id}` });
     if (freeError) return NextResponse.json({ error: "We couldn't place your order. Please try again." }, { status: 500 });
-    await service.schema("store").from("orders").update({ payment_method: "Discount", emails_sent_at: new Date().toISOString() }).eq("id", order.id);
+    await service
+      .schema("store")
+      .from("orders")
+      .update({ payment_method: giftCardAmount > 0 ? "Gift card" : "Discount", emails_sent_at: new Date().toISOString() })
+      .eq("id", order.id);
     after(() => sendOrderPaidEmails(tenant.id, order.id));
-    return NextResponse.json({ orderId: order.id, receivedUrl: receivedUrl(order.id) });
+    return json({ orderId: order.id, receivedUrl: receivedUrl(order.id) });
   }
 
   if (paymentMethod !== "card") {
@@ -325,7 +487,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
       .eq("id", order.id);
     if (offlineError) return NextResponse.json({ error: "We couldn't place your order. Please try again." }, { status: 500 });
     after(() => sendOrderReceivedEmails(tenant.id, order.id));
-    return NextResponse.json({ orderId: order.id, receivedUrl: receivedUrl(order.id) });
+    return json({ orderId: order.id, receivedUrl: receivedUrl(order.id) });
   }
   if (!paymentRoute) return NextResponse.json({ error: "Card payments aren't available. Please choose another way to pay." }, { status: 400 });
 
@@ -376,7 +538,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
 
     if (intentError) throw new Error(intentError.message);
 
-    return NextResponse.json({
+    return json({
       authorizationUrl: transaction.authorizationUrl,
       reference,
       orderId: order.id,
@@ -389,4 +551,20 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     console.error("[checkout] payment not started", { orderId: order.id, err });
     return NextResponse.json({ error: "We couldn't start the payment just now. Please try again in a moment." }, { status: 502 });
   }
+}
+
+/**
+ * Links the order (and its saved checkout) to the buyer's account, creating the
+ * account if it's their first order. Returns the cookie to sign this device in
+ * when the account is new and nobody is signed in here yet.
+ */
+async function linkOrderToAccount(tenantId: string, orderId: string, customer: { name: string; email: string; phone?: string }, checkoutToken: string | undefined) {
+  const session = await getCustomerSession(tenantId);
+  const sameShopper = session && session.account.email === customer.email.trim().toLowerCase();
+  const owner = sameShopper ? { account: session.account, created: false } : await accountForCheckout(tenantId, customer);
+  if (!owner) return null;
+  const db = createServerSupabaseClient().schema("store");
+  await db.from("orders").update({ customer_account_id: owner.account.id }).eq("id", orderId).eq("tenant_id", tenantId);
+  if (checkoutToken) await db.from("checkouts").update({ customer_account_id: owner.account.id }).eq("tenant_id", tenantId).eq("token", checkoutToken);
+  return owner.created && !session ? startCustomerSession(tenantId, owner.account.id, false) : null;
 }

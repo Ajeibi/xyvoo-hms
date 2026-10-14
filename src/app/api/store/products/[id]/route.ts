@@ -1,10 +1,11 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getStoreAccessContext, getStoreCapabilities } from "@/lib/store/access";
 import { diffFields, logActivity, readBefore } from "@/lib/store/activity";
 import { mapProductRowToDashboard, pickWritableProductFields, type StoreProductRow } from "@/lib/store/products";
 import { syncProductVariants, type VariantInput } from "@/lib/store/variants";
 import { checkPricingWrite, withCheckedPricing } from "@/lib/store/sale-price-server";
+import { sendStockAlertsForProducts } from "@/lib/store/stock-alerts";
 
 type UpdateProductBody = {
   tenantSlug?: string;
@@ -84,6 +85,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 
   const row = { ...product, product_variants: variantRows } as StoreProductRow;
+  // Back in stock? Tell anyone who asked (never holds up the save).
+  const tenantId = access.tenantId;
+  after(() => sendStockAlertsForProducts(tenantId, [id]));
   return NextResponse.json({ product: mapProductRowToDashboard(row) });
 }
 

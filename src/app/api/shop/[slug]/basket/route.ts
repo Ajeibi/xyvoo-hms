@@ -6,6 +6,10 @@ import { clientIp, rateLimitShared } from "@/lib/rate-limit";
 import { priceBasketLines } from "@/lib/store/discounts-server";
 import { getTaxSettings } from "@/lib/store/tax-server";
 import { lineTaxRate } from "@/lib/store/tax";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getCustomerSession } from "@/lib/store/customer-accounts";
+import { tradeUnitPrice } from "@/lib/store/wholesale";
+import { activeTrade, tradePricing } from "@/lib/store/wholesale-server";
 
 const BodySchema = z.object({
   items: z
@@ -30,8 +34,28 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
   const parsed = BodySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Your basket couldn't be read." }, { status: 400 });
 
-  const [lines, tax] = await Promise.all([priceBasketLines(tenant.id, parsed.data.items), getTaxSettings(tenant.id)]);
+  const [lines, tax, { data: weights }] = await Promise.all([
+    priceBasketLines(tenant.id, parsed.data.items),
+    getTaxSettings(tenant.id),
+    createServerSupabaseClient()
+      .schema("store")
+      .from("products")
+      .select("id, weight_kg")
+      .eq("tenant_id", tenant.id)
+      .in("id", [...new Set(parsed.data.items.map((i) => i.productId))]),
+  ]);
+  const weightFor = new Map((weights || []).map((r) => [r.id as string, Number(r.weight_kg) || 0]));
+
+  // A confirmed trade customer sees their trade prices.
+  const trade = await activeTrade(tenant.id, await getCustomerSession(tenant.id).catch(() => null)).catch(() => null);
+  const pricing = trade ? await tradePricing(tenant.id, lines.map((l) => l.productId)).catch(() => null) : null;
+  const qtyFor = (l: { productId: string; variantId: string | null }) => parsed.data.items.filter((i) => i.productId === l.productId && (i.variantId ?? null) === l.variantId).reduce((n, i) => n + i.quantity, 0);
   return NextResponse.json({
-    lines: lines.map((l) => ({ productId: l.productId, variantId: l.variantId, unitPrice: l.unitPrice, taxRate: lineTaxRate(tax, l) })),
+    trade: Boolean(trade),
+    lines: lines.map((l) => {
+      const p = pricing?.get(l.productId);
+      const unitPrice = p ? tradeUnitPrice({ unit: l.unitPrice, productPrice: p.productPrice, wholesalePrice: p.wholesalePrice, minQty: p.minQty, quantity: qtyFor(l) }) : l.unitPrice;
+      return { productId: l.productId, variantId: l.variantId, unitPrice, taxRate: lineTaxRate(tax, l), weightKg: weightFor.get(l.productId) ?? 0 };
+    }),
   });
 }
