@@ -143,13 +143,6 @@ export default function OfflinePaymentsCard({ slug }: { slug: string }) {
       <p className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
         {on.length ? `Switched on: ${on.join(", ")}.` : "None of these are switched on yet."}
       </p>
-      <p className="mt-3 text-sm text-slate-600">
-        Take orders now, even before card payments are set up. You confirm each payment yourself from{" "}
-        <Link href={`/storefront/${slug}/orders`} className="text-blue-800 underline">
-          Orders
-        </Link>
-        , then it counts as a sale.
-      </p>
 
       <form onSubmit={save} className="mt-5 space-y-4">
         {toggle("Bank transfer", bank.enabled, (v) => update({ ...settings, bankTransfer: { ...bank, enabled: v } }), "Customers see your account details after ordering and pay into your account.")}
