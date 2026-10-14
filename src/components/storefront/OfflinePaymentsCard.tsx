@@ -34,6 +34,7 @@ export default function OfflinePaymentsCard({ slug }: { slug: string }) {
   const [banks, setBanks] = useState<{ name: string; code: string }[]>([]);
   const [banksFailed, setBanksFailed] = useState(false);
   const [checking, setChecking] = useState(false);
+  const [nameError, setNameError] = useState("");
   const wantsBanks = Boolean(settings?.bankTransfer.enabled) && canManage;
 
   // The same bank list the payout account uses, so the account name can be checked.
@@ -88,14 +89,15 @@ export default function OfflinePaymentsCard({ slug }: { slug: string }) {
   const checkName = async () => {
     setError("");
     setStatus("");
-    if (!bankCode || !/^\d{8,16}$/.test(bank.accountNumber)) return setError("Choose your bank and enter your account number first (8 to 16 digits).");
+    setNameError("");
+    if (!bankCode || !/^\d{8,16}$/.test(bank.accountNumber)) return setNameError("Choose your bank and enter your account number first (8 to 16 digits).");
     setChecking(true);
     try {
       const data = await sendJson("/api/store/payouts/resolve", "POST", { slug, bankCode, accountNumber: bank.accountNumber });
       update({ ...settings, bankTransfer: { ...bank, accountName: data.accountName } });
       setStatus(`Account found: ${data.accountName}.`);
     } catch (err) {
-      setError((err as Error).message);
+      setNameError((err as Error).message);
     } finally {
       setChecking(false);
     }
@@ -182,6 +184,11 @@ export default function OfflinePaymentsCard({ slug }: { slug: string }) {
                 ) : null}
               </div>
             </div>
+            {nameError ? (
+              <div className="sm:col-span-2">
+                <DashAlert message={nameError} />
+              </div>
+            ) : null}
             <div className="sm:col-span-2">
               <DashField id="op-name" label="Account name" hint={canCheck ? "Filled in from your bank when you press Check name, so customers pay the right account." : undefined}>
                 <input
