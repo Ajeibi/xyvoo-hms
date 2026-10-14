@@ -1409,3 +1409,7 @@ legend { padding: 0; }
 
 /* WCAG 2.2 target size: product name links are at least 24px tall */
 .card__title a { display: inline-block; min-height: 1.5rem; padding-block: 0.125rem; }
+.pill.is-sold-out span { background: var(--surface); color: var(--muted); text-decoration: line-through; }
+.pill.is-sold-out input:checked + span { color: var(--ink); }
+.stock--out { color: #8A1C1C; }
+.stock--out::before { background: #B42318; }

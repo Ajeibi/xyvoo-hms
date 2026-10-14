@@ -5,6 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCartStore } from "@/components/shop/CartProvider";
 import { cartLineKey } from "@/lib/shop/cart";
+import { useStorefront } from "./StorefrontProvider";
+import { sendAccountActivity, useShopAccount } from "./useShopAccount";
 import { getConsent, initStoreAnalytics, onConsentChange, reopenCookieSettings, setConsent, track, type ConsentChoice } from "@/lib/store/analytics-client";
 
 /*
@@ -110,10 +112,16 @@ export function CookieSettingsButton() {
   );
 }
 
-/** Records a product view (on the product page). */
+/** Records a product view (on the product page): in analytics (with consent), and on a signed-in shopper's account. */
 export function TrackProductView({ productId }: { productId: string }) {
+  const { slug } = useStorefront();
+  const { account } = useShopAccount();
+  const signedIn = Boolean(account);
   useEffect(() => {
     track({ type: "product_view", productId });
   }, [productId]);
+  useEffect(() => {
+    if (signedIn) sendAccountActivity(slug, { productId });
+  }, [productId, signedIn, slug]);
   return null;
 }

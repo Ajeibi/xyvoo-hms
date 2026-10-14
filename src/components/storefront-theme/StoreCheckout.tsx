@@ -8,12 +8,14 @@ import type { CheckoutPaymentMethod } from "@/lib/store/offline-payments";
 import { calculateCartTotals, cartLineKey } from "@/lib/shop/cart";
 import { STORE_PATHS } from "@/lib/store/site/links";
 import { deliveryWithRules, type CheckoutFreeRule } from "@/lib/store/free-delivery";
-import { zoneCovers } from "@/lib/store/delivery";
+import { fitsWeight, orderWeightKg, zoneCovers, type WeightBand } from "@/lib/store/delivery";
 import { COUNTRY_REGIONS, regionLabel } from "@/lib/store/regions";
 import { allocateDiscount, computeTax, taxLabel, type TaxSettings } from "@/lib/store/tax";
+import { pointsValue, redeemablePoints, type LoyaltySettings } from "@/lib/store/loyalty";
 import { useMoney, useStorefront } from "./StorefrontProvider";
 import ChargeNote from "./ChargeNote";
 import { useBasketPrices } from "./useBasketPrices";
+import { useShopAccount } from "./useShopAccount";
 import { Icon, StoreImage } from "./primitives";
 
 type FieldName = "name" | "email" | "phone" | "line1" | "line2" | "city" | "state" | "terms";
@@ -30,6 +32,8 @@ export type CheckoutDeliveryOption = {
   isPickup: boolean;
   /** States and towns it delivers to; empty means everywhere. Checked again on the server. */
   regions: string[];
+  /** Charges by the order's weight when there are any bands. */
+  weightBands: WeightBand[];
 };
 
 /** The shop's tax settings, for showing tax in the summary (the server works it out again). */
@@ -62,6 +66,7 @@ const FIELD_ORDER: FieldName[] = ["email", "phone", "name", "line1", "line2", "c
 
 export default function StoreCheckout({
   countryCode,
+  storeName,
   termsHref,
   privacyHref,
   deliveryOptions,
@@ -70,6 +75,7 @@ export default function StoreCheckout({
   paymentMethods,
 }: {
   countryCode: string;
+  storeName: string;
   termsHref: string | null;
   privacyHref: string | null;
   deliveryOptions: CheckoutDeliveryOption[];
@@ -92,6 +98,14 @@ export default function StoreCheckout({
     null,
   );
   const [codeInput, setCodeInput] = useState("");
+  // A gift card pays as much of the total as its balance covers; the server works it out again.
+  const [giftCard, setGiftCard] = useState<{ code: string; balance: number } | null>(null);
+  const [giftInput, setGiftInput] = useState("");
+  // Loyalty points a confirmed shopper can use; the server works it out again.
+  const { loyalty } = useShopAccount();
+  const [usePoints, setUsePoints] = useState(false);
+  const [giftMessage, setGiftMessage] = useState("");
+  const [checkingGift, setCheckingGift] = useState(false);
   const [codeMessage, setCodeMessage] = useState("");
   const [applyingCode, setApplyingCode] = useState(false);
   const basketKey = lines.map((l) => `${cartLineKey(l.productId, l.variantId)}x${l.quantity}`).join(",");
@@ -103,21 +117,26 @@ export default function StoreCheckout({
   const subtotal = Math.max(itemsSubtotal - discountAmount, 0);
   const freeDeliveryCode = Boolean(activeDiscount?.freeDelivery);
 
+  // Today's prices, tax rates and weights from the shop: a sale may have started or ended since the basket was filled.
+  const { taxRates, weights, pricesChanged, trade } = useBasketPrices(slug);
+  const weighedLines = lines.map((l) => ({ ...l, weightKg: weights[cartLineKey(l.productId, l.variantId)] ?? 0 }));
+  const basketKg = orderWeightKg(weighedLines);
+
   // Where the shopper is: which delivery options cover them, and free delivery rules that depend on it.
   const [address, setAddress] = useState({ state: "", city: "" });
   const addressKnown = Boolean(address.state.trim() || address.city.trim());
   // Options limited to some areas appear once the shopper's state or town is known and covered.
-  const offered = deliveryOptions.filter((o) => o.isPickup || o.regions.length === 0 || (addressKnown && zoneCovers(o, address)));
+  const offeredByArea = deliveryOptions.filter((o) => o.isPickup || o.regions.length === 0 || (addressKnown && zoneCovers(o, address)));
+  // An option that charges by weight is only offered if the basket is within its heaviest band.
+  const offered = offeredByArea.filter((o) => fitsWeight(o, basketKg));
+  const tooHeavy = offeredByArea.length > 0 && offered.length === 0;
   const waitingForAddress = !addressKnown && offered.length < deliveryOptions.length;
   const zone = offered.find((o) => o.id === zoneId) ?? offered[0] ?? null;
-  const noDeliveryHere = deliveryOptions.length > 0 && offered.length === 0;
+  const noDeliveryHere = deliveryOptions.length > 0 && offered.length === 0 && !tooHeavy;
   const deliveryFor = (o: CheckoutDeliveryOption) =>
-    freeDeliveryCode ? { fee: 0, rule: null } : deliveryWithRules(o, { ...address, subtotal, lines }, freeRules);
+    freeDeliveryCode ? { fee: 0, rule: null } : deliveryWithRules(o, { ...address, subtotal, lines: weighedLines }, freeRules);
   const delivery = zone ? deliveryFor(zone) : { fee: 0, rule: null };
   const deliveryFee = delivery.fee;
-
-  // Today's prices and each line's tax rate, from the shop: a sale may have started or ended since the basket was filled.
-  const { taxRates, pricesChanged } = useBasketPrices(slug);
 
   // Tax, line by line after the discount (worked out again on the server).
   const settings: TaxSettings = { ...tax, number: null };
@@ -135,8 +154,42 @@ export default function StoreCheckout({
   const shownDeliveryFee = money.convert(deliveryFee);
   const shownTax = money.convert(taxResult.amount);
   const shownTotal = Math.max(shownSubtotal - shownDiscount, 0) + shownDeliveryFee + (taxResult.inclusive ? 0 : shownTax);
+  const giftUsed = giftCard ? Math.min(giftCard.balance, Math.max(total, 0)) : 0;
+  const shownGift = money.convert(giftUsed);
+  const pointSettings: LoyaltySettings | null = loyalty ? { enabled: true, pointsPer100: loyalty.pointsPer100, pointValue: loyalty.pointValue, minRedeem: loyalty.minRedeem, expiryMonths: 0 } : null;
+  const availablePoints = pointSettings && loyalty ? redeemablePoints(pointSettings, loyalty.balance, Math.max(total - giftUsed, 0)) : 0;
+  const pointsToUse = usePoints ? availablePoints : 0;
+  const pointsOff = pointSettings ? pointsValue(pointSettings, pointsToUse) : 0;
+  const shownPointsOff = money.convert(pointsOff);
+  const shownToPay = Math.max(shownTotal - shownGift - shownPointsOff, 0);
   const stateRegions = COUNTRY_REGIONS[countryCode]?.regions ?? null;
   const stateLabel = regionLabel(countryCode);
+
+  const applyGiftCard = async () => {
+    const typed = giftInput.trim();
+    if (!typed) return setGiftMessage("Enter your gift card code.");
+    setCheckingGift(true);
+    setGiftMessage("");
+    try {
+      const res = await fetch(`/api/shop/${encodeURIComponent(slug)}/gift-cards/check`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: typed }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setGiftMessage(typeof data.error === "string" ? data.error : "We couldn't check that gift card. Please try again.");
+        return;
+      }
+      setGiftCard({ code: data.code, balance: Number(data.balance) || 0 });
+      setGiftInput("");
+      setGiftMessage(`Gift card added. It has ${money.format(money.convert(Number(data.balance) || 0))} on it.`);
+    } catch {
+      setGiftMessage("We couldn't connect. Check your internet connection and try again.");
+    } finally {
+      setCheckingGift(false);
+    }
+  };
 
   const applyCode = async () => {
     const typed = codeInput.trim();
@@ -181,6 +234,33 @@ export default function StoreCheckout({
     const fee = deliveryFor(o).fee;
     return fee === 0 ? "Free" : money.format(money.convert(fee));
   };
+
+  // A signed-in shopper's details (and, on a confirmed device, their last address) are filled in for them.
+  const { account, address: savedAddress } = useShopAccount();
+  const formRef = useRef<HTMLFormElement>(null);
+  const prefilled = useRef(false);
+  useEffect(() => {
+    const form = formRef.current;
+    if (!account || !form || prefilled.current) return;
+    prefilled.current = true;
+    // Set like typing does, so the fields' own change handlers run (delivery options depend on the address).
+    const fill = (name: string, value: string | null | undefined) => {
+      const input = form.elements.namedItem(name);
+      if (!value || !(input instanceof HTMLInputElement || input instanceof HTMLSelectElement) || input.value) return;
+      const proto = input instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
+      Object.getOwnPropertyDescriptor(proto, "value")?.set?.call(input, value);
+      input.dispatchEvent(new Event(input instanceof HTMLSelectElement ? "change" : "input", { bubbles: true }));
+    };
+    fill("name", account.name);
+    fill("email", account.email);
+    fill("phone", account.phone);
+    if (savedAddress) {
+      fill("line1", savedAddress.line1);
+      fill("line2", savedAddress.line2);
+      fill("city", savedAddress.city);
+      fill("state", savedAddress.state);
+    }
+  }, [account, savedAddress, hasHydrated, lines.length]);
 
   // Analytics (only sent with the shopper's consent) and the abandoned-cart save.
   const started = useRef(false);
@@ -252,6 +332,10 @@ export default function StoreCheckout({
       document.getElementById(`co-${firstInvalid}`)?.focus();
       return;
     }
+    if (tooHeavy) {
+      setStatus("Sorry, this order is too heavy for the delivery options in your area. Please contact the shop to arrange your order.");
+      return;
+    }
     if (noDeliveryHere) {
       setStatus("Sorry, this shop doesn't deliver to your address yet. Please contact the shop to arrange your order.");
       return;
@@ -275,6 +359,9 @@ export default function StoreCheckout({
           checkoutToken: checkoutToken(slug),
           paymentMethod: method,
           discountCode: activeDiscount?.code,
+          giftCardCode: giftCard?.code,
+          loyaltyPoints: pointsToUse || undefined,
+          marketingConsent: form.get("marketing") === "yes",
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -322,6 +409,7 @@ export default function StoreCheckout({
   return (
     <div className="checkout-layout">
       <form
+        ref={formRef}
         className="contact-form"
         onSubmit={submit}
         noValidate
@@ -341,6 +429,18 @@ export default function StoreCheckout({
             </span>
             Contact details
           </h2>
+          <p className="body-copy checkout-account">
+            {account ? (
+              <>
+                Signed in as <strong>{account.email}</strong>. Your details are filled in for you.
+              </>
+            ) : (
+              <>
+                We&rsquo;ll set up your account from these details, so you can follow your order and check out faster next time. No password needed.{" "}
+                <Link href={href("/account")}>Already have an account? Sign in</Link>
+              </>
+            )}
+          </p>
           <div className="field">
             <label htmlFor="co-name">Full name</label>
             <input className="input" type="text" autoComplete="name" {...field("name")} />
@@ -350,8 +450,8 @@ export default function StoreCheckout({
             <label htmlFor="co-email">Email address</label>
             <input className="input" type="email" autoComplete="email" inputMode="email" {...field("email")} />
             <p className="hint">
-              So the shop can contact you about your order. Your details and basket are saved as you type, so the shop can help if you don&rsquo;t
-              finish.
+              So the shop can contact you about your order. Your details and basket are saved as you type, so if you don&rsquo;t finish, the
+              shop can help or email you a reminder (you can stop these at any time).
             </p>
             {errorFor("email")}
           </div>
@@ -434,8 +534,10 @@ export default function StoreCheckout({
               Delivery method
             </h2>
             {/* Announced as the options change with the address. */}
-            <p className={`delivery-note${noDeliveryHere ? " delivery-note--warn" : ""}`} role="status">
-              {noDeliveryHere
+            <p className={`delivery-note${noDeliveryHere || tooHeavy ? " delivery-note--warn" : ""}`} role="status">
+              {tooHeavy
+                ? "Sorry, this order is heavier than the delivery options for your area can carry. Please contact the shop to arrange it, or remove something from your basket."
+                : noDeliveryHere
                 ? `Sorry, this shop doesn't deliver to ${address.city.trim() || address.state.trim()} yet. Check your address, or contact the shop to arrange your order.`
                 : waitingForAddress
                   ? "Enter your address above to see every delivery option for your area."
@@ -491,6 +593,10 @@ export default function StoreCheckout({
               <p>{PAYMENT_COPY[method].text}</p>
             </div>
           )}
+          <label className="check check--top">
+            <input type="checkbox" name="marketing" value="yes" />
+            <span>Send me news and offers from {storeName} by email. You can unsubscribe at any time.</span>
+          </label>
           {termsHref ? (
             <>
               <label className="check check--top">
@@ -511,7 +617,7 @@ export default function StoreCheckout({
           ) : null}
           <button className="btn btn--primary" type="submit" disabled={submitting}>
             <Icon name="lock" size="sm" />
-            {submitting ? "Please wait…" : method === "card" ? `Pay ${money.formatHome(total)}` : `Place order (${money.formatHome(total)})`}
+            {submitting ? "Please wait…" : method === "card" ? `Pay ${money.formatHome(Math.max(total - giftUsed - pointsOff, 0))}` : `Place order (${money.formatHome(Math.max(total - giftUsed - pointsOff, 0))})`}
           </button>
           <p className="form-status" role="status">
             {status}
@@ -521,7 +627,12 @@ export default function StoreCheckout({
 
       <aside className="summary" aria-labelledby="co-summary-title">
         <h2 id="co-summary-title">Your order</h2>
-        {pricesChanged ? (
+        {trade ? (
+          <p className="price-change" role="status">
+            Your trade prices are applied. They&rsquo;re checked again when you place your order.
+          </p>
+        ) : null}
+        {pricesChanged && !trade ? (
           <p className="price-change" role="status">
             Some prices have changed since you added them to your basket. Your order shows today&rsquo;s prices.
           </p>
@@ -579,8 +690,63 @@ export default function StoreCheckout({
             </p>
           ) : null}
         </div>
+        <div className="discount-code">
+          <label htmlFor="co-giftcard">Gift card <span className="optional">(optional)</span></label>
+          {giftCard ? (
+            <p className="discount-code__applied">
+              <Icon name="check" size="sm" /> <strong>{giftCard.code}</strong> {money.format(money.convert(giftCard.balance))} on this card{" "}
+              <button
+                type="button"
+                className="link-button"
+                onClick={() => {
+                  setGiftCard(null);
+                  setGiftMessage("Gift card removed.");
+                }}
+              >
+                Remove<span className="visually-hidden"> gift card {giftCard.code}</span>
+              </button>
+            </p>
+          ) : (
+            <div className="promo">
+              <input
+                id="co-giftcard"
+                className="input"
+                type="text"
+                autoComplete="off"
+                autoCapitalize="characters"
+                placeholder="XXXX-XXXX-XXXX-XXXX"
+                value={giftInput}
+                onChange={(e) => setGiftInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    applyGiftCard();
+                  }
+                }}
+                aria-describedby="co-giftcard-status"
+              />
+              <button className="btn btn--outline" type="button" onClick={applyGiftCard} disabled={checkingGift}>
+                {checkingGift ? "Checking…" : "Apply"}
+              </button>
+            </div>
+          )}
+          <p className="hint" id="co-giftcard-status" role="status">
+            {giftMessage}
+          </p>
+        </div>
+        {pointSettings && loyalty && availablePoints > 0 ? (
+          <div className="discount-code">
+            <label className="check check--top">
+              <input type="checkbox" checked={usePoints} onChange={(e) => setUsePoints(e.target.checked)} />
+              <span>
+                Use my points: {availablePoints.toLocaleString("en-GB")} points for {money.format(money.convert(pointsValue(pointSettings, availablePoints)))} off
+                <span className="hint"> You have {loyalty.balance.toLocaleString("en-GB")} points.</span>
+              </span>
+            </label>
+          </div>
+        ) : null}
         <dl>
-          {zone || activeDiscount || taxResult.amount > 0 ? (
+          {zone || activeDiscount || taxResult.amount > 0 || giftCard || pointsToUse > 0 ? (
             <>
               <dt>Subtotal</dt>
               <dd>{money.format(shownSubtotal)}</dd>
@@ -604,8 +770,20 @@ export default function StoreCheckout({
               <dd>{money.format(shownTax)}</dd>
             </>
           ) : null}
-          <dt className="total">Total</dt>
-          <dd className="total">{money.format(shownTotal)}</dd>
+          {giftCard ? (
+            <>
+              <dt>Gift card</dt>
+              <dd>−{money.format(shownGift)}</dd>
+            </>
+          ) : null}
+          {pointsToUse > 0 ? (
+            <>
+              <dt>Points ({pointsToUse.toLocaleString("en-GB")})</dt>
+              <dd>−{money.format(shownPointsOff)}</dd>
+            </>
+          ) : null}
+          <dt className="total">{giftCard || pointsToUse > 0 ? "To pay" : "Total"}</dt>
+          <dd className="total">{money.format(giftCard || pointsToUse > 0 ? shownToPay : shownTotal)}</dd>
         </dl>
         {taxResult.amount > 0 && taxResult.inclusive ? (
           <p className="tax-note">
@@ -617,7 +795,7 @@ export default function StoreCheckout({
             <Icon name="truck" size="sm" /> {delivery.rule.name}
           </p>
         ) : null}
-        <ChargeNote homeAmount={total} />
+        <ChargeNote homeAmount={Math.max(total - giftUsed - pointsOff, 0)} />
         <Link className="link-arrow" href={href(STORE_PATHS.cart)}>
           Edit basket
         </Link>

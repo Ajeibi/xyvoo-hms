@@ -6,6 +6,9 @@ import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import Script from "next/script";
+import AccountActivity from "@/components/storefront-theme/AccountActivity";
+import AccountPrompt from "@/components/storefront-theme/AccountPrompt";
+import PromoBar from "@/components/storefront-theme/PromoBar";
 import StoreAnalytics from "@/components/storefront-theme/StoreAnalytics";
 import StoreApp, { type StoreAppConfig } from "@/components/storefront-theme/StoreApp";
 import StoreFooter from "@/components/storefront-theme/StoreFooter";
@@ -19,6 +22,9 @@ import { getStorefront, type Storefront } from "@/lib/store/site/storefront";
 import { storeAppPath, storeAppScope } from "@/lib/store/app";
 import { getPushPublicKey } from "@/lib/store/push";
 import { getStorePlan, storeHasFeature } from "@/lib/store/features";
+import { countdownLabel } from "@/lib/store/discounts";
+import { getPromoBanner } from "@/lib/store/discounts-server";
+import { formatShopCurrency } from "@/lib/shop/format";
 import { findSlugRedirect } from "@/lib/store/slugs";
 import { movedStoreLocation, STOREFRONT_HOST_HEADER, STOREFRONT_PATH_HEADER, STOREFRONT_PREVIEW_PARAM } from "@/lib/store/subdomain";
 
@@ -176,6 +182,9 @@ export default async function StorefrontLayout({ children, params }: LayoutParam
         }
       : null;
 
+  const promo = visible ? await getPromoBanner(storefront.tenant.id, (n) => formatShopCurrency(n, storefront.profile.currencyCode)).catch(() => null) : null;
+  const promoLabel = promo ? countdownLabel(promo.endsAt, new Date()) : null;
+
   return (
     <html
       lang="en"
@@ -236,6 +245,7 @@ export default async function StorefrontLayout({ children, params }: LayoutParam
           <StorefrontProvider
             value={{ slug, basePath, currency: storefront.profile.currencyCode, currencies: storefront.currencies, displayCurrency: storefront.displayCurrency }}
           >
+            {promo && promoLabel ? <PromoBar offer={promo.offer} code={promo.code} endsAt={promo.endsAt} initialLabel={promoLabel} /> : null}
             <StoreHeader
               brand={{ storeName, homeHref: storeHref(basePath, "/"), logoUrl: site.brand.logoUrl, logoAlt: site.brand.logoAlt, showMark }}
               navItems={headerNavItems(storefront)}
@@ -254,6 +264,8 @@ export default async function StorefrontLayout({ children, params }: LayoutParam
             <StoreFooter storefront={storefront} showMark={showMark} appConfig={appConfig} />
             {appConfig ? <StoreApp config={appConfig} variant="prompt" /> : null}
             {appConfig ? <StoreAnalytics slug={slug} storeName={storeName} privacyHref={privacyPageHref(storefront)} /> : null}
+            {appConfig ? <AccountPrompt storeName={storeName} privacyHref={privacyPageHref(storefront)} /> : null}
+            {appConfig ? <AccountActivity /> : null}
           </StorefrontProvider>
         ) : (
           <OpeningSoon storefront={storefront} />

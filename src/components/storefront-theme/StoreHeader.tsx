@@ -7,6 +7,8 @@ import { useCartStore } from "@/components/shop/CartProvider";
 import CurrencySwitcher from "./CurrencySwitcher";
 import type { StoreSocialLink } from "./socials";
 import { Icon } from "./primitives";
+import { useStorefront } from "./StorefrontProvider";
+import { useShopAccount } from "./useShopAccount";
 
 export type HeaderNavItem = { label: string; href: string; children?: Array<{ label: string; href: string }> };
 
@@ -37,6 +39,18 @@ export function StoreLogo({ storeName, homeHref, logoUrl, logoAlt, showMark }: S
           </span>
         </>
       )}
+    </Link>
+  );
+}
+
+/** The shopper's account: "Sign in" for guests, their name once signed in. */
+function AccountLink() {
+  const { href } = useStorefront();
+  const { account } = useShopAccount();
+  const label = account ? `Your account${account.name ? `, signed in as ${account.name}` : ""}` : "Sign in or create an account";
+  return (
+    <Link className="icon-btn" href={href("/account")} aria-label={label}>
+      <Icon name="user" />
     </Link>
   );
 }
@@ -220,6 +234,7 @@ export default function StoreHeader({
             >
               <Icon name="search" />
             </button>
+            <AccountLink />
             <BasketLink href={cartHref} />
           </div>
         </div>

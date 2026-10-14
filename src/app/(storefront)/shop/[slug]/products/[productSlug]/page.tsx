@@ -1,10 +1,13 @@
 import { Fragment } from "react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import GiftCardBuy from "@/components/storefront-theme/GiftCardBuy";
 import ProductDetail from "@/components/storefront-theme/ProductDetail";
 import { ProductGridList } from "@/components/storefront-theme/ProductCard";
 import { Breadcrumb, Icon, Rating, SectionHead } from "@/components/storefront-theme/primitives";
+import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { formatShopCurrency } from "@/lib/shop/format";
 import { parseReviewImages } from "@/lib/store/reviews";
 import { getShopProductBySlug, listShopProducts, type ShopProduct } from "@/lib/shop/products";
 import { STORE_PATHS, storeHref } from "@/lib/store/site/links";
@@ -39,6 +42,33 @@ function paragraphs(text: string) {
     .map((p) => p.trim())
     .filter(Boolean)
     .map((p, i) => <p key={i}>{p}</p>);
+}
+
+type BundleItem = { quantity: number; name: string; href: string | null; price: number };
+
+/** "What's in the bundle", and what it would cost bought separately. */
+function BundleContents({ items, price, currency }: { items: BundleItem[]; price: number; currency: string }) {
+  const separately = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  const saving = separately - price;
+  return (
+    <section className="bundle-contents" aria-labelledby="bundle-contents-title">
+      <h2 className="bundle-contents__title" id="bundle-contents-title">
+        What&rsquo;s in the bundle
+      </h2>
+      <ul>
+        {items.map((i) => (
+          <li key={i.name}>
+            <span className="bundle-contents__qty">{i.quantity} ×</span> {i.href ? <Link href={i.href}>{i.name}</Link> : i.name}
+          </li>
+        ))}
+      </ul>
+      {saving > 0 ? (
+        <p className="bundle-contents__saving">
+          Worth {formatShopCurrency(separately, currency)} bought separately. <strong>You save {formatShopCurrency(saving, currency)}.</strong>
+        </p>
+      ) : null}
+    </section>
+  );
 }
 
 function Details({ product }: { product: ShopProduct }) {
@@ -113,13 +143,34 @@ export default async function StorefrontProductPage({ params }: Props) {
     // Only reviews the shop has approved.
     return (withExtras ? q.eq("status", "published") : q).order("created_at", { ascending: false }).limit(10);
   };
-  const [reviewsResult, related] = await Promise.all([
+  const [reviewsResult, related, { data: giftProfile }, { data: bundleRows }] = await Promise.all([
     // Before the reviews migration there are no photos, replies or approval: fall back to the plain list.
     reviewsQuery(true).then((r) => (r.error?.code === "42703" ? reviewsQuery(false) : r)),
     product.category
       ? listShopProducts(storefront.tenant.id, { category: product.category, pageSize: 5 }).then((r) => r.products.filter((p) => p.id !== product.id).slice(0, 4))
       : Promise.resolve([] as ShopProduct[]),
+    createServerSupabaseClient().schema("store").from("business_profile").select("gift_card_product_id").eq("tenant_id", storefront.tenant.id).maybeSingle(),
+    createServerSupabaseClient()
+      .schema("store")
+      .from("product_bundle_items")
+      .select("quantity, component:component_product_id(id, name, slug, price, status, visibility)")
+      .eq("bundle_product_id", product.id)
+      .order("created_at"),
   ]);
+  // A bundle lists what's in it; items that are on sale on their own link to their page.
+  const bundleItems: BundleItem[] = ((bundleRows || []) as unknown as Array<{
+    quantity: number;
+    component: { id: string; name: string; slug: string | null; price: number; status: string; visibility: string } | null;
+  }>)
+    .filter((r) => r.component)
+    .map((r) => ({
+      quantity: r.quantity,
+      name: r.component!.name,
+      price: Number(r.component!.price) || 0,
+      href: r.component!.status === "active" && r.component!.visibility === "visible" ? storeHref(basePath, STORE_PATHS.product(r.component!.slug || r.component!.id)) : null,
+    }));
+  // The shop's gift card has its own buying form instead of "Add to basket".
+  const isGiftCard = Boolean(giftProfile?.gift_card_product_id) && giftProfile?.gift_card_product_id === product.id;
   const reviews = ((reviewsResult.data || []) as unknown as Array<{
     id: string;
     customer_name: string;
@@ -167,7 +218,19 @@ export default async function StorefrontProductPage({ params }: Props) {
             { label: product.name },
           ]}
         />
-        <ProductDetail product={product} details={<Details product={product} />} />
+        {isGiftCard ? (
+          <GiftCardBuy product={product} storeName={storefront.storeName} paymentMethods={storefront.paymentMethods} />
+        ) : (
+          <ProductDetail
+            product={product}
+            details={
+              <>
+                {bundleItems.length ? <BundleContents items={bundleItems} price={product.price} currency={product.currency} /> : null}
+                <Details product={product} />
+              </>
+            }
+          />
+        )}
       </div>
 
       {reviews.length ? (
