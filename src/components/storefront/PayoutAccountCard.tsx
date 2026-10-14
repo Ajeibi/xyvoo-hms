@@ -18,7 +18,7 @@ const announceChange = () => window.dispatchEvent(new Event("xyvoo:payments-chan
  * "Get paid": the bank account Paystack pays the store's sales into. Saving
  * creates the store's Paystack subaccount; XYVOO's fee is taken at settlement.
  */
-export default function PayoutAccountCard({ slug }: { slug: string }) {
+export default function PayoutAccountCard({ slug, defaultBusinessName = "" }: { slug: string; defaultBusinessName?: string }) {
   const [loading, setLoading] = useState(true);
   const [available, setAvailable] = useState(false);
   const [canManage, setCanManage] = useState(false);
@@ -27,8 +27,10 @@ export default function PayoutAccountCard({ slug }: { slug: string }) {
   const [banks, setBanks] = useState<Bank[]>([]);
   const [bankCode, setBankCode] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
-  const [businessName, setBusinessName] = useState("");
+  const [businessName, setBusinessName] = useState(defaultBusinessName);
   const [accountName, setAccountName] = useState("");
+  // Checking the name and saving are separate, so one never looks like the other.
+  const [checking, setChecking] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
@@ -68,7 +70,7 @@ export default function PayoutAccountCard({ slug }: { slug: string }) {
     setError("");
     setAccountName("");
     if (!bankCode || !/^\d{8,16}$/.test(accountNumber)) return setError("Choose your bank and enter your account number first.");
-    setBusy(true);
+    setChecking(true);
     try {
       const data = await post("/api/store/payouts/resolve", { bankCode, accountNumber });
       setAccountName(data.accountName);
@@ -76,7 +78,7 @@ export default function PayoutAccountCard({ slug }: { slug: string }) {
     } catch (e) {
       setError((e as Error).message);
     } finally {
-      setBusy(false);
+      setChecking(false);
     }
   };
 
@@ -177,8 +179,8 @@ export default function PayoutAccountCard({ slug }: { slug: string }) {
                     setAccountName("");
                   }}
                 />
-                <button type="button" onClick={checkName} disabled={busy} className={`${dashButton.secondary} ${ring} shrink-0`}>
-                  Check name
+                <button type="button" onClick={checkName} disabled={busy || checking} className={`${dashButton.secondary} ${ring} shrink-0`}>
+                  {checking ? "Checking…" : "Check name"}
                 </button>
               </div>
               <p id="payout-account-name" className="mt-2 text-sm text-slate-800">
@@ -191,11 +193,11 @@ export default function PayoutAccountCard({ slug }: { slug: string }) {
                 )}
               </p>
             </div>
-            <DashField id="payout-business" label="Business name for payouts">
-              <input id="payout-business" className={dashInput} value={businessName} onChange={(e) => setBusinessName(e.target.value)} autoComplete="organization" />
+            <DashField id="payout-business" label="Business name for payouts" hint="The name this shop's payouts are filed under with Paystack. Your customers never see it. Your shop's name is a good choice.">
+              <input id="payout-business" className={dashInput} aria-describedby="payout-business-hint" value={businessName} onChange={(e) => setBusinessName(e.target.value)} autoComplete="organization" />
             </DashField>
             <div className="flex flex-wrap items-center gap-2">
-              <button type="submit" disabled={busy || !accountName} className={`${dashButton.primary} ${ring}`}>
+              <button type="submit" disabled={busy || checking || !accountName} className={`${dashButton.primary} ${ring}`}>
                 {busy ? "Saving…" : "Save payout account"}
               </button>
               {account ? (

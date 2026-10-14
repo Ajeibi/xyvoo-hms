@@ -3,6 +3,7 @@ import { Coins, CreditCard, HandCoins, Landmark, ShieldCheck, Zap } from "lucide
 import CurrenciesCard from "@/components/storefront/CurrenciesCard";
 import OfflinePaymentsCard from "@/components/storefront/OfflinePaymentsCard";
 import PaymentsSummary from "@/components/storefront/PaymentsSummary";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 import PayoutAccountCard from "@/components/storefront/PayoutAccountCard";
 import PlanBillingCard from "@/components/storefront/PlanBillingCard";
 import StorefrontSettingsClient from "@/components/storefront/StorefrontSettingsClient";
@@ -28,6 +29,8 @@ export default async function StorefrontPaymentsPage({
   // Only stores that already entered their own Paystack keys still see that form.
   const [ownKeys, plan] = await Promise.all([getTenantPaystackSetup(access.tenantId), getStorePlan(access.tenantId)]);
   const hasOwnKeys = Boolean(ownKeys);
+  const { data: tenantRow } = await createServerSupabaseClient().from("tenants").select("display_name, name").eq("id", access.tenantId).maybeSingle();
+  const storeName = (tenantRow?.display_name as string | null)?.trim() || (tenantRow?.name as string | null)?.trim() || "";
 
   return (
     <div className="space-y-6">
@@ -87,7 +90,7 @@ export default async function StorefrontPaymentsPage({
         {/* Main Settings Column */}
         <div className="space-y-6 lg:col-span-7 xl:col-span-8">
           <div id="get-paid" className="scroll-mt-6">
-            <PayoutAccountCard slug={slug} />
+            <PayoutAccountCard slug={slug} defaultBusinessName={storeName} />
           </div>
 
           <div id="other-ways-to-pay" className="scroll-mt-6">
