@@ -2,6 +2,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { formatShopCurrency } from "@/lib/shop/format";
 import { recordOrderEvent, type OrderActor } from "./order-events";
 import { getPaystackKeyForReference } from "./payments";
+import { isSimulatedIntent, simulatedPaymentsEnabled } from "@/lib/payments/simulated";
 import { refundableAmount, refundAmountProblem, refundMethod, refundSubunits } from "./refunds";
 
 /*
@@ -76,10 +77,12 @@ export async function issueRefund(input: RefundRequest) {
 
   const method = refundMethod(state);
   let paystack: { reference: string; secretKey: string; chargedAmount: number } | null = null;
+  // A test payment (development only) has no Paystack transaction, so its refund is recorded as processed here.
+  let simulatedRefund = false;
   if (method === "paystack") {
     const { data: intent } = await db
       .from("payment_intents")
-      .select("paystack_reference, amount")
+      .select("paystack_reference, amount, metadata")
       .eq("tenant_id", input.tenantId)
       .eq("order_id", input.orderId)
       .eq("status", "success")
@@ -87,9 +90,15 @@ export async function issueRefund(input: RefundRequest) {
       .limit(1)
       .maybeSingle();
     if (!intent) throw new RefundError("We couldn't find the card payment for this order. Please contact XYVOO support.");
-    const key = await getPaystackKeyForReference(intent.paystack_reference as string);
-    if (!key || key.tenantId !== input.tenantId) throw new RefundError("Card refunds aren't available for this order right now. Please contact XYVOO support.");
-    paystack = { reference: intent.paystack_reference as string, secretKey: key.secretKey, chargedAmount: Number(intent.amount) || state.totalAmount };
+    if (isSimulatedIntent(intent.metadata)) {
+      if (!simulatedPaymentsEnabled()) throw new RefundError("This was a test payment, so it can't be refunded here.");
+      simulatedRefund = true;
+    }
+    if (!simulatedRefund) {
+      const key = await getPaystackKeyForReference(intent.paystack_reference as string);
+      if (!key || key.tenantId !== input.tenantId) throw new RefundError("Card refunds aren't available for this order right now. Please contact XYVOO support.");
+      paystack = { reference: intent.paystack_reference as string, secretKey: key.secretKey, chargedAmount: Number(intent.amount) || state.totalAmount };
+    }
   }
 
   const amount = Math.round(input.amount * 100) / 100;
@@ -111,6 +120,10 @@ export async function issueRefund(input: RefundRequest) {
   if (begun === "not_paid") throw new RefundError("This order hasn't been paid, so there's nothing to refund.");
   if (begun === "too_much") throw new RefundError("That's more than is left to refund on this order. Please refresh the page.");
   const refundId = String(begun);
+
+  if (simulatedRefund) {
+    await db.from("order_refunds").update({ status: "processed", paystack_status: "processed" }).eq("tenant_id", input.tenantId).eq("id", refundId);
+  }
 
   if (paystack) {
     const result = await createPaystackRefund(paystack.secretKey, {

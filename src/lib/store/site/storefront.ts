@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { simulatedPaymentsEnabled } from "@/lib/payments/simulated";
 import { cookies, headers } from "next/headers";
 import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -213,7 +214,7 @@ export const getStorefront = cache(async (slug: string): Promise<Storefront | nu
     isLive,
     isPreview,
     acceptsPayments: paymentRoute !== null,
-    paymentMethods: availablePaymentMethods({ acceptsCard: paymentRoute !== null, offline: parseOfflinePayments(offlineResult.data?.offline_payments), whatsappNumber: p?.whatsapp ?? null }),
+    paymentMethods: availablePaymentMethods({ acceptsCard: paymentRoute !== null || simulatedPaymentsEnabled(), offline: parseOfflinePayments(offlineResult.data?.offline_payments), whatsappNumber: p?.whatsapp ?? null }),
     profile,
     currencies,
     displayCurrency,

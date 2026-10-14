@@ -16,6 +16,7 @@ import { getCheckoutFreeRules } from "@/lib/store/free-delivery-server";
 import { mapOrderErrorMessage, toSubunitAmount } from "@/lib/shop/checkout";
 import { storeCurrency } from "@/lib/store/payout-routes";
 import { initializeTransaction } from "@/lib/shop/paystack";
+import { simulatedPaymentsEnabled } from "@/lib/payments/simulated";
 import { getStoreSlugFromHost } from "@/lib/store/subdomain";
 import { linkCheckoutToOrder } from "@/lib/store/checkouts";
 import { accountForCheckout, getCustomerSession, startCustomerSession } from "@/lib/store/customer-accounts";
@@ -142,7 +143,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     service.schema("store").from("business_profile").select("*").eq("tenant_id", tenant.id).maybeSingle(),
   ]);
   const offline = parseOfflinePayments(profile?.offline_payments);
-  const methods = availablePaymentMethods({ acceptsCard: paymentRoute !== null, offline, whatsappNumber: (profile?.whatsapp as string | null) ?? null });
+  const methods = availablePaymentMethods({ acceptsCard: paymentRoute !== null || simulatedPaymentsEnabled(), offline, whatsappNumber: (profile?.whatsapp as string | null) ?? null });
   if (!methods.includes(paymentMethod)) {
     return NextResponse.json({ error: methods.length ? "That way to pay isn't available. Please choose another." : "This store isn't taking orders online yet." }, { status: 400 });
   }
@@ -489,10 +490,31 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     after(() => sendOrderReceivedEmails(tenant.id, order.id));
     return json({ orderId: order.id, receivedUrl: receivedUrl(order.id) });
   }
-  if (!paymentRoute) return NextResponse.json({ error: "Card payments aren't available. Please choose another way to pay." }, { status: 400 });
+  const simulated = simulatedPaymentsEnabled();
+  if (!paymentRoute && !simulated) return NextResponse.json({ error: "Card payments aren't available. Please choose another way to pay." }, { status: 400 });
 
   const origin = new URL(req.url).origin;
   const reference = order.id;
+
+  // Testing only: a pretend card page instead of Paystack. No money moves and nothing leaves this app.
+  if (simulated) {
+    const authorizationUrl = `${origin}${onStoreSubdomain ? "" : `/shop/${slug}`}/checkout/simulate?reference=${reference}`;
+    const { error: intentError } = await service.schema("store").from("payment_intents").insert({
+      tenant_id: tenant.id,
+      order_id: order.id,
+      amount: order.total_amount,
+      currency_code: currency,
+      paystack_reference: reference,
+      status: "pending",
+      metadata: { authorization_url: authorizationUrl, simulated: true },
+    });
+    if (intentError) {
+      console.error("[checkout] simulated payment not started", { orderId: order.id, error: intentError.message });
+      return NextResponse.json({ error: "We couldn't start the payment just now. Please try again in a moment." }, { status: 502 });
+    }
+    return json({ authorizationUrl, reference, orderId: order.id });
+  }
+  if (!paymentRoute) return NextResponse.json({ error: "Card payments aren't available. Please choose another way to pay." }, { status: 400 });
   // Send the shopper back to wherever they checked out: the store's own
   // subdomain, or /shop/<slug> on the platform domain.
   const callbackUrl = onStoreSubdomain ? `${origin}/checkout/callback` : `${origin}/shop/${slug}/checkout/callback`;
