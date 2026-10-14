@@ -130,6 +130,7 @@ export function CreateAccountForm({
         email: get("email"),
         phone: get("phone") || undefined,
         consent: form.get("consent") === "yes",
+        marketing: form.get("marketing") === "yes",
         source,
       });
       if (data.needsCode) {
@@ -165,6 +166,10 @@ export function CreateAccountForm({
       <label className="check check--top">
         <input type="checkbox" name="consent" value="yes" />
         <span>Yes, {storeName} can contact me about my basket, new arrivals and offers. I can change this at any time.</span>
+      </label>
+      <label className="check check--top">
+        <input type="checkbox" name="marketing" value="yes" />
+        <span>Send me news and offers from {storeName} by email. You can unsubscribe at any time.</span>
       </label>
       <p className="hint">
         {`No password needed: next time, we’ll email you a code to sign in. With an account, ${storeName} can see the products you look at and what’s in your basket, so they can help you.`}
