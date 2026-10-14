@@ -1,4 +1,5 @@
 import HMSLayout from "@/components/hms/HMSLayout";
+import { HmsPage, HmsPageHeader } from "@/components/hms/hms-ui";
 import { getHmsAccessContext } from "@/lib/hms/access";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -13,10 +14,9 @@ export default async function AccountsChartPage({ params }: { params: Promise<{ 
   if (!tenant) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-chart">
-        <div className="px-8 py-8">
-          <h1 className="text-xl font-semibold text-slate-900">Chart of accounts</h1>
-          <p className="mt-0.5 text-sm text-slate-500">Hotel not found.</p>
-        </div>
+        <HmsPage>
+          <HmsPageHeader eyebrow="Accounts" meaning="money" title="Chart of accounts" description="Hotel not found." />
+        </HmsPage>
       </HMSLayout>
     );
   }

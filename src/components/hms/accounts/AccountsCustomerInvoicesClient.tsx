@@ -3,9 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { formatDateTime } from "@/lib/format-date";
 import type { ChartOfAccountRow } from "@/lib/hms/chart-of-accounts";
@@ -13,10 +11,18 @@ import { ACCOUNTS_DEPARTMENTS } from "@/lib/hms/journal-entries";
 import type { CustomerInvoiceRow } from "@/lib/hms/customer-invoices";
 import type { ArCustomerRow } from "@/lib/hms/ar-customers";
 import { AccountsSubNav } from "@/components/hms/accounts/AccountsSubNav";
+import { HmsCard, HmsEmptyState, HmsField, HmsPage, HmsPageHeader, HmsPill, hmsButton, hmsInput } from "@/components/hms/hms-ui";
+import { HmsSectionIntro } from "@/components/hms/hms-ui-client";
+import { FileText, Plus } from "lucide-react";
 
 type InHouseGuestOption = { reservationId: string; guestName: string; roomCode: string | null; confirmationCode: string; isOverdue: boolean };
 
 const STATUS_LABEL: Record<string, string> = { open: "Open", paid: "Paid", cancelled: "Cancelled" };
+const STATUS_TONE: Record<string, "slate" | "green" | "amber" | "red" | "blue"> = { open: "amber", paid: "green", cancelled: "slate" };
+
+function isPastDue(dueDate: string | null) {
+  return !!dueDate && dueDate.slice(0, 10) < new Date().toISOString().slice(0, 10);
+}
 
 function emptyInvoiceForm(defaultDepartment: string, defaultCurrency: string) {
   return {
@@ -249,149 +255,187 @@ export function AccountsCustomerInvoicesClient({
   };
 
   return (
-    <div className="w-full px-6 py-8 sm:px-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900">Customer invoices</h1>
-          <p className="mt-0.5 text-sm text-slate-500">
-            Accounts Receivable. An invoice posts to the ledger the moment it&apos;s created — there&apos;s no approval step.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          {canReceivePayment && selectedIds.size > 0 ? (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setReceiptAmounts(Object.fromEntries(selectedInvoices.map((i) => [i.id, String(remainingFor(i))])));
-                setReceiveOpen(true);
-              }}
-            >
-              Receive selected ({selectedIds.size})
-            </Button>
-          ) : null}
-          {canCreate ? (
-            <Button type="button" onClick={openCreate} disabled={accounts.length === 0}>
-              New invoice
-            </Button>
-          ) : null}
-        </div>
-      </div>
+    <HmsPage wide>
+      <HmsPageHeader
+        eyebrow="Accounts"
+        meaning="money"
+        title="Customer invoices"
+        description="Money owed to the hotel. An invoice posts to the ledger as soon as it's created; there's no approval step."
+        actions={
+          <>
+            {canReceivePayment && selectedIds.size > 0 ? (
+              <button
+                type="button"
+                className={hmsButton.secondary}
+                onClick={() => {
+                  setReceiptAmounts(Object.fromEntries(selectedInvoices.map((i) => [i.id, String(remainingFor(i))])));
+                  setReceiveOpen(true);
+                }}
+              >
+                Receive selected ({selectedIds.size})
+              </button>
+            ) : null}
+            {canCreate ? (
+              <button type="button" className={hmsButton.primary} onClick={openCreate} disabled={accounts.length === 0}>
+                <Plus className="h-4 w-4" aria-hidden />
+                New invoice
+              </button>
+            ) : null}
+          </>
+        }
+      />
 
       <AccountsSubNav slug={slug} canAccessAllDepartments={canAccessAllDepartments} />
 
-      {invoices.length === 0 ? (
-        <div className="mt-6 rounded-xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">
-          No customer invoices yet.
-        </div>
-      ) : (
-        <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <HmsSectionIntro
+        id="accounts-invoices"
+        meaning="money"
+        art="page"
+        title="Billing companies and guests on account"
+        points={[
+          "Create an invoice for anyone who pays later, such as a company or travel agent.",
+          "Tick open invoices, then choose Receive selected when the money arrives.",
+          "Part payments are fine: the invoice stays open until it's fully paid.",
+        ]}
+      />
+
+      <HmsCard id="accounts-invoices-list" title="Invoices" icon={FileText} meaning="money" flush>
+        {invoices.length === 0 ? (
+          <HmsEmptyState
+            bare
+            art="page"
+            meaning="money"
+            title="No customer invoices yet"
+            description="Invoices you create will appear here with what's still owed on each."
+          />
+        ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[920px] text-left text-sm">
-              <thead className="border-b bg-slate-50 text-xs font-semibold uppercase text-slate-500">
+              <thead className="border-b border-slate-200 bg-slate-50 text-sm font-medium text-slate-600">
                 <tr>
-                  {canReceivePayment ? <th className="px-4 py-3" /> : null}
-                  <th className="px-4 py-3">Invoice</th>
-                  <th className="px-4 py-3">Customer</th>
-                  <th className="px-4 py-3">Stay</th>
-                  <th className="px-4 py-3">Department</th>
-                  <th className="px-4 py-3 text-right">Total</th>
-                  <th className="px-4 py-3">Status</th>
+                  {canReceivePayment ? (
+                    <th scope="col" className="w-12 px-5 py-3">
+                      <span className="sr-only">Select</span>
+                    </th>
+                  ) : null}
+                  <th scope="col" className="px-5 py-3">Invoice</th>
+                  <th scope="col" className="px-5 py-3">Customer</th>
+                  <th scope="col" className="px-5 py-3">Stay</th>
+                  <th scope="col" className="px-5 py-3">Department</th>
+                  <th scope="col" className="px-5 py-3 text-right">Total</th>
+                  <th scope="col" className="px-5 py-3">Status</th>
                 </tr>
               </thead>
               <tbody>
-                {invoices.map((i) => (
-                  <tr key={i.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/80">
-                    {canReceivePayment ? (
-                      <td className="px-4 py-2.5">
-                        {i.status === "open" ? (
-                          <input
-                            type="checkbox"
-                            checked={selectedIds.has(i.id)}
-                            onChange={() => toggleSelected(i.id)}
-                            aria-label={`Select invoice ${i.invoiceNumber} for receipt`}
-                          />
+                {invoices.map((i) => {
+                  const overdue = i.status === "open" && isPastDue(i.dueDate);
+                  return (
+                    <tr key={i.id} className={`border-b border-slate-100 last:border-0 hover:bg-slate-50 ${selectedIds.has(i.id) ? "bg-emerald-50/60" : ""}`}>
+                      {canReceivePayment ? (
+                        <td className="px-5 py-3">
+                          {i.status === "open" ? (
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 rounded border-slate-300 accent-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                              checked={selectedIds.has(i.id)}
+                              onChange={() => toggleSelected(i.id)}
+                              aria-label={`Select invoice ${i.invoiceNumber} for receipt`}
+                            />
+                          ) : null}
+                        </td>
+                      ) : null}
+                      <td className="px-5 py-3 font-medium text-slate-900">
+                        {i.invoiceNumber}
+                        <p className="text-sm font-normal text-slate-600">{formatDateTime(i.createdAt)}</p>
+                      </td>
+                      <td className="px-5 py-3 text-slate-700">{i.customerName}</td>
+                      <td className="px-5 py-3 text-slate-700">{i.confirmationCode ?? "—"}</td>
+                      <td className="px-5 py-3 text-slate-700">{i.department}</td>
+                      <td className="whitespace-nowrap px-5 py-3 text-right tabular-nums text-slate-900">
+                        {i.total.toFixed(2)} {i.currency}
+                        {i.amountReceived > 0 && i.status !== "paid" ? (
+                          <p className="text-sm font-normal text-amber-800">{remainingFor(i).toFixed(2)} remaining</p>
                         ) : null}
                       </td>
-                    ) : null}
-                    <td className="px-4 py-2.5 font-medium text-slate-900">
-                      {i.invoiceNumber}
-                      <p className="text-xs text-slate-400">{formatDateTime(i.createdAt)}</p>
-                    </td>
-                    <td className="px-4 py-2.5 text-slate-600">{i.customerName}</td>
-                    <td className="px-4 py-2.5 text-slate-600">{i.confirmationCode ?? "—"}</td>
-                    <td className="px-4 py-2.5 text-slate-600">{i.department}</td>
-                    <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums text-slate-700">
-                      {i.total.toFixed(2)} {i.currency}
-                      {i.amountReceived > 0 && i.status !== "paid" ? (
-                        <p className="text-[11px] font-normal text-amber-600">{remainingFor(i).toFixed(2)} remaining</p>
-                      ) : null}
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <span
-                        className={cn(
-                          "rounded-full px-2 py-0.5 text-xs font-semibold",
-                          i.status === "paid" && "bg-emerald-100 text-emerald-900",
-                          i.status === "cancelled" && "bg-slate-200 text-slate-700",
-                          i.status === "open" && "bg-amber-100 text-amber-900",
-                        )}
-                      >
-                        {STATUS_LABEL[i.status] ?? i.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                      <td className="px-5 py-3">
+                        <div className="flex flex-wrap gap-1.5">
+                          <HmsPill tone={STATUS_TONE[i.status] ?? "slate"}>{STATUS_LABEL[i.status] ?? i.status}</HmsPill>
+                          {overdue ? <HmsPill tone="red">Overdue</HmsPill> : null}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
-        </div>
-      )}
+        )}
+      </HmsCard>
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>New customer invoice</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="max-h-[70vh] space-y-4 overflow-y-auto px-0.5">
             <div>
               <div className="mb-1 flex items-center justify-between">
-                <p className="text-xs font-medium text-slate-600">Customer</p>
+                <label htmlFor="inv-customer" className="text-sm font-medium text-slate-800">
+                  Customer
+                </label>
                 {canManageCustomers ? (
                   <button
                     type="button"
-                    className="text-xs font-medium text-blue-700 underline"
+                    className={hmsButton.quiet}
+                    aria-expanded={addingCustomer}
                     onClick={() => setAddingCustomer((v) => !v)}
                   >
-                    {addingCustomer ? "Cancel" : "+ New customer"}
+                    {addingCustomer ? "Cancel" : (
+                      <>
+                        <Plus className="h-4 w-4" aria-hidden />
+                        New customer
+                      </>
+                    )}
                   </button>
                 ) : null}
               </div>
               {addingCustomer ? (
-                <div className="mb-2 space-y-2 rounded-lg border border-slate-200 p-3">
-                  <Input
-                    placeholder="Customer name"
-                    value={customerForm.name}
-                    onChange={(e) => setCustomerForm((s) => ({ ...s, name: e.target.value }))}
-                  />
-                  <div className="grid grid-cols-2 gap-2">
-                    <Input
-                      placeholder="Contact name"
-                      value={customerForm.contactName}
-                      onChange={(e) => setCustomerForm((s) => ({ ...s, contactName: e.target.value }))}
+                <div className="mb-2 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <HmsField id="inv-new-customer-name" label="Customer name">
+                    <input
+                      id="inv-new-customer-name"
+                      className={hmsInput}
+                      value={customerForm.name}
+                      onChange={(e) => setCustomerForm((s) => ({ ...s, name: e.target.value }))}
                     />
-                    <Input
-                      placeholder="Phone"
-                      value={customerForm.phone}
-                      onChange={(e) => setCustomerForm((s) => ({ ...s, phone: e.target.value }))}
-                    />
+                  </HmsField>
+                  <div className="grid grid-cols-2 gap-3">
+                    <HmsField id="inv-new-customer-contact" label="Contact name" optional>
+                      <input
+                        id="inv-new-customer-contact"
+                        className={hmsInput}
+                        value={customerForm.contactName}
+                        onChange={(e) => setCustomerForm((s) => ({ ...s, contactName: e.target.value }))}
+                      />
+                    </HmsField>
+                    <HmsField id="inv-new-customer-phone" label="Phone" optional>
+                      <input
+                        id="inv-new-customer-phone"
+                        type="tel"
+                        className={hmsInput}
+                        value={customerForm.phone}
+                        onChange={(e) => setCustomerForm((s) => ({ ...s, phone: e.target.value }))}
+                      />
+                    </HmsField>
                   </div>
-                  <Button type="button" size="sm" disabled={savingCustomer} onClick={() => void submitCustomer()}>
+                  <button type="button" className={hmsButton.primary} disabled={savingCustomer} onClick={() => void submitCustomer()}>
                     {savingCustomer ? "Adding…" : "Add customer"}
-                  </Button>
+                  </button>
                 </div>
               ) : (
                 <select
-                  className="h-10 w-full rounded-lg border border-input px-3 text-sm"
+                  id="inv-customer"
+                  className={hmsInput}
                   value={form.customerId}
                   onChange={(e) => setForm((s) => ({ ...s, customerId: e.target.value }))}
                 >
@@ -404,10 +448,11 @@ export function AccountsCustomerInvoicesClient({
                 </select>
               )}
             </div>
-            <div>
-              <p className="mb-1 text-xs font-medium text-slate-600">Related stay (optional)</p>
+            <HmsField id="inv-stay" label="Related stay" optional hint="Linking a stay fills in its city-ledger balance.">
               <select
-                className="h-10 w-full rounded-lg border border-input px-3 text-sm"
+                id="inv-stay"
+                className={hmsInput}
+                aria-describedby="inv-stay-hint"
                 value={form.reservationId}
                 onChange={(e) => void selectReservation(e.target.value)}
                 disabled={guestsLoading}
@@ -421,13 +466,17 @@ export function AccountsCustomerInvoicesClient({
                   </option>
                 ))}
               </select>
-              {balanceLoading ? <p className="mt-1 text-xs text-slate-400">Checking city-ledger balance…</p> : null}
-            </div>
+            </HmsField>
+            {balanceLoading ? (
+              <p role="status" className="-mt-2 text-sm text-slate-600">
+                Checking city-ledger balance…
+              </p>
+            ) : null}
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <p className="mb-1 text-xs font-medium text-slate-600">Department</p>
+              <HmsField id="inv-department" label="Department">
                 <select
-                  className="h-10 w-full rounded-lg border border-input px-3 text-sm"
+                  id="inv-department"
+                  className={hmsInput}
                   value={form.department}
                   onChange={(e) => setForm((s) => ({ ...s, department: e.target.value }))}
                 >
@@ -437,20 +486,18 @@ export function AccountsCustomerInvoicesClient({
                     </option>
                   ))}
                 </select>
-              </div>
-              <div>
-                <p className="mb-1 text-xs font-medium text-slate-600">Invoice date</p>
-                <Input type="date" value={form.invoiceDate} onChange={(e) => setForm((s) => ({ ...s, invoiceDate: e.target.value }))} />
-              </div>
+              </HmsField>
+              <HmsField id="inv-date" label="Invoice date">
+                <input id="inv-date" type="date" className={hmsInput} value={form.invoiceDate} onChange={(e) => setForm((s) => ({ ...s, invoiceDate: e.target.value }))} />
+              </HmsField>
             </div>
-            <div>
-              <p className="mb-1 text-xs font-medium text-slate-600">Due date (optional)</p>
-              <Input type="date" value={form.dueDate} onChange={(e) => setForm((s) => ({ ...s, dueDate: e.target.value }))} />
-            </div>
-            <div>
-              <p className="mb-1 text-xs font-medium text-slate-600">Revenue account</p>
+            <HmsField id="inv-due" label="Due date" optional>
+              <input id="inv-due" type="date" className={hmsInput} value={form.dueDate} onChange={(e) => setForm((s) => ({ ...s, dueDate: e.target.value }))} />
+            </HmsField>
+            <HmsField id="inv-revenue-account" label="Revenue account">
               <select
-                className="h-10 w-full rounded-lg border border-input px-3 text-sm"
+                id="inv-revenue-account"
+                className={hmsInput}
                 value={form.revenueAccountId}
                 onChange={(e) => setForm((s) => ({ ...s, revenueAccountId: e.target.value }))}
               >
@@ -461,55 +508,60 @@ export function AccountsCustomerInvoicesClient({
                   </option>
                 ))}
               </select>
-            </div>
+            </HmsField>
             <div className="grid grid-cols-3 gap-3">
-              <div>
-                <p className="mb-1 text-xs font-medium text-slate-600">Subtotal</p>
-                <Input
+              <HmsField id="inv-subtotal" label="Subtotal">
+                <input
+                  id="inv-subtotal"
                   type="number"
                   min="0"
                   step="0.01"
+                  className={`${hmsInput} tabular-nums`}
                   value={form.subtotal}
                   onChange={(e) => setForm((s) => ({ ...s, subtotal: e.target.value }))}
                 />
-              </div>
-              <div>
-                <p className="mb-1 text-xs font-medium text-slate-600">Tax</p>
-                <Input type="number" min="0" step="0.01" value={form.tax} onChange={(e) => setForm((s) => ({ ...s, tax: e.target.value }))} />
-              </div>
-              <div>
-                <p className="mb-1 text-xs font-medium text-slate-600">Currency</p>
-                <Input value={form.currency} onChange={(e) => setForm((s) => ({ ...s, currency: e.target.value }))} />
-              </div>
+              </HmsField>
+              <HmsField id="inv-tax" label="Tax">
+                <input id="inv-tax" type="number" min="0" step="0.01" className={`${hmsInput} tabular-nums`} value={form.tax} onChange={(e) => setForm((s) => ({ ...s, tax: e.target.value }))} />
+              </HmsField>
+              <HmsField id="inv-currency" label="Currency">
+                <input id="inv-currency" className={hmsInput} value={form.currency} onChange={(e) => setForm((s) => ({ ...s, currency: e.target.value }))} />
+              </HmsField>
             </div>
             {form.currency.trim().toUpperCase() !== defaultCurrency.toUpperCase() ? (
               <div>
-                <p className="mb-1 text-xs font-medium text-slate-600">
+                <label htmlFor="inv-fx" className="mb-1 block text-sm font-medium text-slate-800">
                   FX rate (1 {form.currency || "?"} → {defaultCurrency})
-                </p>
-                <Input
+                </label>
+                <input
+                  id="inv-fx"
                   type="number"
                   min="0"
                   step="any"
+                  className={`${hmsInput} tabular-nums`}
+                  aria-describedby="inv-fx-hint"
                   value={form.fxRate}
                   onChange={(e) => setForm((s) => ({ ...s, fxRate: e.target.value }))}
                 />
-                <p className="mt-1 text-xs text-slate-400">
-                  Posts to the ledger as {(total * (Number(form.fxRate) || 1)).toFixed(2)} {defaultCurrency} — the ledger has
-                  no separate currency of its own, so this is what hits the trial balance.
+                <p id="inv-fx-hint" className="mt-1 text-sm text-slate-600">
+                  Posts to the ledger as {(total * (Number(form.fxRate) || 1)).toFixed(2)} {defaultCurrency}. The ledger has no
+                  separate currency of its own, so this is what reaches the trial balance.
                 </p>
               </div>
             ) : null}
-            <div>
-              <p className="mb-1 text-xs font-medium text-slate-600">Notes (optional)</p>
+            <HmsField id="inv-notes" label="Notes" optional>
               <textarea
-                className="min-h-[64px] w-full rounded-lg border border-input px-3 py-2 text-sm"
+                id="inv-notes"
+                className={`${hmsInput} min-h-[64px]`}
                 value={form.notes}
                 onChange={(e) => setForm((s) => ({ ...s, notes: e.target.value }))}
               />
-            </div>
-            <p className="text-sm font-medium tabular-nums text-slate-700">
-              Total: {total.toFixed(2)} {form.currency}
+            </HmsField>
+            <p className="flex items-center justify-between rounded-xl border-t-2 border-slate-300 bg-slate-50 px-3 py-2 text-sm font-semibold tabular-nums text-slate-900">
+              <span>Total</span>
+              <span>
+                {total.toFixed(2)} {form.currency}
+              </span>
             </p>
           </div>
           <DialogFooter>
@@ -530,39 +582,41 @@ export function AccountsCustomerInvoicesClient({
               Receive {selectedInvoices.length} invoice{selectedInvoices.length === 1 ? "" : "s"}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <div className="max-h-52 space-y-2 overflow-y-auto rounded-lg border border-slate-200 p-2">
+          <div className="space-y-4">
+            <div className="max-h-52 divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-200">
               {selectedInvoices.map((i) => (
-                <div key={i.id} className="flex items-center justify-between gap-2 text-xs">
+                <div key={i.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
                   <div className="min-w-0">
-                    <p className="truncate text-slate-700">
+                    <p className="truncate font-medium text-slate-900">
                       {i.invoiceNumber} · {i.customerName}
                     </p>
-                    <p className="text-[11px] text-slate-400">
+                    <p id={`receipt-${i.id}-hint`} className="text-sm tabular-nums text-slate-600">
                       {i.amountReceived > 0
                         ? `${remainingFor(i).toFixed(2)} remaining of ${i.total.toFixed(2)} ${i.currency}`
                         : `${i.total.toFixed(2)} ${i.currency}`}
                     </p>
                   </div>
-                  <Input
+                  <input
                     type="number"
                     min="0.01"
                     max={remainingFor(i)}
                     step="0.01"
-                    className="h-8 w-28 text-right"
+                    aria-label={`Amount received for ${i.invoiceNumber}`}
+                    aria-describedby={`receipt-${i.id}-hint`}
+                    className="h-10 w-28 rounded-lg border border-slate-300 bg-white px-2 text-right text-sm tabular-nums focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={receiptAmounts[i.id] ?? String(remainingFor(i))}
                     onChange={(e) => setReceiptAmounts((s) => ({ ...s, [i.id]: e.target.value }))}
                   />
                 </div>
               ))}
             </div>
-            <p className="text-[11px] text-slate-400">
-              Defaults to the full remaining balance — lower it for a partial receipt. The invoice stays open until fully received.
+            <p className="text-sm text-slate-600">
+              Each amount starts at the full remaining balance. Lower it for a part payment; the invoice stays open until it&apos;s fully paid.
             </p>
-            <div>
-              <p className="mb-1 text-xs font-medium text-slate-600">Deposit into</p>
+            <HmsField id="receipt-account" label="Deposit into">
               <select
-                className="h-10 w-full rounded-lg border border-input px-3 text-sm"
+                id="receipt-account"
+                className={hmsInput}
                 value={receiptForm.bankAccountId}
                 onChange={(e) => setReceiptForm((s) => ({ ...s, bankAccountId: e.target.value }))}
               >
@@ -573,26 +627,31 @@ export function AccountsCustomerInvoicesClient({
                   </option>
                 ))}
               </select>
-            </div>
+            </HmsField>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <p className="mb-1 text-xs font-medium text-slate-600">Payment date</p>
-                <Input
+              <HmsField id="receipt-date" label="Payment date">
+                <input
+                  id="receipt-date"
                   type="date"
+                  className={hmsInput}
                   value={receiptForm.paymentDate}
                   onChange={(e) => setReceiptForm((s) => ({ ...s, paymentDate: e.target.value }))}
                 />
-              </div>
-              <div>
-                <p className="mb-1 text-xs font-medium text-slate-600">Reference (optional)</p>
-                <Input
+              </HmsField>
+              <HmsField id="receipt-reference" label="Reference" optional>
+                <input
+                  id="receipt-reference"
+                  className={hmsInput}
                   value={receiptForm.reference}
                   onChange={(e) => setReceiptForm((s) => ({ ...s, reference: e.target.value }))}
                   placeholder="Transfer/cheque ref"
                 />
-              </div>
+              </HmsField>
             </div>
-            <p className="text-sm font-medium tabular-nums text-slate-700">Total to receive: {selectedTotal.toFixed(2)}</p>
+            <p className="flex items-center justify-between rounded-xl border-t-2 border-slate-300 bg-slate-50 px-3 py-2 text-sm font-semibold tabular-nums text-slate-900">
+              <span>Total to receive</span>
+              <span>{selectedTotal.toFixed(2)}</span>
+            </p>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setReceiveOpen(false)}>
@@ -604,6 +663,6 @@ export function AccountsCustomerInvoicesClient({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </HmsPage>
   );
 }

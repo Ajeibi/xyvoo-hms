@@ -51,11 +51,12 @@ function PeriodToggle({
         <button
           key={period}
           type="button"
+          aria-pressed={value === period}
           onClick={() => onChange(period)}
           className={`rounded-xl px-3 py-1.5 text-sm font-medium transition-colors ${
             value === period
-              ? "bg-white text-blue-600 shadow-sm shadow-slate-200/70"
-              : "text-slate-500 hover:text-slate-700"
+              ? "bg-white text-blue-700 shadow-sm shadow-slate-200/70"
+              : "text-slate-600 hover:text-slate-900"
           }`}
         >
           {capitalize(period)}
@@ -80,12 +81,13 @@ export function ReservationsFrontDeskCard({ items }: { items: MetricTileItem[] }
   return (
     <AnalyticsCard
       icon={CalendarRange}
+      meaning="rooms"
       title="Reservations & Front Desk"
       description="Daily movement from reservations (UTC day boundaries)."
     >
       <div className="grid gap-3 sm:grid-cols-2">
         {items.map((item) => (
-          <MetricTile key={item.label} {...item} />
+          <MetricTile key={item.label} {...item} meaning={item.meaning ?? "rooms"} />
         ))}
       </div>
     </AnalyticsCard>
@@ -155,6 +157,7 @@ export function OccupancyStatisticsCard({
   return (
     <AnalyticsCard
       icon={BarChart3}
+      meaning="rooms"
       title="Occupancy Statistics"
       description={description}
     >
@@ -171,6 +174,19 @@ const ROOM_STATUS_DESCRIPTION =
 const FLOOR_STATUS_DESCRIPTION =
   "In-house stays per floor (keys tied to an active check-in; floor from each key’s record).";
 
+/** Same colours as the front desk room board, so a status looks the same on every screen. */
+const ROOM_STATUS_TONES: Record<string, { tint: string; dot: string }> = {
+  Occupied: { tint: "bg-blue-50", dot: "bg-blue-600" },
+  "Vacant clean": { tint: "bg-emerald-50", dot: "bg-emerald-500" },
+  Dirty: { tint: "bg-orange-50", dot: "bg-orange-500" },
+  Inspected: { tint: "bg-teal-50", dot: "bg-teal-500" },
+  "Maintenance / OOO": { tint: "bg-violet-50", dot: "bg-violet-600" },
+};
+
+function roomStatusTone(label: string) {
+  return ROOM_STATUS_TONES[label] ?? { tint: "bg-slate-50", dot: "bg-slate-400" };
+}
+
 export function RoomStatusCard({
   items,
   description = ROOM_STATUS_DESCRIPTION,
@@ -182,16 +198,17 @@ export function RoomStatusCard({
     <AnalyticsCard
       icon={Activity}
       title="Room Status"
+      meaning="rooms"
       description={description}
     >
       <div className="grid gap-3 sm:grid-cols-2">
         {items.map((item) => (
-          <div
-            key={item.label}
-            className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-4"
-          >
-            <p className="text-xs font-medium text-slate-500">{item.label}</p>
-            <p className="mt-2 text-2xl font-semibold text-slate-900">{item.value}</p>
+          <div key={item.label} className={`rounded-2xl px-4 py-4 ${roomStatusTone(item.label).tint}`}>
+            <p className="flex items-center gap-1.5 text-xs font-medium text-slate-700">
+              <span aria-hidden className={`h-2 w-2 rounded-full ${roomStatusTone(item.label).dot}`} />
+              {item.label}
+            </p>
+            <p className="mt-2 text-2xl font-semibold tabular-nums text-slate-900">{item.value}</p>
           </div>
         ))}
       </div>
@@ -260,6 +277,7 @@ export function FloorStatusCard({
   return (
     <AnalyticsCard
       icon={Stars}
+      meaning="rooms"
       title="Floor Status"
       description={description}
     >
@@ -270,8 +288,8 @@ export function FloorStatusCard({
         <div className="space-y-3">
           {items.map((item) => (
             <div key={item.label} className="flex items-center gap-3">
-              <span className={`h-2.5 w-2.5 rounded-full ${item.colorClass}`} />
-              <p className="flex-1 text-sm text-slate-500">{item.label}</p>
+              <span aria-hidden className={`h-2.5 w-2.5 rounded-full ${item.colorClass}`} />
+              <p className="flex-1 text-sm text-slate-600">{item.label}</p>
               <p className="text-sm font-semibold text-slate-900">{item.value}</p>
             </div>
           ))}
@@ -292,6 +310,7 @@ export function FoodBeverageCard({
   return (
     <AnalyticsCard
       icon={UtensilsCrossed}
+      meaning="food"
       title="Food & Beverage"
       description="Restaurant, bar, and room-service activity."
     >
@@ -301,7 +320,7 @@ export function FoodBeverageCard({
 
       <div className="grid gap-3 sm:grid-cols-2">
         {items.map((item) => (
-          <MetricTile key={item.label} {...item} />
+          <MetricTile key={item.label} {...item} meaning={item.meaning ?? "food"} />
         ))}
       </div>
 
@@ -328,6 +347,7 @@ export function KitchenCard({
   return (
     <AnalyticsCard
       icon={Soup}
+      meaning="food"
       title="Kitchen"
       description="Prep flow, delays, and item availability."
     >
@@ -353,7 +373,7 @@ export function KitchenCard({
 
       <div className="grid gap-3 sm:grid-cols-2">
         {items.map((item) => (
-          <MetricTile key={item.label} {...item} />
+          <MetricTile key={item.label} {...item} meaning={item.meaning ?? "food"} />
         ))}
       </div>
 
@@ -376,12 +396,13 @@ export function InventoryWatchCard({
   return (
     <AnalyticsCard
       icon={Package}
+      meaning="stock"
       title="Inventory Watch"
       description="Stock visibility for housekeeping and consumables."
     >
       <div className="grid gap-3 sm:grid-cols-3">
         {summary.map((item) => (
-          <SummaryTile key={item.label} {...item} />
+          <SummaryTile key={item.label} {...item} meaning={item.meaning ?? "stock"} />
         ))}
       </div>
 
@@ -399,6 +420,7 @@ export function AttentionCenterCard({ alerts }: { alerts: StatusRowItem[] }) {
     <AnalyticsCard
       icon={Activity}
       title="Attention Center"
+      meaning="attention"
       description="Exceptions derived from room status and recent reservation outcomes."
     >
       <div className="grid gap-3">

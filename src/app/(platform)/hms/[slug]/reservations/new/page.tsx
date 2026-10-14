@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import { ArrowLeft } from "lucide-react";
 import HMSLayout from "@/components/hms/HMSLayout";
+import { HmsPage, HmsPageHeader } from "@/components/hms/hms-ui";
 import { FrontDeskCheckInForm } from "@/components/hms/frontdesk/FrontDeskCheckInForm";
 import { fetchCheckInStaffOptions, checkInStaffOptionsForSessionUser } from "@/lib/hms/check-in-staff-options";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
@@ -65,23 +67,22 @@ export default async function NewReservationPage({ params }: { params: Promise<{
 
   return (
     <HMSLayout slug={slug} requiredSection="reservations">
-      <div className="w-full px-6 py-8 sm:px-8">
-        <div className="mb-6">
-          <Link
-            href={`/hms/${slug}/frontdesk`}
-            className="text-sm font-medium text-blue-600 hover:underline"
-          >
-            ← Back to front desk
-          </Link>
-          <h1 className="mt-4 text-2xl font-semibold tracking-tight text-slate-900">Create reservation</h1>
-          <p className="mt-2 text-sm text-slate-500">
-            Book a future stay — guest profile and stay are saved now. The room isn&apos;t marked occupied and no
-            folio charges post until the guest actually checks in.
-          </p>
-        </div>
+      <HmsPage wide>
+        <Link
+          href={`/hms/${slug}/frontdesk`}
+          className="inline-flex items-center gap-2 rounded-lg text-sm font-medium text-blue-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden />
+          Back to the front desk
+        </Link>
+        <HmsPageHeader
+          eyebrow="Reservations"
+          meaning="rooms"
+          title="New reservation"
+          description="Book a future stay. The guest and their stay are saved now; the room isn't marked as taken and nothing is charged to their bill until they check in."
+        />
 
-        <section className="rounded-[24px] border border-slate-200 bg-white px-6 py-6 shadow-sm sm:px-8 sm:py-8">
-          <Suspense fallback={<p className="text-sm text-slate-500">Loading form…</p>}>
+        <Suspense fallback={<p role="status" className="text-sm text-slate-600">Loading the form…</p>}>
             <FrontDeskCheckInForm
               slug={slug}
               roomTypes={roomTypes}
@@ -91,10 +92,10 @@ export default async function NewReservationPage({ params }: { params: Promise<{
               pricing={pricing}
               defaultDepartureTime={defaultDepartureTime}
               mode="reserve"
+              cards
             />
-          </Suspense>
-        </section>
-      </div>
+        </Suspense>
+      </HmsPage>
     </HMSLayout>
   );
 }

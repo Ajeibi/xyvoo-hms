@@ -1,3 +1,4 @@
+import { TrendingUp } from "lucide-react";
 import HMSLayout from "@/components/hms/HMSLayout";
 import ModuleScaffold from "@/components/hms/ModuleScaffold";
 
@@ -11,6 +12,9 @@ export default async function RevenueSettingsPage({
   return (
     <HMSLayout slug={slug} requiredSection="revenue-settings">
       <ModuleScaffold
+        eyebrow="Revenue"
+        meaning="money"
+        icon={TrendingUp}
         title="Revenue Settings"
         subtitle="Adjust pricing control rules, forecast defaults, and revenue dashboard preferences."
         checklist={[

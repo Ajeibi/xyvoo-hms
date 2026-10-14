@@ -1,3 +1,4 @@
+import { Users } from "lucide-react";
 import HMSLayout from "@/components/hms/HMSLayout";
 import ModuleScaffold from "@/components/hms/ModuleScaffold";
 
@@ -11,6 +12,9 @@ export default async function HRSettingsPage({
   return (
     <HMSLayout slug={slug} requiredSection="hr-settings">
       <ModuleScaffold
+        eyebrow="HR"
+        meaning="team"
+        icon={Users}
         title="HR Settings"
         subtitle="Configure team workflows, schedule defaults, and HR dashboard preferences."
         checklist={[

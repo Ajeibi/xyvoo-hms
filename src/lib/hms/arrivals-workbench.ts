@@ -12,6 +12,7 @@ import { mapRoomReadiness, type RoomUnitSnapshot } from "@/lib/hms/arrivals-room
 import { maybeEmitArrivalAlerts } from "@/lib/hms/arrivals-alerts";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { assertQueriesSucceeded } from "@/lib/hms/data-unavailable";
 
 export type ArrivalsDatePreset = "today" | "tomorrow" | "week" | "custom";
 
@@ -328,17 +329,13 @@ export async function getArrivalsWorkbenchData(params: {
   const guestSelect =
     "id,title,first_name,last_name,nationality,phone,email,id_number,tags";
 
-  const [
-    { data: resRows },
-    { data: roomRows },
-    { data: hkRows },
-    { data: folioRows },
-  ] = await Promise.all([
+  const results = await Promise.all([
+    // Each arrival brings its own folio lines (rather than every folio line the hotel has ever posted).
     supabase
       .schema("hotel")
       .from("reservations")
       .select(
-        `id,confirmation_code,status,created_at,arrival_at,departure_at,nights,adults,children_json,room_unit_id,room_type_code,settlement_method,preauth_amount,total_room_charges,guest_remarks,room_preferences_text,vip_notes,dietary_notes,accessibility_notes,vip_flag,source,booking_channel,folio_number,market_segment,bill_to_account,checked_in_at,reservation_guests(is_primary,guests(${guestSelect}))`,
+        `id,confirmation_code,status,created_at,arrival_at,departure_at,nights,adults,children_json,room_unit_id,room_type_code,settlement_method,preauth_amount,total_room_charges,guest_remarks,room_preferences_text,vip_notes,dietary_notes,accessibility_notes,vip_flag,source,booking_channel,folio_number,market_segment,bill_to_account,checked_in_at,reservation_guests(is_primary,guests(${guestSelect})),folio_transactions!folio_transactions_reservation_id_fkey(*)`,
       )
       .eq("tenant_id", params.tenantId)
       .gte("arrival_at", startIso)
@@ -354,21 +351,23 @@ export async function getArrivalsWorkbenchData(params: {
       .from("housekeeping_tasks")
       .select("room_unit_id,status")
       .eq("tenant_id", params.tenantId),
-    supabase.schema("hotel").from("folio_transactions").select("*").eq("tenant_id", params.tenantId),
+    supabase
+      .schema("hotel")
+      .from("guest_requests")
+      .select("reservation_id")
+      .eq("tenant_id", params.tenantId)
+      .in("status", ["pending", "assigned", "in_progress", "waiting", "escalated"]),
   ]);
 
+  // A list built from half its data looks complete but is wrong; say it could not load instead.
+  // (Open guest requests only add a badge, so the list still shows without them, as before.)
+  assertQueriesSucceeded("arrivals-workbench", results.slice(0, 3));
+  const [{ data: resRows }, { data: roomRows }, { data: hkRows }, { data: openRequests, error: openReqErr }] = results;
+
   const openRequestCountByReservation = new Map<string, number>();
-  const { data: openRequests, error: openReqErr } = await supabase
-    .schema("hotel")
-    .from("guest_requests")
-    .select("reservation_id")
-    .eq("tenant_id", params.tenantId)
-    .in("status", ["pending", "assigned", "in_progress", "waiting", "escalated"]);
-  if (!openReqErr) {
-    for (const req of openRequests ?? []) {
-      const id = req.reservation_id;
-      openRequestCountByReservation.set(id, (openRequestCountByReservation.get(id) ?? 0) + 1);
-    }
+  for (const req of openReqErr ? [] : (openRequests ?? [])) {
+    const id = req.reservation_id;
+    openRequestCountByReservation.set(id, (openRequestCountByReservation.get(id) ?? 0) + 1);
   }
 
   const rooms = roomRows ?? [];
@@ -376,11 +375,8 @@ export async function getArrivalsWorkbenchData(params: {
   const hkByRoom = new Map((hkRows ?? []).map((h) => [h.room_unit_id, h.status as string]));
 
   const folioByReservation = new Map<string, FolioLineRow[]>();
-  for (const row of folioRows ?? []) {
-    const line = mapFolioLineRow(row as Record<string, unknown>);
-    const list = folioByReservation.get(line.reservation_id) ?? [];
-    list.push(line);
-    folioByReservation.set(line.reservation_id, list);
+  for (const r of (resRows ?? []) as { id: string; folio_transactions?: Record<string, unknown>[] | null }[]) {
+    if (r.folio_transactions?.length) folioByReservation.set(r.id, r.folio_transactions.map(mapFolioLineRow));
   }
 
   const guestByReservation = new Map<string, GuestEmbed | null>();

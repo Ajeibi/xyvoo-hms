@@ -34,13 +34,13 @@ export function FrontDeskDailyActivity({
 }) {
   return (
     <section className="grid gap-4 lg:grid-cols-2" aria-label="Daily activity">
-      <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/25 sm:p-7">
+      <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
         <div className="flex items-start gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-600">
             <LogOut className="h-5 w-5" aria-hidden />
           </div>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Today</p>
+            <p className="text-sm font-medium text-slate-600">Today</p>
             <h2 className="text-lg font-semibold text-slate-900">Expected checkouts</h2>
           </div>
         </div>
@@ -65,13 +65,13 @@ export function FrontDeskDailyActivity({
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/25 sm:p-7">
+      <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
         <div className="flex items-start gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
             <LogIn className="h-5 w-5" aria-hidden />
           </div>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Today</p>
+            <p className="text-sm font-medium text-slate-600">Today</p>
             <h2 className="text-lg font-semibold text-slate-900">Pending check-ins</h2>
           </div>
         </div>

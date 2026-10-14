@@ -1,7 +1,7 @@
 import HMSLayout from "@/components/hms/HMSLayout";
 import { InventorySubNav } from "@/components/hms/inventory/InventorySubNav";
-import { SettingsSectionInfo } from "@/components/hms/settings/SettingsSectionInfo";
 import { InventoryStockClient } from "@/components/hms/inventory/InventoryStockClient";
+import { HmsPage, HmsPageHeader } from "@/components/hms/hms-ui";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { getHmsAccessContext } from "@/lib/hms/access";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -27,17 +27,13 @@ export default async function InventoryStockPage({ params }: { params: Promise<{
 
   return (
     <HMSLayout slug={slug} requiredSection="inventory-stock">
-      <div className="px-8 py-8">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <h1 className="text-xl font-semibold text-slate-900">Stock levels</h1>
-          <SettingsSectionInfo
-            title="Stock levels"
-            text="Every item's current quantity at each store, with par level and reorder point controls. This is the master view of what you actually have on hand — set par/reorder here even before any stock has been received."
-          />
-        </div>
-        <p className="mt-0.5 text-sm text-slate-500">
-          Live quantities on hand across every store, with par and reorder controls.
-        </p>
+      <HmsPage wide>
+        <HmsPageHeader
+          eyebrow="Inventory"
+          meaning="stock"
+          title="Stock levels"
+          description="Live quantities on hand at every store, with par and reorder controls."
+        />
         <InventorySubNav slug={slug} canAccessAllDepartments={access.canAccessAllDepartments} />
         <InventoryStockClient
           slug={slug}
@@ -46,7 +42,7 @@ export default async function InventoryStockPage({ params }: { params: Promise<{
           items={items}
           canCreateItem={access.canAccessAllDepartments}
         />
-      </div>
+      </HmsPage>
     </HMSLayout>
   );
 }

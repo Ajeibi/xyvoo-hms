@@ -6,8 +6,20 @@ import Link from "next/link";
 import type { FolioLineRow } from "@/lib/hms/folio";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import { PAYMENT_STATUS_LABEL } from "@/components/hms/frontdesk/board/payment-styles";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { ArrowLeft, Banknote, Building2, Coins, Percent, Plus, Receipt, Search, Wallet } from "lucide-react";
+import {
+  HmsCard,
+  HmsEmptyState,
+  HmsField,
+  HmsPage,
+  HmsPageHeader,
+  HmsPill,
+  HmsStatStrip,
+  HmsStatTile,
+  hmsButton,
+  hmsInput,
+} from "@/components/hms/hms-ui";
+import { HmsFilterChips, HmsSectionIntro } from "@/components/hms/hms-ui-client";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -49,7 +61,7 @@ type SearchHit = {
 };
 
 const STATUS_LABEL: Record<string, string> = {
-  checked_in: "In-house",
+  checked_in: "Staying now",
   checked_out: "Checked out",
 };
 
@@ -316,112 +328,158 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
     }) ?? [];
 
   return (
-    <div className="w-full px-6 py-8 sm:px-8">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Front desk</p>
-          <h1 className="mt-2 text-2xl font-semibold text-slate-900">Financial & folio</h1>
-        </div>
-        <Link href={`/hms/${slug}/frontdesk`} className="text-sm text-blue-600 hover:underline">
-          ← Operations board
-        </Link>
-      </div>
+    <HmsPage wide>
+      <Link
+        href={`/hms/${slug}/frontdesk`}
+        className="inline-flex items-center gap-2 rounded-lg text-sm font-medium text-blue-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+      >
+        <ArrowLeft className="h-4 w-4" aria-hidden />
+        Back to the front desk
+      </Link>
+      <HmsPageHeader
+        eyebrow="Front desk"
+        meaning="money"
+        title="Guest bills"
+        description="Find a guest's bill (folio), add charges and take payments. The cash float tracks the money in the till."
+      />
 
-      <div className="mt-6 flex items-center gap-2">
-        <Button
-          type="button"
-          variant={tab === "folio" ? "default" : "ghost"}
-          size="sm"
-          onClick={() => setTab("folio")}
-        >
-          Folio
-        </Button>
-        <Button
-          type="button"
-          variant={tab === "cash-float" ? "default" : "ghost"}
-          size="sm"
-          onClick={() => setTab("cash-float")}
-        >
-          Cash float
-        </Button>
-      </div>
+      <HmsFilterChips
+        label="Show"
+        meaning="money"
+        options={[
+          { value: "folio", label: "Guest bills" },
+          { value: "cash-float", label: "Cash float" },
+        ]}
+        value={tab}
+        onChange={setTab}
+      />
 
       {tab === "cash-float" ? (
         <CashFloatPanel slug={slug} session={cashSession} onRefresh={loadCashFloat} />
       ) : (
         <>
-          <div className="mt-6 flex flex-wrap gap-2">
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Folio #, confirmation, guest…"
-              className="max-w-md"
-            />
-            <Button type="button" onClick={() => void search()}>
+          <HmsSectionIntro
+            id="folio"
+            meaning="money"
+            art="page"
+            title="How guest bills work"
+            points={[
+              "Each stay has a bill, called a folio. Room charges are added for you; you can add extras, discounts and payments.",
+              "A bill can be split: some charges paid by the guest, others billed to their company.",
+              "Voiding a charge or giving a discount may need a manager's PIN.",
+            ]}
+          />
+
+          <form
+            role="search"
+            className="flex max-w-xl flex-wrap items-end gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void search();
+            }}
+          >
+            <div className="min-w-0 flex-1">
+              <label htmlFor="folio-search" className="mb-1 block text-sm font-medium text-slate-800">
+                Find a bill
+              </label>
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden />
+                <input
+                  id="folio-search"
+                  type="search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Bill number, confirmation code or guest name"
+                  className={`${hmsInput} pl-10`}
+                />
+              </div>
+            </div>
+            <button type="submit" className={`${hmsButton.primary} ${focusRing}`}>
               Search
-            </Button>
-          </div>
+            </button>
+          </form>
 
           {query.trim() ? (
             <FolioRowList
               title="Search results"
+              description="Select a guest to open their bill."
               rows={hits}
               currency={currency}
-              emptyText="No matches. Try a different name, folio #, or confirmation code."
+              emptyTitle="No bills match"
+              emptyText="Try a different guest name, bill number or confirmation code."
               onSelect={(id) => void loadFolio(id)}
             />
           ) : activeListLoading ? (
             <FolioRowListSkeleton />
           ) : (
             <FolioRowList
-              title="In-house & unpaid"
+              title="Staying now or still to pay"
+              description="Guests in the hotel, and bills with money still owed. Select one to open it."
               rows={activeList}
               currency={currency}
-              emptyText="No in-house guests or outstanding balances right now."
+              emptyTitle="Nothing to settle right now"
+              emptyText="No guests are staying and no bills have money owed. Search above to find an older bill."
               onSelect={(id) => void loadFolio(id)}
             />
           )}
 
           {payload ? (
-            <div className="mt-8 space-y-6">
-              <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div>
-                    <h2 className="text-lg font-semibold text-slate-900">Folio {payload.reservation.folioNumber}</h2>
-                    <p className="text-sm text-slate-500">
-                      {payload.reservation.confirmationCode} · {payload.reservation.status}
-                    </p>
+            <div className="space-y-6">
+              <HmsStatStrip label={`Bill ${payload.reservation.folioNumber} in figures`}>
+                <HmsStatTile label="Charges" value={formatPricingAmount(payload.folio.charges, currency)} icon={Receipt} meaning="money" hint="Everything added to the bill" />
+                <HmsStatTile label="Paid and credited" value={formatPricingAmount(payload.folio.credits, currency)} icon={Banknote} meaning="money" hint="Taken off the bill so far" />
+                <HmsStatTile
+                  label="Still to pay"
+                  value={formatPricingAmount(payload.folio.balance, currency)}
+                  icon={Wallet}
+                  meaning="money"
+                  hint={
+                    PAYMENT_STATUS_LABEL[payload.folio.displayStatus as keyof typeof PAYMENT_STATUS_LABEL] ??
+                    payload.folio.displayStatus
+                  }
+                />
+                <HmsStatTile
+                  label="Guest / company"
+                  value={
+                    <span className="text-lg">
+                      {formatPricingAmount(payload.folio.guestLegBalance, currency)} / {formatPricingAmount(payload.folio.companyLegBalance, currency)}
+                    </span>
+                  }
+                  icon={Building2}
+                  meaning="money"
+                  hint="What each side still owes"
+                />
+              </HmsStatStrip>
+
+              <HmsCard
+                id="folio-lines"
+                icon={Receipt}
+                meaning="money"
+                title={`Bill ${payload.reservation.folioNumber}`}
+                description={
+                  <>
+                    Booking {payload.reservation.confirmationCode} · {words(payload.reservation.status)}
                     {payload.reservation.commissionPlan ? (
-                      <p className="mt-1 text-xs text-violet-700">
-                        Commission: {payload.reservation.commissionPlan} ·{" "}
+                      <>
+                        {" "}
+                        · Commission: {payload.reservation.commissionPlan},{" "}
                         {formatPricingAmount(Number(payload.reservation.commissionValue ?? 0), currency)}
-                      </p>
+                      </>
                     ) : null}
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-slate-500">Balance due</p>
-                    <p className="text-2xl font-bold tabular-nums text-slate-900">
-                      {formatPricingAmount(payload.folio.balance, currency)}
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      {PAYMENT_STATUS_LABEL[payload.folio.displayStatus as keyof typeof PAYMENT_STATUS_LABEL] ??
-                        payload.folio.displayStatus}
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-4 flex gap-2">
-                  {(["all", "guest", "company"] as const).map((leg) => (
-                    <Button
-                      key={leg}
-                      type="button"
-                      size="sm"
-                      variant={legFilter === leg ? "default" : "outline"}
-                      onClick={() => setLegFilter(leg)}
-                    >
-                      {leg === "all" ? "All" : leg === "guest" ? "Guest" : "Company"}
-                    </Button>
-                  ))}
-                </div>
+                  </>
+                }
+              >
+                <HmsFilterChips
+                  label="Show lines for"
+                  meaning="money"
+                  options={[
+                    { value: "all", label: "Whole bill", count: payload.folio.lines.length },
+                    { value: "guest", label: "Guest", count: payload.folio.lines.filter((l) => l.split_leg === "guest").length },
+                    { value: "company", label: "Company", count: payload.folio.lines.filter((l) => l.split_leg === "company").length },
+                  ]}
+                  value={legFilter}
+                  onChange={setLegFilter}
+                />
                 <FolioLineTable
                   lines={lines}
                   currency={currency}
@@ -430,86 +488,133 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
                   onTransfer={(lineId) => void transferCharge(lineId)}
                   onReassignSplitLeg={(lineIds, leg) => void reassignSplitLeg(lineIds, leg)}
                 />
-              </section>
-
-              <CorporateBillingForm slug={slug} reservationId={reservationId} payload={payload} onSaved={() => void loadFolio(reservationId)} />
+              </HmsCard>
 
               <div className="grid gap-6 lg:grid-cols-2">
-                <div className="space-y-4">
-                  <form onSubmit={postCharge} className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3">
-                    <h3 className="font-semibold text-slate-900">Post charge</h3>
-                    <Input name="description" placeholder="Description" required />
-                    <Input name="amount" type="number" step="0.01" min="0.01" placeholder="Amount" required />
-                    <Input name="department" placeholder="Department (optional)" />
-                    <select name="splitLeg" className="h-10 w-full rounded-md border border-slate-200 px-3 text-sm">
-                      <option value="guest">Guest leg</option>
-                      <option value="company">Company leg</option>
-                    </select>
-                    <Button type="submit">Post charge</Button>
-                  </form>
-                  <form onSubmit={applyDiscount} className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3">
-                    <h3 className="font-semibold text-slate-900">Apply discount</h3>
-                    <Input name="description" placeholder="Reason for discount" required />
-                    <Input name="amount" type="number" step="0.01" min="0.01" placeholder="Amount" required />
-                    <select name="splitLeg" className="h-10 w-full rounded-md border border-slate-200 px-3 text-sm">
-                      <option value="guest">Guest leg</option>
-                      <option value="company">Company leg</option>
-                    </select>
-                    <Input name="managerPin" type="password" placeholder="Manager PIN (if required)" />
-                    <Button type="submit" variant="outline">
-                      Apply discount
-                    </Button>
-                  </form>
+                <div className="space-y-6">
+                  <HmsCard id="folio-charge" icon={Plus} meaning="money" title="Add a charge" description="For extras such as room service, laundry or minibar.">
+                    <form onSubmit={postCharge} className="space-y-4">
+                      <F id="charge-description" label="What it's for">
+                        <input id="charge-description" name="description" required className={hmsInput} />
+                      </F>
+                      <F id="charge-amount" label={`Amount (${currency})`}>
+                        <input id="charge-amount" name="amount" type="number" step="0.01" min="0.01" required className={hmsInput} />
+                      </F>
+                      <F id="charge-department" label="Department" optional hint="For example: restaurant, spa or laundry.">
+                        <input id="charge-department" name="department" aria-describedby="charge-department-hint" className={hmsInput} />
+                      </F>
+                      <LegSelect id="charge-leg" />
+                      <button type="submit" className={`${hmsButton.primary} ${focusRing}`}>
+                        Add charge
+                      </button>
+                    </form>
+                  </HmsCard>
+                  <HmsCard id="folio-discount" icon={Percent} meaning="money" title="Give a discount">
+                    <form onSubmit={applyDiscount} className="space-y-4">
+                      <F id="discount-description" label="Reason for the discount">
+                        <input id="discount-description" name="description" required className={hmsInput} />
+                      </F>
+                      <F id="discount-amount" label={`Amount (${currency})`}>
+                        <input id="discount-amount" name="amount" type="number" step="0.01" min="0.01" required className={hmsInput} />
+                      </F>
+                      <LegSelect id="discount-leg" />
+                      <F id="discount-pin" label="Manager PIN" optional hint="Needed if you're not a manager or admin.">
+                        <input id="discount-pin" name="managerPin" type="password" autoComplete="off" aria-describedby="discount-pin-hint" className={hmsInput} />
+                      </F>
+                      <button type="submit" className={`${hmsButton.secondary} ${focusRing}`}>
+                        Give discount
+                      </button>
+                    </form>
+                  </HmsCard>
                 </div>
-                <div className="space-y-4">
-                  <form onSubmit={postPayment} className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3">
-                    <h3 className="font-semibold text-slate-900">Post payment</h3>
-                    <Input name="amount" type="number" step="0.01" min="0.01" placeholder="Amount" required />
-                    <select name="method" className="h-10 w-full rounded-md border border-slate-200 px-3 text-sm" required>
-                      <option value="cash">Cash</option>
-                      <option value="card">Card (manual reference)</option>
-                      <option value="pos">POS terminal</option>
-                      <option value="split">Split</option>
-                      <option value="direct_bill">Direct bill</option>
-                    </select>
-                    <select name="splitLeg" className="h-10 w-full rounded-md border border-slate-200 px-3 text-sm">
-                      <option value="guest">Settles guest leg</option>
-                      <option value="company">Settles company leg</option>
-                    </select>
-                    <Input name="reference" placeholder="Receipt / reference (optional)" />
-                    <Button type="submit">Post payment</Button>
-                  </form>
-                  <form onSubmit={postFxPayment} className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3">
-                    <h3 className="font-semibold text-slate-900">Post foreign-currency payment</h3>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Input name="originalAmount" type="number" step="0.01" min="0.01" placeholder="Amount received" required />
-                      <Input name="originalCurrency" placeholder="Currency (e.g. USD)" maxLength={3} required />
-                    </div>
-                    <Input name="fxRate" type="number" step="0.0001" min="0.0001" placeholder={`Rate to ${currency}`} required />
-                    <select name="method" className="h-10 w-full rounded-md border border-slate-200 px-3 text-sm" required>
-                      <option value="cash">Cash</option>
-                      <option value="card">Card (manual reference)</option>
-                      <option value="split">Split</option>
-                      <option value="direct_bill">Direct bill</option>
-                    </select>
-                    <select name="splitLeg" className="h-10 w-full rounded-md border border-slate-200 px-3 text-sm">
-                      <option value="guest">Settles guest leg</option>
-                      <option value="company">Settles company leg</option>
-                    </select>
-                    <Input name="reference" placeholder="Receipt / reference (optional)" />
-                    <Button type="submit" variant="outline">
-                      Post FX payment
-                    </Button>
-                  </form>
+                <div className="space-y-6">
+                  <HmsCard id="folio-payment" icon={Banknote} meaning="money" title="Take a payment">
+                    <form onSubmit={postPayment} className="space-y-4">
+                      <F id="payment-amount" label={`Amount (${currency})`}>
+                        <input id="payment-amount" name="amount" type="number" step="0.01" min="0.01" required className={hmsInput} />
+                      </F>
+                      <F id="payment-method" label="How they paid">
+                        <select id="payment-method" name="method" required className={hmsInput}>
+                          <option value="cash">Cash</option>
+                          <option value="card">Card (enter the reference)</option>
+                          <option value="pos">Card machine</option>
+                          <option value="split">Split</option>
+                          <option value="direct_bill">Direct bill</option>
+                        </select>
+                      </F>
+                      <LegSelect id="payment-leg" paying />
+                      <F id="payment-reference" label="Receipt or reference" optional>
+                        <input id="payment-reference" name="reference" className={hmsInput} />
+                      </F>
+                      <button type="submit" className={`${hmsButton.primary} ${focusRing}`}>
+                        Record payment
+                      </button>
+                    </form>
+                  </HmsCard>
+                  <HmsCard id="folio-fx-payment" icon={Coins} meaning="money" title="Take a payment in another currency">
+                    <form onSubmit={postFxPayment} className="space-y-4">
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <F id="fx-amount" label="Amount received">
+                          <input id="fx-amount" name="originalAmount" type="number" step="0.01" min="0.01" required className={hmsInput} />
+                        </F>
+                        <F id="fx-currency" label="Currency" hint="Three letters, such as USD.">
+                          <input id="fx-currency" name="originalCurrency" maxLength={3} required aria-describedby="fx-currency-hint" className={hmsInput} />
+                        </F>
+                      </div>
+                      <F id="fx-rate" label={`Exchange rate to ${currency}`}>
+                        <input id="fx-rate" name="fxRate" type="number" step="0.0001" min="0.0001" required className={hmsInput} />
+                      </F>
+                      <F id="fx-method" label="How they paid">
+                        <select id="fx-method" name="method" required className={hmsInput}>
+                          <option value="cash">Cash</option>
+                          <option value="card">Card (enter the reference)</option>
+                          <option value="split">Split</option>
+                          <option value="direct_bill">Direct bill</option>
+                        </select>
+                      </F>
+                      <LegSelect id="fx-leg" paying />
+                      <F id="fx-reference" label="Receipt or reference" optional>
+                        <input id="fx-reference" name="reference" className={hmsInput} />
+                      </F>
+                      <button type="submit" className={`${hmsButton.secondary} ${focusRing}`}>
+                        Record payment
+                      </button>
+                    </form>
+                  </HmsCard>
                 </div>
               </div>
+
+              <CorporateBillingForm slug={slug} reservationId={reservationId} payload={payload} onSaved={() => void loadFolio(reservationId)} />
             </div>
           ) : loading ? (
             <FolioSkeleton />
           ) : null}
         </>
       )}
-    </div>
+    </HmsPage>
+  );
+}
+
+const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2";
+
+const words = (s: string) => {
+  const t = s.replace(/_/g, " ");
+  return t.charAt(0).toUpperCase() + t.slice(1);
+};
+
+/** A labelled field; native `required` keeps the browser's own per-field messages. */
+function F(props: { id: string; label: string; hint?: string; optional?: boolean; children: React.ReactNode }) {
+  return <HmsField {...props} />;
+}
+
+function LegSelect({ id, paying = false }: { id: string; paying?: boolean }) {
+  return (
+    <F id={id} label={paying ? "Pays off the part owed by" : "Who pays this"} hint="Only matters if the bill is split between the guest and a company.">
+      <select id={id} name="splitLeg" aria-describedby={`${id}-hint`} className={hmsInput}>
+        <option value="guest">The guest</option>
+        <option value="company">The company</option>
+      </select>
+    </F>
   );
 }
 
@@ -517,7 +622,7 @@ const sk = "bg-slate-200";
 
 function FolioSkeleton() {
   return (
-    <div className="mt-8 space-y-6">
+    <div className="space-y-6" aria-hidden>
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-2">
@@ -581,95 +686,94 @@ function FolioSkeleton() {
   );
 }
 
-const STATUS_BADGE_STYLE: Record<string, string> = {
-  checked_in: "bg-blue-50 text-blue-700",
-  checked_out: "bg-slate-100 text-slate-600",
+const STATUS_TONE: Record<string, "slate" | "green" | "amber" | "red" | "blue"> = {
+  checked_in: "blue",
+  checked_out: "slate",
 };
 
 function FolioRowList({
   title,
+  description,
   rows,
   currency,
+  emptyTitle,
   emptyText,
   onSelect,
 }: {
   title: string;
+  description?: string;
   rows: SearchHit[];
   currency: string;
+  emptyTitle: string;
   emptyText: string;
   onSelect: (reservationId: string) => void;
 }) {
   return (
-    <div className="mt-4">
-      <div className="flex items-center gap-2 px-1">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{title}</p>
-        {rows.length > 0 ? (
-          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
-            {rows.length}
-          </span>
-        ) : null}
-      </div>
-
+    <HmsCard
+      id="folio-list"
+      icon={Receipt}
+      meaning="money"
+      title={
+        <>
+          {title}
+          {rows.length > 0 ? <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">{rows.length}</span> : null}
+        </>
+      }
+      description={rows.length > 0 ? description : undefined}
+      flush
+    >
       {rows.length === 0 ? (
-        <p className="mt-2 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
-          {emptyText}
-        </p>
+        <HmsEmptyState bare art="page" meaning="money" title={emptyTitle} description={emptyText} />
       ) : (
-        <div className="mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-slate-100 text-xs font-medium uppercase tracking-wide text-slate-400">
-                <th className="py-3 pl-5 pr-4 font-medium">Guest</th>
-                <th className="py-3 pr-4 font-medium">Room</th>
-                <th className="py-3 pr-4 font-medium">Folio</th>
-                <th className="py-3 pr-4 text-right font-medium">Balance</th>
-                <th className="py-3 pr-5 text-right font-medium">Status</th>
+            <caption className="sr-only">{title}</caption>
+            <thead className="bg-slate-50 text-sm text-slate-700">
+              <tr>
+                <th scope="col" className="py-3 pl-5 pr-4 font-semibold">Guest</th>
+                <th scope="col" className="py-3 pr-4 font-semibold">Room</th>
+                <th scope="col" className="py-3 pr-4 font-semibold">Bill number</th>
+                <th scope="col" className="py-3 pr-4 text-right font-semibold">Still to pay</th>
+                <th scope="col" className="py-3 pr-5 text-right font-semibold">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {rows.map((h) => (
                 <tr
                   key={h.reservationId}
-                  className="cursor-pointer transition-colors hover:bg-slate-50"
+                  className="cursor-pointer transition-colors hover:bg-emerald-50/40"
                   onClick={() => onSelect(h.reservationId)}
                 >
                   <td className="py-3 pl-5 pr-4">
                     <div className="min-w-0">
-                      <p className="truncate font-medium text-slate-900">{h.guestName}</p>
-                      <p className="truncate text-xs text-slate-500">{h.confirmationCode}</p>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelect(h.reservationId);
+                        }}
+                        className={`truncate rounded text-left font-medium text-slate-900 hover:text-blue-700 hover:underline ${focusRing}`}
+                      >
+                        {h.guestName}
+                        <span className="sr-only">: open bill {h.folioNumber}</span>
+                      </button>
+                      <p className="truncate text-xs text-slate-600">{h.confirmationCode}</p>
                     </div>
                   </td>
-                  <td className="py-3 pr-4 text-slate-600">
-                    {h.roomCode ? (
-                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium">
-                        Room {h.roomCode}
-                      </span>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                  <td className="py-3 pr-4 font-mono text-xs text-slate-500">{h.folioNumber}</td>
+                  <td className="py-3 pr-4 text-slate-700">{h.roomCode ? `Room ${h.roomCode}` : <Nothing />}</td>
+                  <td className="py-3 pr-4 font-mono text-xs text-slate-700">{h.folioNumber}</td>
                   <td className="py-3 pr-4 text-right">
                     {h.balance != null ? (
-                      <span
-                        className={`font-semibold tabular-nums ${
-                          h.balance > 0 ? "text-red-600" : "text-emerald-600"
-                        }`}
-                      >
+                      <span className={`font-semibold tabular-nums ${h.balance > 0 ? "text-red-700" : "text-emerald-700"}`}>
                         {formatPricingAmount(h.balance, currency)}
+                        {h.balance <= 0 ? <span className="sr-only"> (settled)</span> : null}
                       </span>
                     ) : (
-                      <span className="text-slate-400">—</span>
+                      <Nothing />
                     )}
                   </td>
                   <td className="py-3 pr-5 text-right">
-                    <span
-                      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
-                        STATUS_BADGE_STYLE[h.status] ?? "bg-slate-100 text-slate-600"
-                      }`}
-                    >
-                      {STATUS_LABEL[h.status] ?? h.status}
-                    </span>
+                    <HmsPill tone={STATUS_TONE[h.status] ?? "slate"}>{STATUS_LABEL[h.status] ?? words(h.status)}</HmsPill>
                   </td>
                 </tr>
               ))}
@@ -677,13 +781,22 @@ function FolioRowList({
           </table>
         </div>
       )}
-    </div>
+    </HmsCard>
+  );
+}
+
+function Nothing() {
+  return (
+    <span className="text-slate-600">
+      <span aria-hidden>—</span>
+      <span className="sr-only">None</span>
+    </span>
   );
 }
 
 function FolioRowListSkeleton() {
   return (
-    <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm" aria-hidden>
       <div className="flex gap-8 border-b border-slate-100 px-5 py-3">
         {["Guest", "Room", "Folio", "Balance", "Status"].map((label) => (
           <Skeleton key={label} className="h-3 w-14 bg-slate-200" />
@@ -769,121 +882,140 @@ function FolioLineTable({
   return (
     <>
     {selectedIds.size > 0 ? (
-      <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm">
-        <span className="text-blue-900">
-          {selectedIds.size} line{selectedIds.size === 1 ? "" : "s"} selected —
+      <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm" role="status">
+        <span className="font-medium text-emerald-900">
+          {selectedIds.size} line{selectedIds.size === 1 ? "" : "s"} selected
         </span>
-        <Button type="button" size="sm" variant="outline" onClick={() => moveSelected("guest")}>
-          Move to guest leg
-        </Button>
-        <Button type="button" size="sm" variant="outline" onClick={() => moveSelected("company")}>
-          Move to company leg
-        </Button>
-        <button type="button" className="ml-auto text-xs text-blue-700 hover:underline" onClick={() => setSelectedIds(new Set())}>
-          Clear
+        <button type="button" className={`${hmsButton.secondary} px-3 py-1.5 ${focusRing}`} onClick={() => moveSelected("guest")}>
+          Guest pays these
+        </button>
+        <button type="button" className={`${hmsButton.secondary} px-3 py-1.5 ${focusRing}`} onClick={() => moveSelected("company")}>
+          Company pays these
+        </button>
+        <button type="button" className={`${hmsButton.quiet} ml-auto ${focusRing}`} onClick={() => setSelectedIds(new Set())}>
+          Clear selection
         </button>
       </div>
     ) : movable.length > 0 ? (
-      <p className="mt-4 text-xs text-slate-400">
-        Select charges below and move them to a leg to split this folio — e.g. incidentals stay with the guest while the
-        room charge bills the company.
+      <p className="mt-4 text-sm text-slate-600">
+        To split the bill, tick charges and choose who pays them. For example, the company pays for the room while the
+        guest pays for extras.
       </p>
     ) : null}
-    <table className="mt-2 w-full text-sm">
-      <thead className="text-left text-xs uppercase text-slate-500">
-        <tr>
-          <th className="w-8 py-2" />
-          <th>Date</th>
-          <th>Description</th>
-          <th>Leg</th>
-          <th className="text-right">Amount</th>
-          <th />
-        </tr>
-      </thead>
-      <tbody>
-        {lines.length === 0 ? (
-          <tr>
-            <td colSpan={6} className="py-6 text-center text-slate-500">
-              No lines yet.
-            </td>
-          </tr>
-        ) : (
-          lines.map((l) => {
-            const canMove = !l.voided_at && (l.kind === "charge" || l.kind === "discount");
-            return (
-              <tr key={l.id} className={l.voided_at ? "opacity-50 line-through" : ""}>
-                <td className="py-2">
-                  {canMove ? (
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(l.id)}
-                      onChange={() => toggleSelected(l.id)}
-                      aria-label={`Select ${l.description ?? l.kind} to move between legs`}
-                    />
-                  ) : null}
-                </td>
-                <td className="py-2 text-slate-600">{new Date(l.created_at).toLocaleString()}</td>
-                <td>{l.description ?? l.kind}</td>
-                <td className="capitalize text-slate-500">{l.split_leg}</td>
-                <td className="text-right font-medium tabular-nums">
-                  {formatPricingAmount(l.amount, currency)}
-                </td>
-                <td className="text-right">
-                  {!l.voided_at && l.kind === "charge" ? (
-                    <div className="flex justify-end gap-3">
-                      <button
-                        type="button"
-                        className="text-xs text-slate-600 hover:underline"
-                        onClick={() => onTransfer(l.id)}
-                      >
-                        Transfer
-                      </button>
-                      <button type="button" className="text-xs text-red-600 hover:underline" onClick={() => setVoidTarget(l)}>
-                        Void
-                      </button>
-                    </div>
-                  ) : null}
-                </td>
-              </tr>
-            );
-          })
-        )}
-      </tbody>
-    </table>
+    {lines.length === 0 ? (
+      <HmsEmptyState bare art="page" meaning="money" title="Nothing on this bill yet" description="Charges, discounts and payments will be listed here as they're added." />
+    ) : (
+      <div className="mt-3 overflow-x-auto">
+        <table className="w-full text-sm">
+          <caption className="sr-only">Lines on this bill</caption>
+          <thead className="bg-slate-50 text-left text-sm text-slate-700">
+            <tr>
+              <th scope="col" className="w-10 px-3 py-2.5">
+                <span className="sr-only">Select</span>
+              </th>
+              <th scope="col" className="py-2.5 pr-4 font-semibold">Date</th>
+              <th scope="col" className="py-2.5 pr-4 font-semibold">What for</th>
+              <th scope="col" className="py-2.5 pr-4 font-semibold">Paid by</th>
+              <th scope="col" className="py-2.5 pr-4 text-right font-semibold">Amount</th>
+              <th scope="col" className="py-2.5 pr-3">
+                <span className="sr-only">Actions</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {lines.map((l) => {
+              const canMove = !l.voided_at && (l.kind === "charge" || l.kind === "discount");
+              return (
+                <tr key={l.id} className={l.voided_at ? "bg-slate-50 text-slate-600" : "text-slate-800"}>
+                  <td className="px-3 py-2.5">
+                    {canMove ? (
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-slate-400 accent-emerald-700"
+                        checked={selectedIds.has(l.id)}
+                        onChange={() => toggleSelected(l.id)}
+                        aria-label={`Select ${l.description ?? l.kind} to choose who pays`}
+                      />
+                    ) : null}
+                  </td>
+                  <td className="whitespace-nowrap py-2.5 pr-4 text-slate-700">{new Date(l.created_at).toLocaleString("en-GB")}</td>
+                  <td className="py-2.5 pr-4">
+                    <span className={l.voided_at ? "line-through" : ""}>{l.description ?? words(l.kind)}</span>
+                    {l.voided_at ? (
+                      <span className="ml-2">
+                        <HmsPill tone="red">Voided</HmsPill>
+                      </span>
+                    ) : null}
+                  </td>
+                  <td className="py-2.5 pr-4 text-slate-700">{l.split_leg === "company" ? "Company" : "Guest"}</td>
+                  <td className={`py-2.5 pr-4 text-right font-medium tabular-nums ${l.voided_at ? "line-through" : ""}`}>
+                    {formatPricingAmount(l.amount, currency)}
+                  </td>
+                  <td className="py-2.5 pr-3 text-right">
+                    {!l.voided_at && l.kind === "charge" ? (
+                      <div className="flex justify-end gap-1">
+                        <button type="button" className={`${hmsButton.quiet} ${focusRing}`} onClick={() => onTransfer(l.id)}>
+                          Transfer<span className="sr-only"> {l.description ?? "charge"}</span>
+                        </button>
+                        <button type="button" className={`${hmsButton.danger} py-1.5 ${focusRing}`} onClick={() => setVoidTarget(l)}>
+                          Void<span className="sr-only"> {l.description ?? "charge"}</span>
+                        </button>
+                      </div>
+                    ) : null}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    )}
 
     <Dialog open={Boolean(voidTarget)} onOpenChange={(open) => { if (!open) closeVoidDialog(); }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Void charge</DialogTitle>
+          <DialogTitle>Void this charge?</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3">
+        <div className="space-y-4">
           {voidTarget ? (
-            <p className="text-sm text-slate-600">
-              {voidTarget.description ?? voidTarget.kind} — {formatPricingAmount(voidTarget.amount, currency)}
+            <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-800">
+              {voidTarget.description ?? words(voidTarget.kind)}: {formatPricingAmount(voidTarget.amount, currency)}
             </p>
           ) : null}
-          <div>
-            <p className="mb-1 text-xs font-medium text-slate-600">Reason for void</p>
+          <F id="void-reason" label="Why is it being voided?" hint="This is saved with the bill so others can see why.">
             <textarea
+              id="void-reason"
               autoFocus
               value={voidReason}
               onChange={(e) => setVoidReason(e.target.value)}
-              className="min-h-[64px] w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-              placeholder="Why is this charge being voided?"
+              aria-describedby="void-reason-hint"
+              className={`${hmsInput} min-h-[72px]`}
             />
-          </div>
-          <div>
-            <p className="mb-1 text-xs font-medium text-slate-600">Manager PIN (if required)</p>
-            <Input type="password" value={voidPin} onChange={(e) => setVoidPin(e.target.value)} />
-          </div>
+          </F>
+          <F id="void-pin" label="Manager PIN" optional hint="Needed if you're not a manager or admin.">
+            <input
+              id="void-pin"
+              type="password"
+              autoComplete="off"
+              value={voidPin}
+              onChange={(e) => setVoidPin(e.target.value)}
+              aria-describedby="void-pin-hint"
+              className={hmsInput}
+            />
+          </F>
         </div>
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={closeVoidDialog} disabled={voiding}>
-            Cancel
-          </Button>
-          <Button type="button" variant="destructive" disabled={voiding || !voidReason.trim()} onClick={() => void submitVoid()}>
+          <button type="button" className={`${hmsButton.secondary} ${focusRing}`} onClick={closeVoidDialog} disabled={voiding}>
+            Keep charge
+          </button>
+          <button
+            type="button"
+            className={`inline-flex items-center justify-center gap-2 rounded-xl bg-red-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-50 ${focusRing}`}
+            disabled={voiding || !voidReason.trim()}
+            onClick={() => void submitVoid()}
+          >
             {voiding ? "Voiding…" : "Void charge"}
-          </Button>
+          </button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -928,26 +1060,40 @@ function CorporateBillingForm({
   };
 
   return (
-    <form onSubmit={submit} className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3">
-      <h3 className="font-semibold text-slate-900">Corporate billing</h3>
-      <Input name="billToAccount" defaultValue={payload.reservation.billToAccount ?? ""} placeholder="Bill to account" />
-      <Input name="poNumber" defaultValue={payload.reservation.poNumber ?? ""} placeholder="PO number" />
-      <Input name="folioSplitNotes" defaultValue={payload.reservation.folioSplitNotes ?? ""} placeholder="Split folio notes" />
-      <div className="grid grid-cols-2 gap-2">
-        <Input name="commissionPlan" defaultValue={payload.reservation.commissionPlan ?? ""} placeholder="Travel agent / commission plan" />
-        <Input
-          name="commissionValue"
-          type="number"
-          min="0"
-          step="0.01"
-          defaultValue={payload.reservation.commissionValue ?? ""}
-          placeholder="Commission amount"
-        />
-      </div>
-      <Button type="submit" variant="outline">
-        Save billing details
-      </Button>
-    </form>
+    <HmsCard id="folio-company-billing" icon={Building2} meaning="money" title="Company billing" description="Fill this in when a company or travel agent is paying for some or all of the stay.">
+      <form onSubmit={submit} className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <F id="bill-to-account" label="Company account" optional>
+            <input id="bill-to-account" name="billToAccount" defaultValue={payload.reservation.billToAccount ?? ""} className={hmsInput} />
+          </F>
+          <F id="po-number" label="Purchase order (PO) number" optional>
+            <input id="po-number" name="poNumber" defaultValue={payload.reservation.poNumber ?? ""} className={hmsInput} />
+          </F>
+        </div>
+        <F id="split-notes" label="Notes on splitting the bill" optional>
+          <input id="split-notes" name="folioSplitNotes" defaultValue={payload.reservation.folioSplitNotes ?? ""} className={hmsInput} />
+        </F>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <F id="commission-plan" label="Travel agent or commission plan" optional>
+            <input id="commission-plan" name="commissionPlan" defaultValue={payload.reservation.commissionPlan ?? ""} className={hmsInput} />
+          </F>
+          <F id="commission-value" label="Commission amount" optional>
+            <input
+              id="commission-value"
+              name="commissionValue"
+              type="number"
+              min="0"
+              step="0.01"
+              defaultValue={payload.reservation.commissionValue ?? ""}
+              className={hmsInput}
+            />
+          </F>
+        </div>
+        <button type="submit" className={`${hmsButton.secondary} ${focusRing}`}>
+          Save company billing
+        </button>
+      </form>
+    </HmsCard>
   );
 }
 
@@ -1000,26 +1146,43 @@ function CashFloatPanel({
   };
 
   return (
-    <section className="mt-6 max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 className="font-semibold text-slate-900">Cash float</h2>
-      {session ? (
-        <div className="mt-4 space-y-4">
-          <p className="text-sm text-slate-600">
-            Session open since {new Date(session.opened_at as string).toLocaleString()} · Opening{" "}
-            {String(session.opening_balance)}
-          </p>
-          <form onSubmit={close} className="space-y-3">
-            <Input name="closingBalance" type="number" step="0.01" placeholder="Counted closing balance" required />
-            <Input name="notes" placeholder="Notes (optional)" />
-            <Button type="submit">Close session</Button>
+    <div className="max-w-xl">
+      <HmsCard
+        id="cash-float"
+        icon={Coins}
+        meaning="money"
+        title="Cash float"
+        description="Count the cash in the till when your shift starts and again when it ends."
+        actions={session ? <HmsPill tone="green">Open</HmsPill> : <HmsPill>Closed</HmsPill>}
+      >
+        {session ? (
+          <div className="space-y-4">
+            <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-slate-800">
+              Opened {new Date(session.opened_at as string).toLocaleString("en-GB")} with {String(session.opening_balance)} in the till.
+            </p>
+            <form onSubmit={close} className="space-y-4">
+              <F id="closing-balance" label="Cash counted now" hint="Count every note and coin in the till.">
+                <input id="closing-balance" name="closingBalance" type="number" step="0.01" required aria-describedby="closing-balance-hint" className={hmsInput} />
+              </F>
+              <F id="float-notes" label="Notes" optional>
+                <input id="float-notes" name="notes" className={hmsInput} />
+              </F>
+              <button type="submit" className={`${hmsButton.primary} ${focusRing}`}>
+                Close the float
+              </button>
+            </form>
+          </div>
+        ) : (
+          <form onSubmit={open} className="space-y-4">
+            <F id="opening-balance" label="Cash in the till now" hint="Count every note and coin before you start.">
+              <input id="opening-balance" name="openingBalance" type="number" step="0.01" min="0" required aria-describedby="opening-balance-hint" className={hmsInput} />
+            </F>
+            <button type="submit" className={`${hmsButton.primary} ${focusRing}`}>
+              Open the float
+            </button>
           </form>
-        </div>
-      ) : (
-        <form onSubmit={open} className="mt-4 space-y-3">
-          <Input name="openingBalance" type="number" step="0.01" min="0" placeholder="Opening balance" required />
-          <Button type="submit">Open session</Button>
-        </form>
-      )}
-    </section>
+        )}
+      </HmsCard>
+    </div>
   );
 }

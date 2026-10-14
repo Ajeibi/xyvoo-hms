@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Plus, Shapes, Trash2 } from "lucide-react";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { SettingsSectionInfo } from "@/components/hms/settings/SettingsSectionInfo";
+import { HmsCard, HmsEmptyState, HmsField, HmsPill, hmsButton, hmsInput } from "@/components/hms/hms-ui";
 import type { InventoryItemTypeRow } from "@/lib/hms/inventory-types";
+
+const SMALL_BUTTON = hmsButton.small;
 
 const HELP_TEXT =
   "Fixed asset excludes an item type from stock entirely (ovens, fridges, furniture — track those on a separate asset register, not here). Equipment shows breakage/loss reasons (broken, worn out, lost) on Waste & spoilage instead of spoilage language — use it for durable goods like linen, cutlery, and crockery that don't get consumed, they wear out.";
@@ -132,105 +134,88 @@ export function InventoryItemTypeManager({ slug, rows }: { slug: string; rows: I
   };
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white">
-      <div className="border-b border-slate-100 px-6 py-4">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <h2 className="text-sm font-semibold text-slate-900">Item types</h2>
-          <SettingsSectionInfo title="Item types" text={HELP_TEXT} />
+    <HmsCard
+      id="inventory-item-types"
+      title="Item types"
+      description="How items are classified across the catalogue and reports. Also controls how the stock ledger treats them."
+      icon={Shapes}
+      meaning="stock"
+      flush
+      actions={<SettingsSectionInfo title="Item types" text={HELP_TEXT} />}
+    >
+      <div className="flex flex-wrap items-end gap-3 px-5 py-4 sm:px-6">
+        <div className="w-full sm:w-60">
+          <HmsField id="inventory-item-type-new" label="Name">
+            <input
+              id="inventory-item-type-new"
+              className={hmsInput}
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="e.g. New item type"
+            />
+          </HmsField>
         </div>
-        <p className="mt-0.5 text-xs text-slate-500">
-          Classification used across the item catalog and reports — also controls stock-ledger behavior.
-        </p>
-      </div>
-
-      <div className="flex flex-wrap items-end gap-2 px-6 py-4">
-        <div className="w-52">
-          <label className="mb-1 block text-xs font-medium text-slate-600">Name</label>
-          <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="e.g. New item type" />
-        </div>
-        <Button type="button" onClick={() => void add()} disabled={saving}>
+        <button type="button" className={hmsButton.primary} onClick={() => void add()} disabled={saving}>
+          <Plus className="h-4 w-4" aria-hidden />
           {saving ? "Adding…" : "Add item type"}
-        </Button>
+        </button>
       </div>
 
       {rows.length === 0 ? (
-        <p className="px-6 pb-6 text-sm text-slate-500">None yet.</p>
+        <div className="border-t border-slate-100">
+          <HmsEmptyState bare art="tag" meaning="stock" title="No item types yet" description="Add your first item type above." />
+        </div>
       ) : (
-        <ul className="divide-y divide-slate-100 px-6 pb-2">
+        <ul className="divide-y divide-slate-100 border-t border-slate-100">
           {rows.map((row) => (
-            <li key={row.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-sm">
+            <li key={row.id} className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 text-sm sm:px-6">
               {renamingId === row.id ? (
                 <div className="flex flex-1 flex-wrap items-center gap-2">
-                  <Input value={renameValue} onChange={(e) => setRenameValue(e.target.value)} className="w-56" autoFocus />
-                  <Button type="button" size="sm" onClick={() => void saveRename(row.id)} disabled={busyId === row.id}>
+                  <label htmlFor={`inventory-item-type-rename-${row.id}`} className="sr-only">
+                    New name for {row.name}
+                  </label>
+                  <input
+                    id={`inventory-item-type-rename-${row.id}`}
+                    className={`${hmsInput} sm:w-64`}
+                    value={renameValue}
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    autoFocus
+                  />
+                  <button type="button" className={hmsButton.primary} onClick={() => void saveRename(row.id)} disabled={busyId === row.id}>
                     Save
-                  </Button>
-                  <Button type="button" size="sm" variant="ghost" onClick={cancelRename}>
+                  </button>
+                  <button type="button" className={hmsButton.secondary} onClick={cancelRename}>
                     Cancel
-                  </Button>
+                  </button>
                 </div>
               ) : (
                 <>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium text-slate-900">{row.name}</span>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        row.is_active ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
-                      }`}
-                    >
-                      {row.is_active ? "Active" : "Inactive"}
-                    </span>
-                    {row.is_fixed_asset ? (
-                      <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
-                        Fixed asset — excluded from stock
-                      </span>
-                    ) : null}
-                    {row.is_equipment ? (
-                      <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
-                        Equipment — breakage/loss
-                      </span>
-                    ) : null}
+                    <HmsPill tone={row.is_active ? "green" : "slate"}>{row.is_active ? "Active" : "Inactive"}</HmsPill>
+                    {row.is_fixed_asset ? <HmsPill tone="amber">Fixed asset: not in stock</HmsPill> : null}
+                    {row.is_equipment ? <HmsPill tone="blue">Equipment: breakage and loss</HmsPill> : null}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <Button type="button" size="sm" variant="outline" onClick={() => startRename(row.id, row.name)}>
-                      Rename
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => void toggleFixedAsset(row)}
-                      disabled={busyId === row.id}
-                    >
+                    <button type="button" className={SMALL_BUTTON} onClick={() => startRename(row.id, row.name)}>
+                      Rename<span className="sr-only"> {row.name}</span>
+                    </button>
+                    <button type="button" className={SMALL_BUTTON} onClick={() => void toggleFixedAsset(row)} disabled={busyId === row.id}>
                       {row.is_fixed_asset ? "Unmark fixed asset" : "Mark fixed asset"}
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => void toggleEquipment(row)}
-                      disabled={busyId === row.id}
-                    >
+                      <span className="sr-only"> for {row.name}</span>
+                    </button>
+                    <button type="button" className={SMALL_BUTTON} onClick={() => void toggleEquipment(row)} disabled={busyId === row.id}>
                       {row.is_equipment ? "Unmark equipment" : "Mark equipment"}
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => void toggleActive(row)}
-                      disabled={busyId === row.id}
-                    >
+                      <span className="sr-only"> for {row.name}</span>
+                    </button>
+                    <button type="button" className={SMALL_BUTTON} onClick={() => void toggleActive(row)} disabled={busyId === row.id}>
                       {row.is_active ? "Deactivate" : "Activate"}
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => void remove(row)}
-                      disabled={busyId === row.id}
-                    >
-                      Delete
-                    </Button>
+                      <span className="sr-only"> {row.name}</span>
+                    </button>
+                    <button type="button" className={hmsButton.danger} onClick={() => void remove(row)} disabled={busyId === row.id}>
+                      <Trash2 className="h-4 w-4" aria-hidden />
+                      Delete<span className="sr-only"> {row.name}</span>
+                    </button>
                   </div>
                 </>
               )}
@@ -238,6 +223,6 @@ export function InventoryItemTypeManager({ slug, rows }: { slug: string; rows: I
           ))}
         </ul>
       )}
-    </div>
+    </HmsCard>
   );
 }

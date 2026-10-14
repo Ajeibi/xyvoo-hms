@@ -11,24 +11,39 @@ export type FrontDeskAccent =
   | "financial"
   | "admin";
 
+/*
+ * Accent colours follow the hotel meaning colours (components/hms/meaning.ts): arrivals and rooms
+ * are sky, guests amber, incidents rose (needs someone now), money emerald, admin neutral.
+ */
+
 /** Left-border accent (PRD categories), tuned for light cards like HMS dashboard. */
 export const FRONT_DESK_ACCENT_BORDER_CLASS: Record<FrontDeskAccent, string> = {
-  checkin: "border-l-blue-500",
-  rooms: "border-l-teal-500",
+  checkin: "border-l-sky-500",
+  rooms: "border-l-sky-500",
   guest: "border-l-amber-500",
-  incidents: "border-l-orange-500",
+  incidents: "border-l-rose-500",
   financial: "border-l-emerald-500",
   admin: "border-l-slate-400",
 };
 
 /** Icon well + icon colour (matches dashboard snapshot / quick-link energy). */
 export const FRONT_DESK_ACCENT_WELL_CLASS: Record<FrontDeskAccent, string> = {
-  checkin: "bg-blue-50 text-blue-600",
-  rooms: "bg-teal-50 text-teal-600",
+  checkin: "bg-sky-50 text-sky-700",
+  rooms: "bg-sky-50 text-sky-700",
   guest: "bg-amber-50 text-amber-600",
-  incidents: "bg-orange-50 text-orange-600",
+  incidents: "bg-rose-50 text-rose-600",
   financial: "bg-emerald-50 text-emerald-600",
   admin: "bg-slate-100 text-slate-600",
+};
+
+/** Soft tile background for live figures, with a white ringed icon box on top. */
+export const FRONT_DESK_ACCENT_TILE_CLASS: Record<FrontDeskAccent, { tint: string; iconBox: string }> = {
+  checkin: { tint: "bg-sky-50", iconBox: "bg-white text-sky-700 ring-1 ring-sky-200" },
+  rooms: { tint: "bg-sky-50", iconBox: "bg-white text-sky-700 ring-1 ring-sky-200" },
+  guest: { tint: "bg-amber-50", iconBox: "bg-white text-amber-600 ring-1 ring-amber-200" },
+  incidents: { tint: "bg-rose-50", iconBox: "bg-white text-rose-600 ring-1 ring-rose-200" },
+  financial: { tint: "bg-emerald-50", iconBox: "bg-white text-emerald-600 ring-1 ring-emerald-200" },
+  admin: { tint: "bg-slate-100", iconBox: "bg-white text-slate-600 ring-1 ring-slate-200" },
 };
 
 /** Sidebar / route grouping for split front desk UX. */

@@ -4,9 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
+import { HmsCard, HmsEmptyState, HmsField, HmsPage, HmsPageHeader, HmsPill, hmsButton, hmsInput } from "@/components/hms/hms-ui";
+import { Landmark } from "lucide-react";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import type { ChartOfAccountRow } from "@/lib/hms/chart-of-accounts";
 import type { BankReconciliationRow } from "@/lib/hms/bank-reconciliation";
@@ -62,47 +62,58 @@ export function AccountsBankReconciliationListClient({
   };
 
   return (
-    <div className="w-full px-6 py-8 sm:px-8">
-      <h1 className="text-xl font-semibold text-slate-900">Bank reconciliation</h1>
-      <p className="mt-0.5 text-sm text-slate-500">
-        Confirm the ledger agrees with what the bank actually shows for each bank/cash account{currency ? ` (${currency})` : ""}.
-      </p>
+    <HmsPage>
+      <HmsPageHeader
+        eyebrow="Accounts"
+        meaning="money"
+        title="Bank reconciliation"
+        description={`Check the ledger agrees with what the bank actually shows for each bank and cash account${currency ? ` (${currency})` : ""}.`}
+      />
 
       <AccountsSubNav slug={slug} canAccessAllDepartments={canAccessAllDepartments} />
 
       {accountsWithHistory.length === 0 ? (
-        <div className="mt-6 rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-500">
-          No bank/cash accounts yet — mark an account as cash-equivalent in the chart of accounts first.
-        </div>
+        <HmsEmptyState
+          icon={Landmark}
+          meaning="money"
+          title="No bank or cash accounts yet"
+          description="Mark an account as cash-equivalent in the chart of accounts, and it will appear here."
+          action={
+            <Link href={`/hms/${slug}/accounts/chart`} className={`${hmsButton.primary} print:hidden`}>
+              Go to chart of accounts
+            </Link>
+          }
+        />
       ) : (
-        <div className="mt-6 space-y-4">
+        <div className="space-y-4">
           {accountsWithHistory.map(({ account, reconciliations }) => {
             const inProgress = reconciliations.find((r) => r.status === "in_progress");
             const lastCompleted = reconciliations.find((r) => r.status === "completed");
             return (
-              <div key={account.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <p className="font-medium text-slate-900">
-                      <code className="mr-2 font-mono text-xs text-slate-400">{account.code}</code>
-                      {account.name}
-                    </p>
-                    <p className="mt-1 text-xs text-slate-500">
-                      {lastCompleted
-                        ? `Last reconciled ${new Date(lastCompleted.periodEndDate).toLocaleDateString()}`
-                        : "Never reconciled"}
-                    </p>
-                  </div>
-                  {inProgress ? (
-                    <Link href={`/hms/${slug}/accounts/bank-reconciliation/${inProgress.id}`}>
-                      <Button type="button" variant="outline" size="sm">
-                        Resume ({new Date(inProgress.periodEndDate).toLocaleDateString()})
-                      </Button>
+              <HmsCard
+                key={account.id}
+                id={`bank-rec-${account.id}`}
+                title={
+                  <>
+                    <span className="mr-2 font-mono text-sm tabular-nums text-slate-600">{account.code}</span>
+                    {account.name}
+                  </>
+                }
+                description={
+                  lastCompleted ? `Last reconciled ${new Date(lastCompleted.periodEndDate).toLocaleDateString()}` : "Never reconciled"
+                }
+                icon={Landmark}
+                meaning="money"
+                className="print:border-0 print:shadow-none"
+                actions={
+                  inProgress ? (
+                    <Link href={`/hms/${slug}/accounts/bank-reconciliation/${inProgress.id}`} className={`${hmsButton.secondary} print:hidden`}>
+                      Resume ({new Date(inProgress.periodEndDate).toLocaleDateString()})
                     </Link>
                   ) : canReconcile ? (
-                    <Button
+                    <button
                       type="button"
-                      size="sm"
+                      className={`${hmsButton.primary} print:hidden`}
                       onClick={() => {
                         setStartingFor(account);
                         setStatementEndingBalance("");
@@ -110,29 +121,45 @@ export function AccountsBankReconciliationListClient({
                       }}
                     >
                       Start reconciliation
-                    </Button>
-                  ) : null}
-                </div>
+                    </button>
+                  ) : null
+                }
+              >
                 {reconciliations.length > 0 ? (
-                  <ul className="mt-3 space-y-1 border-t border-slate-100 pt-3 text-xs text-slate-500">
-                    {reconciliations.slice(0, 3).map((r) => (
-                      <li key={r.id} className="flex items-center justify-between">
-                        <Link href={`/hms/${slug}/accounts/bank-reconciliation/${r.id}`} className="hover:underline">
-                          {new Date(r.periodEndDate).toLocaleDateString()} — statement {r.statementEndingBalance.toFixed(2)}
-                        </Link>
-                        <span
-                          className={cn(
-                            "rounded-full px-2 py-0.5 font-medium",
-                            r.status === "completed" ? "bg-emerald-100 text-emerald-900" : "bg-amber-100 text-amber-900",
-                          )}
-                        >
-                          {r.status === "completed" ? "Completed" : "In progress"}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </div>
+                  <table className="w-full text-left text-sm">
+                    <caption className="sr-only">Recent reconciliations for {account.name}</caption>
+                    <thead className="border-b border-slate-200 text-sm font-medium text-slate-600">
+                      <tr>
+                        <th scope="col" className="py-2 pr-3">Period end</th>
+                        <th scope="col" className="py-2 pr-3 text-right">Statement balance</th>
+                        <th scope="col" className="py-2 text-right">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reconciliations.slice(0, 3).map((r) => (
+                        <tr key={r.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                          <td className="py-3 pr-3">
+                            <Link
+                              href={`/hms/${slug}/accounts/bank-reconciliation/${r.id}`}
+                              className="rounded font-medium text-blue-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                            >
+                              {new Date(r.periodEndDate).toLocaleDateString()}
+                            </Link>
+                          </td>
+                          <td className="py-3 pr-3 text-right tabular-nums text-slate-900">{r.statementEndingBalance.toFixed(2)}</td>
+                          <td className="py-3 text-right">
+                            <HmsPill tone={r.status === "completed" ? "green" : "amber"}>
+                              {r.status === "completed" ? "Completed" : "In progress"}
+                            </HmsPill>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <p className="text-sm text-slate-600">No reconciliations yet for this account.</p>
+                )}
+              </HmsCard>
             );
           })}
         </div>
@@ -141,23 +168,24 @@ export function AccountsBankReconciliationListClient({
       <Dialog open={Boolean(startingFor)} onOpenChange={(open) => !open && setStartingFor(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Start reconciliation — {startingFor?.name}</DialogTitle>
+            <DialogTitle>Start reconciliation: {startingFor?.name}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <p className="mb-1 text-xs font-medium text-slate-600">Statement period end date</p>
-              <Input type="date" value={periodEndDate} onChange={(e) => setPeriodEndDate(e.target.value)} />
-            </div>
-            <div>
-              <p className="mb-1 text-xs font-medium text-slate-600">Statement ending balance</p>
-              <Input
+          <div className="space-y-4">
+            <HmsField id="rec-period-end" label="Statement period end date">
+              <input id="rec-period-end" type="date" className={hmsInput} value={periodEndDate} onChange={(e) => setPeriodEndDate(e.target.value)} />
+            </HmsField>
+            <HmsField id="rec-statement-balance" label="Statement ending balance" hint="The closing balance printed on the bank statement.">
+              <input
+                id="rec-statement-balance"
                 type="number"
                 step="0.01"
+                aria-describedby="rec-statement-balance-hint"
+                className={`${hmsInput} tabular-nums`}
                 value={statementEndingBalance}
                 onChange={(e) => setStatementEndingBalance(e.target.value)}
                 placeholder="0.00"
               />
-            </div>
+            </HmsField>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setStartingFor(null)}>
@@ -169,6 +197,6 @@ export function AccountsBankReconciliationListClient({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </HmsPage>
   );
 }

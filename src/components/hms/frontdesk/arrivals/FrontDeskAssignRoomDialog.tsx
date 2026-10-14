@@ -10,6 +10,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { BedDouble } from "lucide-react";
+import { HmsAlert, HmsIconBadge } from "@/components/hms/hms-ui";
 import type { AssignableRoomOption } from "@/lib/hms/arrivals-workbench";
 import { assignRoomApi, FrontDeskAssignRoomPicker } from "./FrontDeskAssignRoomPicker";
 
@@ -83,14 +85,19 @@ export function FrontDeskAssignRoomDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Assign room — {confirmationCode}</DialogTitle>
-          <DialogDescription>{guestName}</DialogDescription>
+        <DialogHeader className="flex-row items-start gap-3 space-y-0 text-left">
+          <HmsIconBadge icon={BedDouble} meaning="rooms" />
+          <div className="min-w-0">
+            <DialogTitle className="font-heading">Assign a room · {confirmationCode}</DialogTitle>
+            <DialogDescription className="text-slate-600">{guestName}</DialogDescription>
+          </div>
         </DialogHeader>
         {loading && assignableRooms.length === 0 ? (
-          <p className="text-sm text-slate-500">Loading rooms…</p>
+          <p role="status" className="text-sm text-slate-600">
+            Loading rooms…
+          </p>
         ) : null}
-        {error ? <p className="text-sm text-red-600">{error}</p> : null}
+        {error ? <HmsAlert message={error} /> : null}
         <FrontDeskAssignRoomPicker
           slug={slug}
           reservationId={reservationId}
@@ -104,11 +111,11 @@ export function FrontDeskAssignRoomDialog({
           floorFilter={floorFilter}
           onFloorFilterChange={setFloorFilter}
         />
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="gap-2">
+          <Button type="button" variant="outline" className="rounded-xl" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button type="button" onClick={() => handleAssign()} disabled={loading || !roomUnitId}>
+          <Button type="button" className="rounded-xl font-semibold" onClick={() => handleAssign()} disabled={loading || !roomUnitId}>
             Assign room
           </Button>
         </DialogFooter>

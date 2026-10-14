@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { Check, ClipboardCheck, RotateCcw } from "lucide-react";
+import { HmsEmptyState, HmsIconBadge, HmsPage, HmsPageHeader, hmsInput } from "@/components/hms/hms-ui";
 import { useFrontDeskRealtime } from "@/hooks/useFrontDeskRealtime";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import type { HousekeepingTaskRow } from "@/lib/hms/housekeeping-tasks";
@@ -50,61 +51,76 @@ export function HousekeepingInspectionsClient({
   };
 
   return (
-    <div className="px-8 py-8">
-      <h1 className="text-xl font-semibold text-slate-900">Inspections</h1>
-      <p className="mt-0.5 text-sm text-slate-500">
-        Rooms awaiting sign-off. A pass marks the room ready; a fail reopens it for the attendant.
-      </p>
+    <HmsPage wide>
+      <HmsPageHeader
+        eyebrow="Housekeeping"
+        meaning="care"
+        title="Inspections"
+        description="Rooms waiting for sign-off. A pass marks the room ready; a fail sends it back to the attendant."
+      />
 
       <HousekeepingSubNav slug={slug} canAccessAllDepartments={canAccessAllDepartments} />
 
       {tasks.length === 0 ? (
-        <div className="mt-6 rounded-xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">
-          Nothing waiting on inspection.
-        </div>
+        <HmsEmptyState
+          art="star"
+          meaning="care"
+          title="Nothing waiting for inspection"
+          description="Rooms appear here once an attendant marks them cleaned."
+        />
       ) : (
-        <div className="mt-6 space-y-3">
-          {tasks.map((t) => (
-            <div key={t.id} className="rounded-2xl border border-slate-200 bg-white p-4">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="font-semibold text-slate-900">Room {t.roomCode}</p>
-                  <p className="text-xs text-slate-500">
-                    {taskTypeLabel(t.taskType)} · Assigned to {t.assignedNote ?? "unassigned"}
-                  </p>
+        <ul className="space-y-3">
+          {tasks.map((t) => {
+            const noteId = `hk-inspect-note-${t.id}`;
+            return (
+              <li key={t.id} className="rounded-2xl border border-violet-100 bg-white p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start gap-3">
+                    <HmsIconBadge icon={ClipboardCheck} meaning="care" />
+                    <div>
+                      <p className="font-heading text-base font-semibold text-slate-900">Room {t.roomCode}</p>
+                      <p className="text-sm text-slate-700">
+                        {taskTypeLabel(t.taskType)} · Assigned to {t.assignedNote ?? "no one yet"}
+                      </p>
+                    </div>
+                  </div>
+                  <PriorityBadge level={t.priorityLevel} />
                 </div>
-                <PriorityBadge level={t.priorityLevel} />
-              </div>
-              <textarea
-                className="mt-3 w-full rounded-lg border border-slate-200 p-2 text-sm"
-                placeholder="Note (required on fail)"
-                rows={2}
-                value={noteByTask[t.id] ?? ""}
-                onChange={(e) => setNoteByTask((prev) => ({ ...prev, [t.id]: e.target.value }))}
-              />
-              <div className="mt-3 flex gap-2">
-                <Button
-                  type="button"
-                  className="rounded-lg bg-emerald-600 hover:bg-emerald-700"
-                  disabled={busyIds.has(t.id)}
-                  onClick={() => void inspect(t.id, "pass")}
-                >
-                  {busyIds.has(t.id) ? "Saving…" : "Pass — mark ready"}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="rounded-lg border-red-200 text-red-700 hover:bg-red-50"
-                  disabled={busyIds.has(t.id)}
-                  onClick={() => void inspect(t.id, "fail")}
-                >
-                  {busyIds.has(t.id) ? "Saving…" : "Fail — send back"}
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
+                <label htmlFor={noteId} className="mt-3 block text-sm font-medium text-slate-800">
+                  Note <span className="font-normal text-slate-600">(needed if the room fails)</span>
+                </label>
+                <textarea
+                  id={noteId}
+                  className={`${hmsInput} mt-1`}
+                  rows={2}
+                  value={noteByTask[t.id] ?? ""}
+                  onChange={(e) => setNoteByTask((prev) => ({ ...prev, [t.id]: e.target.value }))}
+                />
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={busyIds.has(t.id)}
+                    onClick={() => void inspect(t.id, "pass")}
+                  >
+                    <Check className="h-4 w-4" aria-hidden />
+                    {busyIds.has(t.id) ? "Saving…" : "Pass, mark ready"}
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 transition-colors hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={busyIds.has(t.id)}
+                    onClick={() => void inspect(t.id, "fail")}
+                  >
+                    <RotateCcw className="h-4 w-4" aria-hidden />
+                    {busyIds.has(t.id) ? "Saving…" : "Fail, send back"}
+                  </button>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       )}
-    </div>
+    </HmsPage>
   );
 }

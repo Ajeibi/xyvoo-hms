@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
+import { useId, useMemo } from "react";
+import { HmsField, hmsInput } from "@/components/hms/hms-ui";
 import type { AssignableRoomOption } from "@/lib/hms/arrivals-workbench";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 
@@ -37,6 +38,7 @@ export function FrontDeskAssignRoomPicker({
   floorFilter: string;
   onFloorFilterChange: (floor: string) => void;
 }) {
+  const uid = useId();
   const floors = useMemo(() => {
     const set = new Set(assignableRooms.map((u) => u.floor));
     return [...set].sort((a, b) => a - b);
@@ -51,55 +53,67 @@ export function FrontDeskAssignRoomPicker({
   const needsPin = selected && selected.readiness !== "ready" && selected.readiness !== "inspected";
 
   return (
-    <div className="space-y-3">
-      <p className="text-xs text-slate-500">
-        Reserved type: <span className="font-medium text-slate-700">{roomTypeCode}</span>
+    <div className="space-y-4">
+      <p className="text-sm text-slate-600">
+        Booked room type: <span className="font-medium text-slate-900">{roomTypeCode}</span>
       </p>
       {floors.length > 1 ? (
+        <HmsField id={`${uid}-floor`} label="Floor">
+          <select
+            id={`${uid}-floor`}
+            className={`${hmsInput} cursor-pointer`}
+            value={floorFilter}
+            onChange={(e) => onFloorFilterChange(e.target.value)}
+          >
+            <option value="">All floors</option>
+            {floors.map((f) => (
+              <option key={f} value={String(f)}>
+                Floor {f}
+              </option>
+            ))}
+          </select>
+        </HmsField>
+      ) : null}
+      <HmsField id={`${uid}-room`} label="Room" hint="Each room shows its floor, type and whether it's ready.">
         <select
-          className="w-full cursor-pointer rounded-lg border border-slate-200 px-3 py-2 text-sm"
-          value={floorFilter}
-          onChange={(e) => onFloorFilterChange(e.target.value)}
+          id={`${uid}-room`}
+          aria-describedby={`${uid}-room-hint`}
+          className={`${hmsInput} cursor-pointer`}
+          value={roomUnitId}
+          onChange={(e) => onRoomUnitIdChange(e.target.value)}
         >
-          <option value="">All floors</option>
-          {floors.map((f) => (
-            <option key={f} value={String(f)}>
-              Floor {f}
+          <option value="">Choose a room…</option>
+          {filtered.map((u) => (
+            <option key={u.id} value={u.id}>
+              {u.roomCode} · Floor {u.floor} · {u.roomTypeCode} ·{" "}
+              {READINESS_LABEL[u.readiness] ?? u.readiness}
             </option>
           ))}
         </select>
-      ) : null}
-      <select
-        className="w-full cursor-pointer rounded-lg border border-slate-200 px-3 py-2 text-sm"
-        value={roomUnitId}
-        onChange={(e) => onRoomUnitIdChange(e.target.value)}
-      >
-        <option value="">Select room…</option>
-        {filtered.map((u) => (
-          <option key={u.id} value={u.id}>
-            {u.roomCode} · Fl.{u.floor} · {u.roomTypeCode} ·{" "}
-            {READINESS_LABEL[u.readiness] ?? u.readiness}
-          </option>
-        ))}
-      </select>
+      </HmsField>
       {selected && selected.roomTypeCode !== roomTypeCode ? (
-        <p className="text-xs font-medium text-amber-800">
-          Room upgrade: {roomTypeCode} → {selected.roomTypeCode}
+        <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900">
+          This is an upgrade: {roomTypeCode} → {selected.roomTypeCode}
         </p>
       ) : null}
       {needsPin ? (
         <div>
-          <label className="block text-xs text-slate-500">
-            Manager PIN (room not ready)
-            {!canOverrideRoom ? " — manager role required" : ""}
+          <label htmlFor={`${uid}-pin`} className="mb-1 block text-sm font-medium text-slate-800">
+            Manager PIN
           </label>
           <input
+            id={`${uid}-pin`}
             type="password"
+            aria-describedby={`${uid}-pin-hint`}
             disabled={!canOverrideRoom}
-            className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm disabled:bg-slate-50"
+            className={`${hmsInput} disabled:bg-slate-50`}
             value={managerPin}
             onChange={(e) => onManagerPinChange(e.target.value)}
           />
+          <p id={`${uid}-pin-hint`} className="mt-1 text-xs text-slate-600">
+            This room isn&apos;t ready yet, so a manager needs to approve it.
+            {!canOverrideRoom ? " Ask a manager to do this for you." : ""}
+          </p>
         </div>
       ) : null}
       <input type="hidden" name="slug" value={slug} />

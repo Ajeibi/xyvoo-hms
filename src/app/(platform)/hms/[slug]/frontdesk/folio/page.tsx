@@ -11,7 +11,7 @@ export default async function FrontDeskFolioPage({ params }: { params: Promise<{
 
   return (
     <HMSLayout slug={slug} requiredSection="frontdesk">
-      <Suspense fallback={<p className="p-8 text-sm text-slate-500">Loading folio…</p>}>
+      <Suspense fallback={<p role="status" className="p-8 text-sm text-slate-600">Loading the guest bill…</p>}>
         <FrontDeskFolioClient slug={slug} currency={currency} />
       </Suspense>
     </HMSLayout>

@@ -5,6 +5,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getApAgingReport } from "@/lib/hms/vendor-bill-payments";
 import { getAccountsCapabilities } from "@/lib/hms/accounts-rbac";
 import { AccountsApAgingClient } from "@/components/hms/accounts/AccountsApAgingClient";
+import { HmsPage, HmsPageHeader } from "@/components/hms/hms-ui";
 
 export default async function AccountsApAgingPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -13,10 +14,9 @@ export default async function AccountsApAgingPage({ params }: { params: Promise<
   if (!tenant) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-ap-aging">
-        <div className="px-8 py-8">
-          <h1 className="text-xl font-semibold text-slate-900">AP aging</h1>
-          <p className="mt-0.5 text-sm text-slate-500">Hotel not found.</p>
-        </div>
+        <HmsPage>
+          <HmsPageHeader eyebrow="Accounts" meaning="money" title="AP ageing" description="Hotel not found." />
+        </HmsPage>
       </HMSLayout>
     );
   }
@@ -25,10 +25,9 @@ export default async function AccountsApAgingPage({ params }: { params: Promise<
   if (!caps.canViewReports) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-ap-aging">
-        <div className="px-8 py-8">
-          <h1 className="text-xl font-semibold text-slate-900">AP aging</h1>
-          <p className="mt-0.5 text-sm text-slate-500">You don&apos;t have access to this report.</p>
-        </div>
+        <HmsPage>
+          <HmsPageHeader eyebrow="Accounts" meaning="money" title="AP ageing" description="You don't have access to this report." />
+        </HmsPage>
       </HMSLayout>
     );
   }

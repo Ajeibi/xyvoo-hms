@@ -80,9 +80,9 @@ export function FrontDeskShiftNotes({
   return (
     <section
       id="fd-shift-notes"
-      className="overflow-hidden rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/25 sm:p-7"
+      className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6"
     >
-      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Handover</p>
+      <p className="text-sm font-medium text-slate-600">Handover</p>
       <h2 className="mt-1 text-lg font-semibold text-slate-900">Shift notes</h2>
       <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-3 sm:flex-row">
         <textarea
@@ -110,11 +110,11 @@ export function FrontDeskShiftNotes({
       </form>
       <div className="mt-5 space-y-6">
         {grouped.length === 0 ? (
-          <p className="text-sm text-slate-500">No shift notes yet.</p>
+          <p className="text-sm text-slate-600">No handover notes yet. Add one so the next shift knows what&apos;s going on.</p>
         ) : (
           grouped.map(([date, items]) => (
             <div key={date}>
-              <h3 className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+              <h3 className="text-sm font-medium text-slate-600">
                 {groupLabel(date)}
               </h3>
               <ul className="mt-3 space-y-3">
@@ -128,7 +128,7 @@ export function FrontDeskShiftNotes({
                     }`}
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      <span className="text-sm font-medium text-slate-600">
                         {note.priority} · {note.authorName}
                       </span>
                       <Button

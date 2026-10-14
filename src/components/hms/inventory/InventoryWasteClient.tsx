@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +22,7 @@ import {
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { InventoryItemPicker } from "@/components/hms/inventory/InventoryItemPicker";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
+import { HmsCard, HmsEmptyState, HmsField, hmsButton, hmsInput } from "@/components/hms/hms-ui";
 import type {
   InventoryItemRow,
   InventoryLocationRow,
@@ -29,6 +30,7 @@ import type {
 } from "@/lib/hms/inventory-types";
 
 const FOOD_REASON_PRESETS = ["Spoilage", "Expired", "Damaged in prep or service", "Other"];
+const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500";
 const EQUIPMENT_REASON_PRESETS = ["Broken", "Worn out / end of life", "Lost", "Stained or torn beyond repair", "Other"];
 
 export function InventoryWasteClient({
@@ -108,59 +110,75 @@ export function InventoryWasteClient({
     }
   }
 
-  return (
-    <div className="mt-6 space-y-4">
-      <div className="flex justify-end">
-        <Button type="button" onClick={() => setOpen(true)}>
-          Record waste
-        </Button>
-      </div>
+  const recordButton = (
+    <button type="button" className={`${hmsButton.primary} ${focusRing}`} onClick={() => setOpen(true)}>
+      <Plus className="h-4 w-4" aria-hidden />
+      Record waste
+    </button>
+  );
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+  return (
+    <div className="space-y-6">
+      <HmsCard
+        id="inventory-waste-list"
+        title="Waste log"
+        description="Stock written off, newest first, with the reason given."
+        icon={Trash2}
+        meaning="attention"
+        flush
+        actions={recordButton}
+      >
         {initialMovements.length === 0 ? (
-          <p className="px-6 py-8 text-sm text-slate-500">No waste entries yet.</p>
+          <HmsEmptyState
+            bare
+            art="box"
+            meaning="attention"
+            title="No waste recorded"
+            description="When stock is spoiled, broken or past its date, record it here so your stock stays accurate."
+            action={recordButton}
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-left text-sm">
-              <thead className="border-b border-slate-100 bg-slate-50 text-xs font-semibold uppercase text-slate-500">
+              <thead className="border-b border-slate-100 text-sm font-medium text-slate-600">
                 <tr>
-                  <th className="px-4 py-3">Date</th>
-                  <th className="px-4 py-3">Item</th>
-                  <th className="px-4 py-3">Location</th>
-                  <th className="px-4 py-3">Qty</th>
-                  <th className="px-4 py-3 text-right">Cost</th>
-                  <th className="px-4 py-3">Reason</th>
-                  <th className="px-4 py-3">Note</th>
+                  <th scope="col" className="px-4 py-3">Date</th>
+                  <th scope="col" className="px-4 py-3">Item</th>
+                  <th scope="col" className="px-4 py-3">Location</th>
+                  <th scope="col" className="px-4 py-3 text-right">Qty</th>
+                  <th scope="col" className="px-4 py-3 text-right">Cost</th>
+                  <th scope="col" className="px-4 py-3">Reason</th>
+                  <th scope="col" className="px-4 py-3">Note</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-slate-100">
                 {initialMovements.map((m) => (
-                  <tr key={m.id} className="border-b border-slate-100">
-                    <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-600">
+                  <tr key={m.id}>
+                    <td className="whitespace-nowrap px-4 py-3 text-slate-700">
                       {new Date(m.created_at).toLocaleString()}
                     </td>
                     <td className="px-4 py-3">
                       <p className="font-medium text-slate-900">{m.item_name}</p>
-                      <p className="text-xs text-slate-500">{m.item_sku}</p>
+                      <p className="text-xs text-slate-600">{m.item_sku}</p>
                     </td>
                     <td className="px-4 py-3 text-slate-700">{m.location_name}</td>
-                    <td className="px-4 py-3 tabular-nums text-slate-900">
+                    <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-slate-900">
                       {Math.abs(m.qty)} {m.unit_of_measure}
                     </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-slate-700">
+                    <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-slate-900">
                       {m.unit_cost_at_movement > 0
                         ? formatPricingAmount(Math.abs(m.qty) * m.unit_cost_at_movement, currency)
                         : "—"}
                     </td>
                     <td className="px-4 py-3 text-slate-700">{m.reason ?? "—"}</td>
-                    <td className="px-4 py-3 text-slate-500">{m.note ?? "—"}</td>
+                    <td className="px-4 py-3 text-slate-600">{m.note ?? "—"}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         )}
-      </div>
+      </HmsCard>
 
       <Dialog
         open={open}
@@ -172,11 +190,11 @@ export function InventoryWasteClient({
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Record waste</DialogTitle>
-            <DialogDescription>Deducts stock immediately at the selected location.</DialogDescription>
+            <DialogDescription>The stock is taken off at the chosen location straight away.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div>
-              <p className="mb-1 text-xs font-medium text-slate-600">Item</p>
+              <p className="mb-1 block text-sm font-medium text-slate-800">Item</p>
               <InventoryItemPicker
                 slug={slug}
                 items={items}
@@ -187,10 +205,9 @@ export function InventoryWasteClient({
                 placeholder="Select item"
               />
             </div>
-            <div>
-              <p className="mb-1 text-xs font-medium text-slate-600">Location</p>
+            <HmsField id="inventory-waste-location" label="Location">
               <Select value={locationId} onValueChange={setLocationId}>
-                <SelectTrigger>
+                <SelectTrigger id="inventory-waste-location" className="rounded-xl border-slate-300">
                   <SelectValue placeholder="Select location" />
                 </SelectTrigger>
                 <SelectContent>
@@ -201,44 +218,46 @@ export function InventoryWasteClient({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div>
-              <p className="mb-1 text-xs font-medium text-slate-600">Quantity</p>
-              <Input
+            </HmsField>
+            <HmsField id="inventory-waste-qty" label="Quantity">
+              <input
+                id="inventory-waste-qty"
                 type="number"
                 min="0"
                 step="any"
+                className={hmsInput}
                 value={qty}
                 onChange={(e) => setQty(e.target.value)}
               />
-            </div>
+            </HmsField>
             <div>
-              <p className="mb-1 text-xs font-medium text-slate-600">Reason</p>
-              <Select value={reasonPreset} onValueChange={setReasonPreset}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select reason" />
-                </SelectTrigger>
-                <SelectContent>
-                  {reasonPresets.map((r) => (
-                    <SelectItem key={r} value={r}>
-                      {r}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <HmsField id="inventory-waste-reason" label="Reason">
+                <Select value={reasonPreset} onValueChange={setReasonPreset}>
+                  <SelectTrigger id="inventory-waste-reason" className="rounded-xl border-slate-300">
+                    <SelectValue placeholder="Select reason" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {reasonPresets.map((r) => (
+                      <SelectItem key={r} value={r}>
+                        {r}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </HmsField>
               {reasonPreset === "Other" ? (
-                <Input
-                  className="mt-2"
+                <input
+                  aria-label="Describe the reason"
+                  className={`${hmsInput} mt-2`}
                   value={customReason}
                   onChange={(e) => setCustomReason(e.target.value)}
                   placeholder="Describe the reason"
                 />
               ) : null}
             </div>
-            <div>
-              <p className="mb-1 text-xs font-medium text-slate-600">Note</p>
-              <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional" />
-            </div>
+            <HmsField id="inventory-waste-note" label="Note" optional>
+              <input id="inventory-waste-note" className={hmsInput} value={note} onChange={(e) => setNote(e.target.value)} />
+            </HmsField>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>

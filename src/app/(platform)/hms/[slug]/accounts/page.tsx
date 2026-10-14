@@ -6,6 +6,9 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { listChartOfAccounts } from "@/lib/hms/chart-of-accounts";
 import { listJournalEntries } from "@/lib/hms/journal-entries";
 import { AccountsSubNav } from "@/components/hms/accounts/AccountsSubNav";
+import { HmsStatTile } from "@/components/hms/dashboard-tiles";
+import { HmsCard, HmsEmptyState, HmsPage, HmsPageHeader, HmsStatStrip, hmsButton } from "@/components/hms/hms-ui";
+import { BookOpen, NotebookPen, Scale } from "lucide-react";
 
 export default async function AccountsPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -14,10 +17,9 @@ export default async function AccountsPage({ params }: { params: Promise<{ slug:
   if (!tenant) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts">
-        <div className="px-8 py-8">
-          <h1 className="text-xl font-semibold text-slate-900">Accounts</h1>
-          <p className="mt-0.5 text-sm text-slate-500">Hotel not found.</p>
-        </div>
+        <HmsPage>
+          <HmsPageHeader eyebrow="Accounts" meaning="money" title="Accounts" description="Hotel not found." />
+        </HmsPage>
       </HMSLayout>
     );
   }
@@ -35,62 +37,86 @@ export default async function AccountsPage({ params }: { params: Promise<{ slug:
 
   return (
     <HMSLayout slug={slug} requiredSection="accounts">
-      <div className="w-full px-6 py-8 sm:px-8">
-        <h1 className="text-xl font-semibold text-slate-900">Accounts</h1>
-        <p className="mt-0.5 text-sm text-slate-500">The general ledger — chart of accounts, journal entries, and trial balance.</p>
+      <HmsPage>
+        <HmsPageHeader
+          eyebrow="Accounts"
+          meaning="money"
+          title="Accounts"
+          description="The general ledger: chart of accounts, journal entries and trial balance."
+        />
 
         <AccountsSubNav slug={slug} canAccessAllDepartments={access.canAccessAllDepartments} />
 
-        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Link href={`/hms/${slug}/accounts/chart`} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-colors hover:bg-slate-50">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Chart of accounts</p>
-            <p className="mt-2 text-3xl font-bold tabular-nums text-slate-900">{accounts.length}</p>
-            <p className="mt-1 text-xs text-slate-500">{accounts.filter((a) => a.isActive).length} active</p>
-          </Link>
-          <Link href={`/hms/${slug}/accounts/journal`} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-colors hover:bg-slate-50">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Journal entries</p>
-            <p className="mt-2 text-3xl font-bold tabular-nums text-slate-900">{postedThisMonth}</p>
-            <p className="mt-1 text-xs text-slate-500">posted this month</p>
-          </Link>
-          <Link href={`/hms/${slug}/accounts/trial-balance`} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-colors hover:bg-slate-50">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Trial balance</p>
-            <p className="mt-2 text-sm font-medium text-blue-700">View report →</p>
-            <p className="mt-1 text-xs text-slate-500">every account, as of today</p>
-          </Link>
-        </div>
+        <HmsStatStrip label="Accounts at a glance" columns={3}>
+          <HmsStatTile
+            href={`/hms/${slug}/accounts/chart`}
+            icon={BookOpen}
+            meaning="money"
+            label="Chart of accounts"
+            value={accounts.length}
+            hint={`${accounts.filter((a) => a.isActive).length} active`}
+          />
+          <HmsStatTile
+            href={`/hms/${slug}/accounts/journal`}
+            icon={NotebookPen}
+            meaning="rooms"
+            label="Journal entries"
+            value={postedThisMonth}
+            hint="posted this month"
+          />
+          <HmsStatTile
+            href={`/hms/${slug}/accounts/trial-balance`}
+            icon={Scale}
+            meaning="team"
+            label="Trial balance"
+            value={<span className="text-base font-semibold text-blue-700">View report →</span>}
+            hint="every account, as of today"
+          />
+        </HmsStatStrip>
 
         {accounts.length === 0 ? (
-          <div className="mt-6 rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center">
-            <p className="text-sm font-medium text-slate-900">No chart of accounts yet.</p>
-            <p className="mt-1 text-sm text-slate-500">
-              Head to{" "}
-              <Link href={`/hms/${slug}/accounts/chart`} className="font-medium text-blue-700 underline">
-                Chart of accounts
-              </Link>{" "}
-              to load a hospitality starter template, or add accounts one at a time.
-            </p>
-          </div>
+          <HmsEmptyState
+            art="page"
+            meaning="money"
+            title="No chart of accounts yet"
+            description="Load a hospitality starter template, or add accounts one at a time."
+            action={
+              <Link href={`/hms/${slug}/accounts/chart`} className={hmsButton.primary}>
+                Go to chart of accounts
+              </Link>
+            }
+          />
         ) : (
-          <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 className="text-sm font-semibold text-slate-800">Recent journal entries</h2>
+          <HmsCard
+            id="accounts-recent-journal"
+            title="Recent journal entries"
+            icon={NotebookPen}
+            meaning="money"
+            flush
+            actions={
+              <Link href={`/hms/${slug}/accounts/journal`} className={hmsButton.quiet}>
+                View all
+              </Link>
+            }
+          >
             {entries.length === 0 ? (
-              <p className="mt-3 text-sm text-slate-500">No journal entries posted yet.</p>
+              <HmsEmptyState bare art="page" meaning="money" title="No journal entries posted yet" />
             ) : (
-              <div className="mt-3 divide-y divide-slate-100">
+              <ul className="divide-y divide-slate-100">
                 {entries.map((e) => (
-                  <div key={e.id} className="flex items-center justify-between gap-3 py-2.5 text-sm">
-                    <div>
-                      <p className="font-medium text-slate-900">{e.memo}</p>
-                      <p className="text-xs text-slate-500">{new Date(e.entryDate).toLocaleDateString()}</p>
+                  <li key={e.id} className="flex items-center justify-between gap-3 px-5 py-3 text-sm sm:px-6">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-slate-900">{e.memo}</p>
+                      <p className="text-sm text-slate-600">{new Date(e.entryDate).toLocaleDateString()}</p>
                     </div>
-                    <p className="tabular-nums font-medium text-slate-700">{e.total.toFixed(2)}</p>
-                  </div>
+                    <p className="tabular-nums font-semibold text-slate-900">{e.total.toFixed(2)}</p>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
-          </div>
+          </HmsCard>
         )}
-      </div>
+      </HmsPage>
     </HMSLayout>
   );
 }

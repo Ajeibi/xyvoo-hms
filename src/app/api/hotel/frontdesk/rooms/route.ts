@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { HmsDataUnavailableError } from "@/lib/hms/data-unavailable";
+import { hmsDataUnavailableResponse } from "@/lib/hms/data-unavailable-response";
 import { z } from "zod";
 import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
 import { getRoomsWorkbenchData, type RoomsWorkbenchFilters } from "@/lib/hms/rooms-workbench";
@@ -57,6 +59,7 @@ export async function GET(req: Request) {
     if (e instanceof z.ZodError) {
       return NextResponse.json({ error: e.issues[0]?.message }, { status: 400 });
     }
+    if (e instanceof HmsDataUnavailableError) return hmsDataUnavailableResponse();
     console.error("[rooms GET]", e);
     return NextResponse.json({ error: "Failed to load rooms." }, { status: 500 });
   }

@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ExternalLink, CircleHelp, Loader2, Plus, Save, Trash2, ArrowRightLeft } from "lucide-react";
+import { ArrowRightLeft, CircleHelp, ExternalLink, Loader2, Plus, Save, Trash2, UtensilsCrossed } from "lucide-react";
+import { HmsEmptyState, hmsButton } from "@/components/hms/hms-ui";
 import {
   Accordion,
   AccordionContent,
@@ -789,42 +790,48 @@ export default function HotelMenuSetup({
 
   return (
     <TooltipProvider>
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div id="menu-setup" className="scroll-mt-24 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+        <div className="flex min-w-0 items-start gap-3">
+          <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-600 ring-1 ring-slate-200/60 shadow-xs">
+            <UtensilsCrossed className="h-5 w-5" />
+          </span>
+          <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-1.5">
-            <h2 className="text-lg font-semibold text-slate-900">Menu setup</h2>
+            <h2 className="font-heading text-base font-semibold text-slate-900">Menu setup</h2>
             <SettingsSectionInfo
               title="Menu setup"
               text="Everything Restaurant & Bar sells: outlets, kitchen stations, tables, categories, and items. Sections and stations are structural (set up once); categories and items change often — add a dish, mark one sold out — so this whole page lives on the Restaurant & Bar team's own Settings, not the Admin hub."
             />
           </div>
-          <p className="mt-1 text-sm text-slate-500">
-            Configure menu sections, categories, and items. Used by POS, kitchen, and the public guest
-            menu.
+          <p className="mt-0.5 text-sm text-slate-600">
+            Your menu sections, categories and items. The till, the kitchen and the guest menu all
+            use them.
           </p>
+          </div>
         </div>
         <Link
           href={`/menu/${slug}`}
           target="_blank"
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700"
+          className={hmsButton.secondary}
         >
           Preview guest menu
-          <ExternalLink className="h-4 w-4" />
+          <ExternalLink className="h-4 w-4" aria-hidden />
+          <span className="sr-only">(opens in a new tab)</span>
         </Link>
       </div>
 
       <div className="mt-6 space-y-3">
         <div className="flex flex-wrap items-center gap-1.5">
-          <h3 className="text-sm font-semibold text-slate-800">Menu sections</h3>
+          <h3 className="font-heading text-base font-semibold text-slate-900">Menu sections</h3>
           <Tooltip>
             <TooltipTrigger asChild>
               <button
                 type="button"
-                className="inline-flex size-7 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+                className="inline-flex size-7 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                 aria-label="What are menu sections?"
               >
-                <CircleHelp className="h-4 w-4" />
+                <CircleHelp className="h-4 w-4" aria-hidden />
               </button>
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-xs text-left leading-relaxed">
@@ -836,7 +843,7 @@ export default function HotelMenuSetup({
         </div>
 
         {outlets.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-slate-200 px-4 py-6 text-sm text-slate-500">
+          <p className="rounded-xl border border-dashed border-orange-200 bg-orange-50/60 px-4 py-6 text-sm text-slate-700">
             No menu sections yet. Add your first section (e.g. Restaurant or Bar) to start building
             the menu.
           </p>
@@ -847,15 +854,16 @@ export default function HotelMenuSetup({
                 <button
                   type="button"
                   onClick={() => switchOutlet(o.id)}
+                  aria-pressed={outletId === o.id}
                   className={cn(
-                    "rounded-xl px-4 py-2 text-sm font-medium transition-colors",
+                    "rounded-full border px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
                     outletId === o.id
-                      ? "bg-blue-600 text-white"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200",
+                      ? "border-orange-600 bg-orange-50 text-orange-900"
+                      : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50",
                   )}
                 >
                   {o.name}
-                  <span className="ml-1.5 text-xs opacity-75">
+                  <span className="ml-1.5 text-xs">
                     ({categories.filter((c) => c.outletId === o.id).length} categories)
                   </span>
                 </button>
@@ -863,11 +871,12 @@ export default function HotelMenuSetup({
                   type="button"
                   variant="ghost"
                   size="icon-sm"
-                  className="text-slate-400 hover:text-red-600"
+                  className="text-slate-600 hover:text-red-700"
                   title={`Delete ${o.name}`}
+                  aria-label={`Delete ${o.name}`}
                   onClick={() => setDeleteTarget({ type: "outlet", id: o.id })}
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
+                  <Trash2 className="h-3.5 w-3.5" aria-hidden />
                 </Button>
               </div>
             ))}
@@ -875,12 +884,13 @@ export default function HotelMenuSetup({
         )}
 
         {showAddOutlet ? (
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <div className="rounded-xl bg-orange-50/60 p-4">
             <p className="mb-2 text-sm font-medium text-slate-800">New menu section</p>
             <div className="flex flex-wrap items-end gap-2">
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-500">Name</label>
+                <label htmlFor="new-outlet-name" className="mb-1 block text-sm font-medium text-slate-800">Name</label>
                 <Input
+                  id="new-outlet-name"
                   value={newOutletName}
                   onChange={(e) => setNewOutletName(e.target.value)}
                   placeholder="e.g. Restaurant"
@@ -891,11 +901,12 @@ export default function HotelMenuSetup({
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-slate-500">Type</label>
+                <label htmlFor="new-outlet-type" className="mb-1 block text-sm font-medium text-slate-800">Type</label>
                 <select
+                  id="new-outlet-type"
                   value={newOutletType}
                   onChange={(e) => setNewOutletType(e.target.value as FbOutletType)}
-                  className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm"
+                  className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   {OUTLET_TYPE_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
@@ -929,15 +940,15 @@ export default function HotelMenuSetup({
 
       <div id="kitchen-stations" className="mt-8 scroll-mt-24 space-y-3">
         <div className="flex flex-wrap items-center gap-1.5">
-          <h3 className="text-sm font-semibold text-slate-800">Kitchen stations</h3>
+          <h3 className="font-heading text-base font-semibold text-slate-900">Kitchen stations</h3>
           <Tooltip>
             <TooltipTrigger asChild>
               <button
                 type="button"
-                className="inline-flex size-7 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+                className="inline-flex size-7 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                 aria-label="What are kitchen stations?"
               >
-                <CircleHelp className="h-4 w-4" />
+                <CircleHelp className="h-4 w-4" aria-hidden />
               </button>
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-xs text-left leading-relaxed">
@@ -949,7 +960,7 @@ export default function HotelMenuSetup({
         </div>
 
         {stations.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-slate-200 px-4 py-6 text-sm text-slate-500">
+          <p className="rounded-xl border border-dashed border-orange-200 bg-orange-50/60 px-4 py-6 text-sm text-slate-700">
             No kitchen stations yet. Add stations for your property — nothing is pre-configured.
           </p>
         ) : (
@@ -957,18 +968,19 @@ export default function HotelMenuSetup({
             {stations.map((s) => (
               <li
                 key={s.id}
-                className="inline-flex items-center gap-1 rounded-lg bg-slate-100 pl-3 pr-1 py-1 text-sm text-slate-800"
+                className="inline-flex items-center gap-1 rounded-full bg-orange-50 py-1 pl-3 pr-1 text-sm text-slate-900"
               >
                 {s.name}
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon-sm"
-                  className="text-slate-400 hover:text-red-600"
+                  className="text-slate-600 hover:text-red-700"
                   title={`Delete ${s.name}`}
+                  aria-label={`Delete ${s.name}`}
                   onClick={() => setDeleteTarget({ type: "station", id: s.id })}
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
+                  <Trash2 className="h-3.5 w-3.5" aria-hidden />
                 </Button>
               </li>
             ))}
@@ -976,10 +988,11 @@ export default function HotelMenuSetup({
         )}
 
         {showAddStation ? (
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <div className="rounded-xl bg-orange-50/60 p-4">
             <p className="mb-2 text-sm font-medium text-slate-800">New kitchen station</p>
             <div className="flex flex-wrap gap-2">
               <Input
+                aria-label="New kitchen station name"
                 value={newStationName}
                 onChange={(e) => setNewStationName(e.target.value)}
                 placeholder="e.g. Grill"
@@ -1014,15 +1027,15 @@ export default function HotelMenuSetup({
       {isRestaurantOutlet ? (
         <div id="restaurant-tables" className="mt-8 scroll-mt-24 space-y-3">
           <div className="flex flex-wrap items-center gap-1.5">
-            <h3 className="text-sm font-semibold text-slate-800">Restaurant tables</h3>
+            <h3 className="font-heading text-base font-semibold text-slate-900">Restaurant tables</h3>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  className="inline-flex size-7 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+                  className="inline-flex size-7 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                   aria-label="What are restaurant tables?"
                 >
-                  <CircleHelp className="h-4 w-4" />
+                  <CircleHelp className="h-4 w-4" aria-hidden />
                 </button>
               </TooltipTrigger>
               <TooltipContent side="top" className="max-w-xs text-left leading-relaxed">
@@ -1034,7 +1047,7 @@ export default function HotelMenuSetup({
           </div>
 
           {outletTables.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-slate-200 px-4 py-6 text-sm text-slate-500">
+            <p className="rounded-xl border border-dashed border-orange-200 bg-orange-50/60 px-4 py-6 text-sm text-slate-700">
               No tables for {selectedOutlet?.name ?? "this restaurant"} yet. Add your floor tables
               below.
             </p>
@@ -1043,18 +1056,19 @@ export default function HotelMenuSetup({
               {outletTables.map((t) => (
                 <li
                   key={t.id}
-                  className="inline-flex items-center gap-1 rounded-lg bg-slate-100 pl-3 pr-1 py-1 text-sm text-slate-800"
+                  className="inline-flex items-center gap-1 rounded-full bg-orange-50 py-1 pl-3 pr-1 text-sm text-slate-900"
                 >
                   {t.table_code} ({t.covers} covers)
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon-sm"
-                    className="text-slate-400 hover:text-red-600"
+                    className="text-slate-600 hover:text-red-700"
                     title={`Delete ${t.table_code}`}
+                    aria-label={`Delete table ${t.table_code}`}
                     onClick={() => setDeleteTarget({ type: "table", id: t.id })}
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden />
                   </Button>
                 </li>
               ))}
@@ -1062,12 +1076,13 @@ export default function HotelMenuSetup({
           )}
 
           {showAddTable ? (
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div className="rounded-xl bg-orange-50/60 p-4">
               <p className="mb-2 text-sm font-medium text-slate-800">New table</p>
               <div className="flex flex-wrap items-end gap-2">
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-500">Table code</label>
+                  <label htmlFor="new-table-code" className="mb-1 block text-sm font-medium text-slate-800">Table code</label>
                   <Input
+                    id="new-table-code"
                     value={newTableCode}
                     onChange={(e) => setNewTableCode(e.target.value)}
                     placeholder="e.g. T5"
@@ -1079,8 +1094,9 @@ export default function HotelMenuSetup({
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-500">Covers</label>
+                  <label htmlFor="new-table-covers" className="mb-1 block text-sm font-medium text-slate-800">Covers</label>
                   <Input
+                    id="new-table-covers"
                     value={newTableCovers}
                     onChange={(e) => setNewTableCovers(e.target.value)}
                     type="number"
@@ -1098,7 +1114,7 @@ export default function HotelMenuSetup({
                   {tableSaving ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                      Adding...
+                      Adding…
                     </>
                   ) : (
                     "Add table"
@@ -1136,7 +1152,7 @@ export default function HotelMenuSetup({
           {saving && savingCategoryKey === null ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-              Saving...
+              Saving…
             </>
           ) : (
             <>
@@ -1163,6 +1179,7 @@ export default function HotelMenuSetup({
           <p className="mb-2 text-sm font-medium text-slate-800">New category</p>
           <div className="flex flex-wrap gap-2">
             <Input
+              aria-label="New category name"
               value={newCategoryName}
               onChange={(e) => setNewCategoryName(e.target.value)}
               placeholder="Category name"
@@ -1184,9 +1201,15 @@ export default function HotelMenuSetup({
       {outlets.length > 0 ? (
       <div className="mt-6 space-y-4">
         {outletCategories.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-slate-200 py-10 text-center text-sm text-slate-500">
-            No categories yet for this outlet. Add a category to get started.
-          </p>
+          <div className="rounded-xl border border-dashed border-orange-200">
+            <HmsEmptyState
+              bare
+              art="basket"
+              meaning="food"
+              title="No categories in this section yet"
+              description="Add a category, such as Starters or Cocktails, then fill it with items."
+            />
+          </div>
         ) : (
           <Accordion
             type="multiple"
@@ -1198,7 +1221,7 @@ export default function HotelMenuSetup({
               <AccordionItem
                 key={cat.key}
                 value={cat.key}
-                className="rounded-xl border border-slate-200 px-0"
+                className="rounded-xl border border-slate-200 bg-white px-0 shadow-xs"
               >
                 <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 px-4 py-3">
                   <Input
@@ -1220,7 +1243,7 @@ export default function HotelMenuSetup({
                         {transferringCategoryKey === cat.key ? (
                           <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden />
                         ) : (
-                          <ArrowRightLeft className="h-3.5 w-3.5 shrink-0 text-slate-500" aria-hidden />
+                          <ArrowRightLeft className="h-3.5 w-3.5 shrink-0 text-slate-600" aria-hidden />
                         )}
                         <SelectValue placeholder="Move to…" />
                       </SelectTrigger>
@@ -1251,12 +1274,13 @@ export default function HotelMenuSetup({
                     size="icon"
                     disabled={saving}
                     onClick={() => void save(cat.key)}
-                    title={savingCategoryKey === cat.key ? "Saving..." : "Save category"}
+                    title={savingCategoryKey === cat.key ? "Saving…" : "Save category"}
+                    aria-label={`Save ${cat.name || "category"}`}
                   >
                     {savingCategoryKey === cat.key ? (
                       <Loader2 className="h-4 w-4 animate-spin text-slate-600" aria-hidden />
                     ) : (
-                      <Save className="h-4 w-4 text-slate-600" />
+                      <Save className="h-4 w-4 text-slate-600" aria-hidden />
                     )}
                   </Button>
                   <Button
@@ -1265,15 +1289,16 @@ export default function HotelMenuSetup({
                     size="icon"
                     onClick={() => setDeleteTarget({ type: "category", key: cat.key })}
                     title="Delete category"
+                    aria-label={`Delete ${cat.name || "category"}`}
                   >
-                    <Trash2 className="h-4 w-4 text-red-600" />
+                    <Trash2 className="h-4 w-4 text-red-700" aria-hidden />
                   </Button>
                   <AccordionTrigger className="ml-auto w-auto flex-none shrink-0 px-2 py-1 hover:no-underline [&>svg]:ml-0">
                     <span className="sr-only">Toggle {cat.name || "category"}</span>
                   </AccordionTrigger>
                 </div>
                 <AccordionContent className="min-h-[min(52vh,540px)] max-h-[80vh] overflow-y-auto px-4 pb-4">
-                  <div className="mb-2 grid grid-cols-[1fr_100px_1fr_120px_100px_90px_80px] gap-2 text-xs font-medium text-slate-500">
+                  <div className="mb-2 grid grid-cols-[1fr_100px_1fr_120px_100px_90px_80px] gap-2 text-sm font-medium text-slate-700">
                     <span>Item</span>
                     <span>Price ({currency})</span>
                     <span>Description</span>
@@ -1307,7 +1332,7 @@ export default function HotelMenuSetup({
                         key={item.key}
                         className={cn(
                           "grid grid-cols-[1fr_100px_1fr_120px_100px_90px_80px] items-center gap-2 rounded-lg p-2",
-                          soldOut ? "bg-slate-100 opacity-75" : "bg-slate-50",
+                          soldOut ? "bg-slate-100" : "bg-slate-50",
                         )}
                       >
                         <Input
@@ -1316,6 +1341,7 @@ export default function HotelMenuSetup({
                             updateItem(cat.key, item.key, { name: e.target.value })
                           }
                           placeholder="Item name"
+                          aria-label="Item name"
                         />
                         <Input
                           type="text"
@@ -1327,7 +1353,7 @@ export default function HotelMenuSetup({
                             })
                           }
                           placeholder="0"
-                          aria-label="Price"
+                          aria-label={`Price for ${item.name || "item"}`}
                         />
                         <Input
                           value={item.description}
@@ -1335,6 +1361,7 @@ export default function HotelMenuSetup({
                             updateItem(cat.key, item.key, { description: e.target.value })
                           }
                           placeholder="Optional"
+                          aria-label={`Description for ${item.name || "item"}`}
                         />
                         <select
                           value={item.stationId ?? ""}
@@ -1344,7 +1371,8 @@ export default function HotelMenuSetup({
                             })
                           }
                           disabled={stations.length === 0}
-                          className="rounded-md border border-slate-200 px-2 py-2 text-sm disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                          aria-label={`Kitchen station for ${item.name || "item"}`}
+                          className="rounded-md border border-slate-300 bg-white px-2 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-600"
                         >
                           <option value="">
                             {stations.length === 0 ? "No stations" : "—"}
@@ -1371,22 +1399,22 @@ export default function HotelMenuSetup({
                                 : { isAvailable: false })
                             }
                             className={cn(
-                              "rounded-full px-2.5 py-1 text-[11px] font-semibold transition-colors",
+                              "rounded-full px-2.5 py-1 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
                               soldOut
-                                ? "bg-slate-300 text-slate-700 hover:bg-slate-400"
+                                ? "bg-rose-50 text-rose-800 hover:bg-rose-100"
                                 : "bg-emerald-100 text-emerald-800 hover:bg-emerald-200",
                             )}
                           >
                             {soldOut ? "Sold out" : "In stock"}
                           </button>
                           {item.eightySixedAt ? (
-                            <span className="text-[10px] text-slate-500">Kitchen marked</span>
+                            <span className="text-xs text-slate-600">Kitchen marked</span>
                           ) : null}
                         </label>
                         {item.id ? (
                           <MenuItemIngredientsDialog slug={slug} menuItemId={item.id} menuItemName={item.name} />
                         ) : (
-                          <span className="text-center text-[11px] text-slate-400">Save first</span>
+                          <span className="text-center text-xs text-slate-600">Save first</span>
                         )}
                   <Button
                     type="button"
@@ -1399,9 +1427,10 @@ export default function HotelMenuSetup({
                         itemKey: item.key,
                       })
                     }
-                    className="text-red-600 hover:text-red-700"
+                    className="text-red-700 hover:text-red-800"
                   >
                     Remove
+                    <span className="sr-only"> {item.name || "item"}</span>
                   </Button>
                       </div>
                     );

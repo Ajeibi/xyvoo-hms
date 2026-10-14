@@ -34,7 +34,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { LogOut, Loader2, Search } from "lucide-react";
+import { CheckCircle2, CircleAlert, LogOut, Loader2, Search, Wallet } from "lucide-react";
+import { HmsAlert, HmsIconBadge, hmsInput } from "@/components/hms/hms-ui";
 
 type SearchHit = {
   reservationId: string;
@@ -329,27 +330,31 @@ export function FrontDeskCheckoutDialog({
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[min(90vh,calc(100vh-2rem))] max-w-lg flex-col gap-0 overflow-hidden p-0">
-        <DialogHeader className="shrink-0 border-b border-slate-100 px-6 py-5 pr-12">
-          <DialogTitle className="flex items-center gap-2">
-            <LogOut className="h-5 w-5 text-orange-600" />
-            Check out guest
-          </DialogTitle>
-          <DialogDescription>
-            {step === "find"
-              ? "Enter a room number, guest name, or confirmation to find the stay."
-              : `Settle the folio and release the room${roomCode ? ` (${roomCode})` : ""}.`}
-          </DialogDescription>
+        <DialogHeader className="shrink-0 flex-row items-start gap-3 space-y-0 border-b border-slate-100 px-6 py-5 pr-12 text-left">
+          <HmsIconBadge icon={LogOut} meaning="rooms" />
+          <div className="min-w-0">
+            <DialogTitle className="font-heading">Check out guest</DialogTitle>
+            <DialogDescription className="text-slate-600">
+              {step === "find"
+                ? "Enter a room number, guest name or booking reference to find the stay."
+                : `Settle the bill and free up the room${roomCode ? ` (${roomCode})` : ""}.`}
+            </DialogDescription>
+          </div>
         </DialogHeader>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
           {step === "find" ? (
             <div className="space-y-4">
+              <label htmlFor="checkout-find" className="-mb-3 block text-sm font-medium text-slate-800">
+                Find the guest
+              </label>
               <div className="flex gap-2">
                 <Input
+                  id="checkout-find"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Room, guest name, or confirmation…"
-                  className="h-11 rounded-xl"
+                  placeholder="Room, guest name or booking reference"
+                  className="h-11 rounded-xl border-slate-300"
                   autoFocus
                   onKeyDown={(e) => {
                     if (e.key === "Enter") void search();
@@ -370,12 +375,12 @@ export function FrontDeskCheckoutDialog({
                 </Button>
               </div>
               {hits.length > 1 ? (
-                <ul className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-2">
+                <ul aria-label="Matching guests" className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-2">
                   {hits.map((h) => (
                     <li key={h.reservationId}>
                       <button
                         type="button"
-                        className="w-full rounded-lg px-3 py-2.5 text-left text-sm hover:bg-white"
+                        className="w-full rounded-lg px-3 py-2.5 text-left text-sm hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                         onClick={() => {
                           setGuestName(h.guestName);
                           setRoomCode(h.roomCode ?? "");
@@ -383,7 +388,7 @@ export function FrontDeskCheckoutDialog({
                         }}
                       >
                         <span className="font-medium text-slate-900">{h.guestName}</span>
-                        <span className="mt-0.5 block text-slate-500">
+                        <span className="mt-0.5 block text-slate-600">
                           {h.roomCode ? `Room ${h.roomCode}` : "No room"} · {h.confirmationCode}
                         </span>
                       </button>
@@ -396,17 +401,17 @@ export function FrontDeskCheckoutDialog({
             <CheckoutSettleSkeleton />
           ) : (
             <div className="space-y-4">
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+              <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm">
                 <p className="font-semibold text-slate-900">{guestName || "Guest"}</p>
-                <p className="text-slate-600">
+                <p className="text-slate-700">
                   Folio {folioNumber}
                   {roomCode ? ` · Room ${roomCode}` : ""}
                   {roomTypeName ? ` · ${roomTypeName}` : ""}
                 </p>
-                <p className="mt-2 text-2xl font-bold tabular-nums text-slate-900">
+                <p className="mt-2 text-sm text-slate-700">Balance to pay</p>
+                <p className="font-heading text-2xl font-bold tabular-nums text-slate-900">
                   {formatPricingAmount(balance, currency)}
                 </p>
-                <p className="text-xs text-slate-500">Balance due</p>
               </div>
 
               {(() => {
@@ -421,7 +426,7 @@ export function FrontDeskCheckoutDialog({
                   <>
                     {roomLines.length > 0 ? (
                       <div className="overflow-hidden rounded-xl border border-slate-100 text-sm">
-                        <p className="border-b border-slate-100 bg-slate-50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <p className="border-b border-slate-100 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800">
                           Room{roomTypeName ? ` — ${roomTypeName}` : ""}
                         </p>
                         <table className="w-full">
@@ -441,8 +446,8 @@ export function FrontDeskCheckoutDialog({
 
                     {fbLines.length > 0 ? (
                       <div className="overflow-hidden rounded-xl border border-slate-100 text-sm">
-                        <p className="border-b border-slate-100 bg-slate-50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                          Food &amp; Beverage
+                        <p className="border-b border-slate-100 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800">
+                          Food and drink
                         </p>
                         <Accordion type="multiple" className="px-2">
                           {fbLines.map((l) => {
@@ -480,7 +485,7 @@ export function FrontDeskCheckoutDialog({
                                         ))}
                                     </ul>
                                   ) : (
-                                    <p className="text-xs text-slate-400">Order details unavailable.</p>
+                                    <p className="text-xs text-slate-600">The order details aren&apos;t available.</p>
                                   )}
                                 </AccordionContent>
                               </AccordionItem>
@@ -492,7 +497,7 @@ export function FrontDeskCheckoutDialog({
 
                     {otherLines.length > 0 ? (
                       <div className="overflow-hidden rounded-xl border border-slate-100 text-sm">
-                        <p className="border-b border-slate-100 bg-slate-50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        <p className="border-b border-slate-100 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800">
                           Other
                         </p>
                         <table className="w-full">
@@ -514,79 +519,102 @@ export function FrontDeskCheckoutDialog({
               })()}
 
               {balance > 0.01 ? (
-                <div className="space-y-3">
-                  <div className="rounded-xl border border-slate-200 p-4 space-y-2">
-                    <p className="text-sm font-medium text-slate-900">Cash / POS payment</p>
+                <fieldset className="space-y-3 rounded-2xl border border-slate-200 p-4">
+                  <legend className="flex items-center gap-2 px-1 text-sm font-semibold text-slate-900">
+                    <Wallet className="h-4 w-4 text-emerald-600" aria-hidden />
+                    Take a payment
+                  </legend>
+                  <div>
+                    <label htmlFor="checkout-pay-amount" className="mb-1 block text-sm font-medium text-slate-800">
+                      Amount
+                    </label>
                     <div className="relative">
-                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-500">
+                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-600" aria-hidden>
                         {formatCurrencySymbol(currency)}
                       </span>
                       <Input
+                        id="checkout-pay-amount"
                         type="text"
                         inputMode="decimal"
-                        className="pl-8 tabular-nums"
+                        className="h-11 rounded-xl border-slate-300 pl-8 tabular-nums"
                         value={formatAmountInputValue(manualPayAmount)}
                         onChange={(e) => setManualPayAmount(parseAmountInputValue(e.target.value))}
                       />
                     </div>
+                  </div>
+                  <div>
+                    <label htmlFor="checkout-pay-method" className="mb-1 block text-sm font-medium text-slate-800">
+                      Paid by
+                    </label>
                     <select
-                      className="h-10 w-full rounded-md border border-slate-200 px-3 text-sm"
+                      id="checkout-pay-method"
+                      aria-describedby="checkout-pay-method-hint"
+                      className={`${hmsInput} cursor-pointer`}
                       value={manualMethod}
                       onChange={(e) => setManualMethod(e.target.value)}
                     >
                       <option value="cash">Cash</option>
-                      <option value="pos">POS terminal</option>
+                      <option value="pos">Card machine (POS)</option>
                       <option value="direct_bill">Direct bill</option>
                     </select>
                     {manualMethod === "cash" ? (
-                      <p className="text-xs text-slate-500">
+                      <p id="checkout-pay-method-hint" className="mt-1 text-xs text-slate-600">
                         {cashFloatActive
-                          ? "Cash float session is open for this shift."
-                          : "No cash float yet — one will open automatically when you post this payment."}
+                          ? "The cash drawer is open for this shift."
+                          : "The cash drawer isn't open yet. It opens automatically when you record this payment."}
                       </p>
                     ) : manualMethod === "pos" ? (
-                      <p className="text-xs text-slate-500">
-                        POS payments post to the folio without a cash drawer session.
+                      <p id="checkout-pay-method-hint" className="mt-1 text-xs text-slate-600">
+                        Card payments go straight on the folio, without the cash drawer.
                       </p>
                     ) : null}
                   </div>
-                </div>
+                </fieldset>
               ) : (
-                <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-                  Folio is settled — ready to check out.
+                <p role="status" className="flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
+                  <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden />
+                  The bill is paid. You can check the guest out.
                 </p>
               )}
 
-              <label className="flex items-center gap-2 text-sm text-slate-600">
+              <label className="flex items-start gap-2 text-sm text-slate-700">
                 <input
                   type="checkbox"
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300"
                   checked={overrideBalance}
                   onChange={(e) => setOverrideBalance(e.target.checked)}
                 />
-                Manager override open balance
+                <span>
+                  Manager override: let the guest leave with money still owed
+                </span>
               </label>
             </div>
           )}
 
-          {error ? <p className="mt-4 text-sm text-red-600">{error}</p> : null}
+          {error ? (
+            <div className="mt-4">
+              <HmsAlert message={error} />
+            </div>
+          ) : null}
         </div>
 
-        <DialogFooter className="shrink-0 border-t border-slate-100 px-6 py-4">
+        <DialogFooter className="shrink-0 gap-2 border-t border-slate-100 px-6 py-4">
           {step === "settle" ? (
             <>
-              <Button type="button" variant="outline" onClick={() => setStep("find")} disabled={loading || submitting}>
+              <Button type="button" variant="outline" className="rounded-xl" onClick={() => setStep("find")} disabled={loading || submitting}>
                 Back
               </Button>
               <Button
                 type="button"
+                className="rounded-xl font-semibold"
                 disabled={loading || submitting || !reservationId || !folioNumber}
                 onClick={handleCompleteClick}
               >
-                {submitting ? "Processing…" : "Complete checkout"}
+                {submitting ? "Checking out…" : "Complete check-out"}
               </Button>
             </>
           ) : (
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" className="rounded-xl" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
           )}
@@ -597,7 +625,10 @@ export function FrontDeskCheckoutDialog({
     <AlertDialog open={confirmOverrideOpen} onOpenChange={setConfirmOverrideOpen}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Check out with an unpaid balance?</AlertDialogTitle>
+          <span aria-hidden className="mb-1 flex h-10 w-10 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
+            <CircleAlert className="h-5 w-5" />
+          </span>
+          <AlertDialogTitle className="font-heading">Check out with money still owed?</AlertDialogTitle>
           <AlertDialogDescription>
             {guestName || "This guest"}
             {roomCode ? ` (Room ${roomCode})` : ""} will be checked out under manager override.
@@ -606,13 +637,13 @@ export function FrontDeskCheckoutDialog({
 
         <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
           <div className="flex items-center justify-between">
-            <span className="text-slate-500">Balance due</span>
+            <span className="text-slate-600">Balance to pay</span>
             <span className="font-medium tabular-nums text-slate-900">
               {formatPricingAmount(balance, currency)}
             </span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-slate-500">Paid now</span>
+            <span className="text-slate-600">Paid now</span>
             <span className="font-medium tabular-nums text-slate-900">
               {formatPricingAmount(paymentNow, currency)}
             </span>

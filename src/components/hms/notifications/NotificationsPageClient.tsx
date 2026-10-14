@@ -2,12 +2,16 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { Bell, BellDot, CheckCheck, CircleAlert, Trash2 } from "lucide-react";
+import { HmsEmptyState, HmsStatStrip, HmsStatTile, hmsButton } from "@/components/hms/hms-ui";
+import { HmsFilterChips } from "@/components/hms/hms-ui-client";
 import {
   NotificationListItem,
   type NotificationListItemData,
 } from "@/components/hms/header/NotificationListItem";
 import { toastError, toastSuccess } from "@/lib/app-toast";
+
+const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2";
 
 export function NotificationsPageClient({
   slug,
@@ -95,44 +99,64 @@ export function NotificationsPageClient({
     void reload();
   };
 
+  const unread = items.filter((n) => !n.read).length;
+  const urgent = items.filter((n) => !n.read && n.severity === "critical").length;
+
   return (
-    <div className="mt-6 space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          type="button"
-          variant={filter === "all" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setFilter("all")}
-        >
-          All
-        </Button>
-        <Button
-          type="button"
-          variant={filter === "unread" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setFilter("unread")}
-        >
-          Unread
-        </Button>
+    <div className="space-y-6">
+      <HmsStatStrip label="Your notifications in figures" columns={3}>
+        <HmsStatTile label="Unread" value={unread} icon={BellDot} meaning="neutral" hint="Not opened yet" />
+        <HmsStatTile
+          label="Urgent and unread"
+          value={urgent}
+          icon={CircleAlert}
+          meaning="attention"
+          hint="Nothing urgent waiting"
+          status={urgent > 0 ? "critical" : undefined}
+          statusText="Needs someone now"
+        />
+        <HmsStatTile label="All notifications" value={items.length} icon={Bell} meaning="neutral" hint="The latest 100" />
+      </HmsStatStrip>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <HmsFilterChips
+          label="Show"
+          meaning="neutral"
+          options={[
+            { value: "all", label: "All", count: items.length },
+            { value: "unread", label: "Unread", count: unread },
+          ]}
+          value={filter}
+          onChange={setFilter}
+        />
         <div className="ml-auto flex flex-wrap gap-2">
-          <Button type="button" variant="outline" size="sm" onClick={() => void markAllRead()}>
-            Mark all read
-          </Button>
-          <Button type="button" variant="outline" size="sm" onClick={() => void clearRead()}>
+          <button type="button" className={`${hmsButton.secondary} ${focusRing}`} onClick={() => void markAllRead()}>
+            <CheckCheck className="h-4 w-4" aria-hidden />
+            Mark all as read
+          </button>
+          <button type="button" className={`${hmsButton.secondary} ${focusRing}`} onClick={() => void clearRead()}>
             Clear read
-          </Button>
-          <Button type="button" variant="ghost" size="sm" onClick={() => void clearAll()}>
+          </button>
+          <button type="button" className={`${hmsButton.danger} ${focusRing}`} onClick={() => void clearAll()}>
+            <Trash2 className="h-4 w-4" aria-hidden />
             Clear all
-          </Button>
+          </button>
         </div>
       </div>
 
       {filtered.length === 0 ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
-          <p className="text-sm text-slate-500">No notifications to show.</p>
-        </div>
+        <HmsEmptyState
+          art="bell"
+          meaning="neutral"
+          title={filter === "unread" && items.length > 0 ? "You're all caught up" : "No notifications yet"}
+          description={
+            filter === "unread" && items.length > 0
+              ? "Every notification has been read. New ones will appear here."
+              : "Alerts, reminders and updates for your hotel will appear here."
+          }
+        />
       ) : (
-        <ul className="space-y-3">
+        <ul className="space-y-3" aria-label="Notifications">
           {filtered.map((n) => (
             <li key={n.id}>
               <NotificationListItem item={n} onMarkRead={markRead} />

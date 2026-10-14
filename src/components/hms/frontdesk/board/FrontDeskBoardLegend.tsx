@@ -34,11 +34,11 @@ export function FrontDeskBoardLegend() {
   return (
     <div className="mt-4 space-y-3 rounded-xl border border-slate-100 bg-slate-50/80 px-4 py-3">
       <div>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+        <p className="text-sm font-medium text-slate-700">
           Room status
         </p>
-        <p className="mt-0.5 text-[10px] text-slate-500">Cell background color</p>
-        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-[10px] font-medium text-slate-600">
+        <p className="mt-0.5 text-xs text-slate-600">Cell background color</p>
+        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-2 text-xs font-medium text-slate-700">
           {ROOM_STATUS_LEGEND.map((item) => (
             <span key={item.label} className="flex items-center gap-1.5">
               <LegendSwatch shape="square" className={item.className} />
@@ -49,21 +49,21 @@ export function FrontDeskBoardLegend() {
       </div>
 
       <div className="border-t border-slate-200/80 pt-3">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+        <p className="text-sm font-medium text-slate-700">
           Payment
         </p>
-        <p className="mt-0.5 text-[10px] text-slate-500">
+        <p className="mt-0.5 text-xs text-slate-600">
           Small <strong className="font-semibold text-slate-600">circle</strong> in the top-right on
           occupied / reserved rooms (not the cell color)
         </p>
-        <PaymentLegend className="mt-2 text-[10px]" />
+        <PaymentLegend className="mt-2" />
       </div>
 
       <div className="border-t border-slate-200/80 pt-3">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+        <p className="text-sm font-medium text-slate-700">
           Room flags
         </p>
-        <p className="mt-0.5 text-[10px] text-slate-500">
+        <p className="mt-0.5 text-xs text-slate-600">
           Violet ring = DND, security hold, or staff-restricted · moon / shield icons on the cell
         </p>
       </div>

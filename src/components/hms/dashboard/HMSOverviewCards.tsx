@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import { HmsStatTile } from "@/components/hms/dashboard-tiles";
+import type { HmsMeaning } from "@/components/hms/meaning";
 
 type DashboardIcon = React.ComponentType<{ className?: string }>;
 
@@ -8,6 +10,7 @@ type HeroStat = {
   label: string;
   value: string;
   description: string;
+  meaning: HmsMeaning;
 };
 
 type OverviewMetric = {
@@ -15,6 +18,7 @@ type OverviewMetric = {
   label: string;
   value: string;
   description: string;
+  meaning: HmsMeaning;
 };
 
 export default function HMSOverviewCards({
@@ -39,18 +43,18 @@ export default function HMSOverviewCards({
     <div className="space-y-6">
       <section
         data-tour="dashboard-header"
-        className="overflow-hidden rounded-[28px] border border-slate-200 bg-white"
+        className="overflow-hidden rounded-[28px] border border-slate-200 bg-gradient-to-br from-white via-white to-sky-50/70 shadow-sm"
       >
         <div className="px-6 py-6 sm:px-7">
           <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
             <div className="max-w-2xl">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-700">
                 Dashboard Overview
               </p>
               <h1 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
                 HMS Dashboard
               </h1>
-              <p className="mt-2 text-sm leading-6 text-slate-500">
+              <p className="mt-2 text-sm leading-6 text-slate-600">
                 Operational snapshot for {hotelName}. Your room setup is already powering
                 the dashboard, while the next layer of analytics and departmental insight
                 is staged here for rollout.
@@ -66,15 +70,9 @@ export default function HMSOverviewCards({
             </Link>
           </div>
 
-          <div data-tour="dashboard-kpis" className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {orderedCards.map(({ icon: Icon, label, value, description }) => (
-              <SnapshotCard
-                key={label}
-                icon={Icon}
-                label={label}
-                value={value}
-                description={description}
-              />
+          <div data-tour="dashboard-kpis" className="mt-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
+            {orderedCards.map(({ icon, label, value, description, meaning }) => (
+              <HmsStatTile key={label} icon={icon} label={label} value={value} hint={description} meaning={meaning} />
             ))}
           </div>
         </div>
@@ -83,30 +81,3 @@ export default function HMSOverviewCards({
   );
 }
 
-function SnapshotCard({
-  icon: Icon,
-  label,
-  value,
-  description,
-}: {
-  icon: DashboardIcon;
-  label: string;
-  value: string;
-  description: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-sm shadow-slate-200/40">
-      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
-        <Icon className="h-5 w-5" />
-      </div>
-
-      <div className="mt-6">
-        <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-slate-400">
-          {label}
-        </p>
-        <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">{value}</p>
-        <p className="mt-2 text-sm leading-6 text-slate-500">{description}</p>
-      </div>
-    </div>
-  );
-}

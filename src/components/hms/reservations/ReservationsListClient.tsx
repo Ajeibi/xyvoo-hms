@@ -3,8 +3,7 @@
 import { Suspense, useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { BedDouble, CalendarClock, CalendarDays, CalendarX, Copy, Plus, Search, SearchX } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -13,6 +12,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  HmsCard,
+  HmsEmptyState,
+  HmsPage,
+  HmsPageHeader,
+  HmsPill,
+  HmsStatStrip,
+  HmsStatTile,
+  hmsButton,
+  hmsInput,
+} from "@/components/hms/hms-ui";
+import { HmsFilterChips, HmsSectionIntro } from "@/components/hms/hms-ui-client";
 import { formatBoardDateTime } from "@/lib/hms/front-desk-board";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import { cn } from "@/lib/utils";
@@ -27,7 +38,10 @@ import type { ArrivalsRoleCapabilities } from "@/lib/hms/arrivals-rbac";
 
 const SEARCH_DEBOUNCE_MS = 350;
 
+const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2";
+
 type StatusFilter = ReservationListRow["status"] | null;
+type StatusChip = ReservationListRow["status"] | "all";
 
 const STATUS_LABELS: Record<ReservationListRow["status"], string> = {
   confirmed: "Confirmed",
@@ -37,45 +51,13 @@ const STATUS_LABELS: Record<ReservationListRow["status"], string> = {
   no_show: "No-show",
 };
 
-function SummaryCard({
-  label,
-  value,
-  active,
-  onClick,
-}: {
-  label: string;
-  value: number;
-  active?: boolean;
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "rounded-2xl border p-4 text-left transition-colors",
-        active ? "border-blue-500 bg-blue-50" : "border-slate-200 bg-white hover:bg-slate-50",
-      )}
-    >
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">{value}</p>
-    </button>
-  );
-}
-
-function statusBadgeClass(status: ReservationListRow["status"]) {
-  switch (status) {
-    case "checked_in":
-      return "bg-blue-50 text-blue-800";
-    case "checked_out":
-      return "bg-emerald-100 text-emerald-900";
-    case "cancelled":
-    case "no_show":
-      return "bg-slate-200 text-slate-700";
-    default:
-      return "bg-amber-50 text-amber-900";
-  }
-}
+const STATUS_TONE: Record<ReservationListRow["status"], "slate" | "green" | "amber" | "red" | "blue"> = {
+  confirmed: "blue",
+  checked_in: "green",
+  checked_out: "slate",
+  cancelled: "red",
+  no_show: "amber",
+};
 
 export function ReservationsListClient({
   slug,
@@ -159,257 +141,286 @@ export function ReservationsListClient({
   const currentPage = initial.page;
   const pageRows = initial.rows;
 
+  const chipValue: StatusChip = statusFilter ?? "all";
+  const chipOptions: Array<{ value: StatusChip; label: string; count?: number | null }> = [
+    { value: "all", label: "All", count: initial.summary.total },
+    { value: "confirmed", label: "Confirmed", count: initial.summary.confirmed },
+    { value: "checked_in", label: "Checked in", count: initial.summary.checkedIn },
+    { value: "checked_out", label: "Checked out", count: initial.summary.checkedOut },
+    { value: "cancelled", label: "Cancelled" },
+    { value: "no_show", label: "No-show" },
+  ];
+
   return (
-    <div className="px-8 py-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900">Reservations</h1>
-          <p className="mt-0.5 text-sm text-slate-500">Manage upcoming and in-house stays</p>
-        </div>
-        <Link
-          href={`/hms/${slug}/reservations/new`}
-          className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
-        >
-          New reservation
-        </Link>
+    <HmsPage wide>
+      <HmsPageHeader
+        eyebrow="Reservations"
+        meaning="rooms"
+        title="Reservations"
+        description="Every booking, from guests on their way to guests who have already left."
+        actions={
+          <Link href={`/hms/${slug}/reservations/new`} className={`${hmsButton.primary} ${focusRing}`}>
+            <Plus className="h-4 w-4" aria-hidden />
+            New reservation
+          </Link>
+        }
+      />
+
+      <div className="empty:hidden [&>*]:mt-0">
+        <Suspense fallback={null}>
+          <FrontDeskCheckInSuccessBanner />
+        </Suspense>
       </div>
 
-      <Suspense fallback={null}>
-        <FrontDeskCheckInSuccessBanner />
-      </Suspense>
+      <HmsSectionIntro
+        id="reservations"
+        meaning="rooms"
+        art="page"
+        title="Keep track of every booking"
+        points={[
+          "Add a booking for a future stay with New reservation. The room is only marked as taken when the guest checks in.",
+          "Search by guest name, confirmation code or room, or tap a filter to see one kind of booking.",
+          "Open a guest's name to see their stay, their bill and notes about them.",
+        ]}
+      />
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <SummaryCard
-          label="Total"
-          value={initial.summary.total}
-          active={!statusFilter}
-          onClick={() => {
-            setStatusFilter(null);
-          }}
-        />
-        <SummaryCard
-          label="Confirmed"
-          value={initial.summary.confirmed}
-          active={statusFilter === "confirmed"}
-          onClick={() => {
-            setStatusFilter((s) => (s === "confirmed" ? null : "confirmed"));
-          }}
-        />
-        <SummaryCard
-          label="Checked in"
-          value={initial.summary.checkedIn}
-          active={statusFilter === "checked_in"}
-          onClick={() => {
-            setStatusFilter((s) => (s === "checked_in" ? null : "checked_in"));
-          }}
-        />
-        <SummaryCard
-          label="Checked out"
-          value={initial.summary.checkedOut}
-          active={statusFilter === "checked_out"}
-          onClick={() => {
-            setStatusFilter((s) => (s === "checked_out" ? null : "checked_out"));
-          }}
-        />
-        <SummaryCard
-          label="Cancelled / no-show"
+      <HmsStatStrip label="Bookings in figures">
+        <HmsStatTile label="All bookings" value={initial.summary.total} icon={CalendarDays} meaning="rooms" hint="Every booking on record" />
+        <HmsStatTile label="Coming up" value={initial.summary.confirmed} icon={CalendarClock} meaning="rooms" hint="Confirmed, not yet arrived" />
+        <HmsStatTile label="Staying now" value={initial.summary.checkedIn} icon={BedDouble} meaning="guests" hint="Checked in" />
+        <HmsStatTile
+          label="Cancelled or no-show"
           value={initial.summary.cancelledOrNoShow}
-          active={statusFilter === "cancelled" || statusFilter === "no_show"}
-          onClick={() => {
-            setStatusFilter((s) => (s === "cancelled" ? "no_show" : s === "no_show" ? null : "cancelled"));
-          }}
+          icon={CalendarX}
+          meaning="neutral"
+          hint="Bookings that didn't go ahead"
+        />
+      </HmsStatStrip>
+
+      <div className="space-y-3">
+        <div className="max-w-md">
+          <label htmlFor="reservations-search" className="mb-1 block text-sm font-medium text-slate-800">
+            Search bookings
+          </label>
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden />
+            <input
+              id="reservations-search"
+              type="search"
+              className={`${hmsInput} pl-10`}
+              placeholder="Guest name, confirmation code or room"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+        </div>
+        <HmsFilterChips
+          label="Show bookings that are"
+          meaning="rooms"
+          options={chipOptions}
+          value={chipValue}
+          onChange={(v) => setStatusFilter(v === "all" ? null : v)}
         />
       </div>
 
-      <div className="mt-6 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div>
-          <p className="mb-1 text-xs font-medium text-slate-600">Search</p>
-          <Input
-            className="max-w-xs"
-            placeholder="Guest, confirmation code, room…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        <div>
-          <p className="mb-1 text-xs font-medium text-slate-600">Status</p>
-          <select
-            className="h-10 rounded-lg border border-input bg-white px-3 text-sm"
-            value={statusFilter ?? ""}
-            onChange={(e) => setStatusFilter((e.target.value || null) as StatusFilter)}
-          >
-            <option value="">All statuses</option>
-            <option value="confirmed">Confirmed</option>
-            <option value="checked_in">Checked in</option>
-            <option value="checked_out">Checked out</option>
-            <option value="cancelled">Cancelled</option>
-            <option value="no_show">No-show</option>
-          </select>
-        </div>
-      </div>
-
-      <div
-        className={cn(
-          "mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white transition-opacity",
-          isNavigating && "opacity-60",
-        )}
-        aria-busy={isNavigating}
+      <HmsCard
+        id="reservations-list"
+        icon={CalendarDays}
+        meaning="rooms"
+        title="Bookings"
+        description={filteredCount > 0 ? `${filteredCount} ${filteredCount === 1 ? "booking" : "bookings"} found.` : undefined}
+        flush
       >
-        {filteredCount === 0 ? (
-          <p className="p-16 text-center text-sm text-slate-500">
-            {initial.summary.total === 0 ? "No reservations yet." : "No reservations match your filters."}
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1240px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                <tr>
-                  <th className="min-w-[220px] px-6 py-3">Guest</th>
-                  <th className="min-w-[120px] px-6 py-3">Room</th>
-                  <th className="px-6 py-3">Status</th>
-                  <th className="min-w-[150px] px-6 py-3">Arrival</th>
-                  <th className="min-w-[150px] px-6 py-3">Departure</th>
-                  <th className="px-6 py-3 text-center">Nights</th>
-                  <th className="px-6 py-3 text-center">Party</th>
-                  <th className="min-w-[120px] px-6 py-3">Total</th>
-                  <th className="px-6 py-3">Source</th>
-                  <th className="min-w-[160px] px-6 py-3">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pageRows.map((row) => (
-                  <tr key={row.id} className="border-t border-slate-100 hover:bg-slate-50/80">
-                    <td className="whitespace-nowrap px-6 py-3">
-                      <Link
-                        href={`/hms/${slug}/reservations/${row.id}`}
-                        className="font-medium text-slate-900 hover:text-blue-600 hover:underline"
-                      >
-                        {row.guestName}
-                      </Link>
-                      <button
-                        type="button"
-                        className="block text-xs text-slate-500 hover:text-slate-700 hover:underline"
-                        onClick={() => {
-                          void navigator.clipboard.writeText(row.confirmationCode);
-                          toastSuccess("Confirmation code copied");
-                        }}
-                        title="Copy confirmation code"
-                      >
-                        {row.confirmationCode}
-                        {row.vipFlag ? (
-                          <span className="ml-2 rounded bg-amber-100 px-1.5 text-[10px] font-bold text-amber-900">
-                            VIP
-                          </span>
-                        ) : null}
-                      </button>
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-3 text-slate-600">
-                      {row.roomCode ?? "Unassigned"}
-                      <p className="text-xs text-slate-400">{row.roomTypeName}</p>
-                    </td>
-                    <td className="px-6 py-3">
-                      <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold", statusBadgeClass(row.status))}>
-                        {STATUS_LABELS[row.status]}
-                      </span>
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-3 text-slate-600">{formatBoardDateTime(row.arrivalAt)}</td>
-                    <td className="whitespace-nowrap px-6 py-3 text-slate-600">{formatBoardDateTime(row.departureAt)}</td>
-                    <td className="px-6 py-3 text-center tabular-nums text-slate-700">{row.nights}</td>
-                    <td className="px-6 py-3 text-center tabular-nums text-slate-700">{row.partySize}</td>
-                    <td className="whitespace-nowrap px-6 py-3 tabular-nums text-slate-700">
-                      {formatPricingAmount(row.totalRoomCharges, currency)}
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-3 capitalize text-slate-600">
-                      {row.source.replace(/_/g, " ")}
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-3">
-                      {row.status === "confirmed" ? (
-                        <div className="flex items-center gap-2">
-                          {capabilities.canCheckIn ? (
-                            <Button type="button" size="sm" asChild>
-                              <Link href={`/hms/${slug}/reservations/${row.id}/check-in`}>Check in</Link>
-                            </Button>
-                          ) : null}
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            className="text-red-700 hover:bg-red-50"
-                            onClick={() => setCancelRow(row)}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      ) : (
-                        <span className="text-slate-400">—</span>
-                      )}
-                    </td>
+        <div className={cn("transition-opacity", isNavigating && "opacity-60")} aria-busy={isNavigating}>
+          {filteredCount === 0 ? (
+            initial.summary.total === 0 ? (
+              <HmsEmptyState
+                bare
+                art="page"
+                meaning="rooms"
+                title="No bookings yet"
+                description="When you add a booking it will be listed here, ready for the guest's arrival."
+                action={
+                  <Link href={`/hms/${slug}/reservations/new`} className={`${hmsButton.primary} ${focusRing}`}>
+                    Add the first booking
+                  </Link>
+                }
+              />
+            ) : (
+              <HmsEmptyState
+                bare
+                icon={SearchX}
+                meaning="rooms"
+                title="No bookings match"
+                description="Try a different search, or show all bookings."
+                action={
+                  <button
+                    type="button"
+                    className={`${hmsButton.secondary} ${focusRing}`}
+                    onClick={() => {
+                      setSearch("");
+                      navigate({ search: "", status: null, page: 1 });
+                    }}
+                  >
+                    Show all bookings
+                  </button>
+                }
+              />
+            )
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1240px] text-left text-sm">
+                <caption className="sr-only">Bookings, {filteredCount} found</caption>
+                <thead className="bg-slate-50 text-sm text-slate-700">
+                  <tr>
+                    <th scope="col" className="min-w-[220px] px-6 py-3 font-semibold">Guest</th>
+                    <th scope="col" className="min-w-[120px] px-6 py-3 font-semibold">Room</th>
+                    <th scope="col" className="px-6 py-3 font-semibold">Status</th>
+                    <th scope="col" className="min-w-[150px] px-6 py-3 font-semibold">Arrival</th>
+                    <th scope="col" className="min-w-[150px] px-6 py-3 font-semibold">Departure</th>
+                    <th scope="col" className="px-6 py-3 text-center font-semibold">Nights</th>
+                    <th scope="col" className="px-6 py-3 text-center font-semibold">Guests</th>
+                    <th scope="col" className="min-w-[120px] px-6 py-3 font-semibold">Room charges</th>
+                    <th scope="col" className="px-6 py-3 font-semibold">Booked through</th>
+                    <th scope="col" className="min-w-[160px] px-6 py-3 font-semibold">
+                      <span className="sr-only">Actions</span>
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                </thead>
+                <tbody>
+                  {pageRows.map((row) => (
+                    <tr key={row.id} className="border-t border-slate-100 hover:bg-slate-50/80">
+                      <td className="whitespace-nowrap px-6 py-3">
+                        <Link
+                          href={`/hms/${slug}/reservations/${row.id}`}
+                          className={`rounded font-medium text-slate-900 hover:text-blue-700 hover:underline ${focusRing}`}
+                        >
+                          {row.guestName}
+                        </Link>
+                        <div className="mt-0.5 flex items-center gap-2">
+                          <button
+                            type="button"
+                            className={`inline-flex items-center gap-1 rounded text-xs text-slate-600 hover:text-slate-900 hover:underline ${focusRing}`}
+                            onClick={() => {
+                              void navigator.clipboard.writeText(row.confirmationCode);
+                              toastSuccess("Confirmation code copied");
+                            }}
+                            aria-label={`Copy confirmation code ${row.confirmationCode}`}
+                            title="Copy confirmation code"
+                          >
+                            {row.confirmationCode}
+                            <Copy className="h-3 w-3" aria-hidden />
+                          </button>
+                          {row.vipFlag ? <HmsPill tone="amber">VIP</HmsPill> : null}
+                        </div>
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-3 text-slate-800">
+                        {row.roomCode ?? "Not assigned"}
+                        <p className="text-xs text-slate-600">{row.roomTypeName}</p>
+                      </td>
+                      <td className="px-6 py-3">
+                        <HmsPill tone={STATUS_TONE[row.status]}>{STATUS_LABELS[row.status]}</HmsPill>
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-3 text-slate-700">{formatBoardDateTime(row.arrivalAt)}</td>
+                      <td className="whitespace-nowrap px-6 py-3 text-slate-700">{formatBoardDateTime(row.departureAt)}</td>
+                      <td className="px-6 py-3 text-center tabular-nums text-slate-700">{row.nights}</td>
+                      <td className="px-6 py-3 text-center tabular-nums text-slate-700">{row.partySize}</td>
+                      <td className="whitespace-nowrap px-6 py-3 tabular-nums text-slate-800">
+                        {formatPricingAmount(row.totalRoomCharges, currency)}
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-3 capitalize text-slate-700">{row.source.replace(/_/g, " ")}</td>
+                      <td className="whitespace-nowrap px-6 py-3">
+                        {row.status === "confirmed" ? (
+                          <div className="flex items-center gap-2">
+                            {capabilities.canCheckIn ? (
+                              <Link
+                                href={`/hms/${slug}/reservations/${row.id}/check-in`}
+                                className={`${hmsButton.primary} px-3 py-1.5 ${focusRing}`}
+                                aria-label={`Check in ${row.guestName}`}
+                              >
+                                Check in
+                              </Link>
+                            ) : null}
+                            <button
+                              type="button"
+                              className={`${hmsButton.danger} ${focusRing}`}
+                              aria-label={`Cancel booking for ${row.guestName}`}
+                              onClick={() => setCancelRow(row)}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-slate-600">
+                            <span aria-hidden>—</span>
+                            <span className="sr-only">No actions</span>
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </HmsCard>
 
       {filteredCount > 0 ? (
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
+        <nav aria-label="Pages of bookings" className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-700">
           <p>
-            Showing {(currentPage - 1) * pageSize + 1}–
-            {Math.min(currentPage * pageSize, filteredCount)} of {filteredCount}
+            Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, filteredCount)} of {filteredCount}
           </p>
           <div className="flex items-center gap-2">
-            <Button
+            <button
               type="button"
-              variant="outline"
-              size="sm"
+              className={`${hmsButton.secondary} px-3 py-1.5 ${focusRing}`}
               disabled={currentPage <= 1}
               onClick={() => setPage(Math.max(1, currentPage - 1))}
             >
               Previous
-            </Button>
-            <span className="px-2 text-xs font-medium text-slate-500">
+            </button>
+            <span className="px-2 text-sm font-medium text-slate-700">
               Page {currentPage} of {totalPages}
             </span>
-            <Button
+            <button
               type="button"
-              variant="outline"
-              size="sm"
+              className={`${hmsButton.secondary} px-3 py-1.5 ${focusRing}`}
               disabled={currentPage >= totalPages}
               onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
             >
               Next
-            </Button>
+            </button>
           </div>
-        </div>
+        </nav>
       ) : null}
 
       <Dialog open={Boolean(cancelRow)} onOpenChange={(open) => !open && setCancelRow(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Cancel reservation?</DialogTitle>
+            <DialogTitle>Cancel this booking?</DialogTitle>
             <DialogDescription>
               {cancelRow?.guestName} · {cancelRow?.confirmationCode}
             </DialogDescription>
           </DialogHeader>
-          <p className="text-sm text-slate-600">
-            This releases the room hold (if any) and marks the reservation cancelled. This can&apos;t be undone.
+          <p className="text-sm text-slate-700">
+            This frees up any room held for the guest and marks the booking as cancelled. You can&apos;t undo this.
           </p>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setCancelRow(null)} disabled={cancelling}>
-              Keep reservation
-            </Button>
-            <Button
+            <button type="button" className={`${hmsButton.secondary} ${focusRing}`} onClick={() => setCancelRow(null)} disabled={cancelling}>
+              Keep booking
+            </button>
+            <button
               type="button"
-              className="bg-red-600 hover:bg-red-700"
+              className={`inline-flex items-center justify-center gap-2 rounded-xl bg-red-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-800 disabled:opacity-50 ${focusRing}`}
               onClick={() => void confirmCancel()}
               disabled={cancelling}
             >
-              {cancelling ? "Cancelling…" : "Cancel reservation"}
-            </Button>
+              {cancelling ? "Cancelling…" : "Cancel booking"}
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </HmsPage>
   );
 }

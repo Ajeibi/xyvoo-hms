@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
+import { Plus } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -10,7 +11,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { hmsButton, hmsInput } from "@/components/hms/hms-ui";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 
 type InventoryItemOption = { id: string; name: string; sku: string; unit_of_measure_name: string };
@@ -32,6 +33,7 @@ export function MenuItemIngredientsDialog({
   menuItemId: string;
   menuItemName: string;
 }) {
+  const uid = useId();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -93,7 +95,7 @@ export function MenuItemIngredientsDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button type="button" variant="ghost" size="sm" className="text-slate-600 hover:text-slate-800">
+        <Button type="button" variant="ghost" size="sm" className="text-slate-700 hover:text-slate-900">
           Ingredients
         </Button>
       </DialogTrigger>
@@ -103,56 +105,72 @@ export function MenuItemIngredientsDialog({
         </DialogHeader>
 
         {loading ? (
-          <p className="py-6 text-sm text-slate-500">Loading…</p>
+          <p role="status" className="py-6 text-sm text-slate-600">
+            Loading…
+          </p>
         ) : (
           <div className="space-y-3">
-            <p className="text-xs text-slate-500">
+            <p className="text-sm text-slate-600">
               Map this dish to inventory items and how much of each is used per serving. Once set, serving a
               ticket automatically deducts the stock.
             </p>
-            {rows.map((row, idx) => (
-              <div key={idx} className="flex items-center gap-2">
-                <select
-                  value={row.inventoryItemId}
-                  onChange={(e) => updateRow(idx, { inventoryItemId: e.target.value })}
-                  className="flex-1 rounded-md border border-slate-200 px-2 py-2 text-sm"
-                >
-                  <option value="">Select item…</option>
-                  {items.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.name} ({item.sku})
-                    </option>
-                  ))}
-                </select>
-                <Input
-                  type="text"
-                  inputMode="decimal"
-                  value={row.qtyPerServing}
-                  onChange={(e) => updateRow(idx, { qtyPerServing: e.target.value })}
-                  placeholder="Qty"
-                  className="w-24"
-                />
-                <span className="w-10 shrink-0 text-xs text-slate-500">
-                  {items.find((i) => i.id === row.inventoryItemId)?.unit_of_measure_name ?? ""}
-                </span>
-                <Button type="button" variant="ghost" size="sm" onClick={() => removeRow(idx)} className="text-red-600">
-                  Remove
-                </Button>
-              </div>
-            ))}
-            <Button type="button" variant="outline" size="sm" onClick={addRow}>
-              + Add ingredient
-            </Button>
+            {rows.map((row, idx) => {
+              const unit = items.find((i) => i.id === row.inventoryItemId)?.unit_of_measure_name ?? "";
+              return (
+                <div key={idx} className="flex flex-wrap items-end gap-2 sm:flex-nowrap">
+                  <div className="min-w-0 flex-1">
+                    <label htmlFor={`${uid}-item-${idx}`} className="mb-1 block text-sm font-medium text-slate-800">
+                      Ingredient {idx + 1}
+                    </label>
+                    <select
+                      id={`${uid}-item-${idx}`}
+                      value={row.inventoryItemId}
+                      onChange={(e) => updateRow(idx, { inventoryItemId: e.target.value })}
+                      className={hmsInput}
+                    >
+                      <option value="">Select item…</option>
+                      {items.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.name} ({item.sku})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="w-28">
+                    <label htmlFor={`${uid}-qty-${idx}`} className="mb-1 block text-sm font-medium text-slate-800">
+                      Per serving
+                    </label>
+                    <input
+                      id={`${uid}-qty-${idx}`}
+                      type="text"
+                      inputMode="decimal"
+                      value={row.qtyPerServing}
+                      onChange={(e) => updateRow(idx, { qtyPerServing: e.target.value })}
+                      placeholder="Qty"
+                      className={hmsInput}
+                    />
+                  </div>
+                  <span className="w-12 shrink-0 pb-3 text-sm text-slate-600">{unit}</span>
+                  <button type="button" className={hmsButton.danger} onClick={() => removeRow(idx)}>
+                    Remove<span className="sr-only"> ingredient {idx + 1}</span>
+                  </button>
+                </div>
+              );
+            })}
+            <button type="button" className={hmsButton.secondary} onClick={addRow}>
+              <Plus className="h-4 w-4" aria-hidden />
+              Add ingredient
+            </button>
           </div>
         )}
 
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+          <button type="button" className={hmsButton.secondary} onClick={() => setOpen(false)}>
             Cancel
-          </Button>
-          <Button type="button" onClick={() => void save()} disabled={loading || saving}>
+          </button>
+          <button type="button" className={hmsButton.primary} onClick={() => void save()} disabled={loading || saving}>
             {saving ? "Saving…" : "Save ingredients"}
-          </Button>
+          </button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

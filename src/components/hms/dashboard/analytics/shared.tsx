@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { formatCurrencySymbol } from "@/lib/hms/room-pricing";
+import { HMS_MEANING, type HmsMeaning } from "@/components/hms/meaning";
 
 export type StatusTone = "info" | "warning" | "critical";
 
@@ -7,13 +8,20 @@ export type MetricTileItem = {
   label: string;
   value: string;
   description: string;
+  /** Tints the tile; without it the tile stays a quiet grey. */
+  meaning?: HmsMeaning;
 };
 
 export type SummaryTileItem = {
   label: string;
   value: string;
   caption: string;
+  meaning?: HmsMeaning;
 };
+
+function tileSurface(meaning?: HmsMeaning) {
+  return meaning ? `${HMS_MEANING[meaning].tint}` : "border border-slate-200 bg-slate-50/80";
+}
 
 export type StatusRowItem = {
   title: string;
@@ -28,23 +36,27 @@ export function AnalyticsCard({
   icon: Icon,
   title,
   description,
+  meaning = "rooms",
   children,
 }: {
   icon: AnalyticsIcon;
   title: string;
   description: string;
+  /** The card's colour, from the part of the hotel it reports on. */
+  meaning?: HmsMeaning;
   children: ReactNode;
 }) {
+  const tone = HMS_MEANING[meaning];
   return (
     <section className="h-full rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/40">
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
+          <div aria-hidden className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ring-1 ring-slate-200/60 ${tone.tint} ${tone.icon}`}>
             <Icon className="h-5 w-5" />
           </div>
           <div>
             <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
-            <p className="mt-1 text-sm leading-6 text-slate-500">{description}</p>
+            <p className="mt-1 text-sm leading-6 text-slate-600">{description}</p>
           </div>
         </div>
       </div>
@@ -54,22 +66,28 @@ export function AnalyticsCard({
   );
 }
 
-export function MetricTile({ label, value, description }: MetricTileItem) {
+export function MetricTile({ label, value, description, meaning }: MetricTileItem) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-4">
-      <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-slate-400">{label}</p>
-      <p className="mt-3 text-2xl font-semibold text-slate-900">{value}</p>
-      <p className="mt-2 text-xs leading-6 text-slate-500">{description}</p>
+    <div className={`rounded-2xl px-4 py-4 ${tileSurface(meaning)}`}>
+      <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.2em] text-slate-600">
+        {meaning ? <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${HMS_MEANING[meaning].dot}`} /> : null}
+        {label}
+      </p>
+      <p className="mt-3 text-2xl font-semibold tabular-nums text-slate-900">{value}</p>
+      <p className="mt-2 text-xs leading-6 text-slate-600">{description}</p>
     </div>
   );
 }
 
-export function SummaryTile({ label, value, caption }: SummaryTileItem) {
+export function SummaryTile({ label, value, caption, meaning }: SummaryTileItem) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-4">
-      <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-slate-400">{label}</p>
-      <p className="mt-2 text-lg font-semibold text-slate-900">{value}</p>
-      <p className="mt-1 text-xs leading-5 text-slate-500">{caption}</p>
+    <div className={`rounded-2xl px-4 py-4 ${tileSurface(meaning)}`}>
+      <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.2em] text-slate-600">
+        {meaning ? <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${HMS_MEANING[meaning].dot}`} /> : null}
+        {label}
+      </p>
+      <p className="mt-2 text-lg font-semibold tabular-nums text-slate-900">{value}</p>
+      <p className="mt-1 text-xs leading-5 text-slate-600">{caption}</p>
     </div>
   );
 }

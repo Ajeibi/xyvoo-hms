@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { BellRing, ClipboardCheck, Sparkles } from "lucide-react";
+import { HmsEmptyState, HmsPage, HmsPageHeader, hmsButton } from "@/components/hms/hms-ui";
+import { HmsSectionIntro } from "@/components/hms/hms-ui-client";
 import { useFrontDeskRealtime } from "@/hooks/useFrontDeskRealtime";
 import { useClientNow } from "@/hooks/useClientNow";
 import { toastError, toastSuccess } from "@/lib/app-toast";
@@ -144,36 +145,52 @@ export function HousekeepingMyTasksClient({
   };
 
   return (
-    <div className="w-full px-6 py-8 sm:px-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900">Housekeeping tasks</h1>
-          <p className="mt-0.5 text-sm text-slate-500">Every open room for this property, highest priority first.</p>
-        </div>
-        {canCreateManualTask ? (
-          <HousekeepingNewTaskDialog slug={slug} rooms={rooms} onCreated={() => router.refresh()} />
-        ) : null}
-      </div>
+    <HmsPage wide>
+      <HmsPageHeader
+        eyebrow="Housekeeping"
+        meaning="care"
+        title="Housekeeping tasks"
+        description="Every open room for this property, highest priority first."
+        actions={
+          canCreateManualTask ? (
+            <HousekeepingNewTaskDialog slug={slug} rooms={rooms} onCreated={() => router.refresh()} />
+          ) : null
+        }
+      />
 
       <HousekeepingSubNav slug={slug} canAccessAllDepartments={canAccessAllDepartments} />
 
+      <HmsSectionIntro
+        id="housekeeping-my-tasks"
+        meaning="care"
+        title="Working through your rooms"
+        points={[
+          "Tap the big button on a card when you start a room, and again when it's clean.",
+          "Some rooms ask you to confirm the supplies you used before marking them cleaned.",
+          "Guest requests for a room show on its card. Mark each one done when it's sorted.",
+        ]}
+      />
+
       {tasks.length === 0 ? (
-        <div className="mt-6 rounded-xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">
-          No open housekeeping tasks right now.
-        </div>
+        <HmsEmptyState
+          icon={Sparkles}
+          meaning="care"
+          title="No open housekeeping tasks"
+          description="You're all caught up. New rooms appear here as soon as they need cleaning."
+        />
       ) : (
-        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {tasks.map((t) => {
             const next = NEXT_STATUS[t.status];
             const requests = guestRequestsByTask[t.id] ?? [];
             const pars = parsByTask[t.id] ?? [];
             const isCompleting = completingTaskId === t.id;
             return (
-              <div key={t.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <li key={t.id} className="rounded-2xl border border-violet-100 bg-violet-50/50 p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="text-lg font-semibold text-slate-900">Room {t.roomCode}</p>
-                    <p className="text-sm text-slate-500">{taskTypeLabel(t.taskType)}</p>
+                    <p className="font-heading text-lg font-semibold text-slate-900">Room {t.roomCode}</p>
+                    <p className="text-sm text-slate-700">{taskTypeLabel(t.taskType)}</p>
                   </div>
                   <PriorityBadge level={t.priorityLevel} />
                 </div>
@@ -196,25 +213,26 @@ export function HousekeepingMyTasksClient({
                 </div>
 
                 {requests.length > 0 ? (
-                  <div className="mt-3 rounded-lg border border-purple-100 bg-purple-50/60 p-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-purple-700">Guest requests</p>
+                  <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                    <p className="flex items-center gap-1.5 text-sm font-semibold text-amber-900">
+                      <BellRing className="h-4 w-4 text-amber-600" aria-hidden />
+                      Guest requests
+                    </p>
                     <ul className="mt-2 space-y-2">
                       {requests.map((r) => (
-                        <li key={r.id} className="flex items-center justify-between gap-2 text-sm text-slate-700">
+                        <li key={r.id} className="flex items-center justify-between gap-2 text-sm text-slate-800">
                           <span>
                             {r.requestType}
                             {r.details ? ` — ${r.details}` : ""}
                           </span>
-                          <Button
+                          <button
                             type="button"
-                            size="sm"
-                            variant="outline"
-                            className="h-8 rounded-md text-xs"
+                            className={`${hmsButton.secondary} min-h-9 shrink-0 px-3 py-1.5`}
                             disabled={busyIds.has(r.id)}
                             onClick={() => void completeGuestRequest(r.id)}
                           >
                             {busyIds.has(r.id) ? "Saving…" : "Mark done"}
-                          </Button>
+                          </button>
                         </li>
                       ))}
                     </ul>
@@ -222,18 +240,18 @@ export function HousekeepingMyTasksClient({
                 ) : null}
 
                 {isCompleting ? (
-                  <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      Confirm supplies used
-                    </p>
-                    <div className="mt-2 space-y-2">
+                  <fieldset className="mt-4 rounded-xl border border-slate-200 bg-white p-3">
+                    <legend className="px-1 text-sm font-semibold text-slate-900">Confirm supplies used</legend>
+                    <div className="mt-1 space-y-2">
                       {pars.map((p) => {
                         const d = draft[p.itemId] ?? { qty: p.parQty, missing: false };
+                        const qtyId = `hk-supply-${t.id}-${p.itemId}`;
                         return (
                           <div key={p.itemId} className="flex items-center justify-between gap-2 text-sm">
-                            <span className="text-slate-700">{p.itemName}</span>
+                            <label htmlFor={qtyId} className="text-slate-800">{p.itemName}</label>
                             <div className="flex items-center gap-2">
-                              <Input
+                              <input
+                                id={qtyId}
                                 type="number"
                                 min={0}
                                 max={999}
@@ -245,11 +263,12 @@ export function HousekeepingMyTasksClient({
                                     [p.itemId]: { ...d, qty: Math.max(0, Number(e.target.value) || 0) },
                                   }))
                                 }
-                                className="h-8 w-16 text-sm"
+                                className="h-10 w-16 rounded-lg border border-slate-300 bg-white px-2 text-sm text-slate-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-xyvoo-blue disabled:bg-slate-100"
                               />
-                              <label className="flex items-center gap-1 text-xs text-slate-500">
+                              <label className="flex min-h-10 items-center gap-1.5 text-sm text-slate-700">
                                 <input
                                   type="checkbox"
+                                  className="h-4 w-4"
                                   checked={d.missing}
                                   onChange={(e) =>
                                     setDraft((prev) => ({ ...prev, [p.itemId]: { ...d, missing: e.target.checked } }))
@@ -263,29 +282,28 @@ export function HousekeepingMyTasksClient({
                       })}
                     </div>
                     <div className="mt-3 flex gap-2">
-                      <Button
+                      <button
                         type="button"
-                        className="h-10 flex-1 rounded-lg text-sm font-semibold"
+                        className={`${hmsButton.primary} min-h-11 flex-1`}
                         disabled={busyIds.has(t.id)}
                         onClick={() => void confirmCompletion(t)}
                       >
                         {busyIds.has(t.id) ? "Saving…" : "Confirm & mark cleaned"}
-                      </Button>
-                      <Button
+                      </button>
+                      <button
                         type="button"
-                        variant="outline"
-                        className="h-10 rounded-lg text-sm"
+                        className={`${hmsButton.secondary} min-h-11`}
                         disabled={busyIds.has(t.id)}
                         onClick={() => setCompletingTaskId(null)}
                       >
                         Cancel
-                      </Button>
+                      </button>
                     </div>
-                  </div>
+                  </fieldset>
                 ) : next ? (
-                  <Button
+                  <button
                     type="button"
-                    className="mt-4 h-12 w-full rounded-xl text-base font-semibold"
+                    className={`${hmsButton.primary} mt-4 h-12 w-full rounded-xl text-base`}
                     disabled={busyIds.has(t.id)}
                     onClick={() =>
                       next.status === "cleaned" && pars.length > 0
@@ -294,15 +312,18 @@ export function HousekeepingMyTasksClient({
                     }
                   >
                     {busyIds.has(t.id) ? "Saving…" : next.label}
-                  </Button>
+                  </button>
                 ) : t.status === "cleaned" ? (
-                  <p className="mt-4 text-center text-sm font-medium text-amber-700">Awaiting supervisor inspection</p>
+                  <p className="mt-4 flex items-center justify-center gap-1.5 text-sm font-medium text-amber-800">
+                    <ClipboardCheck className="h-4 w-4" aria-hidden />
+                    Awaiting supervisor inspection
+                  </p>
                 ) : null}
-              </div>
+              </li>
             );
           })}
-        </div>
+        </ul>
       )}
-    </div>
+    </HmsPage>
   );
 }

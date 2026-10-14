@@ -1,12 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Download } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Download, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { IncomeStatementResult } from "@/lib/hms/financial-statements";
 import { AccountsSubNav } from "@/components/hms/accounts/AccountsSubNav";
+import { HmsCard, HmsField, HmsPage, HmsPageHeader, hmsButton, hmsInput } from "@/components/hms/hms-ui";
 
 function toCsvValue(value: string | number) {
   const s = String(value);
@@ -69,104 +68,121 @@ export function AccountsIncomeStatementClient({
   };
 
   return (
-    <div className="w-full px-6 py-8 sm:px-8">
-      <h1 className="text-xl font-semibold text-slate-900">Income statement</h1>
-      <p className="mt-0.5 text-sm text-slate-500">
-        Revenue and expenses for the selected period{currency ? ` (${currency})` : ""}.
-      </p>
+    <HmsPage>
+      <HmsPageHeader
+        eyebrow="Accounts"
+        meaning="money"
+        title="Income statement"
+        description={`Revenue and expenses for the selected period${currency ? ` (${currency})` : ""}.`}
+        actions={
+          <button type="button" className={`${hmsButton.secondary} print:hidden`} onClick={exportCsv}>
+            <Download className="h-4 w-4" aria-hidden /> Export CSV
+          </button>
+        }
+      />
 
       <AccountsSubNav slug={slug} canAccessAllDepartments={canAccessAllDepartments} />
 
-      <div className="mt-6 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div>
-          <p className="mb-1 text-xs font-medium text-slate-600">From</p>
-          <Input type="date" className="h-10 w-[11rem]" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+      <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm print:hidden">
+        <div className="w-[12rem]">
+          <HmsField id="income-statement-from" label="From">
+            <input id="income-statement-from" type="date" className={hmsInput} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+          </HmsField>
         </div>
-        <div>
-          <p className="mb-1 text-xs font-medium text-slate-600">To</p>
-          <Input type="date" className="h-10 w-[11rem]" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+        <div className="w-[12rem]">
+          <HmsField id="income-statement-to" label="To">
+            <input id="income-statement-to" type="date" className={hmsInput} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+          </HmsField>
         </div>
-        <Button type="button" variant="outline" disabled={loading} onClick={() => void runReport()}>
+        <button type="button" className={hmsButton.secondary} disabled={loading} onClick={() => void runReport()}>
           {loading ? "Loading…" : "Run report"}
-        </Button>
-        <Button type="button" variant="ghost" size="sm" onClick={exportCsv}>
-          <Download className="h-3.5 w-3.5" /> Export CSV
-        </Button>
+        </button>
       </div>
 
-      <div className="mt-6 overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full min-w-[560px] text-left text-sm">
-          <thead className="border-b bg-slate-50 text-xs font-semibold uppercase text-slate-500">
-            <tr>
-              <th className="px-4 py-3">Account</th>
-              <th className="px-4 py-3 text-right">Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr className="bg-slate-50/70">
-              <td colSpan={2} className="px-4 py-1.5 text-xs font-semibold uppercase text-slate-500">
-                Revenue
-              </td>
-            </tr>
-            {result.revenueRows.length === 0 ? (
+      <HmsCard
+        id="income-statement-report"
+        title="Profit and loss"
+        icon={TrendingUp}
+        meaning="money"
+        flush
+        className="print:border-0 print:shadow-none"
+      >
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[560px] text-left text-sm">
+            <thead className="border-b border-slate-200 bg-slate-50 text-sm font-medium text-slate-600">
               <tr>
-                <td colSpan={2} className="px-4 py-3 text-sm text-slate-400">
-                  No revenue posted in this period.
-                </td>
+                <th scope="col" className="px-5 py-3">Account</th>
+                <th scope="col" className="px-5 py-3 text-right">Amount</th>
               </tr>
-            ) : (
-              result.revenueRows.map((r) => (
-                <tr key={r.accountId} className="border-b border-slate-100 last:border-0">
-                  <td className="px-4 py-2">
-                    <code className="mr-2 font-mono text-xs text-slate-400">{r.code}</code>
-                    {r.name}
+            </thead>
+            <tbody>
+              <tr className="border-b border-slate-100 bg-slate-50/70">
+                <th scope="colgroup" colSpan={2} className="px-5 py-2 text-left text-sm font-semibold text-slate-800">
+                  Revenue
+                </th>
+              </tr>
+              {result.revenueRows.length === 0 ? (
+                <tr className="border-b border-slate-100">
+                  <td colSpan={2} className="px-5 py-3 text-sm text-slate-600">
+                    No revenue posted in this period.
                   </td>
-                  <td className="px-4 py-2 text-right tabular-nums text-slate-900">{r.balance.toFixed(2)}</td>
                 </tr>
-              ))
-            )}
-            <tr className="border-t border-slate-200 font-medium">
-              <td className="px-4 py-2">Total Revenue</td>
-              <td className="px-4 py-2 text-right tabular-nums">{result.totalRevenue.toFixed(2)}</td>
-            </tr>
+              ) : (
+                result.revenueRows.map((r) => (
+                  <tr key={r.accountId} className="border-b border-slate-100">
+                    <td className="px-5 py-3 text-slate-900">
+                      <code className="mr-2 font-mono text-xs text-slate-600">{r.code}</code>
+                      {r.name}
+                    </td>
+                    <td className="px-5 py-3 text-right tabular-nums text-slate-900">{r.balance.toFixed(2)}</td>
+                  </tr>
+                ))
+              )}
+              <tr className="border-b border-slate-200 bg-slate-50/40 font-semibold text-slate-900">
+                <th scope="row" className="px-5 py-3 text-left">Total revenue</th>
+                <td className="px-5 py-3 text-right tabular-nums">{result.totalRevenue.toFixed(2)}</td>
+              </tr>
 
-            <tr className="bg-slate-50/70">
-              <td colSpan={2} className="px-4 py-1.5 text-xs font-semibold uppercase text-slate-500">
-                Expenses
-              </td>
-            </tr>
-            {result.expenseRows.length === 0 ? (
-              <tr>
-                <td colSpan={2} className="px-4 py-3 text-sm text-slate-400">
-                  No expenses posted in this period.
+              <tr className="border-b border-slate-100 bg-slate-50/70">
+                <th scope="colgroup" colSpan={2} className="px-5 py-2 text-left text-sm font-semibold text-slate-800">
+                  Expenses
+                </th>
+              </tr>
+              {result.expenseRows.length === 0 ? (
+                <tr className="border-b border-slate-100">
+                  <td colSpan={2} className="px-5 py-3 text-sm text-slate-600">
+                    No expenses posted in this period.
+                  </td>
+                </tr>
+              ) : (
+                result.expenseRows.map((r) => (
+                  <tr key={r.accountId} className="border-b border-slate-100">
+                    <td className="px-5 py-3 text-slate-900">
+                      <code className="mr-2 font-mono text-xs text-slate-600">{r.code}</code>
+                      {r.name}
+                    </td>
+                    <td className="px-5 py-3 text-right tabular-nums text-slate-900">{r.balance.toFixed(2)}</td>
+                  </tr>
+                ))
+              )}
+              <tr className="bg-slate-50/40 font-semibold text-slate-900">
+                <th scope="row" className="px-5 py-3 text-left">Total expenses</th>
+                <td className="px-5 py-3 text-right tabular-nums">{result.totalExpense.toFixed(2)}</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-slate-300 bg-slate-50 text-base font-semibold text-slate-900">
+                <th scope="row" className="px-5 py-3 text-left">
+                  Net income{result.netIncome < 0 ? <span className="ml-2 text-sm font-medium text-red-700">(a loss)</span> : null}
+                </th>
+                <td className={cn("px-5 py-3 text-right tabular-nums", result.netIncome < 0 ? "text-red-700" : "text-emerald-700")}>
+                  {result.netIncome.toFixed(2)}
                 </td>
               </tr>
-            ) : (
-              result.expenseRows.map((r) => (
-                <tr key={r.accountId} className="border-b border-slate-100 last:border-0">
-                  <td className="px-4 py-2">
-                    <code className="mr-2 font-mono text-xs text-slate-400">{r.code}</code>
-                    {r.name}
-                  </td>
-                  <td className="px-4 py-2 text-right tabular-nums text-slate-900">{r.balance.toFixed(2)}</td>
-                </tr>
-              ))
-            )}
-            <tr className="border-t border-slate-200 font-medium">
-              <td className="px-4 py-2">Total Expenses</td>
-              <td className="px-4 py-2 text-right tabular-nums">{result.totalExpense.toFixed(2)}</td>
-            </tr>
-          </tbody>
-          <tfoot>
-            <tr className="border-t-2 border-slate-200 text-base font-semibold">
-              <td className="px-4 py-2.5">Net Income</td>
-              <td className={cn("px-4 py-2.5 text-right tabular-nums", result.netIncome < 0 ? "text-red-600" : "text-emerald-700")}>
-                {result.netIncome.toFixed(2)}
-              </td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-    </div>
+            </tfoot>
+          </table>
+        </div>
+      </HmsCard>
+    </HmsPage>
   );
 }

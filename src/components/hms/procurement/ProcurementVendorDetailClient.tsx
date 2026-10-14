@@ -3,15 +3,15 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { ArrowLeft, BadgeCheck, ChevronRight, ClipboardList, Contact, Gauge, Plus, ShoppingCart, Tag, Wallet, X } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { HmsCard, HmsEmptyState, HmsField, HmsPage, HmsPageHeader, HmsPill, HmsStatStrip, HmsStatTile, hmsButton, hmsInput } from "@/components/hms/hms-ui";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import type { InventoryItemRow } from "@/lib/hms/inventory-types";
 import type {
+  PurchaseOrderStatus,
   PurchaseOrderWithLines,
   VendorCategoryRow,
   VendorPriceCatalogWithItem,
@@ -21,6 +21,34 @@ import type {
 } from "@/lib/hms/procurement-types";
 
 const STATUS_OPTIONS: VendorStatus[] = ["active", "preferred", "inactive", "blacklisted"];
+
+const VENDOR_STATUS_LABEL: Record<VendorStatus, string> = {
+  active: "Active",
+  preferred: "Preferred",
+  inactive: "Inactive",
+  blacklisted: "Blacklisted",
+};
+
+const VENDOR_STATUS_TONE: Record<VendorStatus, "slate" | "green" | "amber" | "red" | "blue"> = {
+  active: "blue",
+  preferred: "green",
+  inactive: "slate",
+  blacklisted: "red",
+};
+
+const ORDER_STATUS_PILL: Record<PurchaseOrderStatus, { label: string; tone: "slate" | "green" | "amber" | "red" | "blue" }> = {
+  draft: { label: "Draft", tone: "slate" },
+  pending_approval: { label: "Waiting for approval", tone: "amber" },
+  approved: { label: "Approved", tone: "green" },
+  ordered: { label: "Ordered", tone: "blue" },
+  partially_received: { label: "Partly received", tone: "blue" },
+  received: { label: "Received", tone: "green" },
+  closed: { label: "Closed", tone: "slate" },
+  rejected: { label: "Rejected", tone: "red" },
+  cancelled: { label: "Cancelled", tone: "red" },
+};
+
+const selectTrigger = "h-11 rounded-xl border-slate-300";
 
 export function ProcurementVendorDetailClient({
   slug,
@@ -97,72 +125,107 @@ export function ProcurementVendorDetailClient({
     await patchVendor({ certifications: next }, "Certification removed", () => setCertifications(certifications));
   };
 
+  const contactRows: [string, string][] = [
+    ["Contact", vendor.contact_name ?? "—"],
+    ["Phone", vendor.phone ?? "—"],
+    ["Email", vendor.email ?? "—"],
+    ["Payment terms", vendor.payment_terms ?? "—"],
+    ["Currency", vendor.currency],
+  ];
+
   return (
-    <div className="px-8 py-8">
-      <Link href={`/hms/${slug}/procurement/vendors`} className="mb-4 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800">
-        <ArrowLeft className="h-4 w-4" /> Back to vendors
+    <HmsPage>
+      <Link
+        href={`/hms/${slug}/procurement/vendors`}
+        className="inline-flex items-center gap-1 rounded text-sm font-medium text-slate-700 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+      >
+        <ArrowLeft className="h-4 w-4" aria-hidden /> Back to vendors
       </Link>
 
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900">{vendor.name}</h1>
-          <p className="mt-0.5 text-sm text-slate-500">
-            {vendor.category_name ?? "Uncategorized"} · {vendor.country ?? "—"} · {vendor.lead_time_days} day lead time
-          </p>
-        </div>
-        <div className="flex shrink-0 gap-2">
-          <Select value={categoryId} onValueChange={changeCategory}>
-            <SelectTrigger className="w-44" disabled={savingField}>
-              <SelectValue placeholder="Category" />
-            </SelectTrigger>
-            <SelectContent>
-              {categories.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={status} onValueChange={(v) => changeStatus(v as VendorStatus)}>
-            <SelectTrigger className="w-36" disabled={savingField}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {STATUS_OPTIONS.map((s) => (
-                <SelectItem key={s} value={s} className="capitalize">
-                  {s}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+      <HmsPageHeader
+        eyebrow="Procurement"
+        meaning="stock"
+        title={vendor.name}
+        description={`${vendor.category_name ?? "Uncategorised"} · ${vendor.country ?? "—"} · ${vendor.lead_time_days} day lead time`}
+        actions={<HmsPill tone={VENDOR_STATUS_TONE[status]}>{VENDOR_STATUS_LABEL[status]}</HmsPill>}
+      />
 
-      <div className="mt-6 grid gap-4 md:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6">
-          <h2 className="text-sm font-semibold text-slate-800">Contact & terms</h2>
-          <dl className="mt-3 space-y-2 text-sm">
-            <div className="flex justify-between"><dt className="text-slate-500">Contact</dt><dd className="text-slate-800">{vendor.contact_name ?? "—"}</dd></div>
-            <div className="flex justify-between"><dt className="text-slate-500">Phone</dt><dd className="text-slate-800">{vendor.phone ?? "—"}</dd></div>
-            <div className="flex justify-between"><dt className="text-slate-500">Email</dt><dd className="text-slate-800">{vendor.email ?? "—"}</dd></div>
-            <div className="flex justify-between"><dt className="text-slate-500">Payment terms</dt><dd className="text-slate-800">{vendor.payment_terms ?? "—"}</dd></div>
-            <div className="flex justify-between"><dt className="text-slate-500">Currency</dt><dd className="text-slate-800">{vendor.currency}</dd></div>
-          </dl>
-          <div className="mt-3">
-            <p className="mb-1 text-xs text-slate-500">Certifications / compliance</p>
-            <div className="flex flex-wrap items-center gap-1">
-              {certifications.map((label) => (
-                <span
-                  key={label}
-                  className="flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700"
-                >
-                  {label}
-                  <button type="button" onClick={() => void removeCertification(label)} className="text-emerald-500 hover:text-emerald-800">
-                    ×
-                  </button>
-                </span>
-              ))}
-              <Input
+      <HmsStatStrip label="Vendor scorecard">
+        <HmsStatTile icon={ShoppingCart} label="Total orders" value={scorecard.totalOrders.toLocaleString()} meaning="stock" />
+        <HmsStatTile icon={Wallet} label="Total spend" value={formatPricingAmount(scorecard.totalSpend, currency)} meaning="money" />
+        <HmsStatTile
+          icon={Gauge}
+          label="On-time rate"
+          value={scorecard.onTimeRate === null ? "—" : `${Math.round(scorecard.onTimeRate * 100)}%`}
+          hint={scorecard.onTimeRate === null ? "No reviews yet" : undefined}
+          meaning="team"
+        />
+        <HmsStatTile
+          icon={BadgeCheck}
+          label="Average quality score"
+          value={scorecard.avgQualityScore === null ? "—" : `${scorecard.avgQualityScore.toFixed(1)} / 5`}
+          hint={scorecard.avgQualityScore === null ? "No reviews yet" : undefined}
+          meaning="guests"
+        />
+      </HmsStatStrip>
+
+      <div className="grid gap-6 md:grid-cols-2">
+        <HmsCard id="vendor-settings" title="Status and category" description="Changes save straight away." icon={Tag} meaning="stock">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <HmsField id="vendor-category" label="Category">
+              <Select value={categoryId} onValueChange={changeCategory}>
+                <SelectTrigger id="vendor-category" className={selectTrigger} disabled={savingField}>
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </HmsField>
+            <HmsField id="vendor-status" label="Status">
+              <Select value={status} onValueChange={(v) => changeStatus(v as VendorStatus)}>
+                <SelectTrigger id="vendor-status" className={selectTrigger} disabled={savingField}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUS_OPTIONS.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {VENDOR_STATUS_LABEL[s]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </HmsField>
+          </div>
+
+          <div className="mt-5">
+            <p className="mb-2 text-sm font-medium text-slate-800">Certifications and compliance</p>
+            {certifications.length ? (
+              <ul className="mb-3 flex flex-wrap gap-2">
+                {certifications.map((label) => (
+                  <li key={label} className="flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 py-1 pl-3 pr-1 text-sm text-emerald-900">
+                    {label}
+                    <button
+                      type="button"
+                      onClick={() => void removeCertification(label)}
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-full text-emerald-800 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                    >
+                      <X className="h-3.5 w-3.5" aria-hidden />
+                      <span className="sr-only">Remove {label}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            <HmsField id="vendor-new-certification" label="Add a certification" hint="Press Enter to add it, such as HACCP certified.">
+              <input
+                id="vendor-new-certification"
+                aria-describedby="vendor-new-certification-hint"
+                className={hmsInput}
                 value={newCertification}
                 onChange={(e) => setNewCertification(e.target.value)}
                 onKeyDown={(e) => {
@@ -171,69 +234,102 @@ export function ProcurementVendorDetailClient({
                     void addCertification();
                   }
                 }}
-                placeholder="e.g. HACCP certified"
-                className="h-7 w-40 text-xs"
               />
-            </div>
+            </HmsField>
           </div>
-        </div>
+        </HmsCard>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-800">Performance scorecard</h2>
-            <Button type="button" size="sm" variant="outline" className="rounded-lg" onClick={() => setReviewDialogOpen(true)}>
-              Add review
-            </Button>
-          </div>
-          <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
-            <div><dt className="text-xs text-slate-400">Total orders</dt><dd className="text-slate-800">{scorecard.totalOrders}</dd></div>
-            <div><dt className="text-xs text-slate-400">Total spend</dt><dd className="text-slate-800">{formatPricingAmount(scorecard.totalSpend, currency)}</dd></div>
-            <div><dt className="text-xs text-slate-400">On-time rate</dt><dd className="text-slate-800">{scorecard.onTimeRate === null ? "—" : `${Math.round(scorecard.onTimeRate * 100)}%`}</dd></div>
-            <div><dt className="text-xs text-slate-400">Avg quality score</dt><dd className="text-slate-800">{scorecard.avgQualityScore === null ? "—" : scorecard.avgQualityScore.toFixed(1)}</dd></div>
+        <HmsCard
+          id="vendor-contact"
+          title="Contact and terms"
+          icon={Contact}
+          meaning="team"
+          actions={
+            <button type="button" className={hmsButton.secondary} onClick={() => setReviewDialogOpen(true)}>
+              <ClipboardList className="h-4 w-4" aria-hidden /> Add review
+            </button>
+          }
+        >
+          <dl className="divide-y divide-slate-100 text-sm">
+            {contactRows.map(([label, value]) => (
+              <div key={label} className="flex justify-between gap-3 py-2">
+                <dt className="text-slate-600">{label}</dt>
+                <dd className="text-right text-slate-900">{value}</dd>
+              </div>
+            ))}
           </dl>
-        </div>
+        </HmsCard>
       </div>
 
-      <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-          <h2 className="text-sm font-semibold text-slate-900">Price catalog</h2>
-          <Button type="button" size="sm" className="rounded-lg" onClick={() => setPriceDialogOpen(true)}>
-            <Plus className="h-3.5 w-3.5" /> Add price
-          </Button>
-        </div>
+      <HmsCard
+        id="vendor-price-catalog"
+        title="Price catalogue"
+        description="Agreed prices are filled in when you source requisitions from this vendor."
+        icon={Wallet}
+        meaning="money"
+        flush
+        actions={
+          <button type="button" className={hmsButton.primary} onClick={() => setPriceDialogOpen(true)}>
+            <Plus className="h-4 w-4" aria-hidden /> Add price
+          </button>
+        }
+      >
         {priceCatalog.length === 0 ? (
-          <p className="px-6 py-6 text-sm text-slate-500">No agreed prices recorded yet.</p>
+          <HmsEmptyState bare art="tag" meaning="money" title="No agreed prices yet" description="No agreed prices recorded yet." />
         ) : (
-          <ul className="divide-y divide-slate-100">
-            {priceCatalog.map((p) => (
-              <li key={p.id} className="flex items-center justify-between px-6 py-3 text-sm">
-                <span className="text-slate-800">{p.item_name} <span className="text-xs text-slate-400">({p.item_sku})</span></span>
-                <span className="tabular-nums text-slate-600">{formatPricingAmount(p.unit_price, p.currency)} / {p.unit_of_measure}</span>
-              </li>
-            ))}
-          </ul>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 bg-slate-50 text-left text-sm font-medium text-slate-600">
+                  <th scope="col" className="px-5 py-3 font-medium sm:px-6">Item</th>
+                  <th scope="col" className="px-5 py-3 text-right font-medium sm:px-6">Unit price</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {priceCatalog.map((p) => (
+                  <tr key={p.id}>
+                    <td className="px-5 py-3 text-slate-900 sm:px-6">
+                      {p.item_name} <span className="text-slate-600">({p.item_sku})</span>
+                    </td>
+                    <td className="px-5 py-3 text-right tabular-nums text-slate-900 sm:px-6">
+                      {formatPricingAmount(p.unit_price, p.currency)} / {p.unit_of_measure}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
-      </div>
+      </HmsCard>
 
-      <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-        <div className="border-b border-slate-100 px-6 py-4">
-          <h2 className="text-sm font-semibold text-slate-900">Order history</h2>
-        </div>
+      <HmsCard id="vendor-orders" title="Order history" icon={ShoppingCart} meaning="stock" flush>
         {orders.length === 0 ? (
-          <p className="px-6 py-6 text-sm text-slate-500">No purchase orders placed with this vendor yet.</p>
+          <HmsEmptyState bare art="truck" meaning="stock" title="No orders yet" description="No purchase orders placed with this vendor yet." />
         ) : (
           <ul className="divide-y divide-slate-100">
-            {orders.map((o) => (
-              <li key={o.id}>
-                <Link href={`/hms/${slug}/procurement/orders/${o.id}`} className="flex items-center justify-between px-6 py-3 text-sm hover:bg-slate-50">
-                  <span className="text-slate-800">{o.po_number} <span className="text-xs capitalize text-slate-400">({o.status.replace(/_/g, " ")})</span></span>
-                  <span className="tabular-nums text-slate-600">{formatPricingAmount(o.total, o.currency)}</span>
-                </Link>
-              </li>
-            ))}
+            {orders.map((o) => {
+              const pill = ORDER_STATUS_PILL[o.status];
+              return (
+                <li key={o.id}>
+                  <Link
+                    href={`/hms/${slug}/procurement/orders/${o.id}`}
+                    className="flex items-center justify-between gap-3 px-5 py-3 text-sm hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 sm:px-6"
+                  >
+                    <span className="flex min-w-0 flex-wrap items-center gap-2">
+                      <span className="font-medium text-slate-900">{o.po_number}</span>
+                      <HmsPill tone={pill.tone}>{pill.label}</HmsPill>
+                    </span>
+                    <span className="flex shrink-0 items-center gap-3">
+                      <span className="tabular-nums text-slate-900">{formatPricingAmount(o.total, o.currency)}</span>
+                      <ChevronRight className="h-4 w-4 text-slate-500" aria-hidden />
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         )}
-      </div>
+      </HmsCard>
 
       <AddPriceDialog
         slug={slug}
@@ -250,7 +346,7 @@ export function ProcurementVendorDetailClient({
         onOpenChange={setReviewDialogOpen}
         onDone={() => router.refresh()}
       />
-    </div>
+    </HmsPage>
   );
 }
 
@@ -303,29 +399,53 @@ function AddPriceDialog({
         <DialogHeader>
           <DialogTitle>Add agreed price</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3">
-          <Select value={itemId} onValueChange={setItemId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select item" />
-            </SelectTrigger>
-            <SelectContent>
-              {items.map((i) => (
-                <SelectItem key={i.id} value={i.id}>
-                  {i.name} ({i.sku})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Input type="number" min="0" step="any" placeholder="Unit price" value={unitPrice} onChange={(e) => setUnitPrice(e.target.value)} />
-          <Input type="number" min="0" step="any" placeholder="Minimum order quantity (optional)" value={moq} onChange={(e) => setMoq(e.target.value)} />
+        <div className="space-y-4">
+          <HmsField id="price-item" label="Item">
+            <Select value={itemId} onValueChange={setItemId}>
+              <SelectTrigger id="price-item" className={selectTrigger}>
+                <SelectValue placeholder="Select item" />
+              </SelectTrigger>
+              <SelectContent>
+                {items.map((i) => (
+                  <SelectItem key={i.id} value={i.id}>
+                    {i.name} ({i.sku})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </HmsField>
+          <HmsField id="price-unit-price" label="Unit price">
+            <input
+              id="price-unit-price"
+              type="number"
+              min="0"
+              step="any"
+              inputMode="decimal"
+              className={`${hmsInput} tabular-nums`}
+              value={unitPrice}
+              onChange={(e) => setUnitPrice(e.target.value)}
+            />
+          </HmsField>
+          <HmsField id="price-moq" label="Minimum order quantity" optional>
+            <input
+              id="price-moq"
+              type="number"
+              min="0"
+              step="any"
+              inputMode="decimal"
+              className={`${hmsInput} tabular-nums`}
+              value={moq}
+              onChange={(e) => setMoq(e.target.value)}
+            />
+          </HmsField>
         </div>
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+          <button type="button" className={hmsButton.secondary} onClick={() => onOpenChange(false)} disabled={submitting}>
             Cancel
-          </Button>
-          <Button type="button" disabled={!itemId || !unitPrice || submitting} onClick={() => void submit()}>
+          </button>
+          <button type="button" className={hmsButton.primary} disabled={!itemId || !unitPrice || submitting} onClick={() => void submit()}>
             {submitting ? "Saving…" : "Save price"}
-          </Button>
+          </button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -378,24 +498,39 @@ function AddReviewDialog({
         <DialogHeader>
           <DialogTitle>Record a performance review</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3">
-          <label className="flex items-center gap-2 text-sm text-slate-700">
-            <input type="checkbox" className="h-4 w-4 rounded border-slate-300" checked={onTime} onChange={(e) => setOnTime(e.target.checked)} />
+        <div className="space-y-4">
+          <label className="flex items-center gap-2 text-sm text-slate-800">
+            <input
+              type="checkbox"
+              className="h-5 w-5 rounded border-slate-300 text-teal-700 focus-visible:ring-2 focus-visible:ring-blue-500"
+              checked={onTime}
+              onChange={(e) => setOnTime(e.target.checked)}
+            />
             Delivery was on time
           </label>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">Quality score (1–5)</label>
-            <Input type="number" min="1" max="5" value={qualityScore} onChange={(e) => setQualityScore(e.target.value)} />
-          </div>
-          <Input placeholder="Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} />
+          <HmsField id="review-quality" label="Quality score (1 to 5)">
+            <input
+              id="review-quality"
+              type="number"
+              min="1"
+              max="5"
+              inputMode="numeric"
+              className={`${hmsInput} tabular-nums`}
+              value={qualityScore}
+              onChange={(e) => setQualityScore(e.target.value)}
+            />
+          </HmsField>
+          <HmsField id="review-notes" label="Notes" optional>
+            <input id="review-notes" className={hmsInput} value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </HmsField>
         </div>
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+          <button type="button" className={hmsButton.secondary} onClick={() => onOpenChange(false)} disabled={submitting}>
             Cancel
-          </Button>
-          <Button type="button" disabled={submitting} onClick={() => void submit()}>
+          </button>
+          <button type="button" className={hmsButton.primary} disabled={submitting} onClick={() => void submit()}>
             {submitting ? "Saving…" : "Save review"}
-          </Button>
+          </button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

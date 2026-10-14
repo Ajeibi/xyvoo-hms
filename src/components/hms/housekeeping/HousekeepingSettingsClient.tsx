@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { useId, useState } from "react";
+import { ClipboardCheck, Loader2, Repeat, Timer } from "lucide-react";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import type { TenantHousekeepingSettings } from "@/lib/hms/housekeeping-settings";
 import { HousekeepingSubNav } from "@/components/hms/housekeeping/HousekeepingSubNav";
+import { HmsCard, HmsPage, HmsPageHeader, hmsButton, hmsInput } from "@/components/hms/hms-ui";
 
 function NumberField({
   label,
@@ -20,19 +20,30 @@ function NumberField({
   min: number;
   max: number;
 }) {
+  const id = useId();
   return (
-    <label className="block">
-      <span className="mb-1 block text-xs font-medium text-slate-500">{label}</span>
-      <Input
+    <div>
+      <label htmlFor={id} className="mb-1 block text-sm font-medium text-slate-800">
+        {label}
+      </label>
+      <input
+        id={id}
         type="number"
         min={min}
         max={max}
         value={value}
+        className={hmsInput}
         onChange={(e) => onChange(Math.min(max, Math.max(min, Number(e.target.value) || min)))}
       />
-    </label>
+    </div>
   );
 }
+
+const POLICY_LABEL = {
+  all: "Inspect every task",
+  spot_check: "Spot-check a percentage",
+  self: "Self-inspection",
+} as const;
 
 export function HousekeepingSettingsClient({
   slug,
@@ -66,17 +77,24 @@ export function HousekeepingSettingsClient({
   };
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-6 px-6 py-8">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-900">Housekeeping Settings</h1>
-        <p className="mt-0.5 text-sm text-slate-500">SLA targets, inspection policy, and escalation window.</p>
-      </div>
+    <HmsPage>
+      <HmsPageHeader
+        eyebrow="Housekeeping"
+        meaning="care"
+        title="Housekeeping settings"
+        description="How long each kind of clean should take, how rooms are inspected, and when tasks are escalated."
+      />
 
       <HousekeepingSubNav slug={slug} canAccessAllDepartments={canAccessAllDepartments} />
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-slate-800">SLA targets (minutes)</h2>
-        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <HmsCard
+        id="hk-settings-sla"
+        title="Time to finish each clean"
+        description="In minutes. Tasks show as overdue once this time has passed."
+        icon={Timer}
+        meaning="care"
+      >
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <NumberField
             label="Checkout clean"
             value={settings.slaCheckoutMinutes}
@@ -106,30 +124,37 @@ export function HousekeepingSettingsClient({
             onChange={(v) => setSettings((s) => ({ ...s, slaTurndownMinutes: v }))}
           />
         </div>
-      </section>
+      </HmsCard>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-slate-800">Inspection policy</h2>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {(["all", "spot_check", "self"] as const).map((policy) => (
-            <button
-              key={policy}
-              type="button"
-              onClick={() => setSettings((s) => ({ ...s, inspectionPolicy: policy }))}
-              className={`rounded-lg border px-3 py-2 text-sm font-medium ${
-                settings.inspectionPolicy === policy
-                  ? "border-blue-500 bg-blue-50 text-blue-700"
-                  : "border-slate-200 text-slate-600 hover:bg-slate-50"
-              }`}
-            >
-              {policy === "all" ? "Inspect every task" : policy === "spot_check" ? "Spot-check %" : "Self-inspection"}
-            </button>
-          ))}
+      <HmsCard
+        id="hk-settings-inspection"
+        title="Inspection policy"
+        description="Which cleaned rooms a supervisor checks before they're ready for guests."
+        icon={ClipboardCheck}
+        meaning="care"
+      >
+        <div role="group" aria-label="Inspection policy" className="flex flex-wrap gap-2">
+          {(["all", "spot_check", "self"] as const).map((policy) => {
+            const on = settings.inspectionPolicy === policy;
+            return (
+              <button
+                key={policy}
+                type="button"
+                aria-pressed={on}
+                onClick={() => setSettings((s) => ({ ...s, inspectionPolicy: policy }))}
+                className={`min-h-10 rounded-full border px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                  on ? "border-violet-600 bg-violet-50 text-violet-900" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                {POLICY_LABEL[policy]}
+              </button>
+            );
+          })}
         </div>
         {settings.inspectionPolicy === "spot_check" ? (
-          <div className="mt-3 max-w-[160px]">
+          <div className="mt-4 max-w-[180px]">
             <NumberField
-              label="Spot-check percent"
+              label="Percentage to check"
               value={settings.spotCheckPercent}
               min={1}
               max={100}
@@ -137,39 +162,46 @@ export function HousekeepingSettingsClient({
             />
           </div>
         ) : null}
-        <label className="mt-3 flex items-center gap-2 text-sm text-slate-700">
+        <label className="mt-4 flex items-start gap-2 text-sm text-slate-800">
           <input
             type="checkbox"
+            className="mt-0.5 h-4 w-4"
             checked={settings.selfInspectionAllowed}
             onChange={(e) => setSettings((s) => ({ ...s, selfInspectionAllowed: e.target.checked }))}
           />
           Allow an attendant to inspect their own work (for properties without a dedicated supervisor)
         </label>
-      </section>
+      </HmsCard>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-slate-800">Priority &amp; stayover cadence</h2>
-        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <HmsCard
+        id="hk-settings-cadence"
+        title="Priority and stayover cleans"
+        description="The priority escalation window, and how often occupied rooms get a stayover clean."
+        icon={Repeat}
+        meaning="care"
+      >
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <NumberField
-            label="Priority escalation (min)"
+            label="Priority escalation (minutes)"
             value={settings.priorityEscalationMinutes}
             min={1}
             max={240}
             onChange={(v) => setSettings((s) => ({ ...s, priorityEscalationMinutes: v }))}
           />
           <NumberField
-            label="Stayover cadence (days)"
+            label="Stayover clean every (days)"
             value={settings.stayoverCadenceDays}
             min={1}
             max={7}
             onChange={(v) => setSettings((s) => ({ ...s, stayoverCadenceDays: v }))}
           />
         </div>
-      </section>
+      </HmsCard>
 
-      <Button className="rounded-lg" disabled={saving} onClick={() => void save()}>
+      <button type="button" className={hmsButton.primary} disabled={saving} onClick={() => void save()}>
+        {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
         {saving ? "Saving…" : "Save settings"}
-      </Button>
-    </div>
+      </button>
+    </HmsPage>
   );
 }

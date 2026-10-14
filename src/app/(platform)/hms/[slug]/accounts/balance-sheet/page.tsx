@@ -6,6 +6,7 @@ import { getAccountsCapabilities } from "@/lib/hms/accounts-rbac";
 import { getBalanceSheet } from "@/lib/hms/financial-statements";
 import { normalizePricingSetup } from "@/lib/hms/room-pricing";
 import { AccountsBalanceSheetClient } from "@/components/hms/accounts/AccountsBalanceSheetClient";
+import { HmsPage, HmsPageHeader } from "@/components/hms/hms-ui";
 
 export default async function AccountsBalanceSheetPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -14,10 +15,9 @@ export default async function AccountsBalanceSheetPage({ params }: { params: Pro
   if (!tenant) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-balance-sheet">
-        <div className="px-8 py-8">
-          <h1 className="text-xl font-semibold text-slate-900">Balance sheet</h1>
-          <p className="mt-0.5 text-sm text-slate-500">Hotel not found.</p>
-        </div>
+        <HmsPage>
+          <HmsPageHeader eyebrow="Accounts" meaning="money" title="Balance sheet" description="Hotel not found." />
+        </HmsPage>
       </HMSLayout>
     );
   }
@@ -26,10 +26,9 @@ export default async function AccountsBalanceSheetPage({ params }: { params: Pro
   if (!caps.canViewReports) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-balance-sheet">
-        <div className="px-8 py-8">
-          <h1 className="text-xl font-semibold text-slate-900">Balance sheet</h1>
-          <p className="mt-0.5 text-sm text-slate-500">You don&apos;t have access to this report.</p>
-        </div>
+        <HmsPage>
+          <HmsPageHeader eyebrow="Accounts" meaning="money" title="Balance sheet" description="You don't have access to this report." />
+        </HmsPage>
       </HMSLayout>
     );
   }

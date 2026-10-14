@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Package, Plus } from "lucide-react";
+import { HmsCard, HmsField, hmsButton, hmsInput } from "@/components/hms/hms-ui";
+import { HmsFilterChips } from "@/components/hms/hms-ui-client";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import type { HousekeepingEligibleItem, RoomTypePar } from "@/lib/hms/housekeeping-inventory";
 
@@ -70,80 +71,78 @@ export function HousekeepingRoomTypeParsClient({
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-6 pb-8">
-      <section className="rounded-2xl border border-slate-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-slate-800">Room-type supply pars</h2>
-        <p className="mt-1 text-sm text-slate-500">
-          Linen, amenities, and cleaning consumables expected per room type — drawn from Inventory&apos;s item
-          catalog. Consumed automatically when an attendant completes a clean.
-        </p>
-
+    <div className="mx-auto w-full max-w-6xl px-4 pb-8 sm:px-6 lg:px-8">
+      <HmsCard
+        id="hk-room-type-pars"
+        title="Supplies for each room type"
+        description="The linen, amenities and cleaning supplies each room type should have, taken from your Inventory items. They're used up automatically when an attendant finishes a clean."
+        icon={Package}
+        meaning="stock"
+      >
         {eligibleItems.length === 0 ? (
-          <p className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-700">
-            No linen, amenity, or consumable items found in Inventory yet — add some under Inventory settings first.
+          <p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">
+            No linen, amenity or consumable items found in Inventory yet. Add some in Inventory settings first.
           </p>
         ) : (
           <>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {roomTypes.map((rt) => (
-                <button
-                  key={rt.code}
-                  type="button"
-                  onClick={() => setSelectedRoomType(rt.code)}
-                  className={`rounded-lg border px-3 py-1.5 text-sm font-medium ${
-                    selectedRoomType === rt.code
-                      ? "border-blue-500 bg-blue-50 text-blue-700"
-                      : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                  }`}
-                >
-                  {rt.name}
-                </button>
-              ))}
-            </div>
+            <HmsFilterChips
+              label="Room type"
+              meaning="care"
+              value={selectedRoomType}
+              onChange={setSelectedRoomType}
+              options={roomTypes.map((rt) => ({
+                value: rt.code,
+                label: rt.name,
+                count: initialPars.filter((p) => p.roomTypeCode === rt.code).length,
+              }))}
+            />
 
-            <div className="mt-4 divide-y divide-slate-100 rounded-lg border border-slate-100">
+            <div className="mt-4 divide-y divide-slate-100 rounded-xl border border-slate-200">
               {parsForRoomType.length === 0 ? (
-                <p className="p-3 text-sm text-slate-500">No pars configured for this room type yet.</p>
+                <p className="p-3 text-sm text-slate-600">No supplies set for this room type yet.</p>
               ) : (
                 parsForRoomType.map((p) => (
                   <div key={p.id} className="flex items-center justify-between px-3 py-2 text-sm">
-                    <span className="text-slate-700">
-                      {p.itemName} <span className="text-slate-400">× {p.parQty}</span>
+                    <span className="text-slate-800">
+                      {p.itemName} <span className="text-slate-600">× {p.parQty}</span>
                     </span>
-                    <Button type="button" size="sm" variant="outline" className="h-7 rounded-md text-xs" onClick={() => void removePar(p.id)}>
-                      Remove
-                    </Button>
+                    <button type="button" className={hmsButton.danger} onClick={() => void removePar(p.id)}>
+                      Remove<span className="sr-only"> {p.itemName}</span>
+                    </button>
                   </div>
                 ))
               )}
             </div>
 
-            <div className="mt-4 grid grid-cols-[1fr_100px_auto] gap-2">
-              <select
-                className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                value={itemId}
-                onChange={(e) => setItemId(e.target.value)}
-              >
-                {eligibleItems.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name} ({item.itemTypeName})
-                  </option>
-                ))}
-              </select>
-              <Input
-                type="number"
-                min={0}
-                max={999}
-                value={parQty}
-                onChange={(e) => setParQty(Math.max(0, Number(e.target.value) || 0))}
-              />
-              <Button type="button" disabled={saving} onClick={() => void addPar()} className="rounded-lg">
+            <div className="mt-4 grid grid-cols-1 items-end gap-2 sm:grid-cols-[1fr_110px_auto]">
+              <HmsField id="hk-par-item" label="Item">
+                <select id="hk-par-item" className={hmsInput} value={itemId} onChange={(e) => setItemId(e.target.value)}>
+                  {eligibleItems.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name} ({item.itemTypeName})
+                    </option>
+                  ))}
+                </select>
+              </HmsField>
+              <HmsField id="hk-par-qty" label="Quantity">
+                <input
+                  id="hk-par-qty"
+                  type="number"
+                  min={0}
+                  max={999}
+                  className={hmsInput}
+                  value={parQty}
+                  onChange={(e) => setParQty(Math.max(0, Number(e.target.value) || 0))}
+                />
+              </HmsField>
+              <button type="button" disabled={saving} onClick={() => void addPar()} className={hmsButton.primary}>
+                <Plus className="h-4 w-4" aria-hidden />
                 Add
-              </Button>
+              </button>
             </div>
           </>
         )}
-      </section>
+      </HmsCard>
     </div>
   );
 }

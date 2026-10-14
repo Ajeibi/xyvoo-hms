@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { CircleCheck, Clock, ConciergeBell, Hourglass, Plus, Receipt, RefreshCw, Search, Siren } from "lucide-react";
+import { HmsCard, HmsEmptyState, HmsField, HmsPage, HmsPageHeader, HmsPill, hmsButton, hmsInput } from "@/components/hms/hms-ui";
+import { HMS_MEANING, type HmsMeaning } from "@/components/hms/meaning";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { GuestServicesListPayload, GuestRequestRow, InHouseGuestOption } from "@/lib/hms/guest-services";
 import { GUEST_REQUEST_DEPARTMENTS, GUEST_REQUEST_DEPARTMENT_LABELS } from "@/lib/hms/guest-services";
@@ -23,31 +23,53 @@ import {
 
 const GUEST_SERVICES_PAGE_SIZE = 5;
 
+const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2";
+
+/** A figure tile on the guests tint. With onClick it also filters the list; pressed shows which filter is on. */
 function SummaryCard({
   label,
   value,
   subtitle,
+  icon: Icon,
+  meaning = "guests",
   active: isActive,
   onClick,
 }: {
   label: string;
   value: number;
   subtitle?: string;
+  icon: React.ComponentType<{ className?: string }>;
+  meaning?: HmsMeaning;
   active?: boolean;
   onClick?: () => void;
 }) {
+  const tone = HMS_MEANING[meaning];
+  const body = (
+    <>
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-sm font-medium text-slate-700">{label}</p>
+        <span aria-hidden className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-sm ${tone.iconBox}`}>
+          <Icon className="h-[18px] w-[18px]" />
+        </span>
+      </div>
+      <p className="mt-0.5 font-heading text-2xl font-bold tabular-nums text-slate-900">{value}</p>
+      {subtitle ? <p className="mt-1 text-xs leading-5 text-slate-600">{subtitle}</p> : null}
+    </>
+  );
+  if (!onClick) return <div className={`rounded-2xl p-4 ${tone.tint}`}>{body}</div>;
   return (
     <button
       type="button"
       onClick={onClick}
+      aria-pressed={Boolean(isActive)}
       className={cn(
-        "rounded-2xl border p-4 text-left transition-colors",
-        isActive ? "border-blue-500 bg-blue-50" : "border-slate-200 bg-white hover:bg-slate-50",
+        "rounded-2xl p-4 text-left transition-shadow hover:shadow-md",
+        tone.tint,
+        focusRing,
+        isActive && "ring-2 ring-slate-800",
       )}
     >
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">{value}</p>
-      {subtitle ? <p className="mt-1 text-[11px] leading-snug text-slate-500">{subtitle}</p> : null}
+      {body}
     </button>
   );
 }
@@ -222,49 +244,54 @@ export function FrontDeskGuestServicesClient({
   const summary = data?.summary;
 
   return (
-    <div className="space-y-6 p-6 lg:p-8">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Front desk</p>
-          <h1 className="text-2xl font-bold text-slate-900">Guest services</h1>
-          <p className="mt-1 text-sm text-slate-600">
-            Log requests, assign departments, track SLA, and post charges to folio.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {capabilities.canCreate ? (
-            <Button type="button" onClick={() => setCreateOpen(true)}>
-              New request
-            </Button>
-          ) : null}
-          <Button type="button" variant="outline" size="sm" onClick={() => void refresh()} disabled={loading}>
-            <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} />
-            Refresh
-          </Button>
-        </div>
-      </header>
+    <HmsPage wide>
+      <HmsPageHeader
+        eyebrow="Front desk"
+        meaning="guests"
+        title="Guest services"
+        description="Log what guests ask for, send it to the right team, keep an eye on how long it takes, and add any cost to their bill."
+        actions={
+          <>
+            <button type="button" className={`${hmsButton.secondary} ${focusRing}`} onClick={() => void refresh()} disabled={loading}>
+              <RefreshCw className={cn("h-4 w-4", loading && "animate-spin motion-reduce:animate-none")} aria-hidden />
+              {loading ? "Refreshing…" : "Refresh"}
+            </button>
+            {capabilities.canCreate ? (
+              <button type="button" className={`${hmsButton.primary} ${focusRing}`} onClick={() => setCreateOpen(true)}>
+                <Plus className="h-4 w-4" aria-hidden />
+                New request
+              </button>
+            ) : null}
+          </>
+        }
+      />
 
       <FrontDeskGuestServicesAnalytics slug={slug} />
 
       {summary ? (
-        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <section aria-label="Requests in figures. Select a figure to filter the list." className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
           <SummaryCard
             label="Active"
+            icon={ConciergeBell}
             value={summary.active}
+            subtitle="Show all"
             active={!filter.status && !filter.delayed && !filter.billable}
             onClick={() => setFilter({})}
           />
           <SummaryCard
-            label="Pending"
+            label="Waiting to start"
+            icon={Hourglass}
             value={summary.pending}
             active={filter.status === "pending"}
             onClick={() => setFilter((f) => ({ ...f, status: f.status === "pending" ? undefined : "pending" }))}
           />
-          <SummaryCard label="Completed today" value={summary.completedToday} />
+          <SummaryCard label="Done today" icon={CircleCheck} value={summary.completedToday} />
           <SummaryCard
-            label="Urgent / VIP"
+            label="Urgent or VIP"
+            icon={Siren}
+            meaning="attention"
             value={summary.urgent}
-            subtitle={`Urgent ${summary.urgentPriority} · VIP line ${summary.vipLine}`}
+            subtitle={`Urgent ${summary.urgentPriority} · VIP ${summary.vipLine}`}
             active={filter.priority === "urgent" || filter.priority === "vip"}
             onClick={() =>
               setFilter((f) => {
@@ -275,7 +302,9 @@ export function FrontDeskGuestServicesClient({
             }
           />
           <SummaryCard
-            label="Delayed"
+            label="Running late"
+            icon={Clock}
+            meaning="attention"
             value={summary.delayed}
             active={filter.delayed}
             onClick={() => {
@@ -284,7 +313,9 @@ export function FrontDeskGuestServicesClient({
             }}
           />
           <SummaryCard
-            label="Billable pending"
+            label="Not yet billed"
+            icon={Receipt}
+            meaning="money"
             value={summary.billablePending}
             active={filter.billable}
             onClick={() => {
@@ -295,92 +326,122 @@ export function FrontDeskGuestServicesClient({
         </section>
       ) : null}
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="flex flex-wrap items-end gap-3">
+      <section aria-label="Filter requests" className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <p className="mb-1 text-xs font-medium text-slate-600">Search</p>
-            <Input
-              className="max-w-xs"
-              placeholder="Guest, room, ref, request ID…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+            <label htmlFor="gs-search" className="mb-1 block text-sm font-medium text-slate-800">
+              Search
+            </label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden />
+              <input
+                id="gs-search"
+                type="search"
+                className={`${hmsInput} pl-10`}
+                placeholder="Guest, room or request number"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
           </div>
-          <div>
-            <p className="mb-1 text-xs font-medium text-slate-600">Created from</p>
-            <Input
-              type="date"
-              className="h-10 w-[11rem]"
-              value={filter.dateFrom ?? ""}
-              onChange={(e) =>
-                setFilter((f) => ({ ...f, dateFrom: e.target.value || undefined }))
-              }
-            />
-          </div>
-          <div>
-            <p className="mb-1 text-xs font-medium text-slate-600">Created to</p>
-            <Input
-              type="date"
-              className="h-10 w-[11rem]"
-              value={filter.dateTo ?? ""}
-              onChange={(e) =>
-                setFilter((f) => ({ ...f, dateTo: e.target.value || undefined }))
-              }
-            />
-          </div>
-          <select
-            className="h-10 rounded-lg border border-input bg-white px-3 text-sm"
-            value={filter.department ?? ""}
-            onChange={(e) =>
-              setFilter((f) => ({ ...f, department: e.target.value || undefined }))
-            }
-          >
-            <option value="">All departments</option>
-            {GUEST_REQUEST_DEPARTMENTS.map((d) => (
-              <option key={d} value={d}>
-                {GUEST_REQUEST_DEPARTMENT_LABELS[d]}
-              </option>
-            ))}
-          </select>
-          <label className="flex items-center gap-2 text-sm">
+          <HmsField id="gs-from" label="Made on or after">
             <input
-              type="checkbox"
-              checked={filter.vipOnly ?? false}
-              onChange={(e) => setFilter((f) => ({ ...f, vipOnly: e.target.checked || undefined }))}
+              id="gs-from"
+              type="date"
+              className={hmsInput}
+              value={filter.dateFrom ?? ""}
+              onChange={(e) => setFilter((f) => ({ ...f, dateFrom: e.target.value || undefined }))}
             />
-            VIP only
-          </label>
+          </HmsField>
+          <HmsField id="gs-to" label="Made on or before">
+            <input
+              id="gs-to"
+              type="date"
+              className={hmsInput}
+              value={filter.dateTo ?? ""}
+              onChange={(e) => setFilter((f) => ({ ...f, dateTo: e.target.value || undefined }))}
+            />
+          </HmsField>
+          <HmsField id="gs-department" label="Team">
+            <select
+              id="gs-department"
+              className={hmsInput}
+              value={filter.department ?? ""}
+              onChange={(e) => setFilter((f) => ({ ...f, department: e.target.value || undefined }))}
+            >
+              <option value="">All teams</option>
+              {GUEST_REQUEST_DEPARTMENTS.map((d) => (
+                <option key={d} value={d}>
+                  {GUEST_REQUEST_DEPARTMENT_LABELS[d]}
+                </option>
+              ))}
+            </select>
+          </HmsField>
         </div>
+        <label className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-slate-800">
+          <input
+            type="checkbox"
+            className="h-4 w-4 rounded border-slate-400 accent-amber-700"
+            checked={filter.vipOnly ?? false}
+            onChange={(e) => setFilter((f) => ({ ...f, vipOnly: e.target.checked || undefined }))}
+          />
+          VIP guests only
+        </label>
       </section>
 
       {loading && !data ? (
         <GuestServicesTableSkeleton />
       ) : (
-        <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <HmsCard
+          id="guest-requests"
+          icon={ConciergeBell}
+          meaning="guests"
+          title="Requests"
+          description={filteredRows.length > 0 ? "Select View to see a request, update it or add its cost to the bill." : undefined}
+          flush
+        >
+         <div className="relative" aria-busy={loading}>
           {loading ? (
             <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-white/60">
-              <RefreshCw className="h-8 w-8 animate-spin text-slate-400" />
+              <RefreshCw className="h-8 w-8 animate-spin text-slate-600 motion-reduce:animate-none" aria-hidden />
+              <span className="sr-only">Refreshing</span>
             </div>
           ) : null}
           {filteredRows.length === 0 ? (
-            <div className="px-4 py-16 text-center text-slate-500">No service requests match your filters.</div>
+            <HmsEmptyState
+              bare
+              art="bell"
+              meaning="guests"
+              title="No requests to show"
+              description="Nothing matches these filters. Requests guests make, such as extra towels or room service, will appear here."
+              action={
+                capabilities.canCreate ? (
+                  <button type="button" className={`${hmsButton.primary} ${focusRing}`} onClick={() => setCreateOpen(true)}>
+                    Log a request
+                  </button>
+                ) : undefined
+              }
+            />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[1320px] text-left text-sm">
-                <thead className="border-b bg-slate-50 text-xs font-semibold uppercase text-slate-500">
+                <caption className="sr-only">Guest requests</caption>
+                <thead className="bg-slate-50 text-sm text-slate-700">
                   <tr>
-                    <th className="min-w-[220px] px-4 py-3">Guest / room</th>
-                    <th className="min-w-[130px] px-4 py-3">Phone</th>
-                    <th className="px-4 py-3">Request ID</th>
-                    <th className="min-w-[140px] px-4 py-3">Created</th>
-                    <th className="min-w-[140px] px-4 py-3">Assignee</th>
-                    <th className="min-w-[180px] px-4 py-3">Service</th>
-                    <th className="px-4 py-3">Dept</th>
-                    <th className="px-4 py-3">Priority</th>
-                    <th className="px-4 py-3">Status</th>
-                    <th className="min-w-[140px] px-4 py-3">SLA</th>
-                    <th className="px-4 py-3">Billing</th>
-                    <th className="px-4 py-3">Actions</th>
+                    <th scope="col" className="min-w-[220px] px-4 py-3 font-semibold">Guest and room</th>
+                    <th scope="col" className="min-w-[130px] px-4 py-3 font-semibold">Phone</th>
+                    <th scope="col" className="px-4 py-3 font-semibold">Request number</th>
+                    <th scope="col" className="min-w-[140px] px-4 py-3 font-semibold">Made</th>
+                    <th scope="col" className="min-w-[140px] px-4 py-3 font-semibold">Assigned to</th>
+                    <th scope="col" className="min-w-[180px] px-4 py-3 font-semibold">Request</th>
+                    <th scope="col" className="px-4 py-3 font-semibold">Team</th>
+                    <th scope="col" className="px-4 py-3 font-semibold">Priority</th>
+                    <th scope="col" className="px-4 py-3 font-semibold">Status</th>
+                    <th scope="col" className="min-w-[140px] px-4 py-3 font-semibold">Due by</th>
+                    <th scope="col" className="px-4 py-3 font-semibold">Billing</th>
+                    <th scope="col" className="px-4 py-3">
+                      <span className="sr-only">Actions</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -398,39 +459,38 @@ export function FrontDeskGuestServicesClient({
               </table>
             </div>
           )}
-        </section>
+         </div>
+        </HmsCard>
       )}
 
       {filteredRows.length > 0 ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
+        <nav aria-label="Pages of requests" className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-700">
           <p>
-            Showing {(currentPage - 1) * GUEST_SERVICES_PAGE_SIZE + 1}–
+            Showing {(currentPage - 1) * GUEST_SERVICES_PAGE_SIZE + 1} to{" "}
             {Math.min(currentPage * GUEST_SERVICES_PAGE_SIZE, filteredRows.length)} of {filteredRows.length}
           </p>
           <div className="flex items-center gap-2">
-            <Button
+            <button
               type="button"
-              variant="outline"
-              size="sm"
+              className={`${hmsButton.secondary} px-3 py-1.5 ${focusRing}`}
               disabled={currentPage <= 1}
               onClick={() => setPage(Math.max(1, currentPage - 1))}
             >
               Previous
-            </Button>
-            <span className="px-2 text-xs font-medium text-slate-500">
+            </button>
+            <span className="px-2 text-sm font-medium text-slate-700">
               Page {currentPage} of {totalPages}
             </span>
-            <Button
+            <button
               type="button"
-              variant="outline"
-              size="sm"
+              className={`${hmsButton.secondary} px-3 py-1.5 ${focusRing}`}
               disabled={currentPage >= totalPages}
               onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
             >
               Next
-            </Button>
+            </button>
           </div>
-        </div>
+        </nav>
       ) : null}
 
       <FrontDeskGuestServiceDetailSheet
@@ -445,13 +505,17 @@ export function FrontDeskGuestServicesClient({
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>New guest service request</DialogTitle>
+            <DialogTitle>New guest request</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div>
-              <p className="mb-1 text-xs font-medium text-slate-600">Guest / room</p>
+              <label htmlFor="gs-new-guest" className="mb-1 block text-sm font-medium text-slate-800">
+                Guest and room
+              </label>
               <select
-                className="h-10 w-full rounded-lg border border-input px-3 text-sm"
+                id="gs-new-guest"
+                className={hmsInput}
+                aria-describedby={!guestsLoading && inHouseGuests.length === 0 ? "gs-new-guest-hint" : undefined}
                 value={createForm.reservationId}
                 onChange={(e) => setCreateForm((s) => ({ ...s, reservationId: e.target.value }))}
                 disabled={guestsLoading}
@@ -461,52 +525,58 @@ export function FrontDeskGuestServicesClient({
                 </option>
                 {inHouseGuests.map((g) => (
                   <option key={g.reservationId} value={g.reservationId}>
-                    {g.roomCode ? `Rm ${g.roomCode} · ` : ""}
+                    {g.roomCode ? `Room ${g.roomCode} · ` : ""}
                     {g.guestName} ({g.confirmationCode})
-                    {g.isOverdue ? " — overdue checkout" : ""}
+                    {g.isOverdue ? " (past checkout time)" : ""}
                   </option>
                 ))}
               </select>
               {!guestsLoading && inHouseGuests.length === 0 ? (
-                <p className="mt-1 text-xs text-slate-500">No guests are currently checked in.</p>
+                <p id="gs-new-guest-hint" className="mt-1 text-sm text-slate-600">
+                  No guests are checked in right now.
+                </p>
               ) : null}
             </div>
-            <div>
-              <p className="mb-1 text-xs font-medium text-slate-600">Department</p>
+            <HmsField id="gs-new-team" label="Team">
               <select
-                className="h-10 w-full rounded-lg border border-input px-3 text-sm"
+                id="gs-new-team"
+                className={hmsInput}
                 value={createForm.department}
                 onChange={(e) => setCreateForm((s) => ({ ...s, department: e.target.value }))}
               >
-                <option value="">Select department…</option>
+                <option value="">Choose a team…</option>
                 {GUEST_REQUEST_DEPARTMENTS.map((d) => (
                   <option key={d} value={d}>
                     {GUEST_REQUEST_DEPARTMENT_LABELS[d]}
                   </option>
                 ))}
               </select>
-            </div>
-            <div>
-              <p className="mb-1 text-xs font-medium text-slate-600">Category</p>
-              <Input
+            </HmsField>
+            <HmsField id="gs-new-type" label="What they asked for" hint="For example: extra towels.">
+              <input
+                id="gs-new-type"
+                className={hmsInput}
+                aria-describedby="gs-new-type-hint"
                 value={createForm.requestType}
                 onChange={(e) => setCreateForm((s) => ({ ...s, requestType: e.target.value }))}
-                placeholder="e.g. Extra towels"
               />
-            </div>
-            <div>
-              <p className="mb-1 text-xs font-medium text-slate-600">Details</p>
+            </HmsField>
+            <HmsField id="gs-new-details" label="Details" optional>
               <textarea
-                className="min-h-[72px] w-full rounded-lg border border-input px-3 py-2 text-sm"
+                id="gs-new-details"
+                className={`${hmsInput} min-h-[72px]`}
                 value={createForm.details}
                 onChange={(e) => setCreateForm((s) => ({ ...s, details: e.target.value }))}
               />
-            </div>
-            <div className="flex gap-4">
+            </HmsField>
+            <div className="flex flex-wrap items-end gap-4">
               <div>
-                <p className="mb-1 text-xs font-medium text-slate-600">Priority</p>
+                <label htmlFor="gs-new-priority" className="mb-1 block text-sm font-medium text-slate-800">
+                  Priority
+                </label>
                 <select
-                  className="h-10 rounded-lg border border-input px-3 text-sm"
+                  id="gs-new-priority"
+                  className={hmsInput}
                   value={createForm.priority}
                   onChange={(e) =>
                     setCreateForm((s) => ({ ...s, priority: e.target.value as typeof s.priority }))
@@ -519,31 +589,36 @@ export function FrontDeskGuestServicesClient({
                   <option value="vip">VIP</option>
                 </select>
               </div>
-              <label className="mt-6 flex items-center gap-2 text-sm">
+              <label className="mb-2.5 flex items-center gap-2 text-sm font-medium text-slate-800">
                 <input
                   type="checkbox"
+                  className="h-4 w-4 rounded border-slate-400 accent-emerald-700"
                   checked={createForm.billable}
                   onChange={(e) => setCreateForm((s) => ({ ...s, billable: e.target.checked }))}
                 />
-                Billable
+                The guest pays for this
               </label>
             </div>
+            {!createForm.reservationId || !createForm.department || !createForm.requestType.trim() ? (
+              <p className="text-sm text-slate-600">Choose a guest and a team, and say what they asked for, to save the request.</p>
+            ) : null}
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
+            <button type="button" className={`${hmsButton.secondary} ${focusRing}`} onClick={() => setCreateOpen(false)}>
               Cancel
-            </Button>
-            <Button
+            </button>
+            <button
               type="button"
+              className={`${hmsButton.primary} ${focusRing}`}
               onClick={submitCreate}
               disabled={!createForm.reservationId || !createForm.department || !createForm.requestType.trim()}
             >
-              Create
-            </Button>
+              Save request
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </HmsPage>
   );
 }
 
@@ -564,7 +639,7 @@ const GUEST_SERVICES_SKELETON_COLS = [
 
 function GuestServicesTableSkeleton() {
   return (
-    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <section aria-hidden className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[1320px] text-left text-sm">
           <thead className="border-b bg-slate-50">
@@ -626,6 +701,20 @@ function GuestServicesTableSkeleton() {
   );
 }
 
+const words = (s: string) => {
+  const t = s.replace(/_/g, " ");
+  return t.charAt(0).toUpperCase() + t.slice(1);
+};
+
+function Nothing() {
+  return (
+    <span className="text-slate-600">
+      <span aria-hidden>—</span>
+      <span className="sr-only">None</span>
+    </span>
+  );
+}
+
 function GuestServiceTableRow({ row, onOpen }: { row: GuestRequestRow; onOpen: () => void }) {
   const delayed =
     row.expectedCompletedAt &&
@@ -633,74 +722,76 @@ function GuestServiceTableRow({ row, onOpen }: { row: GuestRequestRow; onOpen: (
     new Date(row.expectedCompletedAt).getTime() < Date.now();
   const shortId = row.id.slice(0, 8);
   return (
-    <tr className="border-b border-slate-100 hover:bg-slate-50/80">
+    <tr className="border-b border-slate-100 text-slate-700 hover:bg-amber-50/40">
       <td className="whitespace-nowrap px-4 py-3">
-        <p className="font-medium text-slate-900">{row.guestName ?? "—"}</p>
-        <p className="text-xs text-slate-500">
-          {row.roomCode ? `Rm ${row.roomCode}` : "—"} · {row.confirmationCode ?? "—"}
-          {row.isVipSnapshot ? (
-            <span className="ml-2 rounded bg-amber-100 px-1.5 text-[10px] font-bold text-amber-900">
-              VIP
-            </span>
-          ) : null}
+        <p className="font-medium text-slate-900">{row.guestName ?? "No guest linked"}</p>
+        <p className="flex items-center gap-2 text-xs text-slate-600">
+          {row.roomCode ? `Room ${row.roomCode}` : "No room"} · {row.confirmationCode ?? "No booking"}
+          {row.isVipSnapshot ? <HmsPill tone="amber">VIP</HmsPill> : null}
         </p>
       </td>
-      <td className="whitespace-nowrap px-4 py-3 text-xs text-slate-700">{row.guestPhone ?? "—"}</td>
+      <td className="whitespace-nowrap px-4 py-3">{row.guestPhone ?? <Nothing />}</td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-1">
           <code className="text-xs text-slate-800" title={row.id}>
             {shortId}…
           </code>
-          <Button
+          <button
             type="button"
-            variant="ghost"
-            size="sm"
-            className="h-7 px-1.5 text-[10px]"
+            className={`${hmsButton.quiet} px-1.5 py-1 text-xs ${focusRing}`}
             onClick={() => void navigator.clipboard.writeText(row.id)}
           >
-            Copy
-          </Button>
+            Copy<span className="sr-only"> request number</span>
+          </button>
         </div>
       </td>
-      <td className="px-4 py-3 whitespace-nowrap text-xs text-slate-600">
-        {new Date(row.createdAt).toLocaleString()}
-      </td>
-      <td className="whitespace-nowrap px-4 py-3 text-xs text-slate-700">{row.assignedStaffName ?? "—"}</td>
+      <td className="whitespace-nowrap px-4 py-3">{new Date(row.createdAt).toLocaleString("en-GB")}</td>
+      <td className="whitespace-nowrap px-4 py-3">{row.assignedStaffName ?? "Not assigned"}</td>
       <td className="whitespace-nowrap px-4 py-3">
-        <p className="font-medium">{row.requestType}</p>
-        <p className="text-xs text-slate-500">{row.serviceCategory.replace(/_/g, " ")}</p>
+        <p className="font-medium text-slate-900">{row.requestType}</p>
+        <p className="text-xs capitalize text-slate-600">{row.serviceCategory.replace(/_/g, " ")}</p>
       </td>
-      <td className="px-4 py-3 capitalize text-slate-700">{row.department.replace(/_/g, " ")}</td>
-      <td className="px-4 py-3">{row.priority}</td>
+      <td className="px-4 py-3 capitalize">{row.department.replace(/_/g, " ")}</td>
       <td className="px-4 py-3">
-        <span
-          className={cn(
-            "rounded-full px-2 py-0.5 text-xs font-semibold",
-            row.status === "completed" && "bg-emerald-100 text-emerald-900",
-            row.status === "cancelled" && "bg-slate-200 text-slate-700",
-            row.status === "escalated" && "bg-red-100 text-red-800",
-            !["completed", "cancelled", "escalated"].includes(row.status) && "bg-blue-50 text-blue-800",
-          )}
-        >
-          {row.status.replace(/_/g, " ")}
-        </span>
+        <HmsPill tone={row.priority === "urgent" ? "red" : row.priority === "vip" || row.priority === "high" ? "amber" : "slate"}>
+          {words(row.priority)}
+        </HmsPill>
       </td>
-      <td className="px-4 py-3 text-xs text-slate-600">
+      <td className="px-4 py-3">
+        <HmsPill
+          tone={
+            row.status === "completed" ? "green" : row.status === "cancelled" ? "slate" : row.status === "escalated" ? "red" : "blue"
+          }
+        >
+          {words(row.status)}
+        </HmsPill>
+      </td>
+      <td className="whitespace-nowrap px-4 py-3">
         {row.expectedCompletedAt ? (
-          <span className={delayed ? "font-semibold text-red-600" : ""}>
-            {new Date(row.expectedCompletedAt).toLocaleString()}
+          <span className={delayed ? "inline-flex items-center gap-1 font-semibold text-red-700" : ""}>
+            {delayed ? <Clock className="h-3.5 w-3.5" aria-hidden /> : null}
+            {new Date(row.expectedCompletedAt).toLocaleString("en-GB")}
+            {delayed ? <span className="sr-only"> (running late)</span> : null}
           </span>
         ) : (
-          "—"
+          <Nothing />
         )}
       </td>
-      <td className="px-4 py-3 text-xs">
-        {row.billable ? (row.folioLineId ? "Posted" : "Pending") : "N/A"}
+      <td className="px-4 py-3">
+        {row.billable ? (
+          row.folioLineId ? (
+            <HmsPill tone="green">On the bill</HmsPill>
+          ) : (
+            <HmsPill tone="amber">Not billed yet</HmsPill>
+          )
+        ) : (
+          <span className="text-slate-600">Free</span>
+        )}
       </td>
       <td className="px-4 py-3">
-        <Button type="button" size="sm" variant="outline" onClick={onOpen}>
-          View
-        </Button>
+        <button type="button" className={`${hmsButton.secondary} px-3 py-1.5 ${focusRing}`} onClick={onOpen}>
+          View<span className="sr-only"> {row.requestType}</span>
+        </button>
       </td>
     </tr>
   );

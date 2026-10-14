@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ArrivalMovementBadge, timelineItemSurfaceClasses } from "./arrival-movement-ui";
+import { HmsEmptyState } from "@/components/hms/hms-ui";
 import { cn } from "@/lib/utils";
 
 type TimelineItem = {
@@ -49,20 +50,32 @@ export function FrontDeskArrivalTimeline({
   }, [slug, preset, customStart, customEnd]);
 
   if (loading) {
-    return <p className="text-sm text-slate-500">Loading timeline…</p>;
+    return (
+      <p role="status" className="text-sm text-slate-600">
+        Loading arrivals by hour…
+      </p>
+    );
   }
 
   if (buckets.length === 0) {
-    return <p className="text-sm text-slate-500">No arrivals in this window.</p>;
+    return (
+      <HmsEmptyState
+        art="people"
+        meaning="rooms"
+        title="No arrivals in these dates"
+        description="When guests are booked to arrive, you'll see them here grouped by the hour they're due."
+      />
+    );
   }
 
   return (
     <div className="space-y-4">
       {buckets.map((bucket) => (
-        <div key={bucket.hour} className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <div key={bucket.hour} className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+            <span aria-hidden className="h-2 w-2 rounded-full bg-sky-500" />
             {String(bucket.hour).padStart(2, "0")}:00 UTC
-          </p>
+          </h3>
           <ul className="mt-2 space-y-2">
             {bucket.items.map((item) => (
               <li key={item.reservationId}>
@@ -77,16 +90,16 @@ export function FrontDeskArrivalTimeline({
                   <span className="flex flex-wrap items-center gap-2 font-medium text-slate-900">
                     {item.guestName}
                     {item.isVip ? (
-                      <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-900">VIP</span>
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">VIP</span>
                     ) : null}
                     {item.isGroup ? (
-                      <span className="rounded bg-violet-100 px-1.5 py-0.5 text-xs text-violet-900">Group</span>
+                      <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-900">Group</span>
                     ) : null}
                     <ArrivalMovementBadge
                       variant={item.highlight === "delayed" ? "delayed" : null}
                     />
                   </span>
-                  <span className="text-slate-500">
+                  <span className="text-slate-600">
                     {item.confirmationCode} · {item.status.replace(/_/g, " ")}
                   </span>
                 </button>

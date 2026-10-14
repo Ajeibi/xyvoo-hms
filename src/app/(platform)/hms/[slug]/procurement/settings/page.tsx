@@ -1,4 +1,5 @@
 import HMSLayout from "@/components/hms/HMSLayout";
+import { HmsPage, HmsPageHeader } from "@/components/hms/hms-ui";
 import { ProcurementSubNav } from "@/components/hms/procurement/ProcurementSubNav";
 import { ProcurementSettingsClient } from "@/components/hms/procurement/ProcurementSettingsClient";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
@@ -30,12 +31,11 @@ export default async function ProcurementSettingsPage({ params }: { params: Prom
 
   return (
     <HMSLayout slug={slug} requiredSection="procurement-settings">
-      <div className="px-8 py-8">
-        <h1 className="text-xl font-semibold text-slate-900">Procurement settings</h1>
-        <p className="mt-0.5 text-sm text-slate-500">Vendor categories, approval thresholds, and per-category quality checklists.</p>
+      <HmsPage>
+        <HmsPageHeader eyebrow="Procurement" meaning="stock" title="Procurement settings" description="Vendor categories, approval thresholds and quality checklists for each item type." />
         <ProcurementSubNav slug={slug} canAccessAllDepartments={access.canAccessAllDepartments} />
         <ProcurementSettingsClient slug={slug} categories={categories} thresholds={thresholds} checklists={checklists} itemTypes={itemTypes} />
-      </div>
+      </HmsPage>
     </HMSLayout>
   );
 }

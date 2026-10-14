@@ -23,7 +23,7 @@ export default async function KitchenMenuPage({ params }: { params: Promise<{ sl
           <KitchenMenuClient slug={model.slug} tenantId={model.tenantId} initial={model.initial} />
         </KitchenShell>
       ) : (
-        <p className="p-8 text-sm text-slate-500">Property not found.</p>
+        <p className="p-8 text-base text-slate-600">Property not found.</p>
       )}
     </HMSLayout>
   );

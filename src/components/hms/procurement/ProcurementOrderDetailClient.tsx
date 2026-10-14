@@ -3,24 +3,23 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { ArrowLeft, Check, CircleAlert, Info, Receipt, Send, ShoppingCart, Truck, X } from "lucide-react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { HmsCard, HmsField, HmsPage, HmsPageHeader, HmsPill, hmsButton, hmsInput } from "@/components/hms/hms-ui";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import type { PurchaseOrderStatus, PurchaseOrderWithLines } from "@/lib/hms/procurement-types";
 
-const STATUS_BADGE: Record<PurchaseOrderStatus, string> = {
-  draft: "bg-slate-100 text-slate-500 border-slate-200",
-  pending_approval: "bg-amber-50 text-amber-700 border-amber-200",
-  approved: "bg-blue-50 text-blue-700 border-blue-200",
-  ordered: "bg-indigo-50 text-indigo-700 border-indigo-200",
-  partially_received: "bg-purple-50 text-purple-700 border-purple-200",
-  received: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  closed: "bg-slate-100 text-slate-500 border-slate-200",
-  rejected: "bg-red-50 text-red-700 border-red-200",
-  cancelled: "bg-slate-100 text-slate-500 border-slate-200",
+const STATUS_PILL: Record<PurchaseOrderStatus, { label: string; tone: "slate" | "green" | "amber" | "red" | "blue" }> = {
+  draft: { label: "Draft", tone: "slate" },
+  pending_approval: { label: "Waiting for approval", tone: "amber" },
+  approved: { label: "Approved", tone: "green" },
+  ordered: { label: "Ordered", tone: "blue" },
+  partially_received: { label: "Partly received", tone: "blue" },
+  received: { label: "Received", tone: "green" },
+  closed: { label: "Closed", tone: "slate" },
+  rejected: { label: "Rejected", tone: "red" },
+  cancelled: { label: "Cancelled", tone: "red" },
 };
 
 export function ProcurementOrderDetailClient({
@@ -57,110 +56,150 @@ export function ProcurementOrderDetailClient({
     }
   };
 
+  const status = STATUS_PILL[order.status];
+  const hasActions =
+    (order.status === "pending_approval" && canApprove) ||
+    ["approved", "ordered", "partially_received", "draft", "pending_approval"].includes(order.status) ||
+    (!order.invoice_number && ["received", "closed"].includes(order.status));
+
   return (
-    <div className="px-8 py-8">
-      <Link href={`/hms/${slug}/procurement/orders`} className="mb-4 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800">
-        <ArrowLeft className="h-4 w-4" /> Back to purchase orders
+    <HmsPage>
+      <Link
+        href={`/hms/${slug}/procurement/orders`}
+        className="inline-flex items-center gap-1 rounded text-sm font-medium text-slate-700 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+      >
+        <ArrowLeft className="h-4 w-4" aria-hidden /> Back to purchase orders
       </Link>
 
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900">{order.po_number}</h1>
-          <p className="mt-0.5 text-sm text-slate-500">
+      <HmsPageHeader
+        eyebrow="Procurement"
+        meaning="stock"
+        title={order.po_number}
+        description={
+          <>
             {order.vendor_name} · {order.department}
-            {order.fx_rate !== 1 ? ` · FX rate 1 ${order.currency} = ${order.fx_rate}` : ""}
-          </p>
-        </div>
-        <span className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium capitalize ${STATUS_BADGE[order.status]}`}>
-          {order.status.replace(/_/g, " ")}
-        </span>
-      </div>
+            {order.fx_rate !== 1 ? ` · Exchange rate 1 ${order.currency} = ${order.fx_rate}` : ""}
+          </>
+        }
+        actions={<HmsPill tone={status.tone}>{status.label}</HmsPill>}
+      />
 
       {order.is_manual ? (
-        <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-800">
-          Manual PO — {order.manual_reason}
+        <p className="flex gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          <span>
+            <span className="font-semibold">Manual PO:</span> {order.manual_reason}
+          </span>
         </p>
       ) : null}
       {order.status === "rejected" && order.rejection_reason ? (
-        <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-xs text-red-800">Rejected: {order.rejection_reason}</p>
+        <p className="flex gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+          <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          <span>
+            <span className="font-semibold">Rejected:</span> {order.rejection_reason}
+          </span>
+        </p>
       ) : null}
 
-      <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-        <div className="border-b border-slate-100 px-6 py-4">
-          <h2 className="text-sm font-semibold text-slate-900">Line items</h2>
+      {hasActions ? (
+        <div className="flex flex-wrap gap-2">
+          {order.status === "pending_approval" && canApprove ? (
+            <>
+              <button type="button" disabled={busy} className={hmsButton.primary} onClick={() => void patch("approve", {}, `${order.po_number} approved`)}>
+                <Check className="h-4 w-4" aria-hidden /> Approve
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-300 bg-white px-4 py-2.5 text-sm font-medium text-rose-700 shadow-sm hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={() => setRejectOpen(true)}
+              >
+                <X className="h-4 w-4" aria-hidden /> Reject
+              </button>
+            </>
+          ) : null}
+          {order.status === "approved" ? (
+            <button type="button" disabled={busy} className={hmsButton.primary} onClick={() => void patch("mark-ordered", {}, "Marked as sent to vendor")}>
+              <Send className="h-4 w-4" aria-hidden /> Mark as ordered
+            </button>
+          ) : null}
+          {order.status === "ordered" || order.status === "partially_received" ? (
+            <Link href={`/hms/${slug}/procurement/receiving?poId=${order.id}`} className={hmsButton.secondary}>
+              <Truck className="h-4 w-4" aria-hidden /> Receive goods
+            </Link>
+          ) : null}
+          {!order.invoice_number && ["ordered", "partially_received", "received", "closed"].includes(order.status) ? (
+            <button type="button" disabled={busy} className={hmsButton.secondary} onClick={() => setInvoiceOpen(true)}>
+              <Receipt className="h-4 w-4" aria-hidden /> Record invoice
+            </button>
+          ) : null}
+          {["draft", "pending_approval", "approved", "ordered"].includes(order.status) ? (
+            <button type="button" disabled={busy} className={hmsButton.danger} onClick={() => void patch("cancel", {}, "Purchase order cancelled")}>
+              Cancel order
+            </button>
+          ) : null}
         </div>
-        <ul className="divide-y divide-slate-100">
-          {order.lines.map((l) => (
-            <li key={l.id} className="flex items-center justify-between gap-3 px-6 py-3 text-sm">
-              <div className="min-w-0">
-                <p className="truncate text-slate-800">{l.description}</p>
-                <p className="text-xs text-slate-400">
-                  {l.quantity} × {formatPricingAmount(l.unit_cost, order.currency)}
-                  {l.quantity_received > 0 ? ` · received ${l.quantity_received}` : ""}
-                </p>
-              </div>
-              <span className="shrink-0 tabular-nums font-medium text-slate-700">{formatPricingAmount(l.line_total, order.currency)}</span>
-            </li>
-          ))}
-        </ul>
-        <div className="flex items-center justify-between border-t border-slate-100 px-6 py-4 text-sm">
-          <span className="text-slate-500">Subtotal {formatPricingAmount(order.subtotal, order.currency)} + Tax {formatPricingAmount(order.tax, order.currency)}</span>
-          <span className="text-base font-semibold text-slate-900">{formatPricingAmount(order.total, order.currency)}</span>
+      ) : null}
+
+      <HmsCard id="po-lines" title="Line items" icon={ShoppingCart} meaning="stock" flush>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[560px] text-sm">
+            <thead>
+              <tr className="border-b border-slate-100 bg-slate-50 text-left text-sm font-medium text-slate-600">
+                <th scope="col" className="px-5 py-3 font-medium sm:px-6">Item</th>
+                <th scope="col" className="px-4 py-3 text-right font-medium">Quantity</th>
+                <th scope="col" className="px-4 py-3 text-right font-medium">Unit cost</th>
+                <th scope="col" className="px-4 py-3 text-right font-medium">Received</th>
+                <th scope="col" className="px-5 py-3 text-right font-medium sm:px-6">Line total</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {order.lines.map((l) => (
+                <tr key={l.id}>
+                  <td className="px-5 py-3 text-slate-900 sm:px-6">{l.description}</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-slate-700">{l.quantity}</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-slate-700">{formatPricingAmount(l.unit_cost, order.currency)}</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-slate-700">{l.quantity_received}</td>
+                  <td className="px-5 py-3 text-right font-medium tabular-nums text-slate-900 sm:px-6">{formatPricingAmount(l.line_total, order.currency)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t border-slate-200 text-slate-700">
+                <th scope="row" colSpan={4} className="px-5 py-2 text-right font-medium sm:px-6">Subtotal</th>
+                <td className="px-5 py-2 text-right tabular-nums sm:px-6">{formatPricingAmount(order.subtotal, order.currency)}</td>
+              </tr>
+              <tr className="text-slate-700">
+                <th scope="row" colSpan={4} className="px-5 py-2 text-right font-medium sm:px-6">Tax</th>
+                <td className="px-5 py-2 text-right tabular-nums sm:px-6">{formatPricingAmount(order.tax, order.currency)}</td>
+              </tr>
+              <tr className="border-t-2 border-slate-300 bg-slate-50 font-semibold text-slate-900">
+                <th scope="row" colSpan={4} className="px-5 py-3 text-right sm:px-6">Total</th>
+                <td className="px-5 py-3 text-right text-base tabular-nums sm:px-6">{formatPricingAmount(order.total, order.currency)}</td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
-      </div>
+      </HmsCard>
 
       {order.invoice_number ? (
-        <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6">
-          <h2 className="text-sm font-semibold text-slate-900">Invoice</h2>
-          <p className="mt-2 text-sm text-slate-600">
-            {order.invoice_number} · {formatPricingAmount(order.invoice_amount, order.currency)}
+        <HmsCard id="po-invoice" title="Invoice" icon={Receipt} meaning="money">
+          <p className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
+            <span className="font-medium text-slate-900">{order.invoice_number}</span>
+            <span aria-hidden>·</span>
+            <span className="tabular-nums">{formatPricingAmount(order.invoice_amount, order.currency)}</span>
             {order.invoice_matched_at ? (
-              <span className="ml-2 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">Matched</span>
+              <HmsPill tone="green">Matched to this order</HmsPill>
             ) : (
-              <span className="ml-2 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
-                Variance {formatPricingAmount(order.invoice_variance, order.currency)}
-              </span>
+              <HmsPill tone="amber">Variance {formatPricingAmount(order.invoice_variance, order.currency)}</HmsPill>
             )}
           </p>
-        </div>
+        </HmsCard>
       ) : null}
-
-      <div className="mt-6 flex flex-wrap gap-2">
-        {order.status === "pending_approval" && canApprove ? (
-          <>
-            <Button type="button" disabled={busy} className="rounded-lg" onClick={() => void patch("approve", {}, `${order.po_number} approved`)}>
-              Approve
-            </Button>
-            <Button type="button" variant="destructive" disabled={busy} className="rounded-lg" onClick={() => setRejectOpen(true)}>
-              Reject
-            </Button>
-          </>
-        ) : null}
-        {order.status === "approved" ? (
-          <Button type="button" disabled={busy} className="rounded-lg" onClick={() => void patch("mark-ordered", {}, "Marked as sent to vendor")}>
-            Mark as ordered
-          </Button>
-        ) : null}
-        {(order.status === "ordered" || order.status === "partially_received") ? (
-          <Button asChild variant="outline" className="rounded-lg">
-            <Link href={`/hms/${slug}/procurement/receiving?poId=${order.id}`}>Receive goods</Link>
-          </Button>
-        ) : null}
-        {!order.invoice_number && ["ordered", "partially_received", "received", "closed"].includes(order.status) ? (
-          <Button type="button" variant="outline" disabled={busy} className="rounded-lg" onClick={() => setInvoiceOpen(true)}>
-            Record invoice
-          </Button>
-        ) : null}
-        {["draft", "pending_approval", "approved", "ordered"].includes(order.status) ? (
-          <Button type="button" variant="outline" disabled={busy} className="rounded-lg" onClick={() => void patch("cancel", {}, "Purchase order cancelled")}>
-            Cancel
-          </Button>
-        ) : null}
-      </div>
 
       <RejectDialog open={rejectOpen} onOpenChange={setRejectOpen} onConfirm={(reason) => patch("reject", { reason }, "Purchase order rejected")} />
       <InvoiceDialog open={invoiceOpen} onOpenChange={setInvoiceOpen} orderId={order.id} slug={slug} onDone={() => router.refresh()} />
-    </div>
+    </HmsPage>
   );
 }
 
@@ -182,14 +221,16 @@ function RejectDialog({
         <DialogHeader>
           <DialogTitle>Reject purchase order</DialogTitle>
         </DialogHeader>
-        <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason for rejection" />
+        <HmsField id="po-reject-reason" label="Reason for rejection" hint="This is shown on the purchase order.">
+          <input id="po-reject-reason" aria-describedby="po-reject-reason-hint" className={hmsInput} value={reason} onChange={(e) => setReason(e.target.value)} />
+        </HmsField>
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+          <button type="button" className={hmsButton.secondary} onClick={() => onOpenChange(false)} disabled={submitting}>
             Cancel
-          </Button>
-          <Button
+          </button>
+          <button
             type="button"
-            variant="destructive"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
             disabled={!reason.trim() || submitting}
             onClick={async () => {
               setSubmitting(true);
@@ -202,7 +243,7 @@ function RejectDialog({
             }}
           >
             {submitting ? "Rejecting…" : "Reject"}
-          </Button>
+          </button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -253,17 +294,31 @@ function InvoiceDialog({
         <DialogHeader>
           <DialogTitle>Record vendor invoice</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3">
-          <Input value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} placeholder="Invoice number" />
-          <Input type="number" min="0" step="any" value={invoiceAmount} onChange={(e) => setInvoiceAmount(e.target.value)} placeholder="Invoice amount" />
+        <div className="space-y-4">
+          <HmsField id="po-invoice-number" label="Invoice number">
+            <input id="po-invoice-number" className={hmsInput} value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} />
+          </HmsField>
+          <HmsField id="po-invoice-amount" label="Invoice amount" hint="We'll compare this with the order total.">
+            <input
+              id="po-invoice-amount"
+              type="number"
+              min="0"
+              step="any"
+              inputMode="decimal"
+              aria-describedby="po-invoice-amount-hint"
+              className={`${hmsInput} tabular-nums`}
+              value={invoiceAmount}
+              onChange={(e) => setInvoiceAmount(e.target.value)}
+            />
+          </HmsField>
         </div>
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+          <button type="button" className={hmsButton.secondary} onClick={() => onOpenChange(false)} disabled={submitting}>
             Cancel
-          </Button>
-          <Button type="button" disabled={!invoiceNumber.trim() || !invoiceAmount || submitting} onClick={() => void submit()}>
+          </button>
+          <button type="button" className={hmsButton.primary} disabled={!invoiceNumber.trim() || !invoiceAmount || submitting} onClick={() => void submit()}>
             {submitting ? "Saving…" : "Save & match"}
-          </Button>
+          </button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

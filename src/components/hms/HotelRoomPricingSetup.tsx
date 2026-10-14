@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState, type ComponentType, type SVGProps } from "react";
 import { countries } from "countries-list";
 import * as FlagIcons from "country-flag-icons/react/3x2";
-import { BedDouble, Building2, ChevronDown, CircleHelp, Plus, Search, Trash2 } from "lucide-react";
+import { BedDouble, Building2, Check, ChevronDown, CircleAlert, CircleDashed, CircleHelp, Plus, Scale, Search, Trash2 } from "lucide-react";
+import { HmsAlert, hmsButton } from "@/components/hms/hms-ui";
 import {
   Select,
   SelectContent,
@@ -633,70 +634,71 @@ export default function HotelRoomPricingSetup({
   };
 
   return (
+    <div id="rooms-pricing-setup" className="scroll-mt-24">
     <form
       id="rooms-pricing-setup-form"
       ref={roomsPricingFormRef}
       onSubmit={handleSave}
-      className="rounded-xl border border-slate-200 bg-white p-6 space-y-6 scroll-mt-24"
+      aria-labelledby="rooms-pricing-setup-title"
+      className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6 space-y-6 scroll-mt-24"
     >
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
+          <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-700 ring-1 ring-slate-200/60 shadow-xs">
+            <BedDouble className="h-5 w-5" />
+          </span>
+          <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-1.5">
-            <h2 className="text-sm font-semibold text-slate-800">
-              Super Admin Setup: Rooms & Pricing
+            <h2 id="rooms-pricing-setup-title" className="font-heading text-base font-semibold text-slate-900">
+              Rooms & pricing
             </h2>
             <SettingsSectionInfo
               title="Rooms & Pricing"
               text="Room types, floor/room counts, the floor plan, and the property's rate structure — the structural definition of what you sell. Set this up once (or occasionally revisit rates); day-to-day front desk work never touches this page."
             />
           </div>
-          <p className="mt-1 max-w-2xl text-xs leading-6 text-slate-500">
-            Define room types, default sell rates, and hotel-wide pricing rules here so
-            department staff can focus on daily operations instead of setup.
+          <p className="mt-0.5 max-w-2xl text-sm text-slate-600">
+            Set your room types, default prices and hotel-wide pricing rules here, so your team can
+            focus on guests instead of setup.
           </p>
+          </div>
         </div>
-        <div className="grid grid-cols-2 gap-3 text-xs text-slate-500 sm:min-w-[260px]">
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-            <p className="uppercase tracking-wider text-[10px] text-slate-400">
-              Configured rooms
-            </p>
-            <p className="mt-1 text-lg font-semibold text-slate-900">
+        <dl className="grid grid-cols-2 gap-3 sm:min-w-[280px]">
+          <div className="rounded-2xl bg-sky-50 px-4 py-3">
+            <dt className="text-sm font-medium text-slate-700">Configured rooms</dt>
+            <dd className="mt-0.5 font-heading text-xl font-bold text-slate-900">
               {roomPricingSummary.configuredRooms}
-            </p>
+            </dd>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-            <p className="uppercase tracking-wider text-[10px] text-slate-400">
-              Remaining rooms
-            </p>
-            <p className="mt-1 text-lg font-semibold text-slate-900">
+          <div className="rounded-2xl bg-sky-50 px-4 py-3">
+            <dt className="text-sm font-medium text-slate-700">Remaining rooms</dt>
+            <dd className="mt-0.5 font-heading text-xl font-bold text-slate-900">
               {roomPricingSummary.remainingRooms}
-            </p>
+            </dd>
           </div>
-          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 col-span-2">
-            <p className="uppercase tracking-wider text-[10px] text-slate-400">
-              Rate range
-            </p>
-            <p className="mt-1 text-sm font-semibold text-slate-900">
+          <div className="col-span-2 rounded-2xl bg-emerald-50 px-4 py-3">
+            <dt className="text-sm font-medium text-slate-700">Rate range</dt>
+            <dd className="mt-0.5 text-sm font-semibold text-slate-900">
               {sortedRates.length
                 ? `${formatPricingAmount(sortedRates[0], pricingSetup.currency || "NGN")} - ${formatPricingAmount(sortedRates[sortedRates.length - 1], pricingSetup.currency || "NGN")}`
                 : "Not configured"}
-            </p>
+            </dd>
           </div>
-        </div>
+        </dl>
       </div>
 
       <div
         id="floor-plan-setup"
-        className="scroll-mt-24 rounded-xl border border-slate-200 bg-slate-50/40 p-5 space-y-4"
+        className="scroll-mt-24 rounded-2xl border border-slate-200 bg-sky-50/40 p-5 space-y-4"
       >
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-slate-700 ring-1 ring-slate-200">
+            <div aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-sky-700 ring-1 ring-sky-200">
               <Building2 className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-slate-800">Floors & room counts</h3>
-              <p className="mt-1 max-w-2xl text-xs leading-6 text-slate-500">
+              <h3 className="font-heading text-base font-semibold text-slate-900">Floors & room counts</h3>
+              <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
                 Optionally split your hotel across physical floors. Saving updates the{" "}
                 <span className="font-medium text-slate-600">floor</span> field on each physical
                 room key in inventory so the dashboard matches this plan. You can also set{" "}
@@ -711,22 +713,22 @@ export default function HotelRoomPricingSetup({
           <button
             type="button"
             onClick={addFloorRow}
-            className="inline-flex shrink-0 items-center gap-2 self-start rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
+            className={`${hmsButton.secondary} shrink-0 self-start`}
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-4 w-4" aria-hidden />
             Add floor
           </button>
         </div>
 
         {floorTargetRooms <= 0 ? (
-          <p className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-xs leading-6 text-slate-600">
+          <p className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-700">
             Add room types with how many keys you sell for each category (or complete registration
             with a hotel room total). Then you can map floors here, or leave floors empty to keep
             everything on the ground floor.
           </p>
         ) : (
           <>
-            <div className="flex flex-wrap items-center gap-3 text-xs">
+            <div className="flex flex-wrap items-center gap-3 text-sm">
               <span
                 className={cn(
                   "rounded-full px-3 py-1 font-medium ring-1",
@@ -737,11 +739,11 @@ export default function HotelRoomPricingSetup({
               >
                 Hotel total: <span className="text-slate-900">{floorTargetRooms}</span> rooms
                 {inventoryRoomCount > 0 ? (
-                  <span className="font-normal text-slate-500"> (from room keys)</span>
+                  <span className="font-normal text-slate-600"> (from room keys)</span>
                 ) : signupRoomCount > 0 ? (
-                  <span className="font-normal text-slate-500"> (registration)</span>
+                  <span className="font-normal text-slate-600"> (registration)</span>
                 ) : (
-                  <span className="font-normal text-slate-500"> (from room types)</span>
+                  <span className="font-normal text-slate-600"> (from room types)</span>
                 )}
               </span>
               <span
@@ -755,7 +757,7 @@ export default function HotelRoomPricingSetup({
                 {floorRows.length === 0 ? (
                   <>
                     Floor rows: <span className="text-slate-900">0</span>
-                    <span className="font-normal text-slate-500"> (all on ground)</span>
+                    <span className="font-normal text-slate-600"> (all on ground)</span>
                   </>
                 ) : (
                   <>
@@ -796,7 +798,7 @@ export default function HotelRoomPricingSetup({
             {floorRows.length === 0 ? (
               <div className="space-y-2">
                 <p className="text-xs leading-6 text-slate-600">
-                  No floor breakdown yet — all {floorTargetRooms} room(s) are counted on the ground
+                  No floor breakdown yet — all {floorTargetRooms}{" "}room(s) are counted on the ground
                   floor. Use &quot;Add floor&quot; or the button below when you want to model upper
                   floors.
                 </p>
@@ -829,73 +831,78 @@ export default function HotelRoomPricingSetup({
                     >
                       <div className="flex flex-wrap items-end gap-3">
                         <div className="min-w-[100px] flex-1 space-y-1.5">
-                          <label className="text-[11px] font-medium uppercase tracking-wider text-slate-400">
-                            Floor #
+                          <label htmlFor={`floor-num-${row.id}`} className="block text-sm font-medium text-slate-800">
+                            Floor number
                           </label>
                           <input
+                            id={`floor-num-${row.id}`}
                             type="text"
                             inputMode="numeric"
                             value={row.floor}
                             onChange={(e) =>
                               updateFloorRow(row.id, "floor", sanitizeIntegerInput(e.target.value))
                             }
-                            className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50/80 px-3 text-sm text-slate-900 focus-visible:border-blue-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-100"
+                            className="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:border-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                             placeholder="1"
                           />
                         </div>
                         <div className="min-w-[120px] flex-[2] space-y-1.5">
-                          <label className="text-[11px] font-medium uppercase tracking-wider text-slate-400">
+                          <label htmlFor={`floor-rooms-${row.id}`} className="block text-sm font-medium text-slate-800">
                             Rooms on floor
                           </label>
                           <input
+                            id={`floor-rooms-${row.id}`}
                             type="text"
                             inputMode="numeric"
                             value={row.room_count}
                             onChange={(e) =>
                               updateFloorRow(row.id, "room_count", sanitizeIntegerInput(e.target.value))
                             }
-                            className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50/80 px-3 text-sm text-slate-900 focus-visible:border-blue-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-100"
+                            className="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:border-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                             placeholder="e.g. 10"
                           />
                         </div>
                         <button
                           type="button"
                           onClick={() => removeFloorRow(row.id)}
-                          className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition-colors hover:bg-rose-50 hover:text-rose-700"
-                          aria-label="Remove floor row"
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-300 text-slate-700 transition-colors hover:bg-rose-50 hover:text-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                          aria-label={`Remove floor ${row.floor || ""}`.trim()}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4" aria-hidden />
                         </button>
                       </div>
                       <div className="space-y-1.5 border-t border-slate-100 pt-3">
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <label className="text-[11px] font-medium uppercase tracking-wider text-slate-400">
+                          <label htmlFor={`floor-numbers-${row.id}`} className="text-sm font-medium text-slate-800">
                             Room numbers on this floor
                           </label>
                           <button
                             type="button"
                             onClick={() => updateFloorRow(row.id, "room_numbers", "")}
                             disabled={!row.room_numbers.trim()}
-                            className="text-[11px] font-medium text-slate-500 underline-offset-2 hover:text-slate-800 hover:underline disabled:pointer-events-none disabled:opacity-40"
+                            className="rounded-md text-xs font-medium text-slate-700 underline-offset-2 hover:text-slate-900 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:pointer-events-none disabled:opacity-50"
                           >
                             Clear numbering
                           </button>
                         </div>
                         <textarea
+                          id={`floor-numbers-${row.id}`}
+                          aria-describedby={`floor-numbers-${row.id}-hint`}
                           value={row.room_numbers}
                           onChange={(e) => updateFloorRow(row.id, "room_numbers", e.target.value)}
                           rows={2}
                           placeholder={numberingPlaceholder}
-                          className="w-full resize-y rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus-visible:border-blue-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-100"
+                          className="w-full resize-y rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 focus-visible:border-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                         />
                         <p
+                          id={`floor-numbers-${row.id}-hint`}
                           className={cn(
-                            "text-[11px] leading-relaxed",
+                            "text-xs leading-relaxed",
                             numFb.kind === "error"
-                              ? "text-rose-600"
+                              ? "text-rose-700"
                               : numFb.kind === "ok"
                                 ? "text-emerald-700"
-                                : "text-slate-500",
+                                : "text-slate-600",
                           )}
                         >
                           {numFb.text}
@@ -905,8 +912,8 @@ export default function HotelRoomPricingSetup({
                   );
                 })}
                 {floorPlanOk ? (
-                  <div className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-[11px] leading-relaxed text-slate-600">
+                  <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-sm leading-relaxed text-slate-700">
                       Saving applies floors, room numbers, room types, and pricing together (same as
                       the button at the bottom of this page).
                     </p>
@@ -914,7 +921,7 @@ export default function HotelRoomPricingSetup({
                       type="button"
                       disabled={loading}
                       onClick={() => roomsPricingFormRef.current?.requestSubmit()}
-                      className="inline-flex shrink-0 items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                      className={`${hmsButton.secondary} shrink-0`}
                     >
                       Save floors and room numbers
                     </button>
@@ -927,16 +934,21 @@ export default function HotelRoomPricingSetup({
       </div>
 
       {roomPricingSummary.excessRooms > 0 ? (
-        <div className="rounded-xl border border-rose-200 bg-rose-50/70 px-4 py-3 text-xs leading-6 text-rose-700">
+        <div className="flex gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm leading-6 text-rose-900">
+          <CircleAlert className="mt-1 h-4 w-4 shrink-0" aria-hidden />
+          <p>
           Total hotel rooms recorded:{" "}
           <span className="font-semibold">{roomPricingSummary.totalRooms}</span>. Configured
           into priced room types:{" "}
           <span className="font-semibold">{roomPricingSummary.configuredRooms}</span>. This is{" "}
           <span className="font-semibold">{roomPricingSummary.excessRooms}</span> over the
           recorded total. Review the room counts so your setup stays accurate.
+          </p>
         </div>
       ) : roomPricingSummary.remainingRooms > 0 ? (
-        <div className="rounded-xl border border-amber-200 bg-amber-50/70 px-4 py-3 text-xs leading-6 text-amber-800">
+        <div className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+          <CircleDashed className="mt-1 h-4 w-4 shrink-0" aria-hidden />
+          <p>
           Total hotel rooms recorded:{" "}
           <span className="font-semibold">{roomPricingSummary.totalRooms}</span>. Configured
           into priced room types:{" "}
@@ -945,28 +957,32 @@ export default function HotelRoomPricingSetup({
           <span className="font-semibold">{roomPricingSummary.remainingRooms}</span>. Break
           the remaining rooms into actual room types below so the dashboard and room pages
           can show real operational detail.
+          </p>
         </div>
       ) : (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 py-3 text-xs leading-6 text-emerald-800">
+        <div className="flex gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm leading-6 text-emerald-900">
+          <Check className="mt-1 h-4 w-4 shrink-0" aria-hidden />
+          <p>
           All <span className="font-semibold">{roomPricingSummary.totalRooms}</span> rooms
           have been assigned to priced room types. Your room setup is complete.
+          </p>
         </div>
       )}
 
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h3 className="text-sm font-semibold text-slate-800">Room Types</h3>
-            <p className="text-xs text-slate-500">
+            <h3 className="font-heading text-base font-semibold text-slate-900">Room types</h3>
+            <p className="text-sm text-slate-600">
               Add the room categories your property sells and the default starting rate for each.
             </p>
           </div>
           <button
             type="button"
             onClick={addRoomType}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 cursor-pointer"
+            className={`${hmsButton.secondary} shrink-0`}
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-4 w-4" aria-hidden />
             Add room type
           </button>
         </div>
@@ -975,18 +991,18 @@ export default function HotelRoomPricingSetup({
           {roomTypes.map((roomType, index) => (
             <div
               key={roomType.id}
-              className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4"
+              className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs"
             >
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                  <div aria-hidden className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-50 text-sky-700">
                     <BedDouble className="h-4 w-4" />
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-slate-900">
                       Room type {index + 1}
                     </p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-sm text-slate-600">
                       Configure name, inventory, occupancy, and default sell rate.
                     </p>
                   </div>
@@ -995,10 +1011,11 @@ export default function HotelRoomPricingSetup({
                   type="button"
                   onClick={() => removeRoomType(roomType.id)}
                   disabled={roomTypes.length === 1}
-                  className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-rose-600 transition-colors hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+                  className={hmsButton.danger}
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-4 w-4" aria-hidden />
                   Remove
+                  <span className="sr-only"> room type {index + 1}</span>
                 </button>
               </div>
 
@@ -1010,12 +1027,12 @@ export default function HotelRoomPricingSetup({
                     activeHelpId={activeHelpId}
                     onToggleHelp={setActiveHelpId}
                   />
-                  <input
+                  <input id={`field-room-type-name-${roomType.id}`}
                     value={roomType.name}
                     onChange={(event) =>
                       updateRoomType(roomType.id, "name", event.target.value)
                     }
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800"
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="e.g. Deluxe King"
                     required
                   />
@@ -1028,7 +1045,7 @@ export default function HotelRoomPricingSetup({
                     activeHelpId={activeHelpId}
                     onToggleHelp={setActiveHelpId}
                   />
-                  <input
+                  <input id={`field-room-type-short-${roomType.id}`}
                     value={roomType.shortLabel}
                     onChange={(event) =>
                       updateRoomType(
@@ -1037,7 +1054,7 @@ export default function HotelRoomPricingSetup({
                         event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8),
                       )
                     }
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm uppercase text-slate-800 tracking-wide"
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
                     placeholder="e.g. SS"
                     maxLength={8}
                   />
@@ -1049,7 +1066,7 @@ export default function HotelRoomPricingSetup({
                     activeHelpId={activeHelpId}
                     onToggleHelp={setActiveHelpId}
                   />
-                  <input
+                  <input id={`field-room-count-${roomType.id}`}
                     type="text"
                     inputMode="numeric"
                     value={roomType.rooms}
@@ -1060,7 +1077,7 @@ export default function HotelRoomPricingSetup({
                         sanitizeIntegerInput(event.target.value),
                       )
                     }
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800"
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="e.g. 20"
                     required
                   />
@@ -1072,7 +1089,7 @@ export default function HotelRoomPricingSetup({
                     activeHelpId={activeHelpId}
                     onToggleHelp={setActiveHelpId}
                   />
-                  <input
+                  <input id={`field-max-occupancy-${roomType.id}`}
                     type="text"
                     inputMode="numeric"
                     value={roomType.maxOccupancy}
@@ -1083,7 +1100,7 @@ export default function HotelRoomPricingSetup({
                         sanitizeIntegerInput(event.target.value),
                       )
                     }
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800"
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="e.g. 2"
                     required
                   />
@@ -1096,7 +1113,7 @@ export default function HotelRoomPricingSetup({
                     activeHelpId={activeHelpId}
                     onToggleHelp={setActiveHelpId}
                   />
-                  <input
+                  <input id={`field-base-rate-${roomType.id}`}
                     type="text"
                     inputMode="decimal"
                     value={roomType.baseRate}
@@ -1107,7 +1124,7 @@ export default function HotelRoomPricingSetup({
                         sanitizeDecimalInput(event.target.value),
                       )
                     }
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800"
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="e.g. 27500"
                     required
                   />
@@ -1123,35 +1140,33 @@ export default function HotelRoomPricingSetup({
                     activeHelpId={activeHelpId}
                     onToggleHelp={setActiveHelpId}
                   />
-                  <input
+                  <input id={`field-board-basis-${roomType.id}`}
                     value={roomType.boardBasis}
                     onChange={(event) =>
                       updateRoomType(roomType.id, "boardBasis", event.target.value)
                     }
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800"
+                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Room only / Bed & breakfast"
                     required
                   />
                 </div>
-                <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
-                  <p className="text-[11px] font-medium uppercase tracking-wider text-slate-400">
-                    Preview
-                  </p>
+                <div className="rounded-xl bg-sky-50 px-4 py-3">
+                  <p className="text-sm font-medium text-slate-700">Preview</p>
                   <p className="mt-2 text-sm font-semibold text-slate-900">
                     {roomType.name || "Unnamed room type"}
                   </p>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                  <p className="mt-1 text-xs leading-5 text-slate-600">
                     {roomType.rooms || "0"} room(s), occupancy {roomType.maxOccupancy || "0"},{" "}
                     {roomType.boardBasis || "Room only"}
                   </p>
-                  <p className="mt-1 text-[11px] font-medium text-slate-500">
+                  <p className="mt-1 text-xs font-medium text-slate-600">
                     Grid:{" "}
                     {roomTypeGridAbbrev({
                       name: roomType.name || "Room",
                       shortLabel: roomType.shortLabel?.trim() || undefined,
                     })}
                   </p>
-                  <p className="mt-2 text-sm font-semibold text-blue-700">
+                  <p className="mt-2 text-sm font-semibold text-slate-900">
                     {formatPricingAmount(
                       roomType.baseRate ? Number(roomType.baseRate) : null,
                       pricingSetup.currency || "NGN",
@@ -1174,8 +1189,13 @@ export default function HotelRoomPricingSetup({
 
       <div className="space-y-4">
         <div>
-          <h3 className="text-sm font-semibold text-slate-800">Hotel-wide Pricing Rules</h3>
-          <p className="text-xs text-slate-500">
+          <h3 className="flex items-center gap-2 font-heading text-base font-semibold text-slate-900">
+            <span aria-hidden className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+              <Scale className="h-4 w-4" />
+            </span>
+            Hotel-wide pricing rules
+          </h3>
+          <p className="text-sm text-slate-600">
             These defaults support dashboard reporting and give operational teams a shared pricing baseline.
           </p>
         </div>
@@ -1190,6 +1210,7 @@ export default function HotelRoomPricingSetup({
               onToggleHelp={setActiveHelpId}
             />
             <CurrencyCombobox
+              triggerId="field-currency"
               pickerRef={currencyPickerRef}
               open={currencyOpen}
               query={currencyQuery}
@@ -1216,7 +1237,7 @@ export default function HotelRoomPricingSetup({
               activeHelpId={activeHelpId}
               onToggleHelp={setActiveHelpId}
             />
-            <input
+            <input id={`field-tax-rate`}
               type="text"
               inputMode="decimal"
               value={pricingSetup.taxRate}
@@ -1226,7 +1247,7 @@ export default function HotelRoomPricingSetup({
                   taxRate: sanitizeDecimalInput(event.target.value),
                 }))
               }
-              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800"
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="e.g. 7.5"
             />
           </div>
@@ -1238,7 +1259,7 @@ export default function HotelRoomPricingSetup({
               activeHelpId={activeHelpId}
               onToggleHelp={setActiveHelpId}
             />
-            <input
+            <input id={`field-service-charge`}
               type="text"
               inputMode="decimal"
               value={pricingSetup.serviceChargeRate}
@@ -1248,7 +1269,7 @@ export default function HotelRoomPricingSetup({
                   serviceChargeRate: sanitizeDecimalInput(event.target.value),
                 }))
               }
-              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800"
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="e.g. 5"
             />
           </div>
@@ -1260,7 +1281,7 @@ export default function HotelRoomPricingSetup({
               activeHelpId={activeHelpId}
               onToggleHelp={setActiveHelpId}
             />
-            <input
+            <input id={`field-extra-adult-rate`}
               type="text"
               inputMode="decimal"
               value={pricingSetup.extraAdultRate}
@@ -1270,7 +1291,7 @@ export default function HotelRoomPricingSetup({
                   extraAdultRate: sanitizeDecimalInput(event.target.value),
                 }))
               }
-              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800"
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="e.g. 5000"
             />
           </div>
@@ -1282,7 +1303,7 @@ export default function HotelRoomPricingSetup({
               activeHelpId={activeHelpId}
               onToggleHelp={setActiveHelpId}
             />
-            <input
+            <input id={`field-extra-child-rate`}
               type="text"
               inputMode="decimal"
               value={pricingSetup.extraChildRate}
@@ -1292,7 +1313,7 @@ export default function HotelRoomPricingSetup({
                   extraChildRate: sanitizeDecimalInput(event.target.value),
                 }))
               }
-              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800"
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="e.g. 2500"
             />
           </div>
@@ -1317,7 +1338,7 @@ export default function HotelRoomPricingSetup({
                 }))
               }
             >
-              <SelectTrigger>
+              <SelectTrigger id={`field-check-in-policy`}>
                 <SelectValue placeholder="Select check-in policy" />
               </SelectTrigger>
               <SelectContent>
@@ -1349,7 +1370,7 @@ export default function HotelRoomPricingSetup({
                 </Select>
               </div>
             )}
-            <p className="mt-2 text-xs text-slate-500">
+            <p className="mt-2 text-xs text-slate-600">
               Current check-in:{" "}
               {pricingSetup.checkInMode === "anytime"
                 ? "Anytime"
@@ -1373,7 +1394,7 @@ export default function HotelRoomPricingSetup({
                 }))
               }
             >
-              <SelectTrigger>
+              <SelectTrigger id={`field-check-out-time`}>
                 <SelectValue placeholder="Select check-out time" />
               </SelectTrigger>
               <SelectContent>
@@ -1388,16 +1409,15 @@ export default function HotelRoomPricingSetup({
         </div>
       </div>
 
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      <HmsAlert message={error} />
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-60 cursor-pointer"
-      >
-        {loading ? "Saving..." : "Save Rooms & Pricing"}
-      </button>
+      <div className="flex justify-end border-t border-slate-100 pt-5">
+        <button type="submit" disabled={loading} className={hmsButton.primary}>
+          {loading ? "Saving…" : "Save rooms and pricing"}
+        </button>
+      </div>
     </form>
+    </div>
   );
 }
 
@@ -1410,7 +1430,9 @@ function CurrencyCombobox({
   onOpenChange,
   onQueryChange,
   onSelect,
+  triggerId,
 }: {
+  triggerId?: string;
   pickerRef: React.RefObject<HTMLDivElement | null>;
   open: boolean;
   query: string;
@@ -1423,6 +1445,7 @@ function CurrencyCombobox({
   return (
     <div ref={pickerRef} className="relative">
       <button
+        id={triggerId}
         type="button"
         onClick={() => {
           if (open) {
@@ -1430,7 +1453,7 @@ function CurrencyCombobox({
           }
           onOpenChange(!open);
         }}
-        className="flex w-full items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-left text-sm text-slate-800 transition-colors hover:border-slate-300"
+        className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-left text-sm text-slate-900 transition-colors hover:border-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
         aria-expanded={open}
         aria-haspopup="listbox"
       >
@@ -1444,15 +1467,15 @@ function CurrencyCombobox({
               <p className="truncate font-medium text-slate-900">
                 {selectedOption.currencyCode} · {selectedOption.currencyName}
               </p>
-              <p className="truncate text-xs text-slate-500">{selectedOption.countryName}</p>
+              <p className="truncate text-xs text-slate-600">{selectedOption.countryName}</p>
             </div>
           </div>
         ) : (
-          <span className="text-slate-400">Select a currency</span>
+          <span className="text-slate-600">Select a currency</span>
         )}
         <ChevronDown
           className={cn(
-            "h-4 w-4 shrink-0 text-slate-400 transition-transform",
+            "h-4 w-4 shrink-0 text-slate-600 transition-transform",
             open && "rotate-180",
           )}
         />
@@ -1462,13 +1485,14 @@ function CurrencyCombobox({
         <div className="absolute left-0 right-0 z-30 mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg shadow-slate-200/70">
           <div className="border-b border-slate-100 p-3">
             <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-600" />
               <input
                 autoFocus
                 value={query}
                 onChange={(event) => onQueryChange(event.target.value)}
-                placeholder="Search African countries or currency..."
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none transition-colors focus:border-blue-300 focus:bg-white"
+                aria-label="Search for a country or currency"
+                placeholder="Search African countries or currency…"
+                className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
@@ -1496,7 +1520,7 @@ function CurrencyCombobox({
                       <p className="truncate text-sm font-medium text-slate-900">
                         {option.countryName}
                       </p>
-                      <p className="truncate text-xs text-slate-500">
+                      <p className="truncate text-xs text-slate-600">
                         {option.currencyName} ({option.currencyCode})
                       </p>
                     </div>
@@ -1504,7 +1528,7 @@ function CurrencyCombobox({
                 );
               })
             ) : (
-              <p className="px-3 py-4 text-sm text-slate-500">
+              <p className="px-3 py-4 text-sm text-slate-600">
                 No currency matches that search.
               </p>
             )}
@@ -1526,7 +1550,7 @@ function CountryFlag({
 
   if (!FlagComponent) {
     return (
-      <div className="flex h-4 w-6 shrink-0 items-center justify-center rounded-sm bg-slate-100 text-[10px] font-semibold text-slate-500">
+      <div className="flex h-4 w-6 shrink-0 items-center justify-center rounded-sm bg-slate-100 text-[10px] font-semibold text-slate-600">
         {countryCode.toUpperCase()}
       </div>
     );
@@ -1561,9 +1585,9 @@ function FieldLabel({
   return (
     <div
       data-field-help
-      className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-slate-500"
+      className="mb-1 flex items-center gap-1.5 text-sm font-medium text-slate-800"
     >
-      <span>{label}</span>
+      <label htmlFor={`field-${helpId}`}>{label}</label>
       {helpText ? (
         <div className="relative inline-block">
           <button
@@ -1571,12 +1595,12 @@ function FieldLabel({
             aria-label={`Explain ${label}`}
             aria-expanded={isOpen}
             onClick={() => onToggleHelp(isOpen ? null : helpId)}
-            className="cursor-pointer text-slate-400 transition-colors hover:text-slate-600"
+            className="flex h-6 w-6 cursor-pointer items-center justify-center rounded-md text-slate-600 transition-colors hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           >
-            <CircleHelp className="h-3.5 w-3.5" />
+            <CircleHelp className="h-3.5 w-3.5" aria-hidden />
           </button>
           {isOpen && (
-            <div className="absolute left-0 top-full z-20 mt-2 w-64 rounded-xl border border-slate-200 bg-white p-3 text-xs font-normal leading-5 text-slate-600 shadow-lg">
+            <div role="note" className="absolute left-0 top-full z-20 mt-2 w-64 rounded-xl border border-slate-200 bg-white p-3 text-sm font-normal leading-5 text-slate-700 shadow-lg">
               {helpText}
             </div>
           )}

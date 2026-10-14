@@ -1,7 +1,7 @@
 "use client";
 
-import { Download } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { BarChart3, Building2, Download, Tags, Truck } from "lucide-react";
+import { HmsCard, HmsEmptyState, hmsButton } from "@/components/hms/hms-ui";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import type { SpendByCategory, SpendByDepartment, SpendByVendor, VendorPerformanceReportRow } from "@/lib/hms/procurement-reports";
 
@@ -21,27 +21,57 @@ function downloadCsv(filename: string, rows: (string | number)[][]) {
   URL.revokeObjectURL(url);
 }
 
-function SpendTable({ title, rows, currency }: { title: string; rows: { label: string; total: number; orderCount: number }[]; currency: string }) {
+function SpendTable({
+  id,
+  title,
+  labelHeading,
+  icon,
+  rows,
+  currency,
+}: {
+  id: string;
+  title: string;
+  labelHeading: string;
+  icon: React.ComponentType<{ className?: string }>;
+  rows: { label: string; total: number; orderCount: number }[];
+  currency: string;
+}) {
+  const totalSpend = rows.reduce((sum, r) => sum + r.total, 0);
+  const totalOrders = rows.reduce((sum, r) => sum + r.orderCount, 0);
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-      <div className="border-b border-slate-100 px-6 py-4">
-        <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
-      </div>
+    <HmsCard id={id} title={title} icon={icon} meaning="money" flush className="print:border-0 print:shadow-none">
       {rows.length === 0 ? (
-        <p className="px-6 py-6 text-sm text-slate-500">No committed spend yet.</p>
+        <HmsEmptyState bare art="chart" meaning="money" title="No spend yet" description="No committed spend yet." />
       ) : (
-        <ul className="divide-y divide-slate-100">
-          {rows.map((r) => (
-            <li key={r.label} className="flex items-center justify-between px-6 py-3 text-sm">
-              <span className="text-slate-800">
-                {r.label} <span className="text-xs text-slate-400">({r.orderCount} order{r.orderCount === 1 ? "" : "s"})</span>
-              </span>
-              <span className="tabular-nums font-medium text-slate-700">{formatPricingAmount(r.total, currency)}</span>
-            </li>
-          ))}
-        </ul>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-100 bg-slate-50 text-left text-sm font-medium text-slate-600">
+                <th scope="col" className="px-5 py-3 font-medium">{labelHeading}</th>
+                <th scope="col" className="px-3 py-3 text-right font-medium">Orders</th>
+                <th scope="col" className="px-5 py-3 text-right font-medium">Spend</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {rows.map((r) => (
+                <tr key={r.label}>
+                  <td className="px-5 py-3 text-slate-900">{r.label}</td>
+                  <td className="px-3 py-3 text-right tabular-nums text-slate-700">{r.orderCount}</td>
+                  <td className="px-5 py-3 text-right tabular-nums font-medium text-slate-900">{formatPricingAmount(r.total, currency)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-slate-300 bg-slate-50 font-semibold text-slate-900">
+                <th scope="row" className="px-5 py-3 text-left">Total</th>
+                <td className="px-3 py-3 text-right tabular-nums">{totalOrders}</td>
+                <td className="px-5 py-3 text-right tabular-nums">{formatPricingAmount(totalSpend, currency)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
       )}
-    </div>
+    </HmsCard>
   );
 }
 
@@ -85,64 +115,70 @@ export function ProcurementReportsClient({
   };
 
   return (
-    <div className="mt-6 space-y-6">
-      <div className="flex justify-end">
-        <Button type="button" variant="outline" className="rounded-lg" onClick={exportCsv}>
-          <Download className="h-4 w-4" /> Export CSV
-        </Button>
+    <div className="space-y-6">
+      <div className="flex justify-end print:hidden">
+        <button type="button" className={hmsButton.secondary} onClick={exportCsv}>
+          <Download className="h-4 w-4" aria-hidden /> Export CSV
+        </button>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-6 xl:grid-cols-3">
         <SpendTable
+          id="procurement-spend-vendor"
           title="Spend by vendor"
+          labelHeading="Vendor"
+          icon={Truck}
           rows={spendByVendor.map((v) => ({ label: v.vendorName, total: v.total, orderCount: v.orderCount }))}
           currency={currency}
         />
         <SpendTable
+          id="procurement-spend-department"
           title="Spend by department"
+          labelHeading="Department"
+          icon={Building2}
           rows={spendByDepartment.map((d) => ({ label: d.department, total: d.total, orderCount: d.orderCount }))}
           currency={currency}
         />
         <SpendTable
+          id="procurement-spend-category"
           title="Spend by category"
+          labelHeading="Category"
+          icon={Tags}
           rows={spendByCategory.map((c) => ({ label: c.categoryName, total: c.total, orderCount: c.orderCount }))}
           currency={currency}
         />
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-        <div className="border-b border-slate-100 px-6 py-4">
-          <h2 className="text-sm font-semibold text-slate-900">Vendor performance</h2>
-        </div>
+      <HmsCard id="procurement-vendor-performance" title="Vendor performance" icon={BarChart3} meaning="stock" flush className="print:border-0 print:shadow-none">
         {vendorPerformance.length === 0 ? (
-          <p className="px-6 py-6 text-sm text-slate-500">No vendors recorded yet.</p>
+          <HmsEmptyState bare art="chart" meaning="stock" title="No vendors yet" description="No vendors recorded yet." />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[560px] text-sm">
               <thead>
-                <tr className="border-b border-slate-100 text-left text-xs uppercase tracking-wider text-slate-400">
-                  <th className="px-6 py-3">Vendor</th>
-                  <th className="px-6 py-3">Orders</th>
-                  <th className="px-6 py-3">Spend</th>
-                  <th className="px-6 py-3">On-time</th>
-                  <th className="px-6 py-3">Avg quality</th>
+                <tr className="border-b border-slate-100 bg-slate-50 text-left text-sm font-medium text-slate-600">
+                  <th scope="col" className="px-5 py-3 font-medium sm:px-6">Vendor</th>
+                  <th scope="col" className="px-4 py-3 text-right font-medium">Orders</th>
+                  <th scope="col" className="px-4 py-3 text-right font-medium">Spend</th>
+                  <th scope="col" className="px-4 py-3 text-right font-medium">On time</th>
+                  <th scope="col" className="px-5 py-3 text-right font-medium sm:px-6">Average quality</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {vendorPerformance.map((v) => (
                   <tr key={v.vendorId}>
-                    <td className="px-6 py-3 font-medium text-slate-800">{v.vendorName}</td>
-                    <td className="px-6 py-3 tabular-nums text-slate-600">{v.totalOrders}</td>
-                    <td className="px-6 py-3 tabular-nums text-slate-600">{formatPricingAmount(v.totalSpend, currency)}</td>
-                    <td className="px-6 py-3 tabular-nums text-slate-600">{v.onTimeRate === null ? "—" : `${Math.round(v.onTimeRate * 100)}%`}</td>
-                    <td className="px-6 py-3 tabular-nums text-slate-600">{v.avgQualityScore === null ? "—" : v.avgQualityScore.toFixed(1)}</td>
+                    <td className="px-5 py-3 font-medium text-slate-900 sm:px-6">{v.vendorName}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-slate-700">{v.totalOrders}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-slate-700">{formatPricingAmount(v.totalSpend, currency)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-slate-700">{v.onTimeRate === null ? "—" : `${Math.round(v.onTimeRate * 100)}%`}</td>
+                    <td className="px-5 py-3 text-right tabular-nums text-slate-700 sm:px-6">{v.avgQualityScore === null ? "—" : v.avgQualityScore.toFixed(1)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         )}
-      </div>
+      </HmsCard>
     </div>
   );
 }

@@ -45,10 +45,10 @@ export function FrontDeskRoomStatusSummary({
   return (
     <>
       <section
-        className="overflow-hidden rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/25 sm:p-7"
+        className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6"
         aria-label="Room status summary"
       >
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Room status</p>
+        <p className="text-sm font-medium text-slate-600">Room status</p>
         <h2 className="mt-1 text-lg font-semibold tracking-tight text-slate-900">Status summary</h2>
         <p className="mt-1 text-sm text-slate-500">Click a card to see which rooms match.</p>
         <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">

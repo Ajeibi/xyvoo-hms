@@ -1,3 +1,4 @@
+import { Wrench } from "lucide-react";
 import HMSLayout from "@/components/hms/HMSLayout";
 import ModuleScaffold from "@/components/hms/ModuleScaffold";
 
@@ -11,6 +12,9 @@ export default async function MaintenanceSettingsPage({
   return (
     <HMSLayout slug={slug} requiredSection="maintenance-settings">
       <ModuleScaffold
+        eyebrow="Maintenance"
+        meaning="care"
+        icon={Wrench}
         title="Maintenance Settings"
         subtitle="Configure work-order priorities, room blocking rules, and technician workflow."
         checklist={[

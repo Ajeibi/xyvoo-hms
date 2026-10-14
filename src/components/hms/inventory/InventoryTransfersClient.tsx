@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowLeftRight, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -21,18 +21,34 @@ import {
 } from "@/components/ui/select";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { InventoryItemPicker } from "@/components/hms/inventory/InventoryItemPicker";
+import { HmsCard, HmsEmptyState, HmsField, HmsPill, hmsButton, hmsInput } from "@/components/hms/hms-ui";
 import type {
   InventoryItemRow,
   InventoryLocationRow,
   InventoryTransferWithLines,
 } from "@/lib/hms/inventory-types";
 
-const STATUS_STYLES: Record<string, string> = {
-  pending: "bg-slate-100 text-slate-700",
-  in_transit: "bg-amber-100 text-amber-900",
-  completed: "bg-emerald-100 text-emerald-900",
-  cancelled: "bg-red-100 text-red-800",
+const STATUS_TONE: Record<string, "slate" | "green" | "amber" | "red" | "blue"> = {
+  pending: "amber",
+  in_transit: "blue",
+  completed: "green",
+  cancelled: "red",
 };
+
+const STATUS_LABEL: Record<string, string> = {
+  pending: "Pending",
+  in_transit: "In transit",
+  completed: "Completed",
+  cancelled: "Cancelled",
+};
+
+const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500";
+const smallButton = "px-3 py-1.5";
+const qtyInput = hmsInput.replace("w-full ", "w-24 ");
+
+function TransferStatus({ status }: { status: string }) {
+  return <HmsPill tone={STATUS_TONE[status] ?? "slate"}>{STATUS_LABEL[status] ?? status.replace(/_/g, " ")}</HmsPill>;
+}
 
 type DraftLine = { itemId: string; qty: string };
 
@@ -87,6 +103,7 @@ export function InventoryTransfersClient({
   const validLines = lines.filter((l) => l.itemId && Number(l.qty) > 0);
   const locationsDiffer = Boolean(fromLocationId) && Boolean(toLocationId) && fromLocationId !== toLocationId;
   const canSubmit = locationsDiffer && validLines.length > 0 && !submitting;
+  const sameLocation = Boolean(fromLocationId) && Boolean(toLocationId) && !locationsDiffer;
 
   const filteredTransfers = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -169,54 +186,87 @@ export function InventoryTransfersClient({
     }
   }
 
-  return (
-    <div className="mt-6 space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by transfer #, store, item, or SKU"
-          className="w-full flex-1 sm:max-w-sm"
-        />
-        <Button type="button" className="rounded-lg" onClick={() => setOpen(true)}>
-          New transfer
-        </Button>
-      </div>
+  const newButton = (
+    <button type="button" className={`${hmsButton.primary} ${focusRing}`} onClick={() => setOpen(true)}>
+      <Plus className="h-4 w-4" aria-hidden />
+      New transfer
+    </button>
+  );
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+  return (
+    <div className="space-y-6">
+      <HmsCard
+        id="inventory-transfers-list"
+        title="Transfers"
+        description="Select a transfer to see its items."
+        icon={ArrowLeftRight}
+        meaning="stock"
+        flush
+        actions={newButton}
+      >
+        {initialTransfers.length > 0 ? (
+          <div className="border-b border-slate-100 px-5 py-4 sm:px-6">
+            <label htmlFor="inventory-transfers-search" className="mb-1 block text-sm font-medium text-slate-800">
+              Search transfers
+            </label>
+            <input
+              id="inventory-transfers-search"
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Transfer number, store, item or SKU"
+              className={`${hmsInput} sm:max-w-sm`}
+            />
+          </div>
+        ) : null}
+
         {filteredTransfers.length === 0 ? (
-          <p className="px-6 py-8 text-sm text-slate-500">
-            {initialTransfers.length === 0 ? "No transfers yet." : "No transfers match your search."}
-          </p>
+          initialTransfers.length === 0 ? (
+            <HmsEmptyState
+              bare
+              art="box"
+              meaning="stock"
+              title="No transfers yet"
+              description="Move stock from one store to another, for example from the main store to the bar."
+              action={newButton}
+            />
+          ) : (
+            <p role="status" className="px-6 py-10 text-center text-sm text-slate-600">
+              No transfers match your search.
+            </p>
+          )
         ) : (
           <ul className="divide-y divide-slate-100">
             {filteredTransfers.map((t) => (
               <li
                 key={t.id}
                 onClick={() => setViewTarget(t)}
-                className="cursor-pointer px-6 py-4 text-sm transition-colors hover:bg-slate-50"
+                className="cursor-pointer px-5 py-4 text-sm transition-colors hover:bg-slate-50 sm:px-6"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <p className="font-semibold text-slate-900">{t.transfer_number}</p>
-                    <p className="mt-0.5 text-slate-600">
-                      {t.from_location_name} &rarr; {t.to_location_name}
-                    </p>
-                    <p className="mt-0.5 text-xs text-slate-500">
-                      {t.lines.length} item{t.lines.length === 1 ? "" : "s"}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_STYLES[t.status] ?? "bg-slate-100 text-slate-700"}`}
-                    >
-                      {t.status.replace(/_/g, " ")}
+                  <button
+                    type="button"
+                    className={`rounded-lg text-left ${focusRing}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setViewTarget(t);
+                    }}
+                  >
+                    <span className="block font-semibold text-slate-900">{t.transfer_number}</span>
+                    <span className="mt-0.5 block text-slate-700">
+                      {t.from_location_name} <span aria-hidden>&rarr;</span>
+                      <span className="sr-only">to</span> {t.to_location_name}
                     </span>
+                    <span className="mt-0.5 block text-xs text-slate-600">
+                      {t.lines.length} item{t.lines.length === 1 ? "" : "s"}
+                    </span>
+                  </button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <TransferStatus status={t.status} />
                     {t.status === "in_transit" ? (
-                      <Button
+                      <button
                         type="button"
-                        size="sm"
-                        className="rounded-lg"
+                        className={`${hmsButton.primary} ${smallButton} ${focusRing}`}
                         disabled={busyId === t.id}
                         onClick={(e) => {
                           e.stopPropagation();
@@ -224,22 +274,20 @@ export function InventoryTransfersClient({
                         }}
                       >
                         Confirm receipt
-                      </Button>
+                      </button>
                     ) : null}
                     {t.status === "pending" || t.status === "in_transit" ? (
-                      <Button
+                      <button
                         type="button"
-                        size="sm"
-                        variant="outline"
-                        className="rounded-lg"
+                        className={`${hmsButton.secondary} ${smallButton} ${focusRing}`}
                         disabled={busyId === t.id}
                         onClick={(e) => {
                           e.stopPropagation();
                           void cancelPendingTransfer(t.id);
                         }}
                       >
-                        Cancel
-                      </Button>
+                        Cancel transfer
+                      </button>
                     ) : null}
                   </div>
                 </div>
@@ -247,7 +295,7 @@ export function InventoryTransfersClient({
             ))}
           </ul>
         )}
-      </div>
+      </HmsCard>
 
       <Dialog
         open={open}
@@ -260,15 +308,19 @@ export function InventoryTransfersClient({
           <DialogHeader>
             <DialogTitle>New transfer</DialogTitle>
             <DialogDescription>
-              Stock leaves the source location immediately; destination is credited once receipt is confirmed.
+              Stock leaves the source store straight away. It is added to the destination once receipt is confirmed.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <p className="mb-1 text-xs font-medium text-slate-600">From</p>
+              <HmsField id="inventory-transfer-from" label="From">
                 <Select value={fromLocationId} onValueChange={setFromLocationId}>
-                  <SelectTrigger>
+                  <SelectTrigger
+                    id="inventory-transfer-from"
+                    className="rounded-xl border-slate-300"
+                    aria-invalid={sameLocation || undefined}
+                    aria-describedby={sameLocation ? "inventory-transfer-error" : undefined}
+                  >
                     <SelectValue placeholder="Source location" />
                   </SelectTrigger>
                   <SelectContent>
@@ -279,11 +331,15 @@ export function InventoryTransfersClient({
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-              <div>
-                <p className="mb-1 text-xs font-medium text-slate-600">To</p>
+              </HmsField>
+              <HmsField id="inventory-transfer-to" label="To">
                 <Select value={toLocationId} onValueChange={setToLocationId}>
-                  <SelectTrigger>
+                  <SelectTrigger
+                    id="inventory-transfer-to"
+                    className="rounded-xl border-slate-300"
+                    aria-invalid={sameLocation || undefined}
+                    aria-describedby={sameLocation ? "inventory-transfer-error" : undefined}
+                  >
                     <SelectValue placeholder="Destination location" />
                   </SelectTrigger>
                   <SelectContent>
@@ -294,14 +350,16 @@ export function InventoryTransfersClient({
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
+              </HmsField>
             </div>
-            {fromLocationId && toLocationId && !locationsDiffer ? (
-              <p className="text-xs text-red-600">Source and destination locations must differ.</p>
+            {sameLocation ? (
+              <p id="inventory-transfer-error" role="alert" className="text-sm text-red-700">
+                Source and destination locations must differ.
+              </p>
             ) : null}
 
-            <div className="space-y-2">
-              <p className="text-xs font-medium text-slate-600">Items</p>
+            <div role="group" aria-labelledby="inventory-transfer-lines" className="space-y-2">
+              <h3 id="inventory-transfer-lines" className="text-sm font-medium text-slate-800">Items</h3>
               {lines.map((line, idx) => (
                 <div key={idx} className="flex items-center gap-2">
                   <InventoryItemPicker
@@ -314,12 +372,13 @@ export function InventoryTransfersClient({
                     placeholder="Select item"
                     className="flex-1"
                   />
-                  <Input
+                  <input
                     type="number"
                     min="0"
                     step="any"
                     placeholder="Qty"
-                    className="h-10 w-24"
+                    aria-label={`Quantity, line ${idx + 1}`}
+                    className={qtyInput}
                     value={line.qty}
                     onChange={(e) => updateLine(idx, { qty: e.target.value })}
                   />
@@ -327,22 +386,28 @@ export function InventoryTransfersClient({
                     type="button"
                     variant="ghost"
                     size="icon-sm"
+                    aria-label={`Remove line ${idx + 1}`}
                     onClick={() => removeLine(idx)}
                     disabled={lines.length === 1}
                   >
-                    &times;
+                    <Trash2 className="h-4 w-4 text-slate-600" aria-hidden />
                   </Button>
                 </div>
               ))}
-              <Button type="button" variant="outline" size="sm" onClick={addLine}>
+              <button type="button" className={`${hmsButton.secondary} ${smallButton} ${focusRing}`} onClick={addLine}>
+                <Plus className="h-3.5 w-3.5" aria-hidden />
                 Add item
-              </Button>
+              </button>
             </div>
 
-            <div>
-              <p className="mb-1 text-xs font-medium text-slate-600">Notes</p>
-              <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" />
-            </div>
+            <HmsField id="inventory-transfer-notes" label="Notes" optional>
+              <input
+                id="inventory-transfer-notes"
+                className={hmsInput}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
+            </HmsField>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
@@ -366,35 +431,31 @@ export function InventoryTransfersClient({
 
           {viewTarget ? (
             <div className="space-y-3">
-              <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                <span
-                  className={`rounded-full px-2 py-0.5 font-semibold ${STATUS_STYLES[viewTarget.status] ?? "bg-slate-100 text-slate-700"}`}
-                >
-                  {viewTarget.status.replace(/_/g, " ")}
-                </span>
+              <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
+                <TransferStatus status={viewTarget.status} />
                 <span>Created {new Date(viewTarget.created_at).toLocaleString()}</span>
               </div>
 
               {viewTarget.notes ? (
-                <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">Note: {viewTarget.notes}</p>
+                <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">Note: {viewTarget.notes}</p>
               ) : null}
 
-              <div className="overflow-hidden rounded-lg border border-slate-200">
+              <div className="overflow-hidden rounded-xl border border-slate-200">
                 <table className="w-full text-sm">
-                  <thead className="bg-slate-50 text-xs font-medium uppercase tracking-wide text-slate-500">
+                  <thead className="bg-slate-50 text-sm font-medium text-slate-600">
                     <tr>
-                      <th className="px-3 py-2 text-left">Item</th>
-                      <th className="px-3 py-2 text-right">Qty</th>
+                      <th scope="col" className="px-3 py-2 text-left">Item</th>
+                      <th scope="col" className="px-3 py-2 text-right">Qty</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {viewTarget.lines.map((l) => (
                       <tr key={l.id}>
-                        <td className="px-3 py-2">
+                        <td className="px-3 py-3">
                           <p className="font-medium text-slate-900">{l.item_name}</p>
-                          <p className="text-xs text-slate-400">{l.item_sku}</p>
+                          <p className="text-xs text-slate-600">{l.item_sku}</p>
                         </td>
-                        <td className="px-3 py-2 text-right tabular-nums text-slate-700">
+                        <td className="px-3 py-3 text-right tabular-nums text-slate-700">
                           {l.qty} {l.unit_of_measure}
                         </td>
                       </tr>
@@ -405,10 +466,9 @@ export function InventoryTransfersClient({
 
               <div className="flex justify-end gap-2">
                 {viewTarget.status === "in_transit" ? (
-                  <Button
+                  <button
                     type="button"
-                    size="sm"
-                    className="rounded-lg"
+                    className={`${hmsButton.primary} ${smallButton} ${focusRing}`}
                     disabled={busyId === viewTarget.id}
                     onClick={() => {
                       void confirmReceipt(viewTarget.id);
@@ -416,22 +476,20 @@ export function InventoryTransfersClient({
                     }}
                   >
                     Confirm receipt
-                  </Button>
+                  </button>
                 ) : null}
                 {viewTarget.status === "pending" || viewTarget.status === "in_transit" ? (
-                  <Button
+                  <button
                     type="button"
-                    size="sm"
-                    variant="outline"
-                    className="rounded-lg"
+                    className={`${hmsButton.secondary} ${smallButton} ${focusRing}`}
                     disabled={busyId === viewTarget.id}
                     onClick={() => {
                       void cancelPendingTransfer(viewTarget.id);
                       setViewTarget(null);
                     }}
                   >
-                    Cancel
-                  </Button>
+                    Cancel transfer
+                  </button>
                 ) : null}
               </div>
             </div>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   ArrowDownCircle,
+  ArrowLeftRight,
   ArrowUpCircle,
   ClipboardList,
   Package,
@@ -13,13 +14,14 @@ import {
   Trash2,
   Wallet,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import type { InventoryMovementWithDetails, InventoryStockLevelWithDetails } from "@/lib/hms/inventory-types";
 import type { InventoryDashboardStats } from "@/lib/hms/inventory-stock";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import { useInventoryRealtime } from "@/hooks/useInventoryRealtime";
-import { SettingsSectionInfo } from "@/components/hms/settings/SettingsSectionInfo";
 import { InventorySubNav } from "@/components/hms/inventory/InventorySubNav";
+import { HmsStatTile } from "@/components/hms/dashboard-tiles";
+import { HmsCard, HmsEmptyState, HmsPage, HmsPageHeader, HmsPill, HmsStatStrip, hmsButton } from "@/components/hms/hms-ui";
+import type { HmsMeaning } from "@/components/hms/meaning";
 
 function formatWhen(iso: string) {
   try {
@@ -44,6 +46,16 @@ const MOVEMENT_LABELS: Record<InventoryMovementWithDetails["movement_type"], str
   count_variance: "Count variance",
 };
 
+const MOVEMENT_TONES: Record<InventoryMovementWithDetails["movement_type"], "slate" | "green" | "amber" | "red" | "blue"> = {
+  receipt: "green",
+  issue: "blue",
+  transfer_out: "blue",
+  transfer_in: "green",
+  adjustment: "slate",
+  waste: "red",
+  count_variance: "amber",
+};
+
 /** Movement types that reduce qty_on_hand by convention (used only for sign display fallback). */
 const NEGATIVE_TYPES = new Set(["issue", "transfer_out", "waste"]);
 
@@ -57,8 +69,11 @@ type KpiTile = {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   value: string;
-  tone: "slate" | "amber" | "red" | "green";
+  meaning: HmsMeaning;
+  status?: "warning" | "critical";
 };
+
+const TH = "px-5 py-3 font-medium";
 
 export function InventoryDashboardClient({
   slug,
@@ -81,184 +96,178 @@ export function InventoryDashboardClient({
   useInventoryRealtime(tenantId, () => router.refresh());
 
   const tiles: KpiTile[] = [
-    { icon: Package, label: "Tracked SKUs", value: stats.skuCount.toLocaleString(), tone: "slate" },
-    { icon: Wallet, label: "Stock value", value: formatPricingAmount(stats.stockValue, currency), tone: "slate" },
+    { icon: Package, label: "Tracked SKUs", value: stats.skuCount.toLocaleString(), meaning: "stock" },
+    { icon: Wallet, label: "Stock value", value: formatPricingAmount(stats.stockValue, currency), meaning: "money" },
     {
       icon: AlertTriangle,
       label: "Low-stock items",
       value: stats.lowStockCount.toLocaleString(),
-      tone: stats.lowStockCount > 0 ? "amber" : "slate",
+      meaning: "attention",
+      status: stats.lowStockCount > 0 ? "warning" : undefined,
     },
     {
       icon: ClipboardList,
       label: "Pending requisitions",
       value: stats.pendingRequisitions.toLocaleString(),
-      tone: stats.pendingRequisitions > 0 ? "amber" : "slate",
+      meaning: "team",
+      status: stats.pendingRequisitions > 0 ? "warning" : undefined,
     },
-    { icon: ArrowDownCircle, label: "Today's receipts", value: stats.todayReceipts.toLocaleString(), tone: "green" },
-    { icon: ArrowUpCircle, label: "Today's issues", value: stats.todayIssues.toLocaleString(), tone: "slate" },
-    { icon: Trash2, label: "Today's waste", value: stats.todayWaste.toLocaleString(), tone: stats.todayWaste > 0 ? "red" : "slate" },
+    { icon: ArrowDownCircle, label: "Today's receipts", value: stats.todayReceipts.toLocaleString(), meaning: "stock" },
+    { icon: ArrowUpCircle, label: "Today's issues", value: stats.todayIssues.toLocaleString(), meaning: "rooms" },
+    { icon: Trash2, label: "Today's waste", value: stats.todayWaste.toLocaleString(), meaning: "food", status: stats.todayWaste > 0 ? "critical" : undefined },
   ];
 
   return (
-    <div className="px-8 py-8">
-      <div className="flex flex-wrap items-center gap-1.5">
-        <h1 className="text-xl font-semibold text-slate-900">Inventory</h1>
-        <SettingsSectionInfo
-          title="Inventory"
-          text="Live view of stock levels, today's activity, and reorder alerts across every store. Use the buttons below to jump straight into receiving, requisitions, or waste."
-        />
-      </div>
-      <p className="mt-0.5 text-sm text-slate-500">
-        Stock levels, movements, and reorder status across every store location.
-      </p>
-
-      <div className="mt-4 mb-4 flex flex-wrap gap-3">
-        {canAccessAllDepartments ? (
-          <Button asChild className="h-11 rounded-xl px-5 font-semibold shadow-sm">
-            <Link href={`/hms/${slug}/settings#inventory-setup`}>
-              <PlusCircle className="mr-2 h-4 w-4" />
-              New item
+    <HmsPage>
+      <HmsPageHeader
+        eyebrow="Inventory"
+        meaning="stock"
+        title="Inventory"
+        description="Stock levels, today's activity and reorder alerts across every store."
+        actions={
+          <>
+            {canAccessAllDepartments ? (
+              <Link href={`/hms/${slug}/settings#inventory-setup`} className={hmsButton.primary}>
+                <PlusCircle className="h-4 w-4" aria-hidden />
+                New item
+              </Link>
+            ) : null}
+            <Link href={`/hms/${slug}/inventory/receiving`} className={hmsButton.secondary}>
+              <PackagePlus className="h-4 w-4" aria-hidden />
+              Receive stock
             </Link>
-          </Button>
-        ) : null}
-        <Button asChild variant="outline" className="h-11 rounded-xl px-5 font-semibold shadow-sm">
-          <Link href={`/hms/${slug}/inventory/receiving`}>
-            <PackagePlus className="mr-2 h-4 w-4" />
-            Receive stock
-          </Link>
-        </Button>
-        <Button asChild variant="outline" className="h-11 rounded-xl px-5 font-semibold shadow-sm">
-          <Link href={`/hms/${slug}/inventory/requisitions`}>
-            <ArrowUpCircle className="mr-2 h-4 w-4" />
-            New requisition
-          </Link>
-        </Button>
-        <Button asChild variant="outline" className="h-11 rounded-xl px-5 font-semibold shadow-sm">
-          <Link href={`/hms/${slug}/inventory/waste`}>
-            <Trash2 className="mr-2 h-4 w-4" />
-            Record waste
-          </Link>
-        </Button>
-      </div>
+            <Link href={`/hms/${slug}/inventory/requisitions`} className={hmsButton.secondary}>
+              <ArrowUpCircle className="h-4 w-4" aria-hidden />
+              New requisition
+            </Link>
+            <Link href={`/hms/${slug}/inventory/waste`} className={hmsButton.secondary}>
+              <Trash2 className="h-4 w-4" aria-hidden />
+              Record waste
+            </Link>
+          </>
+        }
+      />
 
       <InventorySubNav slug={slug} canAccessAllDepartments={canAccessAllDepartments} />
 
-      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <HmsStatStrip label="Inventory at a glance">
         {tiles.map((tile) => (
-          <KpiCard key={tile.label} {...tile} />
+          <HmsStatTile key={tile.label} {...tile} statusText={tile.status === "critical" ? "Waste recorded today" : undefined} />
         ))}
-      </div>
+      </HmsStatStrip>
 
-      <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <section className="rounded-xl border border-slate-200 bg-white">
-          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-            <h2 className="text-sm font-semibold text-slate-900">Low stock</h2>
-            <span className="text-xs text-slate-400">{lowStock.length} item{lowStock.length === 1 ? "" : "s"}</span>
-          </div>
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <HmsCard
+          id="inventory-low-stock"
+          title="Low stock"
+          description={`${lowStock.length} item${lowStock.length === 1 ? "" : "s"} at or below the reorder point`}
+          icon={AlertTriangle}
+          meaning="attention"
+          flush
+        >
           {lowStock.length === 0 ? (
-            <p className="px-5 py-6 text-sm text-slate-500">No items are currently below their reorder point.</p>
+            <HmsEmptyState
+              bare
+              art="box"
+              meaning="stock"
+              title="Nothing is running low"
+              description="No items are currently below their reorder point."
+            />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-slate-100 text-left text-xs font-medium uppercase tracking-wide text-slate-400">
-                    <th className="px-5 py-2.5">Item</th>
-                    <th className="px-5 py-2.5">Location</th>
-                    <th className="px-5 py-2.5 text-right">On hand</th>
-                    <th className="px-5 py-2.5 text-right">Reorder point</th>
+                  <tr className="border-b border-slate-100 text-left text-sm text-slate-600">
+                    <th className={TH}>Item</th>
+                    <th className={TH}>Location</th>
+                    <th className={`${TH} text-right`}>On hand</th>
+                    <th className={`${TH} text-right`}>Reorder point</th>
                   </tr>
                 </thead>
                 <tbody>
                   {lowStock.map((level) => (
-                    <tr key={level.id} className="border-b border-slate-50 last:border-0">
-                      <td className="px-5 py-2.5">
-                        <div className="font-medium text-slate-800">{level.item_name}</div>
-                        <div className="text-xs text-slate-400">{level.item_sku}</div>
+                    <tr key={level.id} className="border-b border-slate-100 last:border-0">
+                      <td className="px-5 py-3">
+                        <div className="font-medium text-slate-900">{level.item_name}</div>
+                        <div className="text-xs text-slate-600">{level.item_sku}</div>
                       </td>
-                      <td className="px-5 py-2.5 text-slate-600">{level.location_name}</td>
-                      <td className="px-5 py-2.5 text-right font-medium text-amber-600">
+                      <td className="px-5 py-3 text-slate-700">{level.location_name}</td>
+                      <td className="px-5 py-3 text-right font-semibold tabular-nums text-rose-700">
                         {level.qty_on_hand} {level.unit_of_measure}
                       </td>
-                      <td className="px-5 py-2.5 text-right text-slate-500">{level.reorder_point}</td>
+                      <td className="px-5 py-3 text-right tabular-nums text-slate-700">{level.reorder_point}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           )}
-        </section>
+        </HmsCard>
 
-        <section className="rounded-xl border border-slate-200 bg-white">
-          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-            <h2 className="text-sm font-semibold text-slate-900">Recent stock movements</h2>
-            <span className="text-xs text-slate-400">
-              {movements.length} recent
-            </span>
-          </div>
+        <HmsCard
+          id="inventory-recent-movements"
+          title="Recent stock movements"
+          description={`The last ${movements.length} changes to stock`}
+          icon={ArrowLeftRight}
+          meaning="stock"
+          flush
+        >
           {movements.length === 0 ? (
-            <p className="px-5 py-6 text-sm text-slate-500">No stock movements yet.</p>
+            <HmsEmptyState
+              bare
+              art="truck"
+              meaning="stock"
+              title="No stock movements yet"
+              description="Receipts, issues, transfers and waste will appear here as they happen."
+            />
           ) : (
-            <div className="max-h-[560px] overflow-y-auto">
+            <div className="max-h-[560px] overflow-auto">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-white">
-                  <tr className="border-b border-slate-100 text-left text-xs font-medium uppercase tracking-wide text-slate-400">
-                    <th className="px-5 py-2.5">Type</th>
-                    <th className="px-5 py-2.5">Item</th>
-                    <th className="px-5 py-2.5 text-right">Qty</th>
-                    <th className="px-5 py-2.5">Location</th>
-                    <th className="px-5 py-2.5">When</th>
+                  <tr className="border-b border-slate-100 text-left text-sm text-slate-600">
+                    <th className={TH}>Type</th>
+                    <th className={TH}>Item</th>
+                    <th className={`${TH} text-right`}>Qty</th>
+                    <th className={TH}>Location</th>
+                    <th className={TH}>When</th>
                   </tr>
                 </thead>
                 <tbody>
                   {movements.map((m) => (
-                    <tr key={m.id} className="border-b border-slate-50 last:border-0">
-                      <td className="px-5 py-2.5 text-slate-700">{MOVEMENT_LABELS[m.movement_type] ?? m.movement_type}</td>
-                      <td className="px-5 py-2.5">
-                        <div className="font-medium text-slate-800">{m.item_name}</div>
-                        <div className="text-xs text-slate-400">{m.item_sku}</div>
+                    <tr key={m.id} className="border-b border-slate-100 last:border-0">
+                      <td className="px-5 py-3">
+                        <HmsPill tone={MOVEMENT_TONES[m.movement_type] ?? "slate"}>{MOVEMENT_LABELS[m.movement_type] ?? m.movement_type}</HmsPill>
+                      </td>
+                      <td className="px-5 py-3">
+                        <div className="font-medium text-slate-900">{m.item_name}</div>
+                        <div className="text-xs text-slate-600">{m.item_sku}</div>
                       </td>
                       <td
-                        className={`px-5 py-2.5 text-right font-medium ${
-                          m.qty > 0 ? "text-emerald-600" : m.qty < 0 ? "text-red-500" : "text-slate-500"
+                        className={`whitespace-nowrap px-5 py-3 text-right font-medium tabular-nums ${
+                          m.qty > 0 ? "text-emerald-700" : m.qty < 0 ? "text-red-700" : "text-slate-700"
                         }`}
                       >
                         {signedQty(m)} {m.unit_of_measure}
                       </td>
-                      <td className="px-5 py-2.5 text-slate-600">
+                      <td className="px-5 py-3 text-slate-700">
                         {m.location_name}
                         {m.related_location_name ? (
-                          <span className="text-xs text-slate-400"> → {m.related_location_name}</span>
+                          <span className="text-xs text-slate-600">
+                            {" "}
+                            <span aria-hidden>→</span>
+                            <span className="sr-only">to</span> {m.related_location_name}
+                          </span>
                         ) : null}
                       </td>
-                      <td className="px-5 py-2.5 text-slate-500">{formatWhen(m.created_at)}</td>
+                      <td className="whitespace-nowrap px-5 py-3 text-slate-600">{formatWhen(m.created_at)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           )}
-        </section>
+        </HmsCard>
       </div>
-    </div>
-  );
-}
-
-function KpiCard({ icon: Icon, label, value, tone }: KpiTile) {
-  const toneClasses: Record<KpiTile["tone"], string> = {
-    slate: "bg-slate-50 text-slate-600",
-    amber: "bg-amber-50 text-amber-600",
-    red: "bg-red-50 text-red-600",
-    green: "bg-emerald-50 text-emerald-600",
-  };
-
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white px-5 py-5">
-      <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${toneClasses[tone]}`}>
-        <Icon className="h-5 w-5" />
-      </div>
-      <p className="mt-4 text-[11px] font-medium uppercase tracking-[0.18em] text-slate-400">{label}</p>
-      <p className="mt-1.5 text-2xl font-semibold tracking-tight text-slate-900">{value}</p>
-    </div>
+    </HmsPage>
   );
 }

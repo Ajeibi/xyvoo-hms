@@ -100,12 +100,14 @@ export default async function HMSDashboardPage({ params }: { params: Promise<{ s
             {
               icon: BedDouble,
               label: "Total rooms",
+              meaning: "rooms",
               value: String(roomPricingSummary.totalRooms),
               description: "Registered inventory currently on file.",
             },
             {
               icon: ChartNoAxesColumn,
               label: "Rate band",
+              meaning: "money",
               value: rateBand,
               description: "Current sell range from your pricing setup.",
             },
@@ -114,12 +116,14 @@ export default async function HMSDashboardPage({ params }: { params: Promise<{ s
             {
               icon: CalendarDays,
               label: "Reservations",
+              meaning: "rooms",
               value: String(reservationRecordCount),
               description: "Total reservations on file for this property.",
             },
             {
               icon: Users,
               label: "Guests",
+              meaning: "guests",
               value: String(inHouseGuestHeadcount),
               description: "Headcount on in-house stays (adults + children from active reservations).",
             },

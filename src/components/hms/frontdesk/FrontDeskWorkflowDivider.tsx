@@ -6,7 +6,7 @@ export function FrontDeskWorkflowDivider({ label }: { label: string }) {
       aria-label={label}
     >
       <div className="h-px flex-1 bg-slate-200" />
-      <span className="shrink-0 rounded-full border border-slate-200 bg-white px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 shadow-sm shadow-slate-200/40">
+      <span className="shrink-0 rounded-full bg-sky-50 px-4 py-1.5 text-sm font-semibold text-sky-900">
         {label}
       </span>
       <div className="h-px flex-1 bg-slate-200" />

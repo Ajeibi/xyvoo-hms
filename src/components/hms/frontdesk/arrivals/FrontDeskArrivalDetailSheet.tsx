@@ -35,6 +35,8 @@ import {
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import { READINESS_LABEL } from "./FrontDeskAssignRoomPicker";
 import { cn } from "@/lib/utils";
+import { HmsAlert, HmsField, HmsIconBadge, HmsPill, hmsInput } from "@/components/hms/hms-ui";
+import type { HmsMeaning } from "@/components/hms/meaning";
 
 type GuestRequest = {
   id: string;
@@ -79,31 +81,31 @@ function DetailField({
 }) {
   return (
     <div className={cn("min-w-0", className)}>
-      <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</dt>
-      <dd className="mt-1 text-sm font-medium text-slate-900">{value || "—"}</dd>
+      <dt className="text-sm text-slate-600">{label}</dt>
+      <dd className="mt-0.5 text-sm font-medium text-slate-900">{value || "—"}</dd>
     </div>
   );
 }
 
 function SectionCard({
-  icon: Icon,
+  icon,
+  meaning = "neutral",
   title,
   children,
   action,
 }: {
   icon: React.ComponentType<{ className?: string }>;
+  meaning?: HmsMeaning;
   title: string;
   children: ReactNode;
   action?: ReactNode;
 }) {
   return (
-    <Card className="shadow-none ring-slate-200/80">
+    <Card className="rounded-2xl shadow-sm ring-slate-200/80">
       <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0 border-b border-slate-100 pb-3">
-        <div className="flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
-            <Icon className="h-4 w-4" />
-          </span>
-          <CardTitle className="text-base font-semibold text-slate-900">{title}</CardTitle>
+        <div className="flex items-center gap-3">
+          <HmsIconBadge icon={icon} meaning={meaning} />
+          <CardTitle className="font-heading text-base font-semibold text-slate-900">{title}</CardTitle>
         </div>
         {action}
       </CardHeader>
@@ -111,6 +113,8 @@ function SectionCard({
     </Card>
   );
 }
+
+const TEXTAREA = cn(hmsInput, "min-h-[72px]");
 
 function DetailSkeleton() {
   return (
@@ -324,17 +328,13 @@ export function FrontDeskArrivalDetailSheet({
                   {r?.confirmationCode ?? "Arrival"}
                 </SheetTitle>
                 {r ? <StatusPill status={r.status} /> : null}
-                {r?.isVip ? (
-                  <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold uppercase text-amber-900">
-                    VIP
-                  </span>
-                ) : null}
+                {r?.isVip ? <HmsPill tone="amber">VIP</HmsPill> : null}
               </div>
               <SheetDescription className="mt-1 text-base font-medium text-slate-700">
                 {g?.displayName ?? "Guest details"}
               </SheetDescription>
               {r ? (
-                <p className="mt-2 text-sm text-slate-500">
+                <p className="mt-2 text-sm text-slate-600">
                   {r.bookingSourceLabel} · Folio {r.folioNumber}
                 </p>
               ) : null}
@@ -346,13 +346,15 @@ export function FrontDeskArrivalDetailSheet({
           {loading && !detail ? <DetailSkeleton /> : null}
 
           {!loading && !detail && reservationId ? (
-            <p className="p-6 text-sm text-slate-500">Could not load reservation details.</p>
+            <p role="alert" className="m-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+              We couldn&apos;t load this booking. Close this panel and open it again.
+            </p>
           ) : null}
 
           {detail && r ? (
             <div className="space-y-4 p-6">
               <div className="grid gap-4 lg:grid-cols-2">
-                <SectionCard icon={CircleUser} title="Guest">
+                <SectionCard icon={CircleUser} meaning="guests" title="Guest">
                   {g ? (
                     <dl className="grid gap-4 sm:grid-cols-2">
                       <DetailField label="Name" value={g.displayName} className="sm:col-span-2" />
@@ -371,19 +373,19 @@ export function FrontDeskArrivalDetailSheet({
                       {g.dateOfBirth ? <DetailField label="Date of birth" value={g.dateOfBirth} /> : null}
                     </dl>
                   ) : (
-                    <p className="text-sm text-slate-500">No guest profile linked.</p>
+                    <p className="text-sm text-slate-600">No guest profile is linked to this booking.</p>
                   )}
                   {g?.id ? (
-                    <Button asChild variant="outline" size="sm" className="mt-4 w-full sm:w-auto">
+                    <Button asChild variant="outline" size="sm" className="mt-4 w-full rounded-xl sm:w-auto">
                       <Link href={`/hms/${slug}/guests/${g.id}`}>
                         Open guest profile
-                        <ExternalLink className="ml-2 h-3.5 w-3.5" />
+                        <ExternalLink className="ml-2 h-3.5 w-3.5" aria-hidden />
                       </Link>
                     </Button>
                   ) : null}
                 </SectionCard>
 
-                <SectionCard icon={CalendarRange} title="Stay">
+                <SectionCard icon={CalendarRange} meaning="rooms" title="Stay">
                   <dl className="grid gap-4 sm:grid-cols-2">
                     <DetailField
                       label="Arrival"
@@ -429,10 +431,11 @@ export function FrontDeskArrivalDetailSheet({
 
               <SectionCard
                 icon={BedDouble}
+                meaning="rooms"
                 title="Room"
                 action={
                   capabilities.canAssignRoom && r.status === "confirmed" ? (
-                    <Button type="button" size="sm" variant="outline" onClick={onAssignRoom}>
+                    <Button type="button" size="sm" variant="outline" className="rounded-xl" onClick={onAssignRoom}>
                       Assign room
                     </Button>
                   ) : null
@@ -472,20 +475,22 @@ export function FrontDeskArrivalDetailSheet({
               {capabilities.canViewFolioFinancials ? (
                 <SectionCard
                   icon={CreditCard}
-                  title="Financial"
+                  meaning="money"
+                  title="Bill and payments"
                   action={
-                    <Button asChild size="sm" variant="outline">
+                    <Button asChild size="sm" variant="outline" className="rounded-xl">
                       <Link
                         href={`/hms/${slug}/frontdesk/folio?code=${encodeURIComponent(r.confirmationCode)}`}
                       >
                         Open folio
-                        <ExternalLink className="ml-2 h-3.5 w-3.5" />
+                        <ExternalLink className="ml-2 h-3.5 w-3.5" aria-hidden />
                       </Link>
                     </Button>
                   }
                 >
-                  <div className="flex flex-wrap items-center gap-3 rounded-lg bg-slate-50 px-4 py-3 ring-1 ring-slate-200/80">
+                  <div className="flex flex-wrap items-center gap-3 rounded-xl bg-emerald-50 px-4 py-3">
                     <span
+                      aria-hidden
                       className={cn(
                         "h-2.5 w-2.5 shrink-0 rounded-full",
                         PAYMENT_DOT_CLASS[detail.folio.displayStatus],
@@ -494,21 +499,22 @@ export function FrontDeskArrivalDetailSheet({
                     <span className="text-sm font-semibold text-slate-900">
                       {PAYMENT_STATUS_LABEL[detail.folio.displayStatus]}
                     </span>
-                    <span className="text-sm text-slate-500">·</span>
-                    <span className="text-sm text-slate-600">
+                    <span aria-hidden className="text-sm text-slate-600">·</span>
+                    <span className="text-sm text-slate-700">
                       Balance{" "}
                       <span className="font-semibold text-slate-900">{detail.folio.balanceFormatted}</span>
                     </span>
-                    <span className="text-sm text-slate-500">·</span>
-                    <span className="text-sm text-slate-600">
+                    <span aria-hidden className="text-sm text-slate-600">·</span>
+                    <span className="text-sm text-slate-700">
                       Room charges {formatPricingAmount(r.totalRoomCharges, currency)}
                     </span>
                   </div>
 
                   {detail.folio.lines.length > 0 ? (
-                    <div className="thin-scrollbar mt-4 max-h-52 overflow-auto rounded-lg border border-slate-200 bg-white">
+                    <div className="thin-scrollbar mt-4 max-h-52 overflow-auto rounded-xl border border-slate-200 bg-white">
                       <table className="min-w-full text-sm">
-                        <thead className="sticky top-0 bg-slate-50 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                        <caption className="sr-only">Charges on the folio</caption>
+                        <thead className="sticky top-0 bg-slate-50 text-left text-sm font-semibold text-slate-700">
                           <tr>
                             <th className="px-3 py-2">When</th>
                             <th className="px-3 py-2">Description</th>
@@ -541,46 +547,41 @@ export function FrontDeskArrivalDetailSheet({
                       </table>
                     </div>
                   ) : (
-                    <p className="mt-3 text-sm text-slate-500">No folio lines posted yet.</p>
+                    <p className="mt-3 text-sm text-slate-600">Nothing has been charged to this folio yet.</p>
                   )}
                 </SectionCard>
               ) : null}
 
               {capabilities.canEditNotes ? (
-                <SectionCard icon={StickyNote} title="Notes">
-                  <div className="space-y-3">
-                    <div>
-                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        Guest remarks
-                      </label>
+                <SectionCard icon={StickyNote} meaning="guests" title="Notes">
+                  <div className="space-y-4">
+                    <HmsField id="arrival-guest-remarks" label="Guest remarks" hint="Shown on the registration card.">
                       <textarea
-                        className="flex min-h-[72px] w-full rounded-lg border border-input bg-white px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                        placeholder="Visible on registration"
+                        id="arrival-guest-remarks"
+                        aria-describedby="arrival-guest-remarks-hint"
+                        className={TEXTAREA}
                         value={guestRemarks}
                         onChange={(e) => setGuestRemarks(e.target.value)}
                       />
-                    </div>
-                    <div>
-                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        Room preferences
-                      </label>
+                    </HmsField>
+                    <HmsField id="arrival-room-preferences" label="Room preferences">
                       <textarea
-                        className="flex min-h-[72px] w-full rounded-lg border border-input bg-white px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                        id="arrival-room-preferences"
+                        className={TEXTAREA}
                         value={roomPreferences}
                         onChange={(e) => setRoomPreferences(e.target.value)}
                       />
-                    </div>
-                    <div>
-                      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                        VIP notes (internal)
-                      </label>
+                    </HmsField>
+                    <HmsField id="arrival-vip-notes" label="VIP notes" hint="For staff only. The guest never sees these.">
                       <textarea
-                        className="flex min-h-[72px] w-full rounded-lg border border-input bg-white px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                        id="arrival-vip-notes"
+                        aria-describedby="arrival-vip-notes-hint"
+                        className={TEXTAREA}
                         value={vipNotes}
                         onChange={(e) => setVipNotes(e.target.value)}
                       />
-                    </div>
-                    <Button type="button" size="sm" onClick={() => saveNotes()} disabled={saving}>
+                    </HmsField>
+                    <Button type="button" size="sm" className="rounded-xl" onClick={() => saveNotes()} disabled={saving}>
                       {saving ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -595,22 +596,22 @@ export function FrontDeskArrivalDetailSheet({
               ) : null}
 
               {capabilities.canManageRequests ? (
-                <SectionCard icon={ClipboardList} title="Special requests">
+                <SectionCard icon={ClipboardList} meaning="guests" title="Special requests">
                   <ul className="space-y-2">
                     {requests.length === 0 ? (
-                      <li className="text-sm text-slate-500">No requests logged.</li>
+                      <li className="text-sm text-slate-600">No special requests yet.</li>
                     ) : (
                       requests.map((req) => (
                         <li
                           key={req.id}
-                          className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2.5"
+                          className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5"
                         >
                           <div className="min-w-0">
                             <p className="font-medium text-slate-900">{req.requestType}</p>
-                            <p className="text-xs text-slate-500">
+                            <p className="text-xs text-slate-600">
                               {req.department.replace(/_/g, " ")} · {req.status}
                               {req.confirmedAt ? (
-                                <span className="ml-1.5 text-emerald-600">· confirmed with guest</span>
+                                <span className="ml-1.5 text-emerald-700">· confirmed with guest</span>
                               ) : null}
                             </p>
                           </div>
@@ -635,24 +636,34 @@ export function FrontDeskArrivalDetailSheet({
                       ))
                     )}
                   </ul>
-                  {requestError ? <p className="mt-2 text-xs text-red-600">{requestError}</p> : null}
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <select
-                      className="h-9 cursor-pointer rounded-lg border border-input bg-white px-3 text-sm"
-                      value={requestDepartment}
-                      onChange={(e) => setRequestDepartment(e.target.value)}
-                    >
-                      <option value="front_desk">Front desk</option>
-                      <option value="housekeeping">Housekeeping</option>
-                      <option value="f_and_b">F&B</option>
-                    </select>
-                    <Input
-                      className="min-w-[160px] flex-1"
-                      placeholder="e.g. Early check-in, cot"
-                      value={newRequestType}
-                      onChange={(e) => setNewRequestType(e.target.value)}
-                    />
-                    <Button type="button" size="sm" onClick={() => addRequest()}>
+                  {requestError ? (
+                    <div className="mt-3">
+                      <HmsAlert message={requestError} />
+                    </div>
+                  ) : null}
+                  <div className="mt-4 grid gap-3 sm:grid-cols-[auto_1fr_auto] sm:items-end">
+                    <HmsField id="arrival-request-department" label="Department">
+                      <select
+                        id="arrival-request-department"
+                        className={cn(hmsInput, "cursor-pointer")}
+                        value={requestDepartment}
+                        onChange={(e) => setRequestDepartment(e.target.value)}
+                      >
+                        <option value="front_desk">Front desk</option>
+                        <option value="housekeeping">Housekeeping</option>
+                        <option value="f_and_b">Food and drink</option>
+                      </select>
+                    </HmsField>
+                    <HmsField id="arrival-request-type" label="Request">
+                      <Input
+                        id="arrival-request-type"
+                        className="h-11 min-w-[160px] rounded-xl border-slate-300"
+                        placeholder="For example, early check-in or a cot"
+                        value={newRequestType}
+                        onChange={(e) => setNewRequestType(e.target.value)}
+                      />
+                    </HmsField>
+                    <Button type="button" className="h-11 rounded-xl" onClick={() => addRequest()}>
                       Add request
                     </Button>
                   </div>
@@ -662,9 +673,9 @@ export function FrontDeskArrivalDetailSheet({
               <SectionCard icon={History} title="Activity">
                 <ul className="max-h-56 space-y-3 overflow-y-auto pr-1">
                   {(detail.activityTimeline ?? detail.auditTimeline).map((a) => (
-                    <li key={a.id} className="relative border-l-2 border-slate-200 pl-4 text-sm">
+                    <li key={a.id} className="relative border-l-2 border-sky-200 pl-4 text-sm">
                       <p className="text-slate-800">{a.message}</p>
-                      <p className="mt-0.5 text-xs text-slate-500">
+                      <p className="mt-0.5 text-xs text-slate-600">
                         {new Date(a.createdAt).toLocaleString("en-US", {
                           month: "short",
                           day: "numeric",
@@ -675,7 +686,7 @@ export function FrontDeskArrivalDetailSheet({
                     </li>
                   ))}
                   {(detail.activityTimeline ?? detail.auditTimeline).length === 0 ? (
-                    <li className="text-sm text-slate-500">No activity yet.</li>
+                    <li className="text-sm text-slate-600">Nothing has happened on this booking yet.</li>
                   ) : null}
                 </ul>
               </SectionCard>
@@ -687,41 +698,46 @@ export function FrontDeskArrivalDetailSheet({
           <div className="shrink-0 border-t border-slate-200 bg-white px-6 py-4">
             <div className="flex flex-wrap items-center gap-2">
               {capabilities.canCheckIn && r.status === "confirmed" ? (
-                <Button type="button" className="min-w-[120px]" onClick={onCheckIn}>
+                <Button type="button" className="min-w-[120px] rounded-xl font-semibold" onClick={onCheckIn}>
                   Check in guest
                 </Button>
               ) : null}
               {capabilities.canAssignRoom && r.status === "confirmed" ? (
-                <Button type="button" variant="outline" onClick={onAssignRoom}>
+                <Button type="button" variant="outline" className="rounded-xl" onClick={onAssignRoom}>
                   Assign room
                 </Button>
               ) : null}
-              <Button asChild variant="outline">
+              <Button asChild variant="outline" className="rounded-xl">
                 <Link href={`/hms/${slug}/frontdesk/folio?code=${encodeURIComponent(r.confirmationCode)}`}>
-                  Folio
+                  Open folio
                 </Link>
               </Button>
             </div>
 
             {capabilities.canMarkNoShow && r.status === "confirmed" ? (
-              <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
-                <Input
-                  type="number"
-                  min={0}
-                  placeholder="No-show penalty"
-                  className="h-9 w-36"
-                  value={penaltyAmount}
-                  onChange={(e) => setPenaltyAmount(e.target.value)}
-                />
-                <Button type="button" variant="destructive" size="sm" onClick={() => markNoShow()}>
-                  Mark no-show
+              <div className="mt-3 flex flex-wrap items-end gap-2 border-t border-slate-100 pt-3">
+                <div>
+                  <label htmlFor="arrival-noshow-penalty" className="mb-1 block text-sm font-medium text-slate-800">
+                    No-show charge <span className="font-normal text-slate-600">(optional)</span>
+                  </label>
+                  <Input
+                    id="arrival-noshow-penalty"
+                    type="number"
+                    min={0}
+                    className="h-10 w-40 rounded-xl border-slate-300"
+                    value={penaltyAmount}
+                    onChange={(e) => setPenaltyAmount(e.target.value)}
+                  />
+                </div>
+                <Button type="button" variant="destructive" className="h-10 rounded-xl" onClick={() => markNoShow()}>
+                  Mark as no-show
                 </Button>
               </div>
             ) : null}
 
             {r.status === "no_show" ? (
               <div className="mt-3 border-t border-slate-100 pt-3">
-                <Button type="button" variant="outline" size="sm" onClick={() => reopenNoShow()}>
+                <Button type="button" variant="outline" size="sm" className="rounded-xl" onClick={() => reopenNoShow()}>
                   Reopen reservation
                 </Button>
               </div>

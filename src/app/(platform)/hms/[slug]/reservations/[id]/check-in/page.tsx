@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import HMSLayout from "@/components/hms/HMSLayout";
+import { HmsPage, HmsPageHeader } from "@/components/hms/hms-ui";
 import { FrontDeskCheckInForm } from "@/components/hms/frontdesk/FrontDeskCheckInForm";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { getCheckInFormInitialData } from "@/lib/hms/check-in-form-initial-data";
@@ -75,25 +76,22 @@ export default async function ReservationCheckInPage({
 
   return (
     <HMSLayout slug={slug} requiredSection="reservations">
-      <div className="w-full px-6 py-8 sm:px-8">
-        <div className="mb-6">
-          <Link
-            href={`/hms/${slug}/reservations`}
-            className="text-sm font-medium text-blue-600 hover:underline"
-          >
-            ← Back to reservations
-          </Link>
-          <h1 className="mt-4 text-2xl font-semibold tracking-tight text-slate-900">
-            Complete check-in — {prefill.confirmationCode}
-          </h1>
-          <p className="mt-2 text-sm text-slate-500">
-            {prefill.guestName} — details from the reservation are pre-filled below. Review, adjust anything that
-            changed, and complete check-in.
-          </p>
-        </div>
+      <HmsPage wide>
+        <Link
+          href={`/hms/${slug}/reservations`}
+          className="inline-flex items-center gap-1 rounded text-sm font-medium text-blue-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        >
+          <span aria-hidden>←</span> Back to reservations
+        </Link>
+        <HmsPageHeader
+          eyebrow="Front desk"
+          meaning="rooms"
+          title={`Complete check-in · ${prefill.confirmationCode}`}
+          description={`${prefill.guestName}. We've filled in the details from the booking. Check them, change anything that's different, then complete check-in.`}
+        />
 
-        <section className="rounded-[24px] border border-slate-200 bg-white px-6 py-6 shadow-sm sm:px-8 sm:py-8">
-          <Suspense fallback={<p className="text-sm text-slate-500">Loading form…</p>}>
+        <section aria-label="Check-in form">
+          <Suspense fallback={<p role="status" className="text-sm text-slate-600">Loading the form…</p>}>
             <FrontDeskCheckInForm
               slug={slug}
               roomTypes={roomTypes}
@@ -108,7 +106,7 @@ export default async function ReservationCheckInPage({
             />
           </Suspense>
         </section>
-      </div>
+      </HmsPage>
     </HMSLayout>
   );
 }

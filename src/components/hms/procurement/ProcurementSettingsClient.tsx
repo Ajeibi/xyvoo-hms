@@ -2,9 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { ClipboardCheck, Plus, ShieldCheck, Tags, Trash2, X } from "lucide-react";
+import { HmsCard, HmsField, HmsPill, hmsButton, hmsInput } from "@/components/hms/hms-ui";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import type { InventoryItemTypeRow } from "@/lib/hms/inventory-types";
@@ -26,7 +25,7 @@ export function ProcurementSettingsClient({
   itemTypes: InventoryItemTypeRow[];
 }) {
   return (
-    <div className="mt-6 space-y-6">
+    <div className="space-y-6">
       <VendorCategoriesSection slug={slug} categories={categories} />
       <ApprovalThresholdsSection slug={slug} thresholds={thresholds} />
       <QualityChecklistsSection slug={slug} checklists={checklists} itemTypes={itemTypes} />
@@ -72,26 +71,43 @@ function VendorCategoriesSection({ slug, categories }: { slug: string; categorie
   };
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6">
-      <h2 className="text-sm font-semibold text-slate-900">Vendor categories</h2>
-      <p className="mt-1 text-xs text-slate-500">Used to group vendors and to roll up spend-by-category reporting.</p>
-      <ul className="mt-3 flex flex-wrap gap-2">
-        {categories.map((c) => (
-          <span key={c.id} className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-700">
-            {c.name}
-            <button type="button" onClick={() => void removeCategory(c.id)} className="text-slate-400 hover:text-red-600">
-              <Trash2 className="h-3 w-3" />
-            </button>
-          </span>
-        ))}
-      </ul>
-      <div className="mt-3 flex gap-2">
-        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="New category name" className="max-w-xs" />
-        <Button type="button" size="sm" className="rounded-lg" disabled={!name.trim() || submitting} onClick={() => void addCategory()}>
-          <Plus className="h-3.5 w-3.5" /> Add
-        </Button>
+    <HmsCard
+      id="procurement-vendor-categories"
+      title="Vendor categories"
+      description="Used to group vendors and to roll up spend-by-category reporting."
+      icon={Tags}
+      meaning="stock"
+    >
+      {categories.length === 0 ? (
+        <p className="text-sm text-slate-600">No categories yet. Add your first one below.</p>
+      ) : (
+        <ul className="flex flex-wrap gap-2">
+          {categories.map((c) => (
+            <li key={c.id} className="flex items-center gap-1 rounded-full border border-teal-200 bg-teal-50 py-1 pl-3 pr-1 text-sm text-teal-900">
+              {c.name}
+              <button
+                type="button"
+                onClick={() => void removeCategory(c.id)}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-full text-slate-600 hover:bg-white hover:text-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              >
+                <X className="h-3.5 w-3.5" aria-hidden />
+                <span className="sr-only">Remove {c.name}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="mt-4 flex flex-wrap items-end gap-2">
+        <div className="w-full max-w-xs">
+          <HmsField id="procurement-new-category" label="New category name">
+            <input id="procurement-new-category" className={hmsInput} value={name} onChange={(e) => setName(e.target.value)} />
+          </HmsField>
+        </div>
+        <button type="button" className={hmsButton.primary} disabled={!name.trim() || submitting} onClick={() => void addCategory()}>
+          <Plus className="h-4 w-4" aria-hidden /> Add
+        </button>
       </div>
-    </div>
+    </HmsCard>
   );
 }
 
@@ -142,48 +158,73 @@ function ApprovalThresholdsSection({ slug, thresholds }: { slug: string; thresho
   };
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6">
-      <h2 className="text-sm font-semibold text-slate-900">Approval thresholds</h2>
-      <p className="mt-1 text-xs text-slate-500">
-        Every purchase order is checked against these bands by amount and department. The most specific match wins; everything
-        defaults to requiring GM/Owner sign-off until you configure this.
-      </p>
+    <HmsCard
+      id="procurement-approval-thresholds"
+      title="Approval thresholds"
+      description="Every purchase order is checked against these bands by amount and department. The most specific match wins; everything needs GM/Owner sign-off until you set this up."
+      icon={ShieldCheck}
+      meaning="team"
+    >
+      {thresholds.length === 0 ? (
+        <p className="text-sm text-slate-600">No thresholds yet, so every purchase order goes to the GM/Owner.</p>
+      ) : (
+        <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200">
+          {thresholds.map((t) => (
+            <li key={t.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
+              <span className="text-slate-700">
+                <span className="font-medium text-slate-900">{t.department}</span>:{" "}
+                <span className="tabular-nums">
+                  {t.min_amount.toLocaleString()} to {t.max_amount === null ? "no limit" : t.max_amount.toLocaleString()}
+                </span>{" "}
+                needs <HmsPill tone="blue">{APPROVER_LABELS[t.approver_role]}</HmsPill>
+              </span>
+              <button type="button" onClick={() => void removeThreshold(t.id)} className={hmsButton.danger}>
+                <Trash2 className="h-4 w-4" aria-hidden />
+                <span className="sr-only">Remove threshold for {t.department}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
 
-      <div className="mt-3 space-y-2">
-        {thresholds.map((t) => (
-          <div key={t.id} className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-sm">
-            <span className="text-slate-700">
-              {t.department}: {t.min_amount.toLocaleString()} – {t.max_amount === null ? "∞" : t.max_amount.toLocaleString()} →{" "}
-              <span className="font-medium">{APPROVER_LABELS[t.approver_role]}</span>
-            </span>
-            <button type="button" onClick={() => void removeThreshold(t.id)} className="text-slate-400 hover:text-red-600">
-              <Trash2 className="h-4 w-4" />
-            </button>
-          </div>
-        ))}
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <HmsField id="threshold-department" label="Department">
+          <input id="threshold-department" className={hmsInput} value={department} onChange={(e) => setDepartment(e.target.value)} />
+        </HmsField>
+        <HmsField id="threshold-min" label="From amount">
+          <input id="threshold-min" type="number" min="0" inputMode="decimal" className={`${hmsInput} tabular-nums`} value={minAmount} onChange={(e) => setMinAmount(e.target.value)} />
+        </HmsField>
+        <HmsField id="threshold-max" label="Up to amount" hint="Leave blank for no upper limit.">
+          <input
+            id="threshold-max"
+            type="number"
+            min="0"
+            inputMode="decimal"
+            aria-describedby="threshold-max-hint"
+            className={`${hmsInput} tabular-nums`}
+            value={maxAmount}
+            onChange={(e) => setMaxAmount(e.target.value)}
+          />
+        </HmsField>
+        <HmsField id="threshold-approver" label="Who approves">
+          <Select value={approverRole} onValueChange={(v) => setApproverRole(v as ApproverRole)}>
+            <SelectTrigger id="threshold-approver" className="h-11 rounded-xl border-slate-300">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(APPROVER_LABELS) as ApproverRole[]).map((r) => (
+                <SelectItem key={r} value={r}>
+                  {APPROVER_LABELS[r]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </HmsField>
       </div>
-
-      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <Input value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="Department" />
-        <Input type="number" min="0" value={minAmount} onChange={(e) => setMinAmount(e.target.value)} placeholder="Min amount" />
-        <Input type="number" min="0" value={maxAmount} onChange={(e) => setMaxAmount(e.target.value)} placeholder="Max amount (blank = ∞)" />
-        <Select value={approverRole} onValueChange={(v) => setApproverRole(v as ApproverRole)}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {(Object.keys(APPROVER_LABELS) as ApproverRole[]).map((r) => (
-              <SelectItem key={r} value={r}>
-                {APPROVER_LABELS[r]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <Button type="button" size="sm" className="mt-2 rounded-lg" disabled={submitting} onClick={() => void addThreshold()}>
-        <Plus className="h-3.5 w-3.5" /> Add threshold
-      </Button>
-    </div>
+      <button type="button" className={`${hmsButton.primary} mt-3`} disabled={submitting} onClick={() => void addThreshold()}>
+        <Plus className="h-4 w-4" aria-hidden /> Add threshold
+      </button>
+    </HmsCard>
   );
 }
 
@@ -241,55 +282,66 @@ function QualityChecklistsSection({
   };
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6">
-      <h2 className="text-sm font-semibold text-slate-900">Quality inspection checklists</h2>
-      <p className="mt-1 text-xs text-slate-500">
-        One checklist per item type, shown to the store keeper at receiving before a delivery is accepted into stock —
-        e.g. temperature and expiry checks for perishables, thread-count and condition checks for linen.
-      </p>
+    <HmsCard
+      id="procurement-quality-checklists"
+      title="Quality inspection checklists"
+      description="One checklist per item type, shown at receiving before a delivery is accepted into stock, such as temperature and expiry checks for perishables."
+      icon={ClipboardCheck}
+      meaning="stock"
+    >
+      {checklists.length === 0 ? (
+        <p className="text-sm text-slate-600">No checklists yet. Deliveries are checked with a single pass or fail tick until you add one.</p>
+      ) : (
+        <ul className="space-y-3">
+          {checklists.map((c) => (
+            <li key={c.id} className="flex items-start justify-between gap-2 rounded-xl border border-slate-200 p-4">
+              <div>
+                <p className="text-sm font-medium text-slate-900">{c.item_type_name}</p>
+                <ul className="mt-1 list-inside list-disc text-sm text-slate-700">
+                  {c.checklist_items.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+              <button type="button" onClick={() => void removeChecklist(c.id)} className={`${hmsButton.danger} shrink-0`}>
+                <Trash2 className="h-4 w-4" aria-hidden />
+                <span className="sr-only">Remove checklist for {c.item_type_name}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
 
-      <div className="mt-3 space-y-3">
-        {checklists.map((c) => (
-          <div key={c.id} className="flex items-start justify-between gap-2 rounded-lg border border-slate-200 p-3">
-            <div>
-              <p className="text-sm font-medium text-slate-800">{c.item_type_name}</p>
-              <ul className="mt-1 list-inside list-disc text-xs text-slate-600">
-                {c.checklist_items.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </div>
-            <button type="button" onClick={() => void removeChecklist(c.id)} className="shrink-0 text-slate-400 hover:text-red-600">
-              <Trash2 className="h-4 w-4" />
-            </button>
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-4 space-y-2">
-        <Select value={itemTypeId} onValueChange={setItemTypeId}>
-          <SelectTrigger>
-            <SelectValue placeholder="Select item type" />
-          </SelectTrigger>
-          <SelectContent>
-            {itemTypes.map((t) => (
-              <SelectItem key={t.id} value={t.id}>
-                {t.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <textarea
-          value={items}
-          onChange={(e) => setItems(e.target.value)}
-          placeholder={"One checklist item per line, e.g.\nTemperature within safe range\nNo visible damage or spoilage\nExpiry date confirmed"}
-          rows={4}
-          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
-        />
-        <Button type="button" size="sm" className="rounded-lg" disabled={!itemTypeId || !items.trim() || submitting} onClick={() => void save()}>
+      <div className="mt-4 space-y-3">
+        <HmsField id="checklist-item-type" label="Item type">
+          <Select value={itemTypeId} onValueChange={setItemTypeId}>
+            <SelectTrigger id="checklist-item-type" className="h-11 rounded-xl border-slate-300">
+              <SelectValue placeholder="Select item type" />
+            </SelectTrigger>
+            <SelectContent>
+              {itemTypes.map((t) => (
+                <SelectItem key={t.id} value={t.id}>
+                  {t.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </HmsField>
+        <HmsField id="checklist-items" label="Checklist items" hint="One item per line.">
+          <textarea
+            id="checklist-items"
+            aria-describedby="checklist-items-hint"
+            value={items}
+            onChange={(e) => setItems(e.target.value)}
+            placeholder={"Temperature within safe range\nNo visible damage or spoilage\nExpiry date confirmed"}
+            rows={4}
+            className={hmsInput}
+          />
+        </HmsField>
+        <button type="button" className={hmsButton.primary} disabled={!itemTypeId || !items.trim() || submitting} onClick={() => void save()}>
           Save checklist
-        </Button>
+        </button>
       </div>
-    </div>
+    </HmsCard>
   );
 }

@@ -77,7 +77,7 @@ export function FrontDeskRoomBoardShell({
         <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <p className="text-sm font-medium text-slate-600">
                 Floor plan
               </p>
               <h2 className="mt-1 text-lg font-semibold text-slate-900">Room grid</h2>

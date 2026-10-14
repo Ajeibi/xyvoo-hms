@@ -18,7 +18,7 @@ export function HousekeepingInfoBlock({
 
   return (
     <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50/80 px-4 py-3 text-sm">
-      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Housekeeping</p>
+      <p className="text-sm font-medium text-slate-600">Housekeeping</p>
       <dl className="mt-2 space-y-1 text-slate-700">
         <div className="flex justify-between gap-4">
           <dt className="text-slate-500">Task status</dt>

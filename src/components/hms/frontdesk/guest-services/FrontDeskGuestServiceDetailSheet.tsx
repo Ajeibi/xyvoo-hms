@@ -7,12 +7,45 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ConciergeBell, History, NotebookPen, Receipt, UserCog, UserRound } from "lucide-react";
+import { HmsField, HmsIconBadge, hmsButton, hmsInput } from "@/components/hms/hms-ui";
+import type { HmsMeaning } from "@/components/hms/meaning";
 import type { GuestServicesRoleCapabilities } from "@/lib/hms/guest-services-rbac";
 import { GUEST_REQUEST_DEPARTMENTS, GUEST_REQUEST_DEPARTMENT_LABELS, GUEST_REQUEST_PRIORITIES } from "@/lib/hms/guest-services";
 import { toastError, toastSuccess } from "@/lib/app-toast";
+
+const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2";
+
+function SheetSection({
+  icon,
+  meaning,
+  title,
+  children,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  meaning: HmsMeaning;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
+      <h3 className="mb-3 flex items-center gap-3 font-heading text-base font-semibold text-slate-900">
+        <HmsIconBadge icon={icon} meaning={meaning} />
+        {title}
+      </h3>
+      {children}
+    </section>
+  );
+}
+
+function Row({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div>
+      <dt className="text-sm text-slate-600">{label}</dt>
+      <dd className="text-sm font-medium text-slate-900">{value || "Not given"}</dd>
+    </div>
+  );
+}
 
 type DetailPayload = {
   request: Record<string, unknown>;
@@ -171,275 +204,203 @@ export function FrontDeskGuestServiceDetailSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="flex w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
         <SheetHeader className="border-b px-6 py-4">
-          <SheetTitle>Service request</SheetTitle>
+          <SheetTitle className="font-heading">Guest request</SheetTitle>
         </SheetHeader>
-        <div className="thin-scrollbar flex-1 overflow-y-auto bg-slate-50/50 p-4">
+        <div className="thin-scrollbar flex-1 overflow-y-auto bg-slate-50 p-4">
           {loading || !req ? (
-            <p className="text-sm text-slate-500">{loading ? "Loading…" : "No data."}</p>
+            <p role="status" className="text-sm text-slate-600">
+              {loading ? "Loading the request…" : "We couldn't find this request."}
+            </p>
           ) : (
             <div className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Guest</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-1 text-sm">
-                  <p className="font-semibold">{guestName ?? "—"}</p>
-                  <p>Room {detail?.roomCode ?? "—"}</p>
-                  <p>Phone {guestPhone ?? "—"}</p>
-                  <p>Ref {String(res?.confirmation_code ?? "—")}</p>
-                  <p>VIP {Boolean(res?.vip_flag) ? "Yes" : "No"}</p>
+              <SheetSection icon={UserRound} meaning="guests" title="Guest">
+                <dl className="grid grid-cols-2 gap-3">
+                  <Row label="Name" value={guestName} />
+                  <Row label="Room" value={detail?.roomCode} />
+                  <Row label="Phone" value={guestPhone} />
+                  <Row label="Booking" value={res?.confirmation_code ? String(res.confirmation_code) : null} />
+                  <Row label="VIP" value={Boolean(res?.vip_flag) ? "Yes" : "No"} />
                   {res?.arrival_at && res?.departure_at ? (
-                    <p className="text-xs text-slate-600">
-                      Stay {new Date(String(res.arrival_at)).toLocaleDateString()} —{" "}
-                      {new Date(String(res.departure_at)).toLocaleDateString()}
-                    </p>
+                    <Row
+                      label="Stay"
+                      value={`${new Date(String(res.arrival_at)).toLocaleDateString("en-GB")} to ${new Date(String(res.departure_at)).toLocaleDateString("en-GB")}`}
+                    />
                   ) : null}
-                </CardContent>
-              </Card>
+                </dl>
+              </SheetSection>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Request</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-1 text-sm">
-                  <p>
-                    <span className="text-slate-500">ID</span> {String(req.id).slice(0, 8)}…
-                  </p>
-                  <p>
-                    <span className="text-slate-500">Category</span>{" "}
-                    {String(req.service_category ?? "").replace(/_/g, " ")}
-                  </p>
-                  <p className="font-medium">{String(req.request_type)}</p>
-                  <p>{String(req.details ?? req.notes ?? "—")}</p>
-                  <p className="text-xs text-slate-500">
-                    Created {new Date(String(req.created_at)).toLocaleString()}
-                  </p>
-                </CardContent>
-              </Card>
+              <SheetSection icon={ConciergeBell} meaning="guests" title={String(req.request_type)}>
+                <p className="text-sm text-slate-800">{String(req.details ?? req.notes ?? "No details given.")}</p>
+                <dl className="mt-3 grid grid-cols-2 gap-3">
+                  <Row label="Kind" value={String(req.service_category ?? "").replace(/_/g, " ")} />
+                  <Row label="Request number" value={`${String(req.id).slice(0, 8)}…`} />
+                  <Row label="Made" value={new Date(String(req.created_at)).toLocaleString("en-GB")} />
+                </dl>
+              </SheetSection>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Assignment</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 text-sm">
-                  {capabilities.canUpdate && !capabilities.readOnly ? (
-                    <>
-                      {assignableStaff.length > 0 ? (
-                        <div>
-                          <p className="mb-1 text-xs font-medium text-slate-600">Assignee</p>
-                          <select
-                            className="h-9 w-full rounded-lg border border-input px-2 text-sm"
-                            value={String(req.assigned_user_id ?? "")}
-                            onChange={(e) => {
-                              const v = e.target.value || null;
-                              const st = String(req.status);
-                              const updates: Record<string, unknown> = { assignedUserId: v };
-                              if (v && st === "pending") updates.status = "assigned";
-                              void patch(updates);
-                            }}
-                          >
-                            <option value="">Unassigned</option>
-                            {assignableStaff.map((s) => (
-                              <option key={s.userId} value={s.userId}>
-                                {s.name} ({s.role})
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      ) : null}
-                      <div>
-                        <p className="mb-1 text-xs font-medium text-slate-600">Status</p>
+              <SheetSection icon={UserCog} meaning="team" title="Who's dealing with it">
+                {capabilities.canUpdate && !capabilities.readOnly ? (
+                  <div className="space-y-4">
+                    {assignableStaff.length > 0 ? (
+                      <HmsField id="gs-detail-assignee" label="Assigned to">
                         <select
-                          className="h-9 w-full rounded-lg border border-input px-2 text-sm"
-                          value={String(req.status)}
-                          onChange={(e) => patch({ status: e.target.value })}
-                        >
-                          {[
-                            "pending",
-                            "assigned",
-                            "in_progress",
-                            "waiting",
-                            "completed",
-                            "cancelled",
-                            "escalated",
-                          ].map((s) => (
-                            <option key={s} value={s}>
-                              {s.replace(/_/g, " ")}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <p className="mb-1 text-xs font-medium text-slate-600">Department</p>
-                        <select
-                          className="h-9 w-full rounded-lg border border-input px-2 text-sm"
-                          value={String(req.department)}
-                          onChange={(e) => patch({ department: e.target.value })}
-                        >
-                          {GUEST_REQUEST_DEPARTMENTS.map((d) => (
-                            <option key={d} value={d}>
-                              {GUEST_REQUEST_DEPARTMENT_LABELS[d]}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <p className="mb-1 text-xs font-medium text-slate-600">Priority</p>
-                        <select
-                          className="h-9 w-full rounded-lg border border-input px-2 text-sm"
-                          value={String(req.priority)}
-                          onChange={(e) =>
-                            patch({ priority: e.target.value })
-                          }
-                        >
-                          {GUEST_REQUEST_PRIORITIES.map((p) => (
-                            <option key={p} value={p}>
-                              {p}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      {req.assigned_at ? (
-                        <p className="text-xs text-slate-600">
-                          Assigned at: {new Date(String(req.assigned_at)).toLocaleString()}
-                        </p>
-                      ) : null}
-                      <div>
-                        <p className="mb-1 text-xs font-medium text-slate-600">Expected completion (SLA)</p>
-                        <Input
-                          type="datetime-local"
-                          className="h-9"
-                          value={
-                            req.expected_completed_at
-                              ? toDatetimeLocalValue(String(req.expected_completed_at))
-                              : ""
-                          }
+                          id="gs-detail-assignee"
+                          className={hmsInput}
+                          value={String(req.assigned_user_id ?? "")}
                           onChange={(e) => {
-                            const v = e.target.value;
-                            void patch({
-                              expectedCompletedAt: v ? new Date(v).toISOString() : null,
-                            });
+                            const v = e.target.value || null;
+                            const st = String(req.status);
+                            const updates: Record<string, unknown> = { assignedUserId: v };
+                            if (v && st === "pending") updates.status = "assigned";
+                            void patch(updates);
                           }}
-                        />
-                      </div>
-                    </>
-                  ) : (
-                    <div className="space-y-1">
-                      <p>
-                        {String(req.department)} · {String(req.status)}
-                      </p>
-                      {req.expected_completed_at ? (
-                        <p className="text-xs text-slate-600">
-                          SLA target: {new Date(String(req.expected_completed_at)).toLocaleString()}
-                        </p>
-                      ) : null}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Billing</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2 text-sm">
-                  <p>Billable: {String(req.billable)}</p>
-                  <p>Folio line: {req.folio_line_id ? String(req.folio_line_id).slice(0, 8) + "…" : "—"}</p>
-                  {capabilities.canPostFolio && !capabilities.readOnly && !req.folio_line_id && Boolean(req.billable) ? (
-                    <div className="space-y-2 border-t pt-3">
-                      <Input
-                        placeholder="Amount"
-                        type="number"
-                        value={folioAmount}
-                        onChange={(e) => setFolioAmount(e.target.value)}
+                        >
+                          <option value="">Not assigned</option>
+                          {assignableStaff.map((s) => (
+                            <option key={s.userId} value={s.userId}>
+                              {s.name} ({s.role})
+                            </option>
+                          ))}
+                        </select>
+                      </HmsField>
+                    ) : null}
+                    <HmsField id="gs-detail-status" label="Status">
+                      <select id="gs-detail-status" className={`${hmsInput} capitalize`} value={String(req.status)} onChange={(e) => patch({ status: e.target.value })}>
+                        {["pending", "assigned", "in_progress", "waiting", "completed", "cancelled", "escalated"].map((s) => (
+                          <option key={s} value={s}>
+                            {s.replace(/_/g, " ")}
+                          </option>
+                        ))}
+                      </select>
+                    </HmsField>
+                    <HmsField id="gs-detail-team" label="Team">
+                      <select id="gs-detail-team" className={hmsInput} value={String(req.department)} onChange={(e) => patch({ department: e.target.value })}>
+                        {GUEST_REQUEST_DEPARTMENTS.map((d) => (
+                          <option key={d} value={d}>
+                            {GUEST_REQUEST_DEPARTMENT_LABELS[d]}
+                          </option>
+                        ))}
+                      </select>
+                    </HmsField>
+                    <HmsField id="gs-detail-priority" label="Priority">
+                      <select id="gs-detail-priority" className={`${hmsInput} capitalize`} value={String(req.priority)} onChange={(e) => patch({ priority: e.target.value })}>
+                        {GUEST_REQUEST_PRIORITIES.map((p) => (
+                          <option key={p} value={p}>
+                            {p}
+                          </option>
+                        ))}
+                      </select>
+                    </HmsField>
+                    {req.assigned_at ? (
+                      <p className="text-sm text-slate-600">Assigned {new Date(String(req.assigned_at)).toLocaleString("en-GB")}</p>
+                    ) : null}
+                    <HmsField id="gs-detail-due" label="Should be done by">
+                      <input
+                        id="gs-detail-due"
+                        type="datetime-local"
+                        className={hmsInput}
+                        value={req.expected_completed_at ? toDatetimeLocalValue(String(req.expected_completed_at)) : ""}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          void patch({
+                            expectedCompletedAt: v ? new Date(v).toISOString() : null,
+                          });
+                        }}
                       />
-                      <Input
-                        placeholder="Description"
-                        value={folioDesc}
-                        onChange={(e) => setFolioDesc(e.target.value)}
-                      />
-                      <label className="flex items-center gap-2 text-xs">
-                        <input
-                          type="checkbox"
-                          checked={complimentary}
-                          onChange={(e) => setComplimentary(e.target.checked)}
-                        />
-                        Complimentary (zero charge)
-                      </label>
-                      <Button type="button" size="sm" onClick={postFolio}>
-                        Post to folio
-                      </Button>
-                    </div>
-                  ) : null}
-                </CardContent>
-              </Card>
+                    </HmsField>
+                  </div>
+                ) : (
+                  <dl className="grid grid-cols-2 gap-3">
+                    <Row label="Team" value={String(req.department).replace(/_/g, " ")} />
+                    <Row label="Status" value={String(req.status).replace(/_/g, " ")} />
+                    {req.expected_completed_at ? (
+                      <Row label="Should be done by" value={new Date(String(req.expected_completed_at)).toLocaleString("en-GB")} />
+                    ) : null}
+                  </dl>
+                )}
+              </SheetSection>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Internal notes</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
+              <SheetSection icon={Receipt} meaning="money" title="Billing">
+                <dl className="grid grid-cols-2 gap-3">
+                  <Row label="Guest pays for this" value={req.billable ? "Yes" : "No"} />
+                  <Row label="On the bill" value={req.folio_line_id ? `Yes (${String(req.folio_line_id).slice(0, 8)}…)` : "Not yet"} />
+                </dl>
+                {capabilities.canPostFolio && !capabilities.readOnly && !req.folio_line_id && Boolean(req.billable) ? (
+                  <div className="mt-4 space-y-4 border-t border-slate-100 pt-4">
+                    <HmsField id="gs-detail-amount" label="Amount">
+                      <input id="gs-detail-amount" type="number" className={hmsInput} value={folioAmount} onChange={(e) => setFolioAmount(e.target.value)} />
+                    </HmsField>
+                    <HmsField id="gs-detail-desc" label="What it's for">
+                      <input id="gs-detail-desc" className={hmsInput} value={folioDesc} onChange={(e) => setFolioDesc(e.target.value)} />
+                    </HmsField>
+                    <label className="flex items-center gap-2 text-sm font-medium text-slate-800">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-slate-400 accent-emerald-700"
+                        checked={complimentary}
+                        onChange={(e) => setComplimentary(e.target.checked)}
+                      />
+                      Free of charge (adds it to the bill at zero)
+                    </label>
+                    <button type="button" className={`${hmsButton.primary} ${focusRing}`} onClick={postFolio}>
+                      Add to the bill
+                    </button>
+                  </div>
+                ) : null}
+              </SheetSection>
+
+              <SheetSection icon={NotebookPen} meaning="neutral" title="Staff notes">
+                {(detail?.notes ?? []).length > 0 ? (
                   <ul className="max-h-40 space-y-2 overflow-y-auto text-sm">
                     {(detail?.notes ?? []).map((n) => (
-                      <li key={n.id} className="rounded border bg-white p-2 text-xs">
-                        <p className="mb-1 text-[10px] font-semibold uppercase text-slate-400">
-                          {n.visibility.replace(/_/g, " ")}
-                        </p>
-                        <p>{n.body}</p>
-                        <p className="text-slate-500">{new Date(n.created_at).toLocaleString()}</p>
+                      <li key={n.id} className="rounded-xl bg-slate-50 p-3">
+                        <p className="mb-1 text-xs font-medium text-slate-700">Seen by: {n.visibility.replace(/_/g, " ")}</p>
+                        <p className="text-slate-800">{n.body}</p>
+                        <p className="mt-1 text-xs text-slate-600">{new Date(n.created_at).toLocaleString("en-GB")}</p>
                       </li>
                     ))}
                   </ul>
-                  {capabilities.canUpdate && !capabilities.readOnly ? (
-                    <div className="space-y-2">
-                      <div>
-                        <p className="mb-1 text-xs font-medium text-slate-600">Visibility</p>
-                        <select
-                          className="h-9 w-full rounded-lg border border-input px-2 text-sm"
-                          value={noteVisibility}
-                          onChange={(e) =>
-                            setNoteVisibility(e.target.value as "front_desk" | "department" | "manager")
-                          }
-                        >
-                          <option value="front_desk">Front desk</option>
-                          <option value="department">Department only</option>
-                          {capabilities.canViewManagerNotes ? (
-                            <option value="manager">Manager only</option>
-                          ) : null}
-                        </select>
-                      </div>
-                      <div className="flex gap-2">
-                        <textarea
-                          className="min-h-[60px] flex-1 rounded-lg border border-input px-2 py-1 text-sm"
-                          value={noteBody}
-                          onChange={(e) => setNoteBody(e.target.value)}
-                          placeholder="Add note…"
-                        />
-                        <Button type="button" size="sm" onClick={addNote}>
-                          Add
-                        </Button>
-                      </div>
-                    </div>
-                  ) : null}
-                </CardContent>
-              </Card>
+                ) : (
+                  <p className="text-sm text-slate-600">No notes yet.</p>
+                )}
+                {capabilities.canUpdate && !capabilities.readOnly ? (
+                  <div className="mt-4 space-y-3">
+                    <HmsField id="gs-note-visibility" label="Who can see the note">
+                      <select
+                        id="gs-note-visibility"
+                        className={hmsInput}
+                        value={noteVisibility}
+                        onChange={(e) => setNoteVisibility(e.target.value as "front_desk" | "department" | "manager")}
+                      >
+                        <option value="front_desk">Front desk</option>
+                        <option value="department">The team handling it</option>
+                        {capabilities.canViewManagerNotes ? <option value="manager">Managers only</option> : null}
+                      </select>
+                    </HmsField>
+                    <HmsField id="gs-note-body" label="Note">
+                      <textarea id="gs-note-body" className={`${hmsInput} min-h-[64px]`} value={noteBody} onChange={(e) => setNoteBody(e.target.value)} />
+                    </HmsField>
+                    <button type="button" className={`${hmsButton.secondary} ${focusRing}`} onClick={addNote}>
+                      Add note
+                    </button>
+                  </div>
+                ) : null}
+              </SheetSection>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Activity</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ul className="max-h-48 space-y-2 overflow-y-auto text-xs text-slate-600">
+              <SheetSection icon={History} meaning="neutral" title="What's happened">
+                {(detail?.events ?? []).length > 0 ? (
+                  <ul className="max-h-48 space-y-2 overflow-y-auto text-sm text-slate-700">
                     {(detail?.events ?? []).map((ev) => (
-                      <li key={ev.id} className="border-l-2 border-slate-200 pl-2">
-                        <span className="font-medium text-slate-800">{ev.actorName ?? "Staff"}</span> ·{" "}
-                        <span className="font-medium">{ev.action}</span> ·{" "}
-                        {new Date(ev.created_at).toLocaleString()}
+                      <li key={ev.id} className="border-l-2 border-slate-300 pl-3">
+                        <span className="font-medium text-slate-900">{ev.actorName ?? "Staff"}</span> · <span>{ev.action.replace(/_/g, " ")}</span>
+                        <span className="block text-xs text-slate-600">{new Date(ev.created_at).toLocaleString("en-GB")}</span>
                       </li>
                     ))}
                   </ul>
-                </CardContent>
-              </Card>
+                ) : (
+                  <p className="text-sm text-slate-600">Nothing recorded yet.</p>
+                )}
+              </SheetSection>
             </div>
           )}
         </div>

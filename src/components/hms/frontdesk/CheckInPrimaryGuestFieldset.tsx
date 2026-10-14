@@ -48,7 +48,7 @@ export function CheckInPrimaryGuestFieldset({
   return (
     <fieldset className="space-y-4">
       <legend className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-900">
-        <span>Guest 1 — primary</span>
+        <span>Main guest</span>
         <CheckInFieldInfo
           label="Primary guest"
           text="Lead guest on the folio and registration. When more than one person is staying, complete each guest’s section below after setting adults, children, and infants."
@@ -131,8 +131,9 @@ export function CheckInPrimaryGuestFieldset({
             className="phone-input-wrapper !rounded-xl"
             style={{ ["--PhoneInputCountryFlag-height" as string]: "1.1em" }}
             aria-required
+            aria-describedby="phone-hint"
           />
-          <p className="text-xs text-slate-500">E.164 — include country code.</p>
+          <p id="phone-hint" className="text-xs text-slate-600">Include the country code, for example +234.</p>
         </div>
         <div className="space-y-2">
           <CheckInFieldLabelRow

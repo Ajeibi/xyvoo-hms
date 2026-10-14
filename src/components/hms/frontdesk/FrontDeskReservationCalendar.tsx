@@ -8,6 +8,8 @@ import type {
 } from "@/lib/hms/front-desk-board";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { CalendarDays, LayoutGrid } from "lucide-react";
+import { HmsCard, HmsEmptyState, HmsPage, HmsPageHeader, hmsButton } from "@/components/hms/hms-ui";
 import { FrontDeskTodayAgenda } from "./FrontDeskTodayAgenda";
 
 function dayIndex(iso: string, dayStarts: string[]) {
@@ -75,14 +77,17 @@ function WeekCalendarGrid({
                   key={week.dayStarts[i]}
                   className={cn(
                     "border-r border-slate-200 px-2 py-2.5 text-center last:border-r-0",
-                    isToday && "bg-blue-50",
+                    isToday && "border-b-2 border-b-sky-600 bg-sky-50",
                   )}
                 >
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{weekday}</p>
+                  <p className="text-xs font-medium text-slate-600">
+                    {weekday}
+                    {isToday ? <span className="sr-only"> (today)</span> : null}
+                  </p>
                   <p
                     className={cn(
                       "mt-0.5 text-sm font-semibold tabular-nums",
-                      isToday ? "text-blue-700" : "text-slate-900",
+                      isToday ? "text-sky-800" : "text-slate-900",
                     )}
                   >
                     {datePart}
@@ -119,7 +124,8 @@ function WeekCalendarGrid({
                 key={stay.reservationId}
                 type="button"
                 onClick={() => onSelectStay?.(stay.reservationId)}
-                className="z-10 m-0.5 flex min-h-9 items-center truncate rounded-md border border-blue-200 bg-blue-100 px-2 text-left text-[11px] font-medium text-blue-900 shadow-sm hover:bg-blue-200"
+                aria-label={`${stay.guestName}${stay.roomCode ? `, room ${stay.roomCode}` : ""}. Show details`}
+                className="z-10 m-0.5 flex min-h-9 items-center truncate rounded-lg border border-sky-300 bg-sky-100 px-2 text-left text-xs font-medium text-sky-950 shadow-sm hover:bg-sky-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
                 style={{
                   gridColumn: `${stay.colStart} / ${stay.colEnd}`,
                   gridRow: stay.row + 1,
@@ -165,47 +171,60 @@ export function FrontDeskReservationCalendar({
     onSelectStay?.(reservationId, room ?? null);
   };
 
-  const wrapperClass = embedded ? "space-y-5" : "mx-auto w-full max-w-[1200px] px-6 py-8 sm:px-8";
+  const agenda = showAgenda ? (
+    <FrontDeskTodayAgenda
+      arrivals={data.arrivalsToday}
+      departures={data.departuresToday}
+      embedded={embedded}
+      onSelectItem={(id) => handleStay(id)}
+    />
+  ) : null;
+
+  if (embedded) {
+    return (
+      <div className="space-y-5">
+        <section className="overflow-hidden">
+          <p className="mb-3 text-sm text-slate-600">Each bar is a stay across the days it covers. Select a bar for details.</p>
+          <WeekCalendarGrid week={data.calendarWeek} onSelectStay={handleStay} />
+        </section>
+        {agenda}
+      </div>
+    );
+  }
 
   return (
-    <div className={wrapperClass}>
-      {!embedded ? (
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Front desk</p>
-            <h1 className="mt-2 text-2xl font-semibold text-slate-900">Reservation calendar</h1>
-          </div>
+    <HmsPage wide>
+      <HmsPageHeader
+        eyebrow="Front desk"
+        meaning="rooms"
+        title="Booking calendar"
+        description="Who is staying this week, and in which room."
+        actions={
           <Link
             href={`/hms/${slug}/frontdesk`}
-            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            className={`${hmsButton.secondary} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2`}
           >
-            Grid view
+            <LayoutGrid className="h-4 w-4" aria-hidden />
+            Room board
           </Link>
-        </div>
-      ) : null}
+        }
+      />
 
-      <section className={cn("overflow-hidden", embedded ? "" : "mt-8 rounded-2xl border border-slate-200 bg-white shadow-sm")}>
-        {!embedded ? (
-          <div className="border-b border-slate-100 px-6 py-4">
-            <h2 className="text-sm font-semibold text-slate-900">Week view</h2>
-            <p className="mt-0.5 text-xs text-slate-500">Stays spanning each day — click a bar for details</p>
-          </div>
+      <HmsCard
+        id="calendar-week"
+        icon={CalendarDays}
+        meaning="rooms"
+        title="This week"
+        description="Each bar is a stay across the days it covers. Select a bar for details."
+      >
+        {data.calendarWeek.stays.length === 0 ? (
+          <HmsEmptyState bare art="page" meaning="rooms" title="No stays this week" description="Bookings for this week will show here as bars across the days they cover." />
         ) : (
-          <p className="mb-3 text-xs text-slate-500">Stays spanning each day — click a bar for details</p>
-        )}
-        <div className={embedded ? "" : "p-4"}>
           <WeekCalendarGrid week={data.calendarWeek} onSelectStay={handleStay} />
-        </div>
-      </section>
+        )}
+      </HmsCard>
 
-      {showAgenda ? (
-        <FrontDeskTodayAgenda
-          arrivals={data.arrivalsToday}
-          departures={data.departuresToday}
-          embedded={embedded}
-          onSelectItem={(id) => handleStay(id)}
-        />
-      ) : null}
-    </div>
+      {agenda}
+    </HmsPage>
   );
 }

@@ -8,6 +8,7 @@ export default async function RevenuePage({ params }: { params: Promise<{ slug: 
     <HMSLayout slug={slug} requiredSection="revenue">
       <DepartmentDashboardScaffold
         title="Revenue"
+        meaning="money"
         subtitle="Monitor pricing performance, pacing, and revenue-control tasks from a focused revenue workspace."
         settingsHref={`/hms/${slug}/revenue/settings`}
         highlights={[

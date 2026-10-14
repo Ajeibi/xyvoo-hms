@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { BarChart3, Clock, ListChecks, Timer } from "lucide-react";
+import { HmsCard, HmsStatTile } from "@/components/hms/hms-ui";
 
 type Analytics = {
   avgCompletionMinutes: number | null;
@@ -12,6 +13,22 @@ type Analytics = {
   topRequestTypes?: { requestType: string; count: number }[];
   byAssignee?: { userId: string; name: string; count: number }[];
 };
+
+function CountList({ title, items }: { title: string; items: { key: string; label: string; count: number }[] }) {
+  return (
+    <div>
+      <h3 className="text-sm font-semibold text-slate-800">{title}</h3>
+      <ul className="mt-2 space-y-1.5 text-sm text-slate-700">
+        {items.map((row) => (
+          <li key={row.key} className="flex justify-between gap-2">
+            <span className="truncate capitalize">{row.label}</span>
+            <span className="shrink-0 font-medium tabular-nums text-slate-900">{row.count}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 export function FrontDeskGuestServicesAnalytics({ slug }: { slug: string }) {
   const [data, setData] = useState<Analytics | null>(null);
@@ -29,71 +46,49 @@ export function FrontDeskGuestServicesAnalytics({ slug }: { slug: string }) {
 
   const topTypes = data.topRequestTypes ?? [];
   const byAssignee = data.byAssignee ?? [];
+  const topCategories = Object.entries(data.byCategory)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Service analytics (sample)</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
-          <div>
-            <p className="text-xs text-slate-500">Avg completion (min)</p>
-            <p className="text-lg font-semibold">{data.avgCompletionMinutes ?? "—"}</p>
-          </div>
-          <div>
-            <p className="text-xs text-slate-500">Delayed open</p>
-            <p className="text-lg font-semibold text-red-700">{data.delayedOpen}</p>
-          </div>
-          <div>
-            <p className="text-xs text-slate-500">Requests sampled</p>
-            <p className="text-lg font-semibold">{data.totalSampled}</p>
-          </div>
-          <div>
-            <p className="text-xs text-slate-500">Top categories</p>
-            <ul className="mt-1 text-xs text-slate-600">
-              {Object.entries(data.byCategory)
-                .sort((a, b) => b[1] - a[1])
-                .slice(0, 4)
-                .map(([k, v]) => (
-                  <li key={k}>
-                    {k.replace(/_/g, " ")}: {v}
-                  </li>
-                ))}
-            </ul>
-          </div>
+    <HmsCard
+      id="guest-services-insights"
+      icon={BarChart3}
+      meaning="guests"
+      title="How requests are going"
+      description={`Based on the latest ${data.totalSampled} ${data.totalSampled === 1 ? "request" : "requests"}.`}
+    >
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+        <HmsStatTile
+          label="Average time to finish"
+          value={data.avgCompletionMinutes != null ? `${data.avgCompletionMinutes} min` : "Not enough data"}
+          icon={Timer}
+          meaning="guests"
+        />
+        <HmsStatTile
+          label="Open and running late"
+          value={data.delayedOpen}
+          icon={Clock}
+          meaning="attention"
+          hint="Nothing running late"
+          status={data.delayedOpen > 0 ? "critical" : undefined}
+          statusText="Needs someone now"
+        />
+        <HmsStatTile label="Requests looked at" value={data.totalSampled} icon={ListChecks} meaning="guests" />
+      </div>
+      {topCategories.length > 0 || topTypes.length > 0 || byAssignee.length > 0 ? (
+        <div className="mt-5 grid gap-5 border-t border-slate-100 pt-5 sm:grid-cols-2 lg:grid-cols-3">
+          {topCategories.length > 0 ? (
+            <CountList title="Most asked-for kinds" items={topCategories.map(([k, v]) => ({ key: k, label: k.replace(/_/g, " "), count: v }))} />
+          ) : null}
+          {topTypes.length > 0 ? (
+            <CountList title="Most common requests" items={topTypes.map((r) => ({ key: r.requestType, label: r.requestType, count: r.count }))} />
+          ) : null}
+          {byAssignee.length > 0 ? (
+            <CountList title="Handled by" items={byAssignee.map((r) => ({ key: r.userId, label: r.name, count: r.count }))} />
+          ) : null}
         </div>
-        {topTypes.length > 0 || byAssignee.length > 0 ? (
-          <div className="grid gap-4 border-t border-slate-100 pt-4 text-sm sm:grid-cols-2">
-            {topTypes.length > 0 ? (
-              <div>
-                <p className="text-xs font-medium text-slate-500">Top request types</p>
-                <ul className="mt-2 space-y-1 text-xs text-slate-600">
-                  {topTypes.map((row) => (
-                    <li key={row.requestType} className="flex justify-between gap-2">
-                      <span className="truncate">{row.requestType}</span>
-                      <span className="shrink-0 tabular-nums font-medium">{row.count}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-            {byAssignee.length > 0 ? (
-              <div>
-                <p className="text-xs font-medium text-slate-500">By assignee</p>
-                <ul className="mt-2 space-y-1 text-xs text-slate-600">
-                  {byAssignee.map((row) => (
-                    <li key={row.userId} className="flex justify-between gap-2">
-                      <span className="truncate">{row.name}</span>
-                      <span className="shrink-0 tabular-nums font-medium">{row.count}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-      </CardContent>
-    </Card>
+      ) : null}
+    </HmsCard>
   );
 }

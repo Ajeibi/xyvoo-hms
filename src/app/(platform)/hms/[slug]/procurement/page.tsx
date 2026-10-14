@@ -1,4 +1,5 @@
 import HMSLayout from "@/components/hms/HMSLayout";
+import { HmsPage, HmsPageHeader } from "@/components/hms/hms-ui";
 import { ProcurementDashboardClient } from "@/components/hms/procurement/ProcurementDashboardClient";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { getHmsAccessContext } from "@/lib/hms/access";
@@ -15,10 +16,9 @@ export default async function ProcurementPage({ params }: { params: Promise<{ sl
   if (!tenant) {
     return (
       <HMSLayout slug={slug} requiredSection="procurement">
-        <div className="px-8 py-8">
-          <h1 className="text-xl font-semibold text-slate-900">Procurement</h1>
-          <p className="mt-0.5 text-sm text-slate-500">Hotel not found.</p>
-        </div>
+        <HmsPage>
+          <HmsPageHeader eyebrow="Procurement" meaning="stock" title="Procurement" description="Hotel not found." />
+        </HmsPage>
       </HMSLayout>
     );
   }

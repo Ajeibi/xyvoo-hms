@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import HMSLayout from "@/components/hms/HMSLayout";
+import { HmsPage, HmsPageHeader } from "@/components/hms/hms-ui";
+import { HmsSectionIntro } from "@/components/hms/hms-ui-client";
 import { FrontDeskCheckInForm } from "@/components/hms/frontdesk/FrontDeskCheckInForm";
 import { fetchCheckInStaffOptions, checkInStaffOptionsForSessionUser } from "@/lib/hms/check-in-staff-options";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
@@ -72,22 +74,34 @@ export default async function FrontDeskCheckInPage({
 
   return (
     <HMSLayout slug={slug} requiredSection="frontdesk">
-      <div className="w-full px-6 py-8 sm:px-8">
-        <div className="mb-6">
-          <Link
-            href={`/hms/${slug}/frontdesk`}
-            className="text-sm font-medium text-blue-600 hover:underline"
-          >
-            ← Back to front desk
-          </Link>
-          <h1 className="mt-4 text-2xl font-semibold tracking-tight text-slate-900">Check in guest</h1>
-          <p className="mt-2 text-sm text-slate-500">
-            Walk-in or new arrival — guest profile and stay are saved to your property database.
-          </p>
-        </div>
+      <HmsPage wide>
+        <Link
+          href={`/hms/${slug}/frontdesk`}
+          className="inline-flex items-center gap-1 rounded text-sm font-medium text-blue-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        >
+          <span aria-hidden>←</span> Back to front desk
+        </Link>
+        <HmsPageHeader
+          eyebrow="Front desk"
+          meaning="rooms"
+          title="Check in a guest"
+          description="For walk-ins and new arrivals. The guest's details and stay are saved to your hotel's records."
+        />
 
-        <section className="rounded-[24px] border border-slate-200 bg-white px-6 py-6 shadow-sm sm:px-8 sm:py-8">
-          <Suspense fallback={<p className="text-sm text-slate-500">Loading form…</p>}>
+        <HmsSectionIntro
+          id="frontdesk-check-in"
+          meaning="rooms"
+          art="page"
+          title="What you can do here"
+          points={[
+            "Fill in the guest's details and their ID. Fields marked * are needed.",
+            "Choose the dates, room type and room. The price updates as you go.",
+            "Add any discount and how they'll pay, then complete check-in.",
+          ]}
+        />
+
+        <section aria-label="Check-in form">
+          <Suspense fallback={<p role="status" className="text-sm text-slate-600">Loading the form…</p>}>
             <FrontDeskCheckInForm
               slug={slug}
               roomTypes={roomTypes}
@@ -100,7 +114,7 @@ export default async function FrontDeskCheckInPage({
             />
           </Suspense>
         </section>
-      </div>
+      </HmsPage>
     </HMSLayout>
   );
 }
