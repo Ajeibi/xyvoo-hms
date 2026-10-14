@@ -25,7 +25,7 @@ import { storefrontUrl } from "./subdomain";
  */
 
 const ORDER_COLUMNS =
-  "id, tenant_id, customer_name, customer_email, customer_phone, status, payment_status, payment_method, total_amount, delivery_fee, delivery_method, discount_code, discount_amount, shipping_address, created_at, paid_at, receipt_number, receipt_token, order_items(product_name, quantity, unit_price, line_total, variant_id, created_at)";
+  "id, tenant_id, customer_name, customer_email, customer_phone, status, payment_status, payment_method, total_amount, delivery_fee, delivery_method, discount_code, discount_amount, gift_card_amount, shipping_address, created_at, paid_at, receipt_number, receipt_token, order_items(product_name, quantity, unit_price, line_total, variant_id, created_at)";
 
 type OrderRow = {
   id: string;
@@ -41,6 +41,7 @@ type OrderRow = {
   delivery_method: string | null;
   discount_code: string | null;
   discount_amount: number | string | null;
+  gift_card_amount?: number | string | null;
   shipping_address: Record<string, unknown> | null;
   created_at: string;
   paid_at: string | null;
@@ -67,6 +68,8 @@ export type ReceiptData = {
   items: { name: string; options: string; quantity: number; unitPrice: number; lineTotal: number }[];
   subtotal: number;
   discount: { code: string | null; amount: number };
+  /** Paid with a gift card (taken off what's left to pay). */
+  giftCard: number;
   deliveryFee: number;
   tax: { amount: number; rate: number | null; inclusive: boolean } | null;
   total: number;
@@ -189,6 +192,7 @@ export async function loadReceiptData(where: { tenantId: string; orderId: string
     items,
     subtotal: items.reduce((s, i) => s + i.lineTotal, 0),
     discount: { code: order.discount_code, amount: num(order.discount_amount) },
+    giftCard: num(order.gift_card_amount),
     deliveryFee: num(order.delivery_fee),
     tax: taxAmount > 0 ? { amount: taxAmount, rate: taxPercent(taxRow?.tax_rate), inclusive: Boolean(taxRow?.tax_inclusive) } : null,
     total: num(order.total_amount),
@@ -214,6 +218,8 @@ export function paymentSentence(method: string | null, paidOn: string) {
       return `Paid${on}, arranged on WhatsApp.`;
     case "Discount":
       return `Covered in full by a discount${on}. Nothing to pay.`;
+    case "Gift card":
+      return `Paid in full with a gift card${on}.`;
     default:
       return `Paid${method ? ` by ${method.toLowerCase()}` : ""}${on}.`;
   }
@@ -323,6 +329,7 @@ export async function renderReceiptPdf(r: ReceiptData) {
     ...(r.discount.amount > 0 ? [[`Discount${r.discount.code ? ` (${r.discount.code})` : ""}`, money(-r.discount.amount)]] : []),
     ...(r.deliveryFee > 0 ? [["Delivery", money(r.deliveryFee)]] : r.deliveryMethod ? [["Delivery", "Free"]] : []),
     ...(r.tax && !r.tax.inclusive ? [[taxLabel, money(r.tax.amount)]] : []),
+    ...(r.giftCard > 0 ? [["Paid with gift card", money(-r.giftCard)]] : []),
     [isReceipt ? "Total paid" : "Total to pay", money(r.total)],
     ...(r.tax && r.tax.inclusive ? [[`Includes ${taxLabel}`, money(r.tax.amount)]] : []),
     ...(isReceipt && r.refunded > 0 ? [["Refunded to you", money(-r.refunded)], ["Paid after refunds", money(Math.max(0, r.total - r.refunded))]] : []),

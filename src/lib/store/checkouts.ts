@@ -6,8 +6,9 @@ import { storeCurrency } from "./payout-routes";
 
 /*
  * Checkouts in progress, for abandoned-cart follow-up. The checkout page saves
- * the basket and contact details as the shopper types them (the page says so),
- * and the shop follows up by hand. Kept for 28 days.
+ * the basket and contact details as the shopper types them (the page says so).
+ * The shop follows up by hand, and automatic email reminders go out too (see
+ * cart-reminders.ts). Kept for 28 days.
  */
 
 /** Minutes without activity before a checkout counts as abandoned. */
@@ -97,13 +98,16 @@ export type AbandonedCheckout = {
   /** They came back and paid later (any order with the same email or phone). */
   recoveredOrderId: string | null;
   lastActivityAt: string;
+  /** Automatic email reminders sent so far, and when the last one went. */
+  remindersSent: number;
+  lastReminderAt: string | null;
 };
 
 export async function listAbandonedCheckouts(tenantId: string, now = Date.now()): Promise<AbandonedCheckout[]> {
   const before = new Date(now - ABANDONED_AFTER_MINUTES * 60_000).toISOString();
   const { data, error } = await db()
     .from("checkouts")
-    .select("id, customer_name, customer_email, customer_phone, items, subtotal, currency, order_id, follow_up, followed_up_at, created_at, updated_at, orders(payment_status, status)")
+    .select("id, customer_name, customer_email, customer_phone, items, subtotal, currency, order_id, follow_up, followed_up_at, reminders_sent, last_reminder_at, created_at, updated_at, orders(payment_status, status)")
     .eq("tenant_id", tenantId)
     .lt("updated_at", before)
     .order("updated_at", { ascending: false })
@@ -143,6 +147,8 @@ export async function listAbandonedCheckouts(tenantId: string, now = Date.now())
       followedUpAt: r.followed_up_at,
       recoveredOrderId: recovered?.id ?? null,
       lastActivityAt: r.updated_at,
+      remindersSent: Number(r.reminders_sent) || 0,
+      lastReminderAt: r.last_reminder_at ?? null,
     };
   });
 }

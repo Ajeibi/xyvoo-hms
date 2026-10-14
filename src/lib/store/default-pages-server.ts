@@ -15,7 +15,7 @@ async function loadContext(tenantId: string): Promise<DefaultPagesContext | null
     store.from("business_profile").select("*").eq("tenant_id", tenantId).maybeSingle(),
     store
       .from("delivery_zones")
-      .select("id, name, regions, fee, free_over, eta_text, is_pickup, is_active, sort_order")
+      .select("id, name, regions, fee, weight_bands, free_over, eta_text, is_pickup, is_active, sort_order")
       .eq("tenant_id", tenantId)
       .eq("is_active", true)
       .order("sort_order"),

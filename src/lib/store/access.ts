@@ -56,6 +56,13 @@ export const STORE_SECTIONS = [
   "collections",
   "customers",
   "discounts",
+  "gift-cards",
+  "campaigns",
+  "loyalty",
+  "referrals",
+  "returns",
+  "trade",
+  "blog",
   "reviews",
   "analytics",
   "abandoned-carts",
@@ -72,7 +79,7 @@ export const STORE_SECTIONS = [
 export type StoreSection = (typeof STORE_SECTIONS)[number];
 
 /** What staff can open: the day-to-day selling screens. Everything else is for owners and admins. */
-const STAFF_SECTIONS: readonly StoreSection[] = ["dashboard", "orders", "products", "collections", "customers", "reviews", "alerts"];
+const STAFF_SECTIONS: readonly StoreSection[] = ["dashboard", "orders", "returns", "products", "collections", "customers", "reviews", "alerts"];
 
 export function canUseStoreSection(role: string | null, section: StoreSection) {
   if (role === "owner" || role === "admin") return true;

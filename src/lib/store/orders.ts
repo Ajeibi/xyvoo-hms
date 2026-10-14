@@ -36,6 +36,9 @@ export type StoreOrderRow = {
   platform_fee: number;
   platform_fee_percentage: number | null;
   paid_at?: string | null;
+  /** Where it was sold: "online", or recorded by hand ("in_person", "phone", ...). */
+  channel?: string | null;
+  shop_note?: string | null;
   created_at: string;
   updated_at: string;
   store_order_items?: StoreOrderItemRow[];
@@ -67,6 +70,10 @@ export type DashboardOrder = {
   trackingCarrier: string | null;
   itemCount: number;
   items: StoreOrderItemRow[];
+  /** "online", or where an order recorded by hand was sold. */
+  channel: string;
+  /** The team's own note on an order recorded by hand. */
+  shopNote: string | null;
   createdAt: string;
 };
 
@@ -96,6 +103,8 @@ export function mapOrderRowToDashboard(row: StoreOrderRow, fallbackCurrency = "N
     trackingCarrier: row.tracking_carrier ?? null,
     itemCount: items.reduce((sum, item) => sum + item.quantity, 0),
     items,
+    channel: row.channel || "online",
+    shopNote: row.shop_note ?? null,
     createdAt: row.created_at,
   };
 }

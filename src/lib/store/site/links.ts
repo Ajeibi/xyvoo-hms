@@ -21,6 +21,8 @@ export const STORE_PATHS = {
   product: (slug: string) => `/products/${encodeURIComponent(slug)}`,
   collection: (slug: string) => `/collections/${encodeURIComponent(slug)}`,
   page: (slug: string) => `/pages/${encodeURIComponent(slug)}`,
+  blog: "/blog",
+  blogPost: (slug: string) => `/blog/${encodeURIComponent(slug)}`,
   cart: "/cart",
   checkout: "/checkout",
   category: (category: string) => `/products?category=${encodeURIComponent(category)}`,

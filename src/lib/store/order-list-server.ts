@@ -8,7 +8,7 @@ import { orderRefSearch, ORDERS_PAGE_SIZE, phoneSearchDigits, type OrderListQuer
  * as availableOrderActions (see order-attention.ts).
  */
 
-const PAY_LATER = `("Pay on Delivery","WhatsApp")`;
+const PAY_LATER = `("Pay on Delivery","WhatsApp","Pay later")`;
 const SELECT = "*, store_order_items:order_items(*)";
 
 /** Postgres "column does not exist": the phase 1 migration hasn't been applied yet. */

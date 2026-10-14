@@ -93,7 +93,7 @@ export function cleanSearchTerm(term: string) {
 export function buildSearchFilter(term: string, extraProductIds: string[] = []) {
   const clean = cleanSearchTerm(term);
   if (!clean) return null;
-  const parts = [`name.ilike.%${clean}%`, `sku.ilike.%${clean}%`, `category.ilike.%${clean}%`, `tags.cs.{${clean}}`];
+  const parts = [`name.ilike.%${clean}%`, `sku.ilike.%${clean}%`, `barcode.eq.${clean}`, `gtin.eq.${clean}`, `category.ilike.%${clean}%`, `tags.cs.{${clean}}`];
   const lower = clean.toLowerCase();
   if (lower !== clean) parts.push(`tags.cs.{${lower}}`);
   const ids = extraProductIds.filter((id) => z.string().uuid().safeParse(id).success);

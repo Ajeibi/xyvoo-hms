@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { sendGiftCardsForShop } from "./gift-cards";
 import { toSubunitAmount } from "@/lib/shop/checkout";
 import { sendOrderPaidEmails, sendPaidCancelledAlert } from "./order-emails";
 
@@ -48,7 +49,11 @@ export async function finalizeCardPayment(input: { reference: string; amountSubu
     .is("emails_sent_at", null)
     .select("id, status")
     .maybeSingle();
-  if (claimed) await sendOrderPaidEmails(intent.tenant_id as string, intent.order_id as string);
+  if (claimed) {
+    await sendOrderPaidEmails(intent.tenant_id as string, intent.order_id as string);
+    // A gift card order: the database made the card when the order was paid; email it now.
+    await sendGiftCardsForShop(intent.tenant_id as string);
+  }
 
   // Paid after its stock was released: tell the shop, once.
   const { data: alert } = await db
