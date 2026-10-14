@@ -17,6 +17,16 @@ export default async function StorefrontDeliveryPage({ params }: { params: Promi
   const { data } = access.tenantId
     ? await createServerSupabaseClient().schema("store").from("business_profile").select("currency_code, country_code").eq("tenant_id", access.tenantId).maybeSingle()
     : { data: null };
+  // Weight bands only price what has a weight, so say how many products would count as nothing.
+  const { count: unweighed } = access.tenantId
+    ? await createServerSupabaseClient()
+        .schema("store")
+        .from("products")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", access.tenantId)
+        .neq("status", "archived")
+        .or("weight_kg.is.null,weight_kg.eq.0")
+    : { count: 0 };
 
   return (
     <div className="space-y-6">
@@ -68,7 +78,7 @@ export default async function StorefrontDeliveryPage({ params }: { params: Promi
         />
       </DashStatStrip>
 
-      <DeliveryManager slug={slug} currency={(data?.currency_code as string) || "NGN"} countryCode={(data?.country_code as string) || "NG"} />
+      <DeliveryManager slug={slug} unweighedProducts={unweighed ?? 0} currency={(data?.currency_code as string) || "NGN"} countryCode={(data?.country_code as string) || "NG"} />
       <FreeDeliveryRules slug={slug} currency={(data?.currency_code as string) || "NGN"} countryCode={(data?.country_code as string) || "NG"} />
     </div>
   );

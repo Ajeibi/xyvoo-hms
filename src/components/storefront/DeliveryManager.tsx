@@ -29,7 +29,7 @@ function SkeletonRows() {
 }
 
 /** Delivery options customers choose from at checkout. */
-export default function DeliveryManager({ slug, currency, countryCode = "NG" }: { slug: string; currency: string; countryCode?: string }) {
+export default function DeliveryManager({ slug, currency, countryCode = "NG", unweighedProducts = 0 }: { slug: string; currency: string; countryCode?: string; unweighedProducts?: number }) {
   const [zones, setZones] = useState<DeliveryZone[] | null>(null);
   const [canManage, setCanManage] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -152,6 +152,12 @@ export default function DeliveryManager({ slug, currency, countryCode = "NG" }: 
       <DashStatus message={status} />
       <div className={`space-y-4 ${status ? "mt-3" : ""}`}>
         <DashAlert message={error} />
+        {unweighedProducts > 0 && zones?.some((z) => z.isActive && z.weightBands.length > 0) ? (
+          <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            {unweighedProducts === 1 ? "1 product has" : `${unweighedProducts} products have`} no weight, so {unweighedProducts === 1 ? "it counts" : "they count"} as nothing when delivery is charged by weight. Add a weight to{" "}
+            {unweighedProducts === 1 ? "it" : "them"} on the product form.
+          </p>
+        ) : null}
         {summary ? <p className={`text-sm ${shown === 0 ? "text-amber-800" : "text-slate-700"}`}>{summary}</p> : null}
 
         {zones === null ? (
