@@ -4,17 +4,22 @@ import { useEffect, useRef, useState } from "react";
 import { CheckCircle2, MapPin } from "lucide-react";
 import { INPUT_CLASS } from "@/features/hotel-register/constants";
 import type { LocationAddressOption } from "@/types";
+import { cn } from "@/lib/utils";
 
 export default function AddressAutocomplete({
   id,
   value,
   onChange,
   country,
+  invalid,
+  describedBy,
 }: {
   id?: string;
   value: string;
   onChange: (value: string) => void;
   country: string;
+  invalid?: boolean;
+  describedBy?: string;
 }) {
   const [query, setQuery] = useState(value || "");
   const [results, setResults] = useState<LocationAddressOption[]>([]);
@@ -88,7 +93,7 @@ export default function AddressAutocomplete({
     return (
       <div>
         <div className="relative">
-          <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-500" />
+          <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-700" aria-hidden />
           <input
             id={id}
             value={manualValue}
@@ -96,13 +101,18 @@ export default function AddressAutocomplete({
               setManualValue(e.target.value);
               onChange(e.target.value);
             }}
-            placeholder="Type full hotel address..."
-            className={`${INPUT_CLASS} pl-9 border-amber-300 focus:border-amber-400`}
+            placeholder="Type the full hotel address"
+            autoComplete="street-address"
+            aria-invalid={invalid || undefined}
+            aria-describedby={[describedBy, id ? `${id}-manual-note` : null].filter(Boolean).join(" ") || undefined}
+            className={cn(INPUT_CLASS, "pl-9", !invalid && "border-amber-400")}
           />
         </div>
-        <div className="flex items-center justify-between mt-1.5">
-          <span className="text-xs text-amber-600 font-medium flex items-center gap-1">Manually entered - not geocoded</span>
-          <button type="button" onClick={switchToSearch} className="text-xs text-blue-600 hover:underline">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 mt-1.5">
+          <span id={id ? `${id}-manual-note` : undefined} className="text-sm text-amber-800 font-medium">
+            Entered by hand, so it won&rsquo;t be checked on the map.
+          </span>
+          <button type="button" onClick={switchToSearch} className="inline-flex min-h-11 items-center text-sm font-semibold text-xyvoo-blue-deep hover:underline">
             Try search again
           </button>
         </div>
@@ -113,16 +123,19 @@ export default function AddressAutocomplete({
   return (
     <div ref={wrapRef} className="relative">
       <div className="relative">
-        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" aria-hidden />
         <input
           id={id}
           value={query}
           onChange={(e) => search(e.target.value)}
           onFocus={() => results.length > 0 && setOpen(true)}
-          placeholder="Search hotel address..."
+          placeholder="Start typing your hotel's address"
+          autoComplete="off"
+          aria-invalid={invalid || undefined}
+          aria-describedby={describedBy}
           className={`${INPUT_CLASS} pl-9`}
         />
-        {searching && <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin" />}
+        {searching && <div aria-hidden className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-blue-200 border-t-xyvoo-blue-deep rounded-full animate-spin motion-reduce:animate-none" />}
       </div>
 
       {open && results.length > 0 && (
@@ -132,34 +145,34 @@ export default function AddressAutocomplete({
               key={`${r.display_name}-${i}`}
               type="button"
               onClick={() => selectResult(r)}
-              className="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-blue-50 transition-colors border-b border-slate-100 last:border-0"
+              className="w-full text-left px-4 py-3 text-sm text-slate-800 hover:bg-blue-50 focus-visible:bg-blue-50 focus-visible:outline-none transition-colors border-b border-slate-100 last:border-0"
             >
               <span className="font-medium">{r.display_name}</span>
             </button>
           ))}
-          <button type="button" onClick={switchToManual} className="w-full text-left px-4 py-3 text-xs text-slate-400 hover:bg-slate-50 transition-colors border-t border-slate-100">
-            Can&apos;t find it? Enter address manually
+          <button type="button" onClick={switchToManual} className="w-full text-left px-4 py-3 text-sm font-medium text-xyvoo-blue-deep hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:outline-none transition-colors border-t border-slate-100">
+            Can&rsquo;t find it? Enter the address yourself
           </button>
         </div>
       )}
 
       {searching && query.length >= 4 && (
-        <div className="mt-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 flex items-center gap-2">
-          <span className="w-3.5 h-3.5 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin" />
-          <span className="text-xs text-slate-600">Searching addresses...</span>
+        <div role="status" className="mt-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 flex items-center gap-2">
+          <span aria-hidden className="w-3.5 h-3.5 border-2 border-blue-200 border-t-xyvoo-blue-deep rounded-full animate-spin motion-reduce:animate-none" />
+          <span className="text-sm text-slate-700">Searching addresses...</span>
         </div>
       )}
 
       {noResults && !open && query.length >= 4 && (
-        <div className="mt-1.5 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 flex items-center justify-between">
-          <span className="text-xs text-slate-500">No results found for &quot;{query}&quot;</span>
-          <button type="button" onClick={switchToManual} className="text-xs text-blue-600 font-semibold hover:underline ml-3 whitespace-nowrap">
-            Enter manually
+        <div role="status" className="mt-1.5 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 flex flex-wrap items-center justify-between gap-x-3">
+          <span className="text-sm text-slate-700">No results found for &ldquo;{query}&rdquo;</span>
+          <button type="button" onClick={switchToManual} className="inline-flex min-h-11 items-center text-sm text-xyvoo-blue-deep font-semibold hover:underline whitespace-nowrap">
+            Enter it yourself
           </button>
         </div>
       )}
 
-      {value && !noResults && <p className="text-xs text-green-600 mt-1 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" />Address verified</p>}
+      {value && !noResults && <p className="text-sm font-medium text-green-700 mt-1.5 flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4" aria-hidden />Address verified</p>}
     </div>
   );
 }

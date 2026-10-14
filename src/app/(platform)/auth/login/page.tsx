@@ -2,11 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { CircleAlert, Eye, EyeOff } from "lucide-react";
-import WebsiteLayout from "@/components/website/WebsiteLayout";
 import { supabaseAuthBrowser } from "@/lib/supabase/auth-browser";
 import { formatSignInError } from "@/lib/auth-errors";
 import { toastError, toastSuccess } from "@/lib/app-toast";
+import HotelAuthLayout from "@/features/hotel-register/components/HotelAuthLayout";
+import { INPUT_CLASS } from "@/features/hotel-register/constants";
+import { LINK_CLASS, PRIMARY_BUTTON_CLASS } from "@/features/hotel-register/components/fields";
 
 export default function LoginPage() {
   const [from] = useState(() => {
@@ -71,84 +74,114 @@ export default function LoginPage() {
   };
 
   return (
-    <WebsiteLayout compactMain>
-      <div className="bg-slate-50 px-4 pb-28 pt-28">
-        <div className="max-w-md mx-auto bg-white rounded-2xl border border-slate-200 p-8 space-y-4">
-          <h1 className="text-2xl font-bold text-slate-900">Sign in</h1>
-          <p className="text-sm text-slate-500">Use the hotel owner account created during registration.</p>
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <label htmlFor="login-email" className="sr-only">
-              Email address
-            </label>
+    <HotelAuthLayout imageAlt="A receptionist welcoming guests at a hotel front desk">
+      <motion.div
+        className="space-y-2"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <p className="text-sm font-bold uppercase tracking-wider text-xyvoo-blue-deep">XYVOO Hotel</p>
+        <h1 className="text-4xl font-bold leading-tight text-black">Sign in</h1>
+        <motion.p
+          className="text-base leading-relaxed text-black"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+        >
+          Use the hotel owner account created during registration.
+        </motion.p>
+      </motion.div>
+
+      {error ? (
+        <motion.div
+          role="alert"
+          aria-live="polite"
+          className="flex gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-red-600" aria-hidden />
+          <p>{error}</p>
+        </motion.div>
+      ) : null}
+
+      <motion.form
+        onSubmit={handleSubmit}
+        className="space-y-4"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+      >
+        <div>
+          <label htmlFor="login-email" className="mb-1.5 block text-sm font-medium text-black">
+            Email address
+          </label>
+          <input
+            id="login-email"
+            name="email"
+            className={INPUT_CLASS}
+            type="email"
+            placeholder="you@yourhotel.com"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => {
+              clearError();
+              setEmail(e.target.value);
+            }}
+            required
+          />
+        </div>
+        <div>
+          <label htmlFor="login-password" className="mb-1.5 block text-sm font-medium text-black">
+            Password
+          </label>
+          <div className="relative">
             <input
-              id="login-email"
-              name="email"
-              className="w-full px-4 py-3 text-sm bg-white border border-slate-200 rounded-xl"
-              type="email"
-              placeholder="Email address"
-              autoComplete="email"
-              value={email}
+              id="login-password"
+              name="password"
+              className={`${INPUT_CLASS} pr-12`}
+              type={showPassword ? "text" : "password"}
+              placeholder="Enter your password"
+              autoComplete="current-password"
+              value={password}
               onChange={(e) => {
                 clearError();
-                setEmail(e.target.value);
+                setPassword(e.target.value);
               }}
               required
             />
-            <div className="relative">
-              <label htmlFor="login-password" className="sr-only">
-                Password
-              </label>
-              <input
-                id="login-password"
-                name="password"
-                className="w-full px-4 py-3 pr-11 text-sm bg-white border border-slate-200 rounded-xl"
-                type={showPassword ? "text" : "password"}
-                placeholder="Password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => {
-                  clearError();
-                  setPassword(e.target.value);
-                }}
-                required
-              />
-              <button
-                type="button"
-                aria-label={showPassword ? "Hide password" : "Show password"}
-                onClick={() => setShowPassword((v) => !v)}
-                className="absolute inset-y-0 right-0 px-3 text-slate-500 hover:text-slate-700"
-              >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
-            <p className="text-right text-sm">
-              <Link className="text-blue-600 hover:underline" href="/auth/forgot-password?for=hms">
-                Forgot your password?
-              </Link>
-            </p>
-            {error ? (
-              <div
-                role="alert"
-                aria-live="polite"
-                className="flex gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
-              >
-                <CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-red-600" aria-hidden />
-                <p>{error}</p>
-              </div>
-            ) : null}
             <button
-              disabled={loading}
-              className="w-full rounded-xl bg-xyvoo-blue py-3 font-semibold text-white disabled:opacity-60"
-              type="submit"
+              type="button"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              onClick={() => setShowPassword((v) => !v)}
+              className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-xl text-slate-600 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-xyvoo-blue"
             >
-              {loading ? "Signing in..." : "Sign in"}
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
-          </form>
-          <p className="text-sm text-slate-500">
-            Need an account? <Link className="text-blue-600" href="/register">Register your hotel</Link>
+          </div>
+          <p className="mt-2 text-right text-sm">
+            <Link href="/auth/forgot-password?for=hms" className="font-medium text-black hover:underline">
+              Forgot your password?
+            </Link>
           </p>
         </div>
-      </div>
-    </WebsiteLayout>
+        <button disabled={loading} type="submit" className={PRIMARY_BUTTON_CLASS}>
+          {loading ? "Signing in..." : "Sign in"}
+        </button>
+      </motion.form>
+
+      <motion.p
+        className="text-center text-sm font-medium text-black"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5, delay: 0.3 }}
+      >
+        Need an account?{" "}
+        <Link className={LINK_CLASS} href="/register">
+          Register your hotel
+        </Link>
+      </motion.p>
+    </HotelAuthLayout>
   );
 }

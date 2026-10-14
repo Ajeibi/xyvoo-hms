@@ -1,34 +1,53 @@
 import { CheckCircle2 } from "lucide-react";
-import Image from "next/image";
-import { LOGO_URL } from "@/constants/branding";
+import { PRIMARY_BUTTON_CLASS } from "@/features/hotel-register/components/fields";
 
-export default function StepDone() {
+const NEXT_STEPS = [
+  "Sign in with your registration email and password",
+  "Complete your HMS setup wizard",
+  "Add your rooms and team",
+  "Go live!",
+];
+
+export default function StepDone({ headingRef }: { headingRef?: React.Ref<HTMLHeadingElement> }) {
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-10 text-center">
-      <Image src={LOGO_URL} alt="XYVOO" width={125} height={50} className="mx-auto mb-6" />
-      <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
-        <CheckCircle2 className="w-12 h-12 text-green-600" />
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <span className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50" aria-hidden>
+          <CheckCircle2 className="h-8 w-8 text-emerald-700" />
+        </span>
+        <p className="pt-2 text-sm font-bold uppercase tracking-wider text-xyvoo-blue-deep">XYVOO Hotel</p>
+        <h1 ref={headingRef} tabIndex={-1} className="text-4xl font-bold leading-tight text-black focus:outline-none">
+          You&rsquo;re all set!
+        </h1>
+        <p className="text-base leading-relaxed text-black">
+          Your hotel account is ready. Sign in with the email and password you created during registration.
+        </p>
       </div>
-      <h2 className="mb-2 text-2xl font-bold text-xyvoo-navy">You&apos;re all set!</h2>
-      <p className="text-slate-500 text-sm mb-6">
-        Your hotel account is ready. Sign in with the email and password you created during registration.
-      </p>
-      <div className="bg-blue-50 rounded-xl p-4 mb-6 text-left">
-        <p className="text-xs text-slate-400 mb-2 font-semibold uppercase tracking-wider">Next steps</p>
-        <ul className="text-sm text-slate-700 space-y-2">
-          {["Sign in with your registration email and password", "Complete your HMS setup wizard", "Add your rooms and team", "Go live!"].map((s, i) => (
-            <li key={i} className="flex gap-2">
-              <span className="shrink-0 font-bold text-xyvoo-blue">{i + 1}.</span> {s}
+
+      <section aria-labelledby="done-next-steps-title" className="rounded-2xl border border-slate-200 bg-white p-5">
+        <h2 id="done-next-steps-title" className="text-base font-semibold text-slate-900">
+          Next steps
+        </h2>
+        <ol className="mt-3 space-y-2 text-sm text-slate-700">
+          {NEXT_STEPS.map((s, i) => (
+            <li key={s} className="flex gap-3">
+              <span
+                aria-hidden
+                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-50 text-xs font-bold text-xyvoo-blue-deep"
+              >
+                {i + 1}
+              </span>
+              <span className="pt-0.5">{s}</span>
             </li>
           ))}
-        </ul>
+        </ol>
+      </section>
+
+      <div className="border-t border-slate-200 pt-6">
+        <a href="/auth/login" className={PRIMARY_BUTTON_CLASS}>
+          Sign in to your dashboard
+        </a>
       </div>
-      <a
-        href="/auth/login"
-        className="block w-full rounded-xl bg-xyvoo-blue py-3.5 font-semibold text-white transition-all"
-      >
-        Sign in to your dashboard →
-      </a>
     </div>
   );
 }

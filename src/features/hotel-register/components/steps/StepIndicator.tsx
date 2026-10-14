@@ -1,27 +1,37 @@
+/**
+ * Registration progress as small dots, as in the storefront setup: the current
+ * step is a wider pill and finished steps are marked. Each dot has a 24px
+ * target and a full label for screen readers.
+ */
 export default function StepIndicator({ step, labels }: { step: number; labels: string[] }) {
   return (
-    <div className="mb-8">
-      <p className="text-center text-xs text-slate-400 mb-3 font-medium">Step {Math.min(step + 1, 4)} of 4</p>
-      <div className="flex items-center gap-0">
-        {labels.map((label, i) => (
-          <div key={i} className="flex items-center flex-1 last:flex-none">
-            <div className="flex flex-col items-center flex-shrink-0">
-              <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-                  i < step ? "bg-green-500 text-white" : i === step ? "text-white" : "bg-slate-200 text-slate-400"
-                }`}
-                style={
-                  i === step ? { background: "var(--xyvoo-blue)" } : {}
-                }
+    <nav aria-label="Registration steps">
+      <ol className="flex items-center gap-1">
+        {labels.map((label, i) => {
+          const current = i === step;
+          const done = i < step;
+          return (
+            <li key={label}>
+              <span
+                className="flex h-6 min-w-6 items-center justify-center"
+                aria-current={current ? "step" : undefined}
+                title={label}
               >
-                {i < step ? "✓" : i + 1}
-              </div>
-              <span className={`text-[10px] mt-1 font-medium whitespace-nowrap ${i === step ? "text-blue-600" : "text-slate-400"}`}>{label}</span>
-            </div>
-            {i < labels.length - 1 && <div className={`flex-1 h-px mx-2 mb-4 ${i < step ? "bg-green-400" : "bg-slate-200"}`} />}
-          </div>
-        ))}
-      </div>
-    </div>
+                <span
+                  aria-hidden
+                  className={`block h-2 rounded-full transition-all motion-reduce:transition-none ${
+                    current ? "w-6 bg-xyvoo-blue" : done ? "w-2 bg-xyvoo-blue/45" : "w-2 bg-slate-300"
+                  }`}
+                />
+                <span className="sr-only">
+                  Step {i + 1}: {label}
+                  {current ? " (current step)" : done ? " (done)" : ""}
+                </span>
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
   );
 }

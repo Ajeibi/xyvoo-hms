@@ -20,5 +20,5 @@ export default function OtpCountdown({ expiresAt, onExpired }: { expiresAt: numb
   const m = String(Math.floor(secs / 60)).padStart(2, "0");
   const s = String(secs % 60).padStart(2, "0");
 
-  return <span className={`font-mono font-bold ${secs < 60 ? "text-red-500" : "text-slate-600"}`}>{m}:{s}</span>;
+  return <span className={`font-mono font-bold ${secs < 60 ? "text-rose-700" : "text-slate-800"}`}>{m}:{s}</span>;
 }
