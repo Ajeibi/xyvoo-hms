@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,8 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { HmsField, hmsButton, hmsInput } from "@/components/hms/hms-ui";
 import {
   Select,
   SelectContent,
@@ -28,6 +27,7 @@ import type {
 
 const NO_CATEGORY = "__none__";
 const SAME_AS_ISSUE_UNIT = "__same__";
+const TRIGGER = "h-[42px] rounded-xl border-slate-300";
 
 /**
  * Reusable "create a new item" dialog usable from anywhere an item picker
@@ -46,6 +46,7 @@ export function CreateInventoryItemDialog({
   onOpenChange: (open: boolean) => void;
   onCreated: (item: InventoryItemRow) => void;
 }) {
+  const uid = useId();
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<InventoryCategoryRow[]>([]);
   const [units, setUnits] = useState<InventoryUnitRow[]>([]);
@@ -142,21 +143,20 @@ export function CreateInventoryItemDialog({
         </DialogHeader>
 
         {loading ? (
-          <p className="py-6 text-sm text-slate-500">Loading…</p>
+          <p role="status" className="py-6 text-sm text-slate-600">
+            Loading…
+          </p>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">SKU</label>
-              <Input value={sku} onChange={(e) => setSku(e.target.value)} placeholder="e.g. LIN-0001" />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">Name</label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Bath towel" />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">Category</label>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <HmsField id={`${uid}-sku`} label="SKU">
+              <input id={`${uid}-sku`} className={hmsInput} value={sku} onChange={(e) => setSku(e.target.value)} placeholder="e.g. LIN-0001" />
+            </HmsField>
+            <HmsField id={`${uid}-name`} label="Name">
+              <input id={`${uid}-name`} className={hmsInput} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Bath towel" />
+            </HmsField>
+            <HmsField id={`${uid}-category`} label="Category">
               <Select value={categoryId} onValueChange={setCategoryId}>
-                <SelectTrigger>
+                <SelectTrigger id={`${uid}-category`} className={TRIGGER}>
                   <SelectValue placeholder="No category" />
                 </SelectTrigger>
                 <SelectContent>
@@ -168,11 +168,10 @@ export function CreateInventoryItemDialog({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">Unit of measure</label>
+            </HmsField>
+            <HmsField id={`${uid}-unit`} label="Unit of measure">
               <Select value={unitOfMeasureId} onValueChange={setUnitOfMeasureId}>
-                <SelectTrigger>
+                <SelectTrigger id={`${uid}-unit`} className={TRIGGER}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -183,11 +182,10 @@ export function CreateInventoryItemDialog({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">Purchase unit (optional)</label>
+            </HmsField>
+            <HmsField id={`${uid}-purchase-unit`} label="Purchase unit" optional>
               <Select value={purchaseUnitId} onValueChange={setPurchaseUnitId}>
-                <SelectTrigger>
+                <SelectTrigger id={`${uid}-purchase-unit`} className={TRIGGER}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -199,24 +197,25 @@ export function CreateInventoryItemDialog({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </HmsField>
             {purchaseUnitId !== SAME_AS_ISSUE_UNIT ? (
-              <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">Units per purchase unit</label>
-                <Input
+              <HmsField id={`${uid}-factor`} label="Units per purchase unit">
+                <input
+                  id={`${uid}-factor`}
+                  className={hmsInput}
                   type="number"
                   min="0"
                   step="any"
+                  inputMode="decimal"
                   value={purchaseToIssueFactor}
                   onChange={(e) => setPurchaseToIssueFactor(e.target.value)}
                   placeholder="e.g. 24"
                 />
-              </div>
+              </HmsField>
             ) : null}
-            <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">Item type</label>
+            <HmsField id={`${uid}-type`} label="Item type">
               <Select value={itemTypeId} onValueChange={setItemTypeId}>
-                <SelectTrigger>
+                <SelectTrigger id={`${uid}-type`} className={TRIGGER}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -227,28 +226,30 @@ export function CreateInventoryItemDialog({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">Unit cost (optional)</label>
-              <Input
+            </HmsField>
+            <HmsField id={`${uid}-cost`} label="Unit cost" optional>
+              <input
+                id={`${uid}-cost`}
+                className={hmsInput}
                 type="number"
                 min="0"
                 step="0.01"
+                inputMode="decimal"
                 value={unitCost}
                 onChange={(e) => setUnitCost(e.target.value)}
                 placeholder="0.00"
               />
-            </div>
+            </HmsField>
           </div>
         )}
 
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+          <button type="button" className={hmsButton.secondary} onClick={() => onOpenChange(false)} disabled={submitting}>
             Cancel
-          </Button>
-          <Button type="button" onClick={() => void submit()} disabled={!canSubmit || submitting || loading}>
+          </button>
+          <button type="button" className={hmsButton.primary} onClick={() => void submit()} disabled={!canSubmit || submitting || loading}>
             {submitting ? "Creating…" : "Create item"}
-          </Button>
+          </button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

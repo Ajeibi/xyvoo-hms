@@ -1,9 +1,12 @@
 import Link from "next/link";
-import { STORE_PATHS } from "@/lib/store/site/links";
+import { STORE_PATHS, storeHref } from "@/lib/store/site/links";
+import { readingMinutes } from "@/lib/store/blog";
+import { listPublishedPosts } from "@/lib/store/blog-server";
 import type { SiteSection } from "@/lib/store/site/schema";
 import type { Storefront } from "@/lib/store/site/storefront";
 import type { StorefrontTemplateSlug } from "@/lib/store/site/templates";
 import { ProductGridList } from "./ProductCard";
+import NewsletterForm from "./NewsletterForm";
 import ReviewsCarousel from "./ReviewsCarousel";
 import { Icon, SectionHead, StoreImage, toIconName } from "./primitives";
 import { LoftwoodCategoryTiles, LoftwoodHero, LoftwoodProductList, LoftwoodPromo, LoftwoodValueStrip } from "./sections-loftwood";
@@ -176,6 +179,53 @@ async function Reviews({ section, storefront }: SectionProps<"reviews">) {
   return <ReviewsCarousel id={section.id} heading={section.heading} reviews={reviews} nextClassName={highlightNext ? "round-btn round-btn--highlight" : undefined} />;
 }
 
+function Newsletter({ section }: SectionProps<"newsletter">) {
+  return (
+    <section className="newsletter" aria-labelledby={`${section.id}-title`}>
+      <div className="container newsletter__inner">
+        <div>
+          <h2 className="h-section" id={`${section.id}-title`}>
+            {section.heading}
+          </h2>
+          {section.text ? <p className="body-copy">{section.text}</p> : null}
+        </div>
+        <NewsletterForm note={section.note} />
+      </div>
+    </section>
+  );
+}
+
+async function Journal({ section, storefront }: SectionProps<"journal">) {
+  const posts = await listPublishedPosts(storefront.tenant.id, 3).catch(() => []);
+  if (posts.length === 0) return null;
+  const titleId = `${section.id}-title`;
+  return (
+    <section className="section" aria-labelledby={titleId}>
+      <div className="container">
+        <SectionHead id={titleId} heading={section.heading} link={{ label: "All posts", href: storeHref(storefront.basePath, STORE_PATHS.blog) }} />
+        <ul className="blog-list">
+          {posts.map((p) => (
+            <li key={p.id} className="blog-card">
+              {p.coverUrl ? (
+                <Link href={storeHref(storefront.basePath, STORE_PATHS.blogPost(p.slug))} className="media tone-2 blog-card__media" tabIndex={-1} aria-hidden="true">
+                  <StoreImage src={p.coverUrl} alt="" sizes="(min-width: 64rem) 30vw, 90vw" />
+                </Link>
+              ) : null}
+              <div className="blog-card__body">
+                <p className="eyebrow">{readingMinutes(p.body)} min read</p>
+                <h3 className="h-card">
+                  <Link href={storeHref(storefront.basePath, STORE_PATHS.blogPost(p.slug))}>{p.title}</Link>
+                </h3>
+                {p.summary ? <p className="body-copy">{p.summary}</p> : null}
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
 function Press({ section }: SectionProps<"press">) {
   if (section.names.length === 0) return null;
   return (
@@ -215,7 +265,7 @@ function Gallery({ section }: SectionProps<"gallery">) {
   );
 }
 
-type RenderableType = Exclude<SiteSection["type"], "journal" | "newsletter">;
+type RenderableType = SiteSection["type"];
 type SectionComponent<T extends RenderableType> = (props: SectionProps<T>) => React.ReactNode | Promise<React.ReactNode>;
 type SectionSet = { [T in RenderableType]: SectionComponent<T> };
 
@@ -228,6 +278,8 @@ const BASE: SectionSet = {
   promo: Promo,
   reviews: Reviews,
   press: Press,
+  newsletter: Newsletter,
+  journal: Journal,
   gallery: Gallery,
 };
 
@@ -262,14 +314,12 @@ function renderSection(set: SectionSet, section: RenderableSection, storefront: 
 /**
  * Renders the homepage sections in the merchant's order, using the store's
  * template's markup. Sections with nothing to show (no products, no
- * collections, no reviews) render nothing rather than an empty frame. Journal
- * and newsletter wait on a blog and a subscriber list, so they don't render
- * yet even if switched on.
+ * collections, no reviews, no posts) render nothing rather than an empty frame.
  */
 export default function HomeSections({ storefront }: { storefront: Storefront }) {
   const set = TEMPLATE_SECTIONS[storefront.site.template.slug];
   const visible = storefront.site.sections.filter(
-    (s): s is RenderableSection => s.enabled && s.type !== "journal" && s.type !== "newsletter",
+    (s): s is RenderableSection => s.enabled,
   );
   const firstIsHero = visible[0]?.type === "hero";
 

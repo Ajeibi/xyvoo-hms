@@ -1,4 +1,5 @@
 import { after, NextResponse } from "next/server";
+import { sendGiftCardsForShop } from "@/lib/store/gift-cards";
 import { sendReviewRequest } from "@/lib/store/reviews-server";
 import { z } from "zod";
 import { resolveStoreRequest } from "@/lib/store/api-helpers";
@@ -54,6 +55,7 @@ export async function POST(req: Request) {
   if (action === "payment_received" && updated.length) {
     after(async () => {
       for (const id of updated) await sendReceiptEmail(tenantId, id);
+      await sendGiftCardsForShop(tenantId);
     });
   }
   // Delivered: each shopper is asked to review what they bought.

@@ -321,7 +321,9 @@
 }
 
 .xyvoo-hms-tour-popover {
+  background: linear-gradient(180deg, #f0f9ff 0, #ffffff 72px);
   border: 1px solid rgb(var(--xyvoo-blue-rgb) / 0.12);
+  border-top: 4px solid #0ea5e9;
   border-radius: 18px;
   box-shadow:
     0 20px 45px -20px rgb(var(--xyvoo-navy-rgb) / 0.3),
@@ -400,21 +402,30 @@
 }
 
 .xyvoo-hms-tour-popover .driver-popover-prev-btn {
-  background: transparent;
-  border: none;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
   color: var(--xyvoo-products-navy-alt);
   line-height: 1;
-  min-width: 28px;
+  min-height: 40px;
+  min-width: 40px;
   padding: 0;
 }
 
 .xyvoo-hms-tour-popover .driver-popover-next-btn {
-  background: transparent;
+  background: var(--xyvoo-blue-deep);
   border: none;
-  color: var(--xyvoo-blue);
+  color: #ffffff;
   line-height: 1;
-  min-width: 28px;
+  min-height: 40px;
+  min-width: 40px;
   padding: 0;
+}
+
+.xyvoo-hms-tour-popover button:focus-visible,
+.xyvoo-hms-tour-skip-top:focus-visible,
+.xyvoo-hms-tour-never-show:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
 }
 
 .xyvoo-hms-tour-popover .driver-popover-prev-btn svg,
@@ -427,13 +438,13 @@
 
 .xyvoo-hms-tour-popover .driver-popover-next-btn:hover,
 .xyvoo-hms-tour-popover .driver-popover-next-btn:focus {
-  background: transparent;
-  color: var(--xyvoo-blue-deep);
+  background: var(--xyvoo-navy);
+  color: #ffffff;
 }
 
 .xyvoo-hms-tour-popover .driver-popover-prev-btn:hover,
 .xyvoo-hms-tour-popover .driver-popover-prev-btn:focus {
-  background: transparent;
+  background: #f1f5f9;
   color: var(--xyvoo-products-navy-alt);
 }
 

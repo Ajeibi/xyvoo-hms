@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import CustomersManager from "@/components/storefront/CustomersManager";
+import ShoppersNotBought from "@/components/storefront/ShoppersNotBought";
 import { DashPageHeader } from "@/components/storefront/dashboard-blocks";
 
 export const metadata: Metadata = { title: "Customers" };
@@ -10,6 +11,7 @@ export default async function StorefrontCustomersManagerPage({ params }: { param
     <div className="space-y-6">
       <DashPageHeader title="Customers" description="Everyone who has ordered from you, grouped automatically, with your own notes." />
       <CustomersManager slug={slug} />
+      <ShoppersNotBought slug={slug} />
     </div>
   );
 }

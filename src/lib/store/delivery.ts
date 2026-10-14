@@ -2,11 +2,16 @@ import { z } from "zod";
 
 /** Delivery options (store.delivery_zones): rules shared by the dashboard, checkout and tests. */
 
+/** One step of a delivery price by weight: orders up to this weight cost this much. No upper weight means "anything heavier". */
+export type WeightBand = { upToKg: number | null; fee: number };
+
 export type DeliveryZone = {
   id: string;
   name: string;
   regions: string[];
   fee: number;
+  /** Empty for one charge per order; otherwise the charge depends on the order's weight. */
+  weightBands: WeightBand[];
   freeOver: number | null;
   etaText: string | null;
   isPickup: boolean;
@@ -19,6 +24,7 @@ export type DeliveryZoneRow = {
   name: string;
   regions: string[] | null;
   fee: number | string;
+  weight_bands?: unknown;
   free_over: number | string | null;
   eta_text: string | null;
   is_pickup: boolean;
@@ -32,6 +38,7 @@ export function mapDeliveryZone(row: DeliveryZoneRow): DeliveryZone {
     name: row.name,
     regions: row.regions ?? [],
     fee: Number(row.fee) || 0,
+    weightBands: parseWeightBands(row.weight_bands),
     freeOver: row.free_over == null ? null : Number(row.free_over),
     etaText: row.eta_text,
     isPickup: row.is_pickup,
@@ -78,10 +85,43 @@ export function zoneCovers(zone: Pick<DeliveryZone, "regions" | "isPickup">, add
   return zone.regions.some((r) => where.some((place) => placesMatch(r, place)));
 }
 
-/** What the shopper pays for an option on an order of this subtotal. */
-export function deliveryFeeFor(zone: Pick<DeliveryZone, "fee" | "freeOver" | "isPickup">, subtotal: number) {
+/** Saved bands, tidied: sorted lightest first, anything unreadable dropped. */
+export function parseWeightBands(raw: unknown): WeightBand[] {
+  if (!Array.isArray(raw)) return [];
+  const bands = raw
+    .map((b): WeightBand | null => {
+      if (!b || typeof b !== "object") return null;
+      const { upToKg, fee } = b as Record<string, unknown>;
+      const limit = upToKg == null || upToKg === "" ? null : Number(upToKg);
+      const charge = Number(fee);
+      if ((limit !== null && !(Number.isFinite(limit) && limit > 0)) || !Number.isFinite(charge) || charge < 0) return null;
+      return { upToKg: limit, fee: charge };
+    })
+    .filter((b): b is WeightBand => b !== null);
+  return bands.sort((a, b) => (a.upToKg ?? Infinity) - (b.upToKg ?? Infinity));
+}
+
+/** The charge for an order of this weight, or null when it is heavier than every band. */
+export function weightBandFee(bands: WeightBand[], weightKg: number) {
+  const kg = Math.max(Number(weightKg) || 0, 0);
+  const band = bands.find((b) => b.upToKg === null || kg <= b.upToKg + 1e-9);
+  return band ? band.fee : null;
+}
+
+/** Whether an option can carry an order of this weight (always, unless it prices by weight and the order is heavier than its top band). */
+export function fitsWeight(zone: Pick<DeliveryZone, "weightBands" | "isPickup">, weightKg: number) {
+  return zone.isPickup || zone.weightBands.length === 0 || weightBandFee(zone.weightBands, weightKg) !== null;
+}
+
+/** The total weight of an order's lines; items with no weight count as nothing. */
+export const orderWeightKg = (lines: Array<{ weightKg?: number | null; quantity: number }>) =>
+  Math.round(lines.reduce((sum, l) => sum + (Number(l.weightKg) || 0) * l.quantity, 0) * 1000) / 1000;
+
+/** What the shopper pays for an option on an order of this subtotal and weight. */
+export function deliveryFeeFor(zone: Pick<DeliveryZone, "fee" | "freeOver" | "isPickup"> & { weightBands?: WeightBand[] }, subtotal: number, weightKg = 0) {
   if (zone.isPickup) return 0;
   if (zone.freeOver != null && subtotal >= zone.freeOver) return 0;
+  if (zone.weightBands?.length) return weightBandFee(zone.weightBands, weightKg) ?? zone.fee;
   return zone.fee;
 }
 
@@ -90,13 +130,13 @@ export function deliveryFeeFor(zone: Pick<DeliveryZone, "fee" | "freeOver" | "is
  * amount) plus each product's own extra charge per item. Collection is free.
  */
 export function deliveryChargeFor(
-  zone: Pick<DeliveryZone, "fee" | "freeOver" | "isPickup">,
+  zone: Pick<DeliveryZone, "fee" | "freeOver" | "isPickup"> & { weightBands?: WeightBand[] },
   subtotal: number,
-  lines: Array<{ deliveryExtra?: number | null; quantity: number }>,
+  lines: Array<{ deliveryExtra?: number | null; weightKg?: number | null; quantity: number }>,
 ) {
   if (zone.isPickup) return 0;
   const extras = lines.reduce((sum, l) => sum + (Number(l.deliveryExtra) || 0) * l.quantity, 0);
-  return Math.round((deliveryFeeFor(zone, subtotal) + extras) * 100) / 100;
+  return Math.round((deliveryFeeFor(zone, subtotal, orderWeightKg(lines)) + extras) * 100) / 100;
 }
 
 export const deliveryZoneSchema = z.object({
@@ -107,6 +147,27 @@ export const deliveryZoneSchema = z.object({
     .max(120, "That's more areas than one option can hold. Leave them all out to deliver everywhere.")
     .transform((list) => list.filter((r, i) => list.findIndex((x) => placeKey(x) === placeKey(r)) === i)),
   fee: z.coerce.number().min(0, "The charge can't be negative.").max(100_000_000),
+  weightBands: z
+    .array(
+      z.object({
+        upToKg: z.union([z.number(), z.string(), z.null()]).transform((v) => (v === "" || v === null ? null : Number(v))),
+        fee: z.coerce.number().min(0, "A weight band's charge can't be negative.").max(100_000_000),
+      }),
+    )
+    .max(10, "Use up to 10 weight bands.")
+    .default([])
+    .superRefine((bands, ctx) => {
+      let last = 0;
+      bands.forEach((b, i) => {
+        if (b.upToKg === null) {
+          if (i !== bands.length - 1) ctx.addIssue({ code: "custom", message: "Only the last weight band can have no upper weight." });
+          return;
+        }
+        if (!Number.isFinite(b.upToKg) || b.upToKg <= 0) ctx.addIssue({ code: "custom", message: "Each weight band needs a weight above zero." });
+        else if (b.upToKg <= last) ctx.addIssue({ code: "custom", message: "Weight bands must go up in weight, each heavier than the one before." });
+        else last = b.upToKg;
+      });
+    }),
   freeOver: z.coerce.number().positive("Enter an amount above zero, or leave it blank.").max(100_000_000).nullable(),
   etaText: z.string().trim().max(80).nullable(),
   isPickup: z.boolean(),
@@ -120,6 +181,7 @@ export function toDeliveryZoneRow(input: DeliveryZoneInput) {
     name: input.name,
     regions: input.regions,
     fee: input.isPickup ? 0 : input.fee,
+    weight_bands: input.isPickup ? [] : input.weightBands,
     free_over: input.isPickup ? null : input.freeOver,
     eta_text: input.etaText || null,
     is_pickup: input.isPickup,

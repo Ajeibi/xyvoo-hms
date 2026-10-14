@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Banknote, Download, Heart, Mail, MessageCircle, Phone, Search, SearchX, Sparkles, Users, X } from "lucide-react";
+import { Banknote, Download, Heart, Mail, MessageCircle, Pencil, Phone, Plus, Search, SearchX, Sparkles, Users, X } from "lucide-react";
 import { formatShopCurrency } from "@/lib/shop/format";
 import { isSale } from "@/lib/store/sales";
+import { describeRule, inGroup, type CustomerGroup } from "@/lib/store/customer-groups";
 import { whatsappLink } from "@/lib/store/whatsapp";
+import CustomerGroupForm from "./CustomerGroupForm";
 import { DashAlert, dashButton, DashCard, DashEmptyState, DashField, dashInput, DashPill, DashSectionIntro, DashStatStrip, DashStatTile, DashStatus, sendJson } from "./dashboard-ui";
 import { MEANING } from "./meaning";
 
@@ -79,6 +81,13 @@ export default function CustomersManager({ slug }: { slug: string }) {
   const [currency, setCurrency] = useState("NGN");
   const [canExport, setCanExport] = useState(false);
   const [segment, setSegment] = useState<Segment | "all">("all");
+  const [groups, setGroups] = useState<CustomerGroup[]>([]);
+  const [groupId, setGroupId] = useState<string | null>(null);
+  const [canManageGroups, setCanManageGroups] = useState(false);
+  // "new" while making a group, a group id while changing one.
+  const [editing, setEditing] = useState<string | null>(null);
+  const [groupMessage, setGroupMessage] = useState("");
+  const [now, setNow] = useState(() => Date.now());
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState<Customer | null>(null);
   const [error, setError] = useState("");
@@ -94,18 +103,23 @@ export default function CustomersManager({ slug }: { slug: string }) {
         setSegments(body.segments);
         setCurrency(body.currency);
         setCanExport(Boolean(body.canExport));
+        setGroups(body.groups ?? []);
+        setCanManageGroups(Boolean(body.canManageGroups));
+        setNow(Date.now());
       })
       .catch(() => setError("We couldn't load your customers. Please refresh the page."));
   }, [slug]);
 
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
+    const group = groupId ? groups.find((g) => g.id === groupId) : null;
     return (customers ?? []).filter(
       (c) =>
         (segment === "all" || c.segment === segment) &&
+        (!group || inGroup(group, c, now)) &&
         (!q || [c.name, c.email, c.phone, ...c.tags].some((v) => v?.toLowerCase().includes(q))),
     );
-  }, [customers, segment, query]);
+  }, [customers, segment, query, groups, groupId, now]);
 
   if (!customers) {
     return error ? (
@@ -139,6 +153,9 @@ export default function CustomersManager({ slug }: { slug: string }) {
   }
 
   const segmentHelp = segment !== "all" ? segments.find((s) => s.key === segment)?.help : null;
+  const activeGroup = groupId ? groups.find((g) => g.id === groupId) ?? null : null;
+  const groupCount = (g: CustomerGroup) => customers.filter((c) => inGroup(g, c, now)).length;
+  const groupChip = (active: boolean) => chip(active);
   const newThisMonth = customers.filter((c) => new Date(c.firstOrderAt).getTime() >= monthAgo).length;
   const comeBack = customers.filter((c) => c.paidOrders > 1).length;
   const spent = customers.reduce((total, c) => total + c.totalSpent, 0);
@@ -172,16 +189,41 @@ export default function CustomersManager({ slug }: { slug: string }) {
 
       <div className="space-y-2">
         <div className="flex flex-wrap gap-2" role="group" aria-label="Customer groups">
-          <button type="button" aria-pressed={segment === "all"} onClick={() => setSegment("all")} className={chip(segment === "all")}>
+          <button type="button" aria-pressed={segment === "all" && !groupId} onClick={() => { setSegment("all"); setGroupId(null); }} className={chip(segment === "all" && !groupId)}>
             Everyone ({customers.length})
           </button>
           {segments.map((s) => (
-            <button key={s.key} type="button" title={s.help} aria-pressed={segment === s.key} onClick={() => setSegment(s.key)} className={chip(segment === s.key)}>
+            <button key={s.key} type="button" title={s.help} aria-pressed={segment === s.key && !groupId} onClick={() => { setSegment(s.key); setGroupId(null); }} className={chip(segment === s.key && !groupId)}>
               {s.label} ({s.count})
             </button>
           ))}
         </div>
-        {segmentHelp ? (
+        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Your own groups">
+          {groups.map((g) => (
+            <button key={g.id} type="button" aria-pressed={groupId === g.id} onClick={() => { setGroupId(g.id); setSegment("all"); setGroupMessage(""); }} className={groupChip(groupId === g.id)}>
+              {g.name} ({groupCount(g)})
+            </button>
+          ))}
+          {canManageGroups ? (
+            <button type="button" onClick={() => { setEditing("new"); setGroupMessage(""); }} className={`${dashButton.secondary} ${focusRing}`}>
+              <Plus className="h-4 w-4" aria-hidden /> {groups.length ? "New group" : "Make your own group"}
+            </button>
+          ) : null}
+        </div>
+        {activeGroup ? (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-600" aria-live="polite">
+            <p>
+              {activeGroup.rules.map((r) => describeRule(r, money)).join(activeGroup.match === "all" ? " and " : " or ")}.
+            </p>
+            {canManageGroups ? (
+              <button type="button" onClick={() => setEditing(activeGroup.id)} className={`${dashButton.quiet} ${focusRing}`}>
+                <Pencil className="h-4 w-4" aria-hidden /> Change group
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+        <DashStatus message={groupMessage} />
+        {segmentHelp && !groupId ? (
           <p className="text-sm text-slate-600" aria-live="polite">
             {segmentHelp}.
           </p>
@@ -189,6 +231,29 @@ export default function CustomersManager({ slug }: { slug: string }) {
       </div>
 
       <DashAlert message={error} />
+
+      {editing ? (
+        <CustomerGroupForm
+          key={editing}
+          slug={slug}
+          group={editing === "new" ? null : groups.find((g) => g.id === editing) ?? null}
+          customers={customers}
+          onCancel={() => setEditing(null)}
+          onSaved={(saved) => {
+            setGroups((list) => (list.some((g) => g.id === saved.id) ? list.map((g) => (g.id === saved.id ? saved : g)) : [...list, saved]));
+            setGroupId(saved.id);
+            setSegment("all");
+            setEditing(null);
+            setGroupMessage(`Group “${saved.name}” saved.`);
+          }}
+          onDeleted={(id) => {
+            setGroups((list) => list.filter((g) => g.id !== id));
+            setGroupId((current) => (current === id ? null : current));
+            setEditing(null);
+            setGroupMessage("Group removed.");
+          }}
+        />
+      ) : null}
 
       <DashCard
         id="customers-list"

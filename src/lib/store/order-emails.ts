@@ -113,9 +113,14 @@ export async function sendOrderReceivedEmails(tenantId: string, orderId: string)
 }
 
 /** The discount line for an order's emails, if it had one. */
-function discountRows(order: { discount_code?: string | null; discount_amount?: number | string | null }, money: (v: number) => string) {
+/** The discount and any gift card on an order, as lines above the total. */
+function discountRows(order: { discount_code?: string | null; discount_amount?: number | string | null; gift_card_amount?: number | string | null }, money: (v: number) => string) {
   const amount = Number(order.discount_amount) || 0;
-  return amount > 0 ? [{ label: `Discount${order.discount_code ? ` (${order.discount_code})` : ""}`, value: `−${money(amount)}` }] : [];
+  const gift = Number(order.gift_card_amount) || 0;
+  return [
+    ...(amount > 0 ? [{ label: `Discount${order.discount_code ? ` (${order.discount_code})` : ""}`, value: `−${money(amount)}` }] : []),
+    ...(gift > 0 ? [{ label: "Paid with gift card", value: `−${money(gift)}` }] : []),
+  ];
 }
 
 type OrderEmailContext = {
@@ -123,6 +128,7 @@ type OrderEmailContext = {
     id: string;
     discount_code?: string | null;
     discount_amount?: number | string | null;
+    gift_card_amount?: number | string | null;
     customer_name: string;
     customer_email: string | null;
     customer_phone: string | null;

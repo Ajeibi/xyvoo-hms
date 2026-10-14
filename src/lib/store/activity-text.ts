@@ -11,6 +11,14 @@ export const ACTIVITY_AREAS = [
   "products",
   "orders",
   "discounts",
+  "gift_cards",
+  "customers",
+  "campaigns",
+  "loyalty",
+  "referrals",
+  "returns",
+  "wholesale",
+  "blog",
   "staff",
   "settings",
   "payouts",
@@ -26,6 +34,14 @@ export const ACTIVITY_AREA_LABELS: Record<ActivityArea, string> = {
   products: "Products",
   orders: "Orders",
   discounts: "Discounts",
+  gift_cards: "Gift cards",
+  customers: "Customers",
+  campaigns: "Email campaigns",
+  loyalty: "Loyalty points",
+  referrals: "Referrals",
+  returns: "Returns",
+  wholesale: "Trade accounts",
+  blog: "Blog",
   staff: "Team",
   settings: "Store details",
   payouts: "Payouts",
@@ -252,6 +268,78 @@ export function activitySentence(entry: ActivityEntry, currency = "NGN"): string
       return `${who} switched on ${thing("discounts", label)}`;
     case "discounts:updated":
       return changed(thing("discounts", label));
+    case "orders:recorded":
+      return `${who} recorded ${thing("orders", label)} by hand`;
+    case "blog:created":
+      return `${who} started the blog post ${quoteTarget(label)}`;
+    case "blog:published":
+      return `${who} published the blog post ${quoteTarget(label)}`;
+    case "blog:updated":
+      return `${who} changed the blog post ${quoteTarget(label)}`;
+    case "blog:deleted":
+      return `${who} removed the blog post ${quoteTarget(label)}`;
+    case "wholesale:settings":
+      return `${who} changed the trade account settings`;
+    case "wholesale:switched_off":
+      return `${who} switched off trade accounts`;
+    case "wholesale:approve":
+      return `${who} approved a trade account`;
+    case "wholesale:decline":
+      return `${who} declined a trade account`;
+    case "wholesale:revoke":
+      return `${who} ended a trade account`;
+    case "returns:approve":
+      return `${who} approved a return on order ${quoteTarget(label)}`;
+    case "returns:decline":
+      return `${who} declined a return on order ${quoteTarget(label)}`;
+    case "returns:received":
+      return `${who} received a return on order ${quoteTarget(label)}`;
+    case "returns:complete":
+      return `${who} completed a return on order ${quoteTarget(label)}`;
+    case "returns:cancel":
+      return `${who} cancelled a return on order ${quoteTarget(label)}`;
+    case "returns:window":
+      return `${who} set the return window to ${quoteTarget(label)}`;
+    case "referrals:settings":
+      return `${who} changed the referral offer`;
+    case "referrals:switched_off":
+      return `${who} switched off referrals`;
+    case "loyalty:settings":
+      return `${who} changed the loyalty points settings`;
+    case "loyalty:switched_off":
+      return `${who} switched off loyalty points`;
+    case "loyalty:added":
+      return `${who} added ${quoteTarget(label)}`;
+    case "loyalty:removed":
+      return `${who} removed ${quoteTarget(label)}`;
+    case "campaigns:created":
+      return `${who} started the email campaign ${quoteTarget(label)}`;
+    case "campaigns:updated":
+      return `${who} changed the email campaign ${quoteTarget(label)}`;
+    case "campaigns:deleted":
+      return `${who} removed the email campaign ${quoteTarget(label)}`;
+    case "campaigns:sent":
+      return `${who} sent an email campaign to ${quoteTarget(label)}`;
+    case "campaigns:scheduled":
+      return `${who} scheduled an email campaign for ${quoteTarget(label)}`;
+    case "campaigns:stopped":
+      return `${who} stopped an email campaign`;
+    case "customers:group_created":
+      return `${who} created the customer group ${quoteTarget(label)}`;
+    case "customers:group_updated":
+      return `${who} changed the customer group ${quoteTarget(label)}`;
+    case "customers:group_deleted":
+      return `${who} removed the customer group ${quoteTarget(label)}`;
+    case "gift_cards:issued":
+      return `${who} sent a gift card to ${quoteTarget(label)}`;
+    case "gift_cards:disabled":
+      return `${who} switched off the gift card for ${quoteTarget(label)}`;
+    case "gift_cards:enabled":
+      return `${who} switched on the gift card for ${quoteTarget(label)}`;
+    case "gift_cards:resent":
+      return `${who} sent the gift card for ${quoteTarget(label)} again`;
+    case "gift_cards:settings":
+      return `${who} changed the gift card settings`;
     case "staff:invited":
       return `${who} invited ${quoteTarget(label)} to the team`;
     case "staff:invite_resent":

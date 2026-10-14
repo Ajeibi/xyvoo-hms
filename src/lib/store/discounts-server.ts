@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { DISCOUNT_COLUMNS, mapDiscountCode, normaliseCode, CODE_PATTERN, type DiscountCode, type DiscountCodeRow, type DiscountInput, type DiscountLine } from "./discounts";
+import { DISCOUNT_COLUMNS, describeDiscount, mapDiscountCode, normaliseCode, CODE_PATTERN, type DiscountCode, type DiscountCodeRow, type DiscountInput, type DiscountLine } from "./discounts";
 import { getStorePlan, storeHasFeature } from "./features";
 import { effectivePrice, saleFromRow } from "./sale-price";
 
@@ -15,6 +15,31 @@ export async function findDiscountByCode(tenantId: string, typed: string): Promi
   if (!CODE_PATTERN.test(code)) return null;
   const { data } = await storeDb().from("discount_codes").select(DISCOUNT_COLUMNS).eq("tenant_id", tenantId).eq("code", code).maybeSingle();
   return data ? mapDiscountCode(data as DiscountCodeRow) : null;
+}
+
+export type PromoBanner = { code: string; offer: string; endsAt: string };
+
+/**
+ * The code to show in the banner across the shop: switched on, started, not
+ * ended, not used up, and the one ending soonest. Null when there is not one.
+ */
+export async function getPromoBanner(tenantId: string, formatMoney: (amount: number) => string): Promise<PromoBanner | null> {
+  const { data, error } = await storeDb()
+    .from("discount_codes")
+    .select(DISCOUNT_COLUMNS)
+    .eq("tenant_id", tenantId)
+    .eq("show_banner", true)
+    .eq("is_active", true)
+    .gt("ends_at", new Date().toISOString())
+    .order("ends_at", { ascending: true })
+    .limit(5);
+  if (error || !data?.length) return null;
+  const now = new Date();
+  const codes = (data as DiscountCodeRow[]).map(mapDiscountCode).filter((c) => !c.startsAt || new Date(c.startsAt) <= now);
+  const uses = await countDiscountUses(tenantId, codes.filter((c) => c.usageLimit != null).map((c) => c.id));
+  const live = codes.find((c) => c.usageLimit == null || (uses.get(c.id) ?? 0) < c.usageLimit);
+  if (!live?.endsAt) return null;
+  return { code: live.code, offer: describeDiscount(live, formatMoney), endsAt: live.endsAt };
 }
 
 /** The products a code covers (its own plus those in its collections), or null when it covers everything. */

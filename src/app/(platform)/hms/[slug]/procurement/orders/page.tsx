@@ -1,4 +1,5 @@
 import HMSLayout from "@/components/hms/HMSLayout";
+import { HmsPage, HmsPageHeader } from "@/components/hms/hms-ui";
 import { ProcurementSubNav } from "@/components/hms/procurement/ProcurementSubNav";
 import { ProcurementOrdersClient } from "@/components/hms/procurement/ProcurementOrdersClient";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
@@ -21,12 +22,11 @@ export default async function ProcurementOrdersPage({ params }: { params: Promis
 
   return (
     <HMSLayout slug={slug} requiredSection="procurement-orders">
-      <div className="px-8 py-8">
-        <h1 className="text-xl font-semibold text-slate-900">Purchase orders</h1>
-        <p className="mt-0.5 text-sm text-slate-500">Every PO from draft through approval, ordering, and receipt.</p>
+      <HmsPage>
+        <HmsPageHeader eyebrow="Procurement" meaning="stock" title="Purchase orders" description="Every PO from draft through approval, ordering and receipt." />
         <ProcurementSubNav slug={slug} canAccessAllDepartments={access.canAccessAllDepartments} />
         <ProcurementOrdersClient slug={slug} orders={orders} currency={currency} />
-      </div>
+      </HmsPage>
     </HMSLayout>
   );
 }

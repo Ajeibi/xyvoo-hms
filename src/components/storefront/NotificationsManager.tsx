@@ -231,7 +231,7 @@ export default function NotificationsManager({ slug, storeName }: { slug: string
             {confirming ? (
               <div role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
                 <p>
-                  Send this to {state.subscribers} {state.subscribers === 1 ? "customer" : "customers"} now? It can&rsquo;t be taken back.
+                  Send this to {state.subscribers} {state.subscribers === 1 ? "customer" : "customers"}{" "}now? It can&rsquo;t be taken back.
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button type="button" onClick={send} disabled={busy} className={`${dashButton.primary} ${focusRing}`}>

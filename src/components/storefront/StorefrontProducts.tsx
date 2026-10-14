@@ -1,7 +1,7 @@
 "use client";
 
 import { cloneElement, isValidElement, useCallback, useEffect, useId, useRef, useState } from "react";
-import { Banknote, ChevronDown, Copy, ImageIcon, ImagePlus, Package, PackageOpen, Pencil, Plus, Trash2, TriangleAlert, Upload } from "lucide-react";
+import { Banknote, ChevronDown, Copy, ImageIcon, ImagePlus, Package, PackageOpen, Pencil, Plus, Printer, Trash2, TriangleAlert, Upload } from "lucide-react";
 import { formatShopCurrency } from "@/lib/shop/format";
 import { TAX_CLASS_LABELS } from "@/lib/store/tax";
 import { toastInfo, toastSuccess } from "@/lib/app-toast";
@@ -30,6 +30,7 @@ import {
 import type { DashboardProduct } from "@/lib/store/products";
 import type { StoreRoleCapabilities } from "@/lib/store/access";
 import { storefrontHost } from "@/lib/store/subdomain";
+import BundleItemsEditor from "./BundleItemsEditor";
 import { DashAlert, DashEmptyState, DashPageHeader, DashPill, DashSectionIntro, DashStatStrip, DashStatTile, dashButton, dashInput } from "./dashboard-ui";
 import ProductCurrencyPrices, { loadFixedPrices, saveFixedPrices, type FixedPriceInputs, type StoreCurrencyInfo } from "./ProductCurrencyPrices";
 
@@ -84,6 +85,8 @@ type ProductFormState = {
   taxable: boolean;
   taxClass: string;
   minimumOrderQty: string;
+  wholesalePrice: string;
+  wholesaleMinQty: string;
 
   // Inventory & shipping
   stock: string;
@@ -161,6 +164,8 @@ const EMPTY_FORM: ProductFormState = {
   taxable: true,
   taxClass: "",
   minimumOrderQty: "1",
+  wholesalePrice: "",
+  wholesaleMinQty: "1",
 
   stock: "0",
   reorderLevel: "10",
@@ -203,7 +208,7 @@ const EMPTY_FORM: ProductFormState = {
   variants: [],
 };
 
-type SectionKey = "variants" | "pricing" | "stock" | "seo" | "codes" | "display" | "returns" | "more";
+type SectionKey = "variants" | "bundle" | "pricing" | "stock" | "seo" | "codes" | "display" | "returns" | "more";
 
 /** Money in the shop's own currency, written the way its customers write it. */
 const formatCurrency = (value: number, currency: string | null) => formatShopCurrency(value, currency);
@@ -219,6 +224,17 @@ const STATUS_PILL: Record<DashboardProduct["status"], { tone: "blue" | "slate"; 
   draft: { tone: "slate", label: "Draft" },
   archived: { tone: "slate", label: "Archived" },
 };
+
+/** Shoppers who asked to be emailed when this product is back in stock. */
+function WaitingPill({ count }: { count: number }) {
+  return (
+    <span title="They'll be emailed automatically when it's back in stock">
+      <DashPill tone="blue">
+        {count} waiting for restock
+      </DashPill>
+    </span>
+  );
+}
 
 function StockPill({ product }: { product: DashboardProduct }) {
   const pill = STOCK_PILL[product.stockStatus];
@@ -286,6 +302,8 @@ export default function StorefrontProducts({
   const [fieldErrors, setFieldErrors] = useState<{ name?: boolean; price?: boolean }>({});
   const [slugTouched, setSlugTouched] = useState(false);
   const [openSections, setOpenSections] = useState<Partial<Record<SectionKey, boolean>>>({});
+  // Items in the bundle being edited: a bundle's stock is worked out from them.
+  const [bundleCount, setBundleCount] = useState(0);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const [currencyInfo, setCurrencyInfo] = useState<StoreCurrencyInfo | null>(null);
@@ -385,7 +403,7 @@ export default function StorefrontProducts({
   }, [slug]);
 
   // The figures at the top: counted across every product, not just this page.
-  const [stats, setStats] = useState<{ products: number; retailValue: number; costValue: number; soldOut: number; low: number } | null>(null);
+  const [stats, setStats] = useState<{ products: number; retailValue: number; costValue: number; soldOut: number; low: number; waiting?: Record<string, number>; waitingTotal?: number } | null>(null);
   useEffect(() => {
     let cancelled = false;
     fetch(`/api/store/products/stats?slug=${encodeURIComponent(slug)}`)
@@ -524,6 +542,7 @@ export default function StorefrontProducts({
         .catch(() => undefined);
     }
     setForm(EMPTY_FORM);
+    setBundleCount(0);
     setFixedPrices({});
     savedFixedPrices.current = [];
     resetDialogUi(false);
@@ -531,6 +550,7 @@ export default function StorefrontProducts({
   }
 
   function openEdit(product: DashboardProduct) {
+    setBundleCount(0);
     setForm({
       id: product.id,
       name: product.name,
@@ -560,6 +580,8 @@ export default function StorefrontProducts({
       taxable: product.taxable,
       taxClass: product.taxClass || "",
       minimumOrderQty: String(product.minimumOrderQty ?? 1),
+      wholesalePrice: product.wholesalePrice != null ? String(product.wholesalePrice) : "",
+      wholesaleMinQty: String(product.wholesaleMinQty ?? 1),
 
       stock: String(product.stock),
       reorderLevel: String(product.reorderLevel),
@@ -733,6 +755,8 @@ export default function StorefrontProducts({
       taxable: form.taxable,
       tax_class: form.taxClass === "standard" || form.taxClass === "zero" || form.taxClass === "exempt" ? form.taxClass : null,
       minimum_order_qty: Number(form.minimumOrderQty) || 1,
+      wholesale_price: form.wholesalePrice.trim() ? Number(form.wholesalePrice) : null,
+      wholesale_min_qty: Math.max(1, Math.floor(Number(form.wholesaleMinQty) || 1)),
 
       // Inventory & shipping
       stock: Number(form.stock) || 0,
@@ -864,6 +888,10 @@ export default function StorefrontProducts({
                 <span className="sr-only"> products from a spreadsheet</span>
               </button>
             ) : null}
+            <a href={`/storefront/${encodeURIComponent(slug)}/products/labels`} className={`${dashButton.secondary} ${focusRing}`}>
+              <Printer className="h-4 w-4" aria-hidden />
+              Barcode labels
+            </a>
             <ExportButton slug={slug} canExport={listInfo.canExport} onUpgradeNeeded={() => setUpgradeNote(true)} />
             <button type="button" className={`${dashButton.primary} ${focusRing}`} onClick={openCreate}>
               <Plus className="h-4 w-4" aria-hidden />
@@ -899,7 +927,13 @@ export default function StorefrontProducts({
               label="Sold out"
               meaning="marketing"
               icon={PackageOpen}
-              hint={stats.soldOut ? "Tap to see them" : "Nothing sold out"}
+              hint={
+                stats.waitingTotal
+                  ? `${stats.waitingTotal} ${stats.waitingTotal === 1 ? "shopper is" : "shoppers are"} waiting for restocks`
+                  : stats.soldOut
+                    ? "Tap to see them"
+                    : "Nothing sold out"
+              }
               value={String(stats.soldOut)}
               onClick={() => changeFilters({ stock: filters.stock === "out-of-stock" ? "" : "out-of-stock" })}
               pressed={filters.stock === "out-of-stock"}
@@ -1047,6 +1081,7 @@ export default function StorefrontProducts({
                             <StockPill product={product} />
                             <DashPill tone={STATUS_PILL[product.status].tone}>{STATUS_PILL[product.status].label}</DashPill>
                             {product.featured ? <DashPill tone="amber">Featured</DashPill> : null}
+                            {stats?.waiting?.[product.id] ? <WaitingPill count={stats.waiting[product.id]} /> : null}
                           </div>
                           {product.category ? <p className="mt-2 text-xs text-slate-600">{product.category}</p> : null}
                           {product.sku ? <p className="mt-1 break-all text-xs text-slate-600">SKU: {product.sku}</p> : null}
@@ -1117,6 +1152,7 @@ export default function StorefrontProducts({
                             <div className="min-w-0">
                               <p className="font-medium text-slate-900">{product.name}</p>
                               {product.featured ? <DashPill tone="amber">Featured</DashPill> : null}
+                            {stats?.waiting?.[product.id] ? <WaitingPill count={stats.waiting[product.id]} /> : null}
                             </div>
                           </div>
                         </td>
@@ -1357,9 +1393,15 @@ export default function StorefrontProducts({
                 <Field
                   id="product-stock"
                   label="How many you have"
-                  hint={form.variants.length ? "Sizes and colours have their own counts below." : "The number you have ready to sell right now."}
+                  hint={
+                    bundleCount && form.id
+                      ? "Worked out from what's in the bundle, below."
+                      : form.variants.length
+                        ? "Sizes and colours have their own counts below."
+                        : "The number you have ready to sell right now."
+                  }
                 >
-                  <input type="number" min="0" inputMode="numeric" className={numberInput} {...text("stock")} />
+                  <input type="number" min="0" inputMode="numeric" className={numberInput} {...text("stock")} disabled={Boolean(bundleCount && form.id)} />
                 </Field>
                 <Field id="product-category" label="Category" optional hint="For example: Dresses, Shoes or Skincare.">
                   <input className={dashInput} {...text("category")} />
@@ -1458,6 +1500,25 @@ export default function StorefrontProducts({
               </Section>
 
               <Section
+                id="bundle"
+                title="Sell as a bundle"
+                description="A gift set or starter pack made of your other products, sold as one. Its stock follows the items in it."
+                badge={bundleCount && form.id ? <DashPill tone="blue">{bundleCount} {bundleCount === 1 ? "item" : "items"}</DashPill> : null}
+                open={!!openSections.bundle}
+                onToggle={(o) => setSection("bundle", o)}
+              >
+                {form.id ? (
+                  form.variants.length ? (
+                    <p className="text-sm text-slate-600">A bundle can&rsquo;t have sizes or colours. Remove its options above to make it a bundle.</p>
+                  ) : (
+                    <BundleItemsEditor slug={slug} productId={form.id} price={Number(form.price) || 0} currency={homeCurrency} onCountChange={setBundleCount} />
+                  )
+                ) : (
+                  <p className="text-sm text-slate-600">Save the product first, then come back here to choose what&rsquo;s in the bundle.</p>
+                )}
+              </Section>
+
+              <Section
                 id="pricing"
                 title="Sale price and more pricing"
                 description="Run a sale for a set time, show a 'was' price, set VAT, a minimum order or prices in other currencies."
@@ -1492,6 +1553,17 @@ export default function StorefrontProducts({
                   </Field>
                   <Field id="product-min-qty" label="Smallest number someone can buy" hint="Usually 1.">
                     <input type="number" min="1" inputMode="numeric" className={numberInput} {...text("minimumOrderQty")} />
+                  </Field>
+                  <Field
+                    id="product-wholesale"
+                    label={`Trade price${money}`}
+                    optional
+                    hint="What a business with an approved trade account pays. Leave empty to sell this at the normal price to everyone."
+                  >
+                    <input type="number" min="0" step="0.01" inputMode="decimal" className={numberInput} {...text("wholesalePrice")} />
+                  </Field>
+                  <Field id="product-wholesale-min" label="Trade price applies from" optional hint="The smallest number of this product a trade customer must buy to get the trade price.">
+                    <input type="number" min="1" inputMode="numeric" className={numberInput} {...text("wholesaleMinQty")} />
                   </Field>
                   <Checkbox label="Charge VAT on this product" checked={form.taxable} onChange={set("taxable")} />
                   <Field id="product-tax-class" label="VAT rate" hint="Only matters if you've switched VAT on in Payments and plan.">

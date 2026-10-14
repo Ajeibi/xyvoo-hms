@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { HmsField, hmsButton, hmsInput } from "@/components/hms/hms-ui";
 import {
   Dialog,
   DialogContent,
@@ -87,10 +86,10 @@ export function HousekeepingNewTaskDialog({
 
   return (
     <>
-      <Button type="button" onClick={() => setOpen(true)} className="rounded-lg">
-        <Plus className="mr-1.5 h-4 w-4" aria-hidden />
+      <button type="button" onClick={() => setOpen(true)} className={hmsButton.secondary}>
+        <Plus className="h-4 w-4 text-violet-600" aria-hidden />
         New task
-      </Button>
+      </button>
 
       <Dialog
         open={open}
@@ -103,17 +102,17 @@ export function HousekeepingNewTaskDialog({
           <DialogHeader>
             <DialogTitle>Raise a housekeeping task</DialogTitle>
             <DialogDescription>
-              Log an ad-hoc request — a spill, a guest-requested extra clean — without waiting on Front Desk.
+              Log a one-off job, such as a spill or an extra clean a guest asked for, without waiting for the front desk.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">Room</label>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <HmsField id="hk-new-room" label="Room">
                 <select
+                  id="hk-new-room"
                   autoFocus
-                  className="h-10 w-full rounded-lg border border-input px-3 text-sm"
+                  className={hmsInput}
                   value={roomCode}
                   onChange={(e) => setRoomCode(e.target.value)}
                 >
@@ -124,21 +123,22 @@ export function HousekeepingNewTaskDialog({
                     </option>
                   ))}
                 </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">Assignee (optional)</label>
-                <Input
+              </HmsField>
+              <HmsField id="hk-new-assignee" label="Assignee" optional>
+                <input
+                  id="hk-new-assignee"
+                  className={hmsInput}
                   value={assignee}
                   onChange={(e) => setAssignee(e.target.value)}
                   placeholder="Staff name"
                 />
-              </div>
+              </HmsField>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">Task type</label>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <HmsField id="hk-new-type" label="Task type">
                 <select
-                  className="h-10 w-full rounded-lg border border-input px-3 text-sm"
+                  id="hk-new-type"
+                  className={hmsInput}
                   value={taskType}
                   onChange={(e) => setTaskType(e.target.value as typeof taskType)}
                 >
@@ -148,11 +148,11 @@ export function HousekeepingNewTaskDialog({
                     </option>
                   ))}
                 </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-slate-600">Priority</label>
+              </HmsField>
+              <HmsField id="hk-new-priority" label="Priority">
                 <select
-                  className="h-10 w-full rounded-lg border border-input px-3 text-sm"
+                  id="hk-new-priority"
+                  className={hmsInput}
                   value={priorityLevel}
                   onChange={(e) => setPriorityLevel(e.target.value as typeof priorityLevel)}
                 >
@@ -162,26 +162,26 @@ export function HousekeepingNewTaskDialog({
                     </option>
                   ))}
                 </select>
-              </div>
+              </HmsField>
             </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">Notes (optional)</label>
+            <HmsField id="hk-new-notes" label="Notes" optional>
               <textarea
-                className="min-h-[72px] w-full rounded-lg border border-input px-3 py-2 text-sm"
+                id="hk-new-notes"
+                className={`${hmsInput} min-h-[72px]`}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="What needs attention?"
               />
-            </div>
+            </HmsField>
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={submitting}>
+            <button type="button" className={hmsButton.secondary} onClick={() => setOpen(false)} disabled={submitting}>
               Cancel
-            </Button>
-            <Button type="button" disabled={submitting || !roomCode.trim()} onClick={() => void submit()}>
+            </button>
+            <button type="button" className={hmsButton.primary} disabled={submitting || !roomCode.trim()} onClick={() => void submit()}>
               {submitting ? "Raising…" : "Raise task"}
-            </Button>
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

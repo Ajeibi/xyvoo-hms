@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Loader2 } from "lucide-react";
+import { ArrowRight, ChefHat, Loader2, Timer } from "lucide-react";
 import type { FbRoleCapabilities } from "@/lib/hms/fb-rbac";
 import type { FbCategoryPrepRow } from "@/lib/hms/fb-menu";
 import {
@@ -11,8 +11,7 @@ import {
   KITCHEN_OVERDUE_MINUTES_MIN,
   type TenantFbSettings,
 } from "@/lib/hms/fb-settings";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { HmsCard, HmsEmptyState, HmsPageHeader, hmsButton, hmsInput } from "@/components/hms/hms-ui";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 
 const CATEGORY_PREP_MIN = 1;
@@ -178,103 +177,107 @@ export function KitchenSettingsClient({
   }, [categories]);
 
   return (
-    <div className="w-full space-y-6 px-6 py-6">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-900">Kitchen settings</h1>
-        <p className="text-sm text-slate-500">
-          Configure how long tickets can wait before turning red and triggering overdue alerts.
-        </p>
-      </div>
+    <div className="w-full max-w-5xl space-y-6 px-4 py-6 sm:px-6">
+      <HmsPageHeader
+        eyebrow="Kitchen"
+        meaning="food"
+        title="Kitchen settings"
+        description="Choose how long a ticket can wait before it turns red and the overdue alert sounds."
+      />
 
       <Link
         href={`/hms/${slug}/restaurant-bar/settings`}
-        className="flex items-center justify-between gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50/60 px-5 py-3 text-sm text-slate-600 transition-colors hover:border-blue-300 hover:bg-blue-50/40 hover:text-blue-700"
+        className="flex items-center justify-between gap-3 rounded-2xl bg-orange-50 px-5 py-3 text-sm text-slate-800 transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
       >
-        <span>Menu items, kitchen stations, and 86&apos;ing dishes are managed on Restaurant &amp; Bar → Settings.</span>
-        <ArrowRight className="size-4 shrink-0" aria-hidden />
+        <span>Menu items, kitchen stations and marking dishes sold out are managed in Restaurant &amp; bar settings.</span>
+        <ArrowRight className="size-4 shrink-0 text-orange-600" aria-hidden />
       </Link>
 
-      <div className="max-w-lg rounded-2xl border border-slate-200 bg-white p-5">
-        <label className="mb-1 block text-sm font-medium text-slate-900">
-          Default order wait threshold (minutes)
-        </label>
-        <p className="mb-4 text-sm text-slate-500">
-          Ticket cards shift from green → amber → red over this window. Used for any category without
-          its own cook-time target below.
-          {!settings.kitchenOverdueMinutesConfigured ? (
-            <span className="mt-2 block text-amber-700">
-              Not configured yet — using the default {DEFAULT_KITCHEN_OVERDUE_MINUTES} minutes.
-            </span>
-          ) : null}
-        </p>
+      <HmsCard
+        id="kitchen-wait-threshold"
+        title="Default wait before a ticket is overdue"
+        description="Ticket cards turn from green to amber to red over this time. Used for any category without its own cook time below."
+        icon={Timer}
+        meaning="food"
+        className="max-w-2xl"
+      >
+        {!settings.kitchenOverdueMinutesConfigured ? (
+          <p className="mb-4 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            Not set yet, so the default of {DEFAULT_KITCHEN_OVERDUE_MINUTES} minutes is being used.
+          </p>
+        ) : null}
 
         <div className="flex flex-wrap items-end gap-3">
-          <div className="w-32">
-            <Input
+          <div className="w-36">
+            <label htmlFor="kitchen-overdue-minutes" className="mb-1 block text-sm font-medium text-slate-800">
+              Minutes
+            </label>
+            <input
+              id="kitchen-overdue-minutes"
               type="number"
               min={KITCHEN_OVERDUE_MINUTES_MIN}
               max={KITCHEN_OVERDUE_MINUTES_MAX}
               value={draftMinutes}
               onChange={(e) => setDraftMinutes(e.target.value)}
               disabled={!canEdit || busy}
-              className="rounded-xl"
+              aria-describedby={!canEdit ? "kitchen-settings-admin-only" : undefined}
+              className={hmsInput}
             />
           </div>
-          <span className="pb-2 text-sm text-slate-500">minutes</span>
           {canEdit ? (
-            <Button type="button" disabled={busy} onClick={() => void save()} className="gap-1.5">
+            <button type="button" disabled={busy} onClick={() => void save()} className={hmsButton.primary}>
               {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
               Save
-            </Button>
+            </button>
           ) : (
-            <p className="pb-2 text-sm text-slate-500">Only hotel admins can change this.</p>
+            <p id="kitchen-settings-admin-only" className="pb-2.5 text-sm text-slate-600">Only hotel admins can change this.</p>
           )}
         </div>
-      </div>
+      </HmsCard>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-medium text-slate-900">Cook time by category</h2>
-            <p className="mt-1 max-w-xl text-sm text-slate-500">
-              Different food takes different time to cook. Set a target per category — a ticket uses
-              the slowest category it contains. Leave blank to fall back to the default
-              ({settings.kitchenOverdueMinutes} min).
-            </p>
-          </div>
-          {canEdit ? (
-            <Button
-              type="button"
-              disabled={savingPrep}
-              onClick={() => void savePrepTimes()}
-              className="gap-1.5"
-            >
+      <HmsCard
+        id="kitchen-cook-times"
+        title="Cook time by category"
+        description={`Different food takes different time to cook. Set a target for each category; a ticket uses the slowest category on it. Leave blank to use the default (${settings.kitchenOverdueMinutes} minutes).`}
+        icon={ChefHat}
+        meaning="food"
+        actions={
+          canEdit && categories.length > 0 ? (
+            <button type="button" disabled={savingPrep} onClick={() => void savePrepTimes()} className={hmsButton.primary}>
               {savingPrep ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
               Save cook times
-            </Button>
-          ) : null}
-        </div>
-
+            </button>
+          ) : null
+        }
+      >
         {categories.length === 0 ? (
-          <p className="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-sm text-slate-500">
-            No menu categories yet. Add categories in Restaurant &amp; Bar → Settings.
-          </p>
+          <HmsEmptyState
+            bare
+            art="box"
+            meaning="food"
+            title="No menu categories yet"
+            description="Add categories in Restaurant & bar settings, then set their cook times here."
+          />
         ) : (
-          <div className="mt-4 space-y-5">
+          <div className="space-y-5">
             {groupedCategories.map(([outletName, cats]) => (
               <div key={outletName}>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-800">
+                  <span aria-hidden className="h-2 w-2 rounded-full bg-orange-500" />
                   {outletName}
-                </p>
+                </h3>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   {cats.map((c) => (
                     <div
                       key={c.id}
                       className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-3 py-2"
                     >
-                      <span className="truncate text-sm font-medium text-slate-800">{c.name}</span>
+                      <label htmlFor={`kitchen-prep-${c.id}`} className="truncate text-sm font-medium text-slate-800">
+                        {c.name}
+                      </label>
                       <div className="flex items-center gap-1.5">
-                        <Input
+                        <input
+                          id={`kitchen-prep-${c.id}`}
                           type="number"
                           min={CATEGORY_PREP_MIN}
                           max={CATEGORY_PREP_MAX}
@@ -284,9 +287,9 @@ export function KitchenSettingsClient({
                             setPrepDraft((prev) => ({ ...prev, [c.id]: e.target.value }))
                           }
                           disabled={!canEdit || savingPrep}
-                          className="h-9 w-20 rounded-lg text-right"
+                          className="h-10 w-20 rounded-lg border border-slate-300 bg-white px-2 text-right text-sm text-slate-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-xyvoo-blue disabled:bg-slate-50"
                         />
-                        <span className="text-xs text-slate-500">min</span>
+                        <span className="text-sm text-slate-600">min</span>
                       </div>
                     </div>
                   ))}
@@ -297,9 +300,9 @@ export function KitchenSettingsClient({
         )}
 
         {!canEdit ? (
-          <p className="mt-4 text-sm text-slate-500">Only hotel admins can change cook times.</p>
+          <p className="mt-4 text-sm text-slate-600">Only hotel admins can change cook times.</p>
         ) : null}
-      </div>
+      </HmsCard>
     </div>
   );
 }

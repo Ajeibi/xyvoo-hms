@@ -145,7 +145,7 @@ export function CheckInRateSummaryCard({
               {pricingPreview ? formatPricingAmount(pricingPreview.taxes.grandTotal, pricing.currency) : "—"}
             </span>
           </div>
-          <p className="flex flex-wrap items-start gap-1 text-[11px] leading-relaxed text-slate-500">
+          <p className="flex flex-wrap items-start gap-1 text-xs leading-relaxed text-slate-600">
             <span>
               Estimates for front desk. Final statutory treatment depends on your FIRS registration, state rules, and
               supporting documents. Service charge and &quot;tax %&quot; in hotel settings should mirror your

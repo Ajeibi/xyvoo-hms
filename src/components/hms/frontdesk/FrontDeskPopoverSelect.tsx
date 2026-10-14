@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -28,6 +28,9 @@ type FrontDeskPopoverSelectProps = {
   placeholder?: string;
   disabled?: boolean;
   emptyStateMessage?: string;
+  /** Names the trigger when there is no `<label htmlFor>` pointing at it. */
+  "aria-labelledby"?: string;
+  "aria-describedby"?: string;
 };
 
 export function FrontDeskPopoverSelect({
@@ -41,8 +44,11 @@ export function FrontDeskPopoverSelect({
   placeholder = "Select…",
   disabled = false,
   emptyStateMessage = "No options available.",
+  "aria-labelledby": ariaLabelledBy,
+  "aria-describedby": ariaDescribedBy,
 }: FrontDeskPopoverSelectProps) {
   const [open, setOpen] = useState(false);
+  const valueId = useId();
 
   const selected = useMemo(() => options.find((o) => o.value === value), [options, value]);
 
@@ -61,10 +67,12 @@ export function FrontDeskPopoverSelect({
             variant="outline"
             id={id}
             disabled={disabled || listEmpty}
+            aria-labelledby={ariaLabelledBy ? `${ariaLabelledBy} ${valueId}` : undefined}
+            aria-describedby={ariaDescribedBy}
             className={cn(FRONT_DESK_PICKER_TRIGGER_CLASS)}
           >
-            <span className="min-w-0 truncate text-left">{triggerLabel}</span>
-            <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" aria-hidden />
+            <span id={valueId} className="min-w-0 truncate text-left">{triggerLabel}</span>
+            <ChevronDown className="ml-2 h-4 w-4 shrink-0 text-slate-500" aria-hidden />
           </Button>
         </PopoverTrigger>
         <PopoverContent className={cn(FRONT_DESK_PICKER_POPOVER_CLASS)} align="start">
@@ -76,9 +84,10 @@ export function FrontDeskPopoverSelect({
                 {allowEmpty ? (
                   <button
                     type="button"
+                    aria-pressed={value === ""}
                     className={cn(
-                      "w-full rounded-lg px-2 py-2 text-left text-sm text-slate-800 hover:bg-slate-100",
-                      value === "" && "bg-slate-50 font-medium",
+                      "w-full rounded-lg px-2 py-2 text-left text-sm text-slate-800 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
+                      value === "" && "bg-sky-50 font-medium text-sky-950",
                     )}
                     onClick={() => {
                       onChange("");
@@ -96,11 +105,12 @@ export function FrontDeskPopoverSelect({
                         <button
                           type="button"
                           disabled={opt.disabled}
+                          aria-pressed={isSelected}
                           className={cn(
-                            "flex w-full flex-col rounded-lg px-2 py-1.5 text-left text-sm transition-colors",
+                            "flex w-full flex-col rounded-lg px-2 py-1.5 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
                             !opt.disabled && "hover:bg-slate-100",
                             opt.disabled &&
-                              "cursor-not-allowed bg-slate-100/80 text-slate-400 hover:bg-slate-100/80",
+                              "cursor-not-allowed bg-slate-100/80 text-slate-500 hover:bg-slate-100/80",
                             isSelected && "bg-sky-50 font-medium text-sky-950 hover:bg-sky-50",
                           )}
                           onClick={() => {
@@ -111,7 +121,7 @@ export function FrontDeskPopoverSelect({
                         >
                           <span className="font-medium leading-snug">{opt.label}</span>
                           {opt.description ? (
-                            <span className="text-xs font-normal leading-snug text-slate-500">{opt.description}</span>
+                            <span className="text-xs font-normal leading-snug text-slate-600">{opt.description}</span>
                           ) : null}
                         </button>
                       </li>

@@ -38,12 +38,12 @@ export function FrontDeskArrivalRowActions({
       onKeyDown={(e) => e.stopPropagation()}
     >
       {canCheckIn ? (
-        <Button type="button" size="sm" className="shrink-0 rounded-lg px-3" onClick={onCheckIn}>
-          Check in
+        <Button type="button" size="sm" className="shrink-0 rounded-xl px-3 font-semibold" onClick={onCheckIn}>
+          Check in<span className="sr-only"> {row.guestName}</span>
         </Button>
       ) : (
-        <Button type="button" size="sm" variant="secondary" className="shrink-0 rounded-lg px-3" onClick={onDetail}>
-          Details
+        <Button type="button" size="sm" variant="outline" className="shrink-0 rounded-xl border-slate-300 px-3" onClick={onDetail}>
+          Details<span className="sr-only"> for {row.guestName}</span>
         </Button>
       )}
 
@@ -53,10 +53,10 @@ export function FrontDeskArrivalRowActions({
             type="button"
             size="sm"
             variant="outline"
-            className="h-8 w-8 shrink-0 rounded-lg p-0"
-            aria-label="More actions"
+            className="h-8 w-8 shrink-0 rounded-xl border-slate-300 p-0"
+            aria-label={`More actions for ${row.guestName}`}
           >
-            <MoreHorizontal className="h-4 w-4" />
+            <MoreHorizontal className="h-4 w-4" aria-hidden />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-44">

@@ -60,7 +60,7 @@ export function InventoryItemPicker({
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            className={cn("w-full justify-between font-normal", !selected && "text-slate-500", className)}
+            className={cn("h-[42px] w-full justify-between rounded-xl border-slate-300 font-normal", !selected && "text-slate-600", className)}
           >
             <span className="min-w-0 truncate">{selected ? `${selected.name} (${selected.sku})` : placeholder}</span>
             <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
@@ -72,13 +72,14 @@ export function InventoryItemPicker({
               autoFocus
               value={search}
               onChange={(e) => setSearch(e.target.value)}
+              aria-label="Search items by name or SKU"
               placeholder="Search by name or SKU"
-              className="h-9"
+              className="h-10 rounded-xl border-slate-300"
             />
           </div>
           <div className="max-h-64 overflow-y-auto p-1">
             {filtered.length === 0 ? (
-              <p className="px-3 py-6 text-center text-sm text-slate-500">No items match.</p>
+              <p className="px-3 py-6 text-center text-sm text-slate-600">No items match.</p>
             ) : (
               filtered.map((item) => (
                 <button
@@ -89,12 +90,12 @@ export function InventoryItemPicker({
                     setOpen(false);
                   }}
                   className={cn(
-                    "flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-50",
+                    "flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
                     item.id === value && "bg-blue-50",
                   )}
                 >
                   <span className="min-w-0 truncate">
-                    {item.name} <span className="text-slate-400">({item.sku})</span>
+                    {item.name} <span className="text-slate-600">({item.sku})</span>
                   </span>
                   {item.id === value ? <Check className="h-4 w-4 shrink-0 text-blue-600" /> : null}
                 </button>
@@ -109,7 +110,7 @@ export function InventoryItemPicker({
                   setOpen(false);
                   setCreateOpen(true);
                 }}
-                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-blue-700 hover:bg-blue-50"
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-blue-700 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               >
                 <Plus className="h-4 w-4" />
                 Create new item

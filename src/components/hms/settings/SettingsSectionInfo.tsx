@@ -2,6 +2,7 @@
 
 import { CircleHelp } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { HMS_MEANING, type HmsMeaning } from "@/components/hms/meaning";
 import { cn } from "@/lib/utils";
 
 /** Click-to-open explanation icon for a settings section or group header — same idiom as
@@ -21,9 +22,9 @@ export function SettingsSectionInfo({
         <button
           type="button"
           className={cn(
-            "inline-flex size-6 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors",
-            "hover:bg-slate-100 hover:text-slate-700",
-            "focus-visible:outline-none",
+            "inline-flex size-7 shrink-0 items-center justify-center rounded-lg text-slate-600 transition-colors",
+            "hover:bg-slate-100 hover:text-slate-900",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
             className,
           )}
           aria-label={`Explain: ${title}`}
@@ -31,9 +32,9 @@ export function SettingsSectionInfo({
           <CircleHelp className="size-4" strokeWidth={2} aria-hidden />
         </button>
       </PopoverTrigger>
-      <PopoverContent align="start" side="top" className="max-w-sm text-left text-xs leading-relaxed">
+      <PopoverContent align="start" side="top" className="max-w-sm text-left text-sm leading-relaxed">
         <p className="font-semibold text-slate-900">{title}</p>
-        <p className="mt-1.5 text-slate-600">{text}</p>
+        <p className="mt-1.5 text-slate-700">{text}</p>
       </PopoverContent>
     </Popover>
   );
@@ -55,10 +56,10 @@ export function SettingsSectionHeader({
   return (
     <div className={className}>
       <div className="flex flex-wrap items-center gap-1.5">
-        <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+        <h2 className="font-heading text-base font-semibold text-slate-900">{title}</h2>
         <SettingsSectionInfo title={title} text={info} />
       </div>
-      {subtitle ? <p className="mt-0.5 text-sm text-slate-500">{subtitle}</p> : null}
+      {subtitle ? <p className="mt-0.5 text-sm text-slate-600">{subtitle}</p> : null}
     </div>
   );
 }
@@ -66,21 +67,38 @@ export function SettingsSectionHeader({
 /** Group-level heading — groups several related section cards together (e.g. "Front Desk &
  * Reservations") with its own explanation of why these belong together. */
 export function SettingsGroupHeader({
+  id,
   title,
   subtitle,
   info,
+  icon: Icon,
+  meaning = "neutral",
 }: {
+  /** Used for the heading's id, so the group's <section> can be labelled by it. */
+  id?: string;
   title: string;
   subtitle: string;
   info: string;
+  icon?: React.ComponentType<{ className?: string }>;
+  meaning?: HmsMeaning;
 }) {
+  const tone = HMS_MEANING[meaning];
   return (
-    <div className="border-b border-slate-200 pb-3">
-      <div className="flex flex-wrap items-center gap-1.5">
-        <h1 className="text-xl font-bold text-slate-900">{title}</h1>
-        <SettingsSectionInfo title={title} text={info} />
+    <div className="flex items-start gap-3 border-b border-slate-200 pb-4">
+      {Icon ? (
+        <span aria-hidden className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${tone.tint} ${tone.icon}`}>
+          <Icon className="h-5 w-5" />
+        </span>
+      ) : null}
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <h2 id={id} className="font-heading text-xl font-bold text-slate-900">
+            {title}
+          </h2>
+          <SettingsSectionInfo title={title} text={info} />
+        </div>
+        <p className="mt-1 max-w-3xl text-sm text-slate-600">{subtitle}</p>
       </div>
-      <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
     </div>
   );
 }

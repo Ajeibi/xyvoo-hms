@@ -11,11 +11,15 @@ export default function CityAutocomplete({
   value,
   onChange,
   country,
+  invalid,
+  describedBy,
 }: {
   id?: string;
   value: string;
   onChange: (value: string) => void;
   country: string;
+  invalid?: boolean;
+  describedBy?: string;
 }) {
   const [query, setQuery] = useState(value || "");
   const [results, setResults] = useState<LocationCityOption[]>([]);
@@ -71,16 +75,19 @@ export default function CityAutocomplete({
   return (
     <div ref={wrapRef} className="relative">
       <div className="relative">
-        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+        <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" aria-hidden />
         <input
           id={id}
           value={query}
           onChange={(e) => search(e.target.value)}
           onFocus={() => results.length > 0 && setOpen(true)}
-          placeholder="Search city..."
+          placeholder="Start typing your city"
+          autoComplete="off"
+          aria-invalid={invalid || undefined}
+          aria-describedby={describedBy}
           className={`${INPUT_CLASS} pl-9`}
         />
-        {loading && <div className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin" />}
+        {loading && <div aria-hidden className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-blue-200 border-t-xyvoo-blue-deep rounded-full animate-spin motion-reduce:animate-none" />}
       </div>
 
       {open && (
@@ -95,23 +102,23 @@ export default function CityAutocomplete({
                 setOpen(false);
                 setResults([]);
               }}
-              className="w-full text-left px-4 py-3 text-sm text-slate-700 hover:bg-blue-50 transition-colors border-b border-slate-100 last:border-0"
+              className="w-full text-left px-4 py-3 text-sm text-slate-800 hover:bg-blue-50 focus-visible:bg-blue-50 focus-visible:outline-none transition-colors border-b border-slate-100 last:border-0"
             >
               <span className="font-medium">{city.name}</span>
-              <span className="text-xs text-slate-400 ml-2 truncate">{city.display}</span>
+              <span className="text-xs text-slate-600 ml-2 truncate">{city.display}</span>
             </button>
           ))}
         </div>
       )}
 
       {loading && query.length >= 2 && (
-        <div className="mt-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 flex items-center gap-2">
-          <span className="w-3.5 h-3.5 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin" />
-          <span className="text-xs text-slate-600">Searching cities...</span>
+        <div role="status" className="mt-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 flex items-center gap-2">
+          <span aria-hidden className="w-3.5 h-3.5 border-2 border-blue-200 border-t-xyvoo-blue-deep rounded-full animate-spin motion-reduce:animate-none" />
+          <span className="text-sm text-slate-700">Searching cities...</span>
         </div>
       )}
 
-      {noResults && !open && !loading && query.length >= 2 && <p className="text-xs text-amber-600 mt-1">Must be a recognised city in {countryName}</p>}
+      {noResults && !open && !loading && query.length >= 2 && <p role="status" className="text-sm text-amber-800 mt-1.5">Must be a recognised city in {countryName}</p>}
     </div>
   );
 }

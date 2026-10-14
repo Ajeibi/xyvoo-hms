@@ -1,4 +1,5 @@
 import HMSLayout from "@/components/hms/HMSLayout";
+import { HmsPage, HmsPageHeader } from "@/components/hms/hms-ui";
 import { ProcurementOrderFormClient, type PrefillManualLine } from "@/components/hms/procurement/ProcurementOrderFormClient";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -58,9 +59,8 @@ export default async function NewPurchaseOrderPage({
 
   return (
     <HMSLayout slug={slug} requiredSection="procurement-orders">
-      <div className="px-8 py-8">
-        <h1 className="text-xl font-semibold text-slate-900">New purchase order</h1>
-        <p className="mt-0.5 text-sm text-slate-500">Source against approved requisitions, or create a manual PO with a documented reason.</p>
+      <HmsPage>
+        <HmsPageHeader eyebrow="Procurement" meaning="stock" title="New purchase order" description="Source against approved requisitions, or create a manual PO with a documented reason." />
         <ProcurementOrderFormClient
           slug={slug}
           vendors={vendors}
@@ -69,7 +69,7 @@ export default async function NewPurchaseOrderPage({
           defaultCurrency={currency}
           prefillManualLine={prefillManualLine}
         />
-      </div>
+      </HmsPage>
     </HMSLayout>
   );
 }

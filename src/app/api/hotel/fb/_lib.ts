@@ -1,11 +1,11 @@
-import type { User } from "@supabase/supabase-js";
+import type { SessionUser } from "@/lib/supabase/auth-server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { HotelTenantBySlugRow } from "@/types";
 import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
 import { assertFbCapability, getFbCapabilities, type FbRoleCapabilities } from "@/lib/hms/fb-rbac";
 
 export type FbApiAuth = {
-  user: User;
+  user: SessionUser;
   tenant: HotelTenantBySlugRow;
   service: SupabaseClient;
   role: string;

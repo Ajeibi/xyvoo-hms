@@ -7,6 +7,7 @@ import { getAccountsCapabilities } from "@/lib/hms/accounts-rbac";
 import { getAccountLedger } from "@/lib/hms/financial-statements";
 import { normalizePricingSetup } from "@/lib/hms/room-pricing";
 import { AccountsLedgerClient } from "@/components/hms/accounts/AccountsLedgerClient";
+import { HmsPage, HmsPageHeader } from "@/components/hms/hms-ui";
 
 export default async function AccountsLedgerPage({
   params,
@@ -19,10 +20,9 @@ export default async function AccountsLedgerPage({
   if (!tenant) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-ledger">
-        <div className="px-8 py-8">
-          <h1 className="text-xl font-semibold text-slate-900">Account ledger</h1>
-          <p className="mt-0.5 text-sm text-slate-500">Hotel not found.</p>
-        </div>
+        <HmsPage>
+          <HmsPageHeader eyebrow="Accounts" meaning="money" title="Account ledger" description="Hotel not found." />
+        </HmsPage>
       </HMSLayout>
     );
   }
@@ -31,10 +31,9 @@ export default async function AccountsLedgerPage({
   if (!caps.canViewReports) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-ledger">
-        <div className="px-8 py-8">
-          <h1 className="text-xl font-semibold text-slate-900">Account ledger</h1>
-          <p className="mt-0.5 text-sm text-slate-500">You don&apos;t have access to this report.</p>
-        </div>
+        <HmsPage>
+          <HmsPageHeader eyebrow="Accounts" meaning="money" title="Account ledger" description="You don't have access to this report." />
+        </HmsPage>
       </HMSLayout>
     );
   }
@@ -46,15 +45,21 @@ export default async function AccountsLedgerPage({
   if (!result) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-ledger">
-        <div className="px-8 py-8">
-          <h1 className="text-xl font-semibold text-slate-900">Account ledger</h1>
-          <p className="mt-0.5 text-sm text-slate-500">
-            Account not found.{" "}
-            <Link href={`/hms/${slug}/accounts/chart`} className="text-blue-600 hover:underline">
-              Back to chart of accounts
-            </Link>
-          </p>
-        </div>
+        <HmsPage>
+          <HmsPageHeader
+            eyebrow="Accounts"
+            meaning="money"
+            title="Account ledger"
+            description={
+              <>
+                Account not found.{" "}
+                <Link href={`/hms/${slug}/accounts/chart`} className="font-medium text-blue-700 underline-offset-2 hover:underline">
+                  Back to chart of accounts
+                </Link>
+              </>
+            }
+          />
+        </HmsPage>
       </HMSLayout>
     );
   }

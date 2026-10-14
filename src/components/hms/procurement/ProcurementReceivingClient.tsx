@@ -2,9 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { AlertTriangle, PackageCheck, Truck } from "lucide-react";
+import { HmsCard, HmsEmptyState, HmsField, HmsPill, hmsButton, hmsInput } from "@/components/hms/hms-ui";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toastError, toastSuccess } from "@/lib/app-toast";
@@ -42,68 +41,73 @@ export function ProcurementReceivingClient({
   const [receiveTarget, setReceiveTarget] = useState<PurchaseOrderWithLines | null>(preselectedOrder);
 
   return (
-    <div className="mt-6 space-y-6">
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <div className="border-b border-slate-100 px-6 py-4">
-          <h2 className="text-sm font-semibold text-slate-900">Awaiting delivery</h2>
-        </div>
+    <div className="space-y-6">
+      <HmsCard
+        id="procurement-awaiting-delivery"
+        title="Awaiting delivery"
+        description="Orders that have been sent to the vendor and not fully received."
+        icon={Truck}
+        meaning="stock"
+        flush
+      >
         {awaitingOrders.length === 0 ? (
-          <p className="px-6 py-8 text-sm text-slate-500">No purchase orders are currently ordered and awaiting receipt.</p>
+          <HmsEmptyState bare art="truck" meaning="stock" title="No deliveries expected" description="No purchase orders are currently ordered and awaiting receipt." />
         ) : (
           <ul className="divide-y divide-slate-100">
             {awaitingOrders.map((o) => {
               const overdue = o.expected_delivery_date ? new Date(o.expected_delivery_date) < new Date() : false;
               return (
-                <li key={o.id} className="flex items-center justify-between gap-3 px-6 py-3 text-sm">
+                <li key={o.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm sm:px-6">
                   <div className="min-w-0">
-                    <p className="truncate font-medium text-slate-800">
+                    <p className="truncate font-medium text-slate-900">
                       {o.po_number} · {o.vendor_name}
                     </p>
-                    <p className={`text-xs ${overdue ? "text-red-600" : "text-slate-400"}`}>
+                    <p className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
                       {o.expected_delivery_date ? `Expected ${formatDate(o.expected_delivery_date)}` : "No delivery date set"}
-                      {overdue ? " · overdue" : ""}
+                      {overdue ? (
+                        <HmsPill tone="red">
+                          <AlertTriangle className="mr-1 h-3.5 w-3.5" aria-hidden /> Overdue
+                        </HmsPill>
+                      ) : null}
                     </p>
                   </div>
-                  <Button type="button" size="sm" className="rounded-lg" onClick={() => setReceiveTarget(o)}>
-                    Receive
-                  </Button>
+                  <button type="button" className={hmsButton.primary} onClick={() => setReceiveTarget(o)}>
+                    Receive<span className="sr-only"> {o.po_number}</span>
+                  </button>
                 </li>
               );
             })}
           </ul>
         )}
-      </div>
+      </HmsCard>
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <div className="border-b border-slate-100 px-6 py-4">
-          <h2 className="text-sm font-semibold text-slate-900">Recent receiving notes</h2>
-        </div>
+      <HmsCard id="procurement-receiving-notes" title="Recent receiving notes" icon={PackageCheck} meaning="stock" flush>
         {receipts.length === 0 ? (
-          <p className="px-6 py-8 text-sm text-slate-500">No goods have been received against a purchase order yet.</p>
+          <HmsEmptyState bare art="box" meaning="stock" title="Nothing received yet" description="No goods have been received against a purchase order yet." />
         ) : (
           <ul className="divide-y divide-slate-100">
             {receipts.map((r) => (
-              <li key={r.id} className="flex items-center justify-between gap-3 px-6 py-3 text-sm">
+              <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm sm:px-6">
                 <div className="min-w-0">
-                  <p className="truncate font-medium text-slate-800">
+                  <p className="truncate font-medium text-slate-900">
                     {r.receiptNumber} · {r.poNumber} · {r.vendorName}
                   </p>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-sm text-slate-600">
                     {r.locationName} · {formatDate(r.createdAt)}
                   </p>
                 </div>
                 {r.hasDiscrepancy ? (
-                  <span className="flex shrink-0 items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-xs text-red-700">
-                    <AlertTriangle className="h-3 w-3" /> Discrepancy
-                  </span>
+                  <HmsPill tone="red">
+                    <AlertTriangle className="mr-1 h-3.5 w-3.5" aria-hidden /> Discrepancy
+                  </HmsPill>
                 ) : (
-                  <span className="shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700">Clean</span>
+                  <HmsPill tone="green">No issues</HmsPill>
                 )}
               </li>
             ))}
           </ul>
         )}
-      </div>
+      </HmsCard>
 
       <ReceiveDialog
         key={receiveTarget?.id ?? "none"}
@@ -266,10 +270,9 @@ function ReceiveDialog({
         </DialogHeader>
 
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
-          <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">Receiving store</label>
+          <HmsField id="receive-location" label="Receiving store">
             <Select value={locationId} onValueChange={setLocationId}>
-              <SelectTrigger>
+              <SelectTrigger id="receive-location" className="h-11 rounded-xl border-slate-300">
                 <SelectValue placeholder="Select a store" />
               </SelectTrigger>
               <SelectContent>
@@ -280,113 +283,128 @@ function ReceiveDialog({
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </HmsField>
 
           <div className="space-y-3">
-            {lines.map((l) => (
-              <div key={l.purchaseOrderLineId} className="space-y-2 rounded-lg border border-slate-200 p-3">
-                <p className="text-sm font-medium text-slate-800">
-                  {l.label} <span className="text-xs text-slate-400">({l.remaining} {l.unitOfMeasure} outstanding)</span>
-                </p>
-                <div className="grid grid-cols-3 gap-2">
-                  <div>
-                    <label className="mb-1 block text-xs text-slate-500">Received</label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="any"
-                      value={l.qtyReceived}
-                      onChange={(e) => updateLine(l.purchaseOrderLineId, { qtyReceived: e.target.value })}
-                    />
+            {lines.map((l) => {
+              const lid = l.purchaseOrderLineId;
+              const passed = lineQualityPassed(l);
+              return (
+                <fieldset key={lid} className="space-y-3 rounded-xl border border-slate-200 p-4">
+                  <legend className="sr-only">{l.label}</legend>
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <p className="text-sm font-medium text-slate-900">
+                      {l.label} <span className="font-normal text-slate-600">({l.remaining} {l.unitOfMeasure} outstanding)</span>
+                    </p>
+                    {passed ? <HmsPill tone="green">Quality passed</HmsPill> : <HmsPill tone="red">Quality failed</HmsPill>}
                   </div>
-                  <div>
-                    <label className="mb-1 block text-xs text-slate-500">Rejected</label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="any"
-                      value={l.qtyRejected}
-                      onChange={(e) => updateLine(l.purchaseOrderLineId, { qtyRejected: e.target.value })}
-                    />
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <HmsField id={`receive-qty-${lid}`} label="Received">
+                      <input
+                        id={`receive-qty-${lid}`}
+                        type="number"
+                        min="0"
+                        step="any"
+                        inputMode="decimal"
+                        className={`${hmsInput} tabular-nums`}
+                        value={l.qtyReceived}
+                        onChange={(e) => updateLine(lid, { qtyReceived: e.target.value })}
+                      />
+                    </HmsField>
+                    <HmsField id={`receive-rejected-${lid}`} label="Rejected">
+                      <input
+                        id={`receive-rejected-${lid}`}
+                        type="number"
+                        min="0"
+                        step="any"
+                        inputMode="decimal"
+                        className={`${hmsInput} tabular-nums`}
+                        value={l.qtyRejected}
+                        onChange={(e) => updateLine(lid, { qtyRejected: e.target.value })}
+                      />
+                    </HmsField>
+                    <HmsField id={`receive-cost-${lid}`} label="Unit cost">
+                      <input
+                        id={`receive-cost-${lid}`}
+                        type="number"
+                        min="0"
+                        step="any"
+                        inputMode="decimal"
+                        className={`${hmsInput} tabular-nums`}
+                        value={l.unitCost}
+                        onChange={(e) => updateLine(lid, { unitCost: e.target.value })}
+                      />
+                    </HmsField>
                   </div>
-                  <div>
-                    <label className="mb-1 block text-xs text-slate-500">Unit cost</label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="any"
-                      value={l.unitCost}
-                      onChange={(e) => updateLine(l.purchaseOrderLineId, { unitCost: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <Select
-                  value={l.discrepancyType}
-                  onValueChange={(v) => updateLine(l.purchaseOrderLineId, { discrepancyType: v as DiscrepancyType })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {DISCREPANCY_OPTIONS.map((d) => (
-                      <SelectItem key={d.value} value={d.value}>
-                        {d.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <HmsField id={`receive-discrepancy-${lid}`} label="Discrepancy">
+                    <Select value={l.discrepancyType} onValueChange={(v) => updateLine(lid, { discrepancyType: v as DiscrepancyType })}>
+                      <SelectTrigger id={`receive-discrepancy-${lid}`} className="h-11 rounded-xl border-slate-300">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DISCREPANCY_OPTIONS.map((d) => (
+                          <SelectItem key={d.value} value={d.value}>
+                            {d.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </HmsField>
 
-                {l.checklistItems.length > 0 ? (
-                  <div className="space-y-1 rounded-md bg-slate-50 p-2">
-                    <p className="text-xs font-medium text-slate-500">Quality inspection checklist</p>
-                    {l.checklistItems.map((item) => (
-                      <label key={item} className="flex items-center gap-2 text-xs text-slate-700">
-                        <input
-                          type="checkbox"
-                          className="h-4 w-4 rounded border-slate-300"
-                          checked={Boolean(l.checkedChecklistItems[item])}
-                          onChange={() => toggleChecklistItem(l.purchaseOrderLineId, item)}
-                        />
-                        {item}
-                      </label>
-                    ))}
-                  </div>
-                ) : (
-                  <label className="flex items-center gap-2 text-xs text-slate-600">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 rounded border-slate-300"
-                      checked={l.manualQualityPassed}
-                      onChange={(e) => setManualQualityPassed(l.purchaseOrderLineId, e.target.checked)}
-                    />
-                    Passed quality inspection (no checklist configured for this item type)
-                  </label>
-                )}
+                  {l.checklistItems.length > 0 ? (
+                    <fieldset className="space-y-2 rounded-xl bg-teal-50 p-3">
+                      <legend className="float-left mb-1 w-full text-sm font-medium text-slate-800">Quality inspection checklist</legend>
+                      {l.checklistItems.map((item) => (
+                        <label key={item} className="flex items-center gap-2 text-sm text-slate-800">
+                          <input
+                            type="checkbox"
+                            className="h-5 w-5 rounded border-slate-300 text-teal-700 focus-visible:ring-2 focus-visible:ring-blue-500"
+                            checked={Boolean(l.checkedChecklistItems[item])}
+                            onChange={() => toggleChecklistItem(lid, item)}
+                          />
+                          {item}
+                        </label>
+                      ))}
+                    </fieldset>
+                  ) : (
+                    <label className="flex items-center gap-2 text-sm text-slate-800">
+                      <input
+                        type="checkbox"
+                        className="h-5 w-5 rounded border-slate-300 text-teal-700 focus-visible:ring-2 focus-visible:ring-blue-500"
+                        checked={l.manualQualityPassed}
+                        onChange={(e) => setManualQualityPassed(lid, e.target.checked)}
+                      />
+                      Passed quality inspection (no checklist set up for this item type)
+                    </label>
+                  )}
 
-                {l.discrepancyType !== "none" || !lineQualityPassed(l) ? (
-                  <Input
-                    value={l.qualityNotes}
-                    onChange={(e) => updateLine(l.purchaseOrderLineId, { qualityNotes: e.target.value })}
-                    placeholder="Notes for follow-up with the vendor"
-                  />
-                ) : null}
-              </div>
-            ))}
+                  {l.discrepancyType !== "none" || !passed ? (
+                    <HmsField id={`receive-notes-${lid}`} label="Notes for follow-up with the vendor">
+                      <input
+                        id={`receive-notes-${lid}`}
+                        className={hmsInput}
+                        value={l.qualityNotes}
+                        onChange={(e) => updateLine(lid, { qualityNotes: e.target.value })}
+                      />
+                    </HmsField>
+                  ) : null}
+                </fieldset>
+              );
+            })}
           </div>
 
-          <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">Notes (optional)</label>
-            <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
-          </div>
+          <HmsField id="receive-notes" label="Notes" optional>
+            <input id="receive-notes" className={hmsInput} value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </HmsField>
         </div>
 
         <DialogFooter className="shrink-0 border-t border-slate-100 px-6 py-4">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+          <button type="button" className={hmsButton.secondary} onClick={() => onOpenChange(false)} disabled={submitting}>
             Cancel
-          </Button>
-          <Button type="button" disabled={!locationId || submitting} onClick={() => void submit()}>
+          </button>
+          <button type="button" className={hmsButton.primary} disabled={!locationId || submitting} onClick={() => void submit()}>
             {submitting ? "Recording…" : "Record receipt"}
-          </Button>
+          </button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

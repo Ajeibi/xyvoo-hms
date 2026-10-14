@@ -47,6 +47,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { HmsNotificationsBell } from "@/components/hms/header/HmsNotificationsBell";
 import { HmsQuickActionsMenu } from "@/components/hms/header/HmsQuickActionsMenu";
+import { HMS_MEANING, NAV_ICON_MEANING } from "@/components/hms/meaning";
 
 type HMSLayoutShellProps = {
   children: React.ReactNode;
@@ -272,15 +273,16 @@ export default function HMSLayoutShell({
                 title={label}
                 aria-label={label}
                 data-tour={tourTarget}
-                className={`flex rounded-lg text-sm font-medium transition-all ${
-                  sidebarOpen ? "items-center gap-3 px-3 py-2.5" : "justify-center px-0 py-3"
+                aria-current={active ? "page" : undefined}
+                className={`flex rounded-xl text-sm font-medium transition-colors ${
+                  sidebarOpen ? "items-center gap-3 px-2.5 py-1.5" : "justify-center px-0 py-1.5"
                 } ${
                   active
-                    ? "bg-blue-50 text-blue-700"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                    ? "bg-blue-50 text-blue-900"
+                    : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
                 }`}
               >
-                <Icon className="h-4 w-4 shrink-0" />
+                <NavIconChip Icon={Icon} iconKey={icon} active={active} />
                 {sidebarOpen && <span>{label}</span>}
               </Link>
             );
@@ -463,13 +465,14 @@ export default function HMSLayoutShell({
                 <Link
                   key={key}
                   href={path}
-                  className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${
+                  aria-current={active ? "page" : undefined}
+                  className={`flex items-center gap-3 rounded-xl px-2.5 py-1.5 text-sm font-medium transition-colors ${
                     active
-                      ? "bg-blue-50 text-blue-700"
-                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                      ? "bg-blue-50 text-blue-900"
+                      : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
                   }`}
                 >
-                  <Icon className="h-4 w-4 shrink-0" />
+                  <NavIconChip Icon={Icon} iconKey={icon} active={active} />
                   <span>{label}</span>
                 </Link>
               );
@@ -489,5 +492,26 @@ export default function HMSLayoutShell({
         />
       ) : null}
     </div>
+  );
+}
+
+/** A menu icon on its meaning tint, so each part of the hotel keeps one colour everywhere. */
+function NavIconChip({
+  Icon,
+  iconKey,
+  active,
+}: {
+  Icon: React.ComponentType<{ className?: string }>;
+  iconKey: HmsNavIconKey;
+  active: boolean;
+}) {
+  const tone = HMS_MEANING[NAV_ICON_MEANING[iconKey] ?? "neutral"];
+  return (
+    <span
+      aria-hidden
+      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${active ? "bg-white shadow-sm" : tone.tint}`}
+    >
+      <Icon className={`h-4 w-4 ${tone.icon}`} />
+    </span>
   );
 }

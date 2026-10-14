@@ -1,4 +1,5 @@
 import { after, NextResponse } from "next/server";
+import { sendGiftCardsForShop } from "@/lib/store/gift-cards";
 import { resolveStoreRequest } from "@/lib/store/api-helpers";
 import { applyOrderAction, OrderActionError, orderActionSchema } from "@/lib/store/order-actions";
 import { emailForAction, sendOrderStatusEmail } from "@/lib/store/order-status-emails";
@@ -28,7 +29,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const email = emailForAction(parsed.data.action);
   if (email) after(() => sendOrderStatusEmail(tenantId, id, email));
   // The shop confirmed an offline payment: the shopper gets their numbered receipt.
-  if (parsed.data.action === "payment_received") after(() => sendReceiptEmail(tenantId, id));
+  if (parsed.data.action === "payment_received") {
+    after(() => sendReceiptEmail(tenantId, id));
+    // A paid gift card order: the database has made the card, so email it now.
+    after(() => sendGiftCardsForShop(tenantId));
+  }
   // Delivered: the shopper is asked to review what they bought (once per order).
   if (parsed.data.action === "delivered") after(() => sendReviewRequest(tenantId, id));
   return NextResponse.json({ ok: true });

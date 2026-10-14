@@ -1,5 +1,6 @@
 import Link from "next/link";
 import HMSLayout from "@/components/hms/HMSLayout";
+import { HmsPage, HmsPageHeader, hmsButton } from "@/components/hms/hms-ui";
 import { getHmsAccessContext } from "@/lib/hms/access";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -20,10 +21,9 @@ export default async function AccountsBankReconciliationDetailPage({
   if (!tenant) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-bank-reconciliation">
-        <div className="px-8 py-8">
-          <h1 className="text-xl font-semibold text-slate-900">Bank reconciliation</h1>
-          <p className="mt-0.5 text-sm text-slate-500">Hotel not found.</p>
-        </div>
+        <HmsPage>
+          <HmsPageHeader eyebrow="Accounts" meaning="money" title="Bank reconciliation" description="Hotel not found." />
+        </HmsPage>
       </HMSLayout>
     );
   }
@@ -32,10 +32,9 @@ export default async function AccountsBankReconciliationDetailPage({
   if (!caps.canViewReports) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-bank-reconciliation">
-        <div className="px-8 py-8">
-          <h1 className="text-xl font-semibold text-slate-900">Bank reconciliation</h1>
-          <p className="mt-0.5 text-sm text-slate-500">You don&apos;t have access to this report.</p>
-        </div>
+        <HmsPage>
+          <HmsPageHeader eyebrow="Accounts" meaning="money" title="Bank reconciliation" description="You don't have access to this report." />
+        </HmsPage>
       </HMSLayout>
     );
   }
@@ -50,15 +49,19 @@ export default async function AccountsBankReconciliationDetailPage({
   if (!detail) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-bank-reconciliation">
-        <div className="px-8 py-8">
-          <h1 className="text-xl font-semibold text-slate-900">Bank reconciliation</h1>
-          <p className="mt-0.5 text-sm text-slate-500">
-            Reconciliation not found.{" "}
-            <Link href={`/hms/${slug}/accounts/bank-reconciliation`} className="text-blue-600 hover:underline">
-              Back to bank reconciliation
-            </Link>
-          </p>
-        </div>
+        <HmsPage>
+          <HmsPageHeader
+            eyebrow="Accounts"
+            meaning="money"
+            title="Bank reconciliation"
+            description="Reconciliation not found."
+            actions={
+              <Link href={`/hms/${slug}/accounts/bank-reconciliation`} className={hmsButton.secondary}>
+                Back to bank reconciliation
+              </Link>
+            }
+          />
+        </HmsPage>
       </HMSLayout>
     );
   }

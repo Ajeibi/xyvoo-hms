@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { KeyRound } from "lucide-react";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { SettingsSectionInfo } from "@/components/hms/settings/SettingsSectionInfo";
+import { HmsCard, HmsField, hmsButton, hmsInput } from "@/components/hms/hms-ui";
 
 export function SmartLockSettingsCard({ slug }: { slug: string }) {
   const [provider, setProvider] = useState("audit_only");
@@ -39,49 +40,59 @@ export function SmartLockSettingsCard({ slug }: { slug: string }) {
   }
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="flex flex-wrap items-center gap-1.5">
-        <h2 className="text-lg font-semibold text-slate-900">Smart lock integration</h2>
+    <HmsCard
+      id="smart-lock-settings"
+      title="Smart lock integration"
+      description="How remote unlock and key reissue reach your door-lock provider. Audit only records events without calling outside systems."
+      icon={KeyRound}
+      meaning="rooms"
+      actions={
         <SettingsSectionInfo
           title="Smart lock integration"
           text="One-time technical setup connecting XYVOO to your physical door-lock provider so front desk can remotely unlock or reissue keys. Only touch this again if you switch lock vendors or rotate API credentials."
         />
-      </div>
-      <p className="mt-1 text-sm text-slate-600">
-        Configure how remote unlock and key reissue reach your lock provider. Audit-only records events
-        without calling external systems.
-      </p>
-      <div className="mt-4 space-y-3 max-w-md">
-        <select
-          className="h-10 w-full rounded-lg border border-input px-3 text-sm"
-          value={provider}
-          onChange={(e) => setProvider(e.target.value)}
-        >
-          <option value="audit_only">Audit only (no hardware)</option>
-          <option value="mock">Mock (demo)</option>
-          <option value="http_webhook">HTTP webhook</option>
-        </select>
+      }
+    >
+      <div className="max-w-md space-y-4">
+        <HmsField id="smart-lock-provider" label="Lock provider">
+          <select
+            id="smart-lock-provider"
+            className={hmsInput}
+            value={provider}
+            onChange={(e) => setProvider(e.target.value)}
+          >
+            <option value="audit_only">Audit only (no hardware)</option>
+            <option value="mock">Mock (demo)</option>
+            <option value="http_webhook">HTTP webhook</option>
+          </select>
+        </HmsField>
         {provider === "http_webhook" ? (
           <>
-            <input
-              className="h-10 w-full rounded-lg border border-input px-3 text-sm"
-              placeholder="API base URL"
-              value={apiBaseUrl}
-              onChange={(e) => setApiBaseUrl(e.target.value)}
-            />
-            <input
-              className="h-10 w-full rounded-lg border border-input px-3 text-sm"
-              placeholder="API key (optional)"
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-            />
+            <HmsField id="smart-lock-api-url" label="API base URL">
+              <input
+                id="smart-lock-api-url"
+                className={hmsInput}
+                placeholder="https://"
+                value={apiBaseUrl}
+                onChange={(e) => setApiBaseUrl(e.target.value)}
+              />
+            </HmsField>
+            <HmsField id="smart-lock-api-key" label="API key" optional>
+              <input
+                id="smart-lock-api-key"
+                className={hmsInput}
+                type="password"
+                autoComplete="off"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+              />
+            </HmsField>
           </>
         ) : null}
-        <Button type="button" onClick={save} disabled={saving}>
-          {saving ? "Saving…" : "Save"}
-        </Button>
+        <button type="button" onClick={save} disabled={saving} className={hmsButton.primary}>
+          {saving ? "Saving…" : "Save lock settings"}
+        </button>
       </div>
-    </section>
+    </HmsCard>
   );
 }

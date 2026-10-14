@@ -1,4 +1,5 @@
 import HMSLayout from "@/components/hms/HMSLayout";
+import { HmsPage, HmsPageHeader } from "@/components/hms/hms-ui";
 import { ProcurementSubNav } from "@/components/hms/procurement/ProcurementSubNav";
 import { ProcurementRequisitionsInboxClient } from "@/components/hms/procurement/ProcurementRequisitionsInboxClient";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
@@ -18,15 +19,16 @@ export default async function ProcurementRequisitionsPage({ params }: { params: 
 
   return (
     <HMSLayout slug={slug} requiredSection="procurement-requisitions">
-      <div className="px-8 py-8">
-        <h1 className="text-xl font-semibold text-slate-900">Requisitions</h1>
-        <p className="mt-0.5 text-sm text-slate-500">
-          Approved requests from Inventory and Admin/GM waiting to be sourced. Procurement cannot raise a requisition —
-          only Inventory or an Admin/GM can.
-        </p>
+      <HmsPage>
+        <HmsPageHeader
+          eyebrow="Procurement"
+          meaning="stock"
+          title="Requisitions"
+          description="Approved requests from Inventory and Admin/GM waiting to be sourced. Only Inventory or an Admin/GM can raise a requisition."
+        />
         <ProcurementSubNav slug={slug} canAccessAllDepartments={access.canAccessAllDepartments} />
         <ProcurementRequisitionsInboxClient slug={slug} lines={lines} />
-      </div>
+      </HmsPage>
     </HMSLayout>
   );
 }

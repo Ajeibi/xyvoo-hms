@@ -61,7 +61,7 @@ export const SOLUTIONS_STOREFRONT_STACK_MODULES: SolutionsStorefrontStackModule[
     number: "04. Payments & Checkout",
     title: "Fast, trusted\nlocal checkout.",
     description:
-      "Paystack-ready checkout today, with room to add Flutterwave and Stripe as you grow. Card, transfer and USSD supported.",
+      "Paystack-ready checkout today, with room to add Flutterwave as you grow. Card, transfer and USSD supported.",
     bullets: [
       "Paystack checkout with receipts and order confirmation built in",
       "Gift cards customers can buy and redeem straight at checkout",
@@ -130,7 +130,7 @@ export const SOLUTIONS_STOREFRONT_INTEGRATIONS_ITEMS: SolutionsStorefrontIntegra
   {
     title: "Paystack, built in",
     description:
-      "Accept card and bank transfer payments from day one, with Flutterwave and Stripe on the roadmap as you grow.",
+      "Accept card and bank transfer payments from day one, with Flutterwave on the roadmap as you grow.",
   },
   {
     title: "Bring your own domain",
@@ -171,7 +171,7 @@ export const SOLUTIONS_STOREFRONT_ONBOARDING_CARDS: SolutionsOnboardingCard[] = 
     description:
       "Paystack checkout is ready from day one. Accept card and bank transfer payments right away.",
     explanation:
-      "Paystack is switched on from the start, so there's no separate merchant account to set up before you can take a card or bank transfer payment. Every order and payment status flows straight into your dashboard, and Flutterwave and Stripe are on the roadmap as you grow.",
+      "Paystack is switched on from the start, so there's no separate merchant account to set up before you can take a card or bank transfer payment. Every order and payment status flows straight into your dashboard, and Flutterwave is on the roadmap as you grow.",
   },
   {
     id: "start-free",

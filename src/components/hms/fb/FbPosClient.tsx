@@ -2,12 +2,12 @@
 
 import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
-import { ExternalLink, Loader2, Minus, Plus, Send, Trash2 } from "lucide-react";
+import { Flame, Loader2, Minus, Plus, Receipt, Send, Settings, Trash2 } from "lucide-react";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import { useFbRealtime } from "@/hooks/useFbRealtime";
 import { toastError, toastSuccess } from "@/lib/app-toast";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { HmsEmptyState, HmsField, HmsPageHeader, HmsPill, hmsButton, hmsInput } from "@/components/hms/hms-ui";
 
 import { isMenuItemSoldOut } from "@/lib/hms/fb-menu-availability";
 import type { FbConfigPayload } from "@/lib/hms/load-fb-pages";
@@ -59,7 +59,7 @@ export function FbPosClient({
   const [draft, setDraft] = useState(emptyDraft);
   const [sending, setSending] = useState(false);
 
-  const settingsMenuUrl = `/hms/${slug}/settings#menu-setup`;
+  const settingsMenuUrl = `/hms/${slug}/restaurant-bar/settings#menu-setup`;
 
   const loadConfig = useCallback(async () => {
     const res = await fetch(`/api/hotel/fb/config?slug=${encodeURIComponent(slug)}&seed=0`);
@@ -242,106 +242,121 @@ export function FbPosClient({
   const hasDraft = draft.lines.length > 0;
 
   return (
-    <div className="w-full space-y-4 px-6 py-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900">POS</h1>
-          <p className="text-sm text-slate-500">Build the ticket locally, then send to kitchen.</p>
-        </div>
-        {activeOutlets.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
-            {activeOutlets.map((o) => (
-              <button
-                key={o.id}
-                type="button"
-                onClick={() => switchOutlet(o.id)}
-                className={cn(
-                  "rounded-xl px-4 py-2 text-sm font-medium transition-colors",
-                  outletId === o.id
-                    ? "bg-blue-600 text-white"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200",
-                )}
-              >
-                {o.name}
-              </button>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-slate-500">No menu sections configured yet.</p>
-        )}
-      </div>
+    <div className="w-full space-y-4 px-4 py-6 sm:px-6">
+      <HmsPageHeader
+        eyebrow="Restaurant & bar"
+        meaning="food"
+        title="POS"
+        description="Tap items to build the ticket, then send it to the kitchen."
+        actions={
+          activeOutlets.length > 0 ? (
+            <div role="group" aria-label="Menu to show" className="flex flex-wrap gap-2">
+              {activeOutlets.map((o) => {
+                const on = outletId === o.id;
+                return (
+                  <button
+                    key={o.id}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => switchOutlet(o.id)}
+                    className={cn(
+                      "min-h-11 rounded-full border px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1",
+                      on
+                        ? "border-orange-600 bg-orange-50 text-orange-900"
+                        : "border-slate-200 bg-white text-slate-700 hover:border-orange-300 hover:bg-slate-50",
+                    )}
+                  >
+                    {o.name}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null
+        }
+      />
 
       {activeOutlets.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-6 py-12 text-center">
-          <p className="text-sm text-slate-600">Add your first menu section (Bar, Restaurant, etc.) before taking orders.</p>
-          <Button asChild className="mt-4 gap-2">
-            <Link href={settingsMenuUrl}>
-              <ExternalLink className="h-4 w-4" />
+        <HmsEmptyState
+          art="box"
+          meaning="food"
+          title="No menu sections yet"
+          description="Add your first menu section, such as Bar or Restaurant, before taking orders."
+          action={
+            <Link href={settingsMenuUrl} className={hmsButton.primary}>
+              <Settings className="h-4 w-4" aria-hidden />
               Set up menu sections
             </Link>
-          </Button>
-        </div>
+          }
+        />
       ) : null}
 
       {outlet && !hasMenu ? (
-        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-6 py-10 text-center">
-          <p className="text-sm font-medium text-slate-800">No menu for {outlet.name} yet</p>
-          <p className="mt-1 text-sm text-slate-500">
-            Add categories and items for this section in Settings before staff can take orders here.
-          </p>
-          <Button asChild className="mt-4 gap-2">
-            <Link href={settingsMenuUrl}>
-              <ExternalLink className="h-4 w-4" />
+        <HmsEmptyState
+          art="box"
+          meaning="food"
+          title={`No menu for ${outlet.name} yet`}
+          description="Add categories and items for this section in Settings so staff can take orders here."
+          action={
+            <Link href={settingsMenuUrl} className={hmsButton.primary}>
+              <Settings className="h-4 w-4" aria-hidden />
               Set up {outlet.name} menu
             </Link>
-          </Button>
-        </div>
+          }
+        />
       ) : null}
 
-      {hasBarOutlet ? (
-        <div className="max-w-xs">
-          <label className="mb-1 block text-xs font-medium text-slate-500">Tab name</label>
-          <input
-            value={tabLabel}
-            onChange={(e) => setTabLabel(e.target.value)}
-            placeholder="e.g. Bar tab"
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-          />
-        </div>
-      ) : null}
+      {hasBarOutlet || hasRestaurantOutlet ? (
+        <div className="flex flex-wrap items-start gap-4 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
+          {hasBarOutlet ? (
+            <div className="w-full max-w-xs">
+              <HmsField id="fb-pos-tab-name" label="Tab name" optional>
+                <input
+                  id="fb-pos-tab-name"
+                  value={tabLabel}
+                  onChange={(e) => setTabLabel(e.target.value)}
+                  placeholder="e.g. Bar tab"
+                  className={hmsInput}
+                />
+              </HmsField>
+            </div>
+          ) : null}
 
-      {hasRestaurantOutlet ? (
-        <div className="max-w-md space-y-2">
-          <div>
-            <label className="mb-1 block text-xs font-medium text-slate-500">
-              Table <span className="font-normal text-slate-400">(optional — for floor service)</span>
-            </label>
-            {outletTables.length > 0 ? (
-              <select
-                value={tableId ?? ""}
-                onChange={(e) => setTableId(e.target.value || null)}
-                className="w-full max-w-xs rounded-lg border border-slate-200 px-3 py-2 text-sm"
-              >
-                <option value="">No table</option>
-                {outletTables.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.table_code} ({t.covers} covers)
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <p className="text-sm text-slate-500">
-                No tables set up yet.{" "}
-                <Link
-                  href={`${settingsMenuUrl}#restaurant-tables`}
-                  className="font-medium text-blue-600 underline"
-                >
-                  Add tables in Settings
-                </Link>{" "}
-                to track which seat an order is for — the kitchen only sees items.
-              </p>
-            )}
-          </div>
+          {hasRestaurantOutlet ? (
+            <div className="w-full max-w-md">
+              {outletTables.length > 0 ? (
+                <HmsField id="fb-pos-table" label="Table" optional hint="For floor service, so the order reaches the right seat.">
+                  <select
+                    id="fb-pos-table"
+                    value={tableId ?? ""}
+                    onChange={(e) => setTableId(e.target.value || null)}
+                    aria-describedby="fb-pos-table-hint"
+                    className={cn(hmsInput, "max-w-xs")}
+                  >
+                    <option value="">No table</option>
+                    {outletTables.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.table_code} ({t.covers} covers)
+                      </option>
+                    ))}
+                  </select>
+                </HmsField>
+              ) : (
+                <div>
+                  <p className="mb-1 text-sm font-medium text-slate-800">Table</p>
+                  <p className="text-sm text-slate-600">
+                    No tables set up yet.{" "}
+                    <Link
+                      href={`${settingsMenuUrl}#restaurant-tables`}
+                      className="font-medium text-blue-700 underline underline-offset-2 hover:text-blue-900"
+                    >
+                      Add tables in Settings
+                    </Link>{" "}
+                    to track which seat an order is for. The kitchen only sees items.
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -352,8 +367,11 @@ export function FbPosClient({
             const catItems = allMenuItems.filter((i) => i.category_id === cat.id);
             if (!catItems.length) return null;
             return (
-              <div key={cat.id} className="rounded-2xl border border-slate-200 bg-white p-4">
-                <h2 className="mb-3 text-sm font-semibold text-slate-800">{cat.name}</h2>
+              <section key={cat.id} aria-label={cat.name} className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
+                <h2 className="mb-3 flex items-center gap-2 font-heading text-base font-semibold text-slate-900">
+                  <span aria-hidden className="h-2 w-2 rounded-full bg-orange-500" />
+                  {cat.name}
+                </h2>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {catItems.map((item) => {
                     const qty = draftQtyByItemId.get(item.id) ?? 0;
@@ -366,30 +384,31 @@ export function FbPosClient({
                         disabled={sending || soldOut}
                         onClick={() => addItem(item.id)}
                         className={cn(
-                          "relative rounded-xl border px-3 py-3 text-left transition-colors disabled:cursor-not-allowed",
+                          "relative min-h-16 rounded-xl border px-3 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 disabled:cursor-not-allowed",
                           soldOut
-                            ? "border-slate-200 bg-slate-100 opacity-60"
+                            ? "border-slate-200 bg-slate-100"
                             : inDraft
-                              ? "border-green-500 bg-green-50 ring-2 ring-green-500/35 shadow-sm hover:bg-green-100/80 disabled:opacity-60"
-                              : "border-slate-200 bg-slate-50 hover:border-blue-300 hover:bg-blue-50 disabled:opacity-60",
+                              ? "border-orange-500 bg-orange-50 ring-2 ring-orange-500/30 shadow-sm hover:bg-orange-100/80 disabled:opacity-60"
+                              : "border-slate-200 bg-white hover:border-orange-300 hover:bg-orange-50/60 disabled:opacity-60",
                         )}
                       >
                         {soldOut ? (
-                          <span className="absolute right-2 top-2 rounded-full bg-slate-500 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                          <span className="absolute right-2 top-2 rounded-full bg-slate-700 px-2 py-0.5 text-xs font-semibold text-white">
                             Sold out
                           </span>
                         ) : inDraft ? (
-                          <span className="absolute right-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-green-600 px-1 text-[10px] font-bold text-white">
+                          <span className="absolute right-2 top-2 flex h-6 min-w-6 items-center justify-center rounded-full bg-orange-600 px-1.5 text-xs font-bold text-white">
                             {qty}
+                            <span className="sr-only"> on this ticket</span>
                           </span>
                         ) : null}
                         <p
                           className={cn(
-                            "pr-6 text-sm font-medium",
+                            "pr-8 text-sm font-semibold",
                             soldOut
-                              ? "text-slate-400 line-through"
+                              ? "text-slate-600 line-through"
                               : inDraft
-                                ? "text-green-950"
+                                ? "text-orange-950"
                                 : "text-slate-900",
                           )}
                         >
@@ -397,8 +416,8 @@ export function FbPosClient({
                         </p>
                         <p
                           className={cn(
-                            "mt-1 text-xs",
-                            soldOut ? "text-slate-400" : inDraft ? "text-green-800/70" : "text-slate-500",
+                            "mt-1 text-sm tabular-nums",
+                            soldOut ? "text-slate-600" : inDraft ? "text-orange-900" : "text-slate-700",
                           )}
                         >
                           {formatPricingAmount(item.price, currency)}
@@ -407,45 +426,51 @@ export function FbPosClient({
                     );
                   })}
                 </div>
-              </div>
+              </section>
             );
           })}
         </div>
 
-        <aside className="mt-4 lg:sticky lg:top-20 lg:mt-0 lg:self-start">
+        <aside aria-labelledby="fb-pos-ticket-title" className="mt-4 lg:sticky lg:top-20 lg:mt-0 lg:self-start">
           <div
             className={cn(
               "rounded-2xl border bg-white p-4 shadow-sm transition-colors",
-              draft.rush ? "border-2 border-red-500" : "border-slate-200",
+              draft.rush ? "border-2 border-rose-500" : "border-slate-200/80",
             )}
           >
             <div className="flex items-center justify-between gap-2">
-              <h2 className="text-sm font-semibold text-slate-800">Current order</h2>
+              <h2 id="fb-pos-ticket-title" className="flex items-center gap-2 font-heading text-base font-semibold text-slate-900">
+                <span aria-hidden className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-50 text-orange-600">
+                  <Receipt className="h-4 w-4" />
+                </span>
+                Current order
+              </h2>
               {draft.rush ? (
-                <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-red-700">
+                <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-bold text-rose-800 ring-1 ring-rose-200">
+                  <Flame className="h-3.5 w-3.5" aria-hidden />
                   Rush
                 </span>
               ) : null}
             </div>
             {hasDraft ? (
               <div className="mt-3 space-y-3">
-                <p className="text-xs text-slate-500">Draft — not sent yet</p>
-                <ul className="space-y-3 text-sm">
+                <HmsPill tone="amber">Draft, not sent yet</HmsPill>
+                <ul className="space-y-2 text-sm">
                   {draft.lines.map((line) => (
                     <li
                       key={line.menuItemId}
-                      className="rounded-lg border border-slate-100 bg-slate-50/80 p-2.5"
+                      className="rounded-xl border border-orange-100 bg-orange-50/50 p-2.5"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
                           <p className="font-medium text-slate-900">{line.name}</p>
                           {activeOutlets.length > 1 ? (
-                            <p className="text-[11px] uppercase tracking-wide text-slate-400">
+                            <p className="text-xs text-slate-600">
                               {outletNameById.get(line.outletId) ?? ""}
                             </p>
                           ) : null}
                         </div>
-                        <p className="shrink-0 tabular-nums text-slate-700">
+                        <p className="shrink-0 tabular-nums font-medium text-slate-800">
                           {formatPricingAmount(line.price * line.quantity, currency)}
                         </p>
                       </div>
@@ -455,69 +480,78 @@ export function FbPosClient({
                             type="button"
                             disabled={sending}
                             onClick={() => adjustDraftQuantity(line.menuItemId, -1)}
-                            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-50"
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-50"
                             aria-label={`Decrease ${line.name}`}
                           >
-                            <Minus className="h-3.5 w-3.5" />
+                            <Minus className="h-4 w-4" aria-hidden />
                           </button>
-                          <span className="w-8 text-center text-sm font-semibold tabular-nums">
+                          <span className="w-8 text-center text-sm font-semibold tabular-nums text-slate-900">
                             {line.quantity}
                           </span>
                           <button
                             type="button"
                             disabled={sending}
                             onClick={() => adjustDraftQuantity(line.menuItemId, 1)}
-                            className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-50"
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-50"
                             aria-label={`Increase ${line.name}`}
                           >
-                            <Plus className="h-3.5 w-3.5" />
+                            <Plus className="h-4 w-4" aria-hidden />
                           </button>
                         </div>
                         <button
                           type="button"
                           disabled={sending}
                           onClick={() => removeDraftLine(line.menuItemId)}
-                          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-red-500 hover:bg-red-50 disabled:opacity-50"
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-red-700 hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-50"
                           aria-label={`Remove ${line.name}`}
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <Trash2 className="h-4 w-4" aria-hidden />
                         </button>
                       </div>
                     </li>
                   ))}
                 </ul>
-                <p className="text-lg font-bold tabular-nums">
-                  {formatPricingAmount(draftSubtotal, currency)}
-                </p>
+                <div className="flex items-baseline justify-between rounded-xl bg-emerald-50 px-3 py-2.5">
+                  <span className="text-sm font-medium text-emerald-900">Total</span>
+                  <span className="font-heading text-xl font-bold tabular-nums text-slate-900">
+                    {formatPricingAmount(draftSubtotal, currency)}
+                  </span>
+                </div>
                 <div className="flex flex-col gap-2">
-                  <Button
+                  <button
                     type="button"
                     disabled={sending}
                     onClick={() => void sendToKitchen()}
-                    className="w-full gap-2"
+                    className={cn(hmsButton.primary, "min-h-11 w-full")}
                   >
                     {sending ? (
                       <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
                     ) : (
-                      <Send className="h-4 w-4" />
+                      <Send className="h-4 w-4" aria-hidden />
                     )}
                     {sending ? "Sending..." : "Send to kitchen"}
-                  </Button>
-                  <Button
+                  </button>
+                  <button
                     type="button"
-                    variant="outline"
+                    aria-pressed={draft.rush}
                     disabled={sending}
                     onClick={() => setDraft((prev) => ({ ...prev, rush: !prev.rush }))}
+                    className={cn(
+                      hmsButton.secondary,
+                      "min-h-11 w-full",
+                      draft.rush && "border-rose-300 bg-rose-50 text-rose-900 hover:bg-rose-100",
+                    )}
                   >
+                    <Flame className="h-4 w-4" aria-hidden />
                     {draft.rush ? "Remove rush" : "Mark rush"}
-                  </Button>
-                  <Button type="button" variant="secondary" disabled={sending} onClick={clearDraft}>
+                  </button>
+                  <button type="button" disabled={sending} onClick={clearDraft} className={cn(hmsButton.secondary, "min-h-11 w-full")}>
                     Clear ticket
-                  </Button>
+                  </button>
                 </div>
               </div>
             ) : (
-              <p className="mt-4 text-sm text-slate-500">Tap menu items to build a ticket, then send to kitchen.</p>
+              <p className="mt-4 text-sm text-slate-600">Tap menu items to build a ticket, then send it to the kitchen.</p>
             )}
           </div>
         </aside>

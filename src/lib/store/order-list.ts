@@ -116,12 +116,14 @@ export function csvCell(value: unknown) {
   return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
-export function paymentStatusLabel(order: Pick<DashboardOrder, "paymentStatus" | "status" | "refundedAmount">) {
+export function paymentStatusLabel(order: Pick<DashboardOrder, "paymentStatus" | "status" | "refundedAmount"> & { paymentMethod?: string }) {
   if (order.paymentStatus === "refunded") return "Refunded";
   if (order.paymentStatus === "failed") return "Payment failed";
   const part = order.refundedAmount > 0 ? " (part refunded)" : "";
   if (order.paymentStatus === "paid") return `Paid${part}`;
   if (order.status === "Cancelled") return "Not paid";
+  // Sales recorded by hand with "Not paid yet" stay unpaid until the shop marks the payment received.
+  if (order.paymentMethod === "Pay later") return "Not paid yet";
   return order.status === "Pending" ? "Awaiting payment" : `Paid (confirmed by you)${part}`;
 }
 

@@ -1,6 +1,7 @@
+import { ClipboardCheck, TrendingUp, Trash2, Wallet } from "lucide-react";
 import HMSLayout from "@/components/hms/HMSLayout";
 import { InventorySubNav } from "@/components/hms/inventory/InventorySubNav";
-import { SettingsSectionInfo } from "@/components/hms/settings/SettingsSectionInfo";
+import { HmsCard, HmsEmptyState, HmsPage, HmsPageHeader } from "@/components/hms/hms-ui";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { getHmsAccessContext } from "@/lib/hms/access";
 import { normalizePricingSetup, formatPricingAmount } from "@/lib/hms/room-pricing";
@@ -11,6 +12,11 @@ import type { InventoryMovementWithDetails } from "@/lib/hms/inventory-types";
 
 const TOP_MOVEMENT_TYPES = new Set<InventoryMovementWithDetails["movement_type"]>(["issue", "transfer_out", "waste"]);
 
+const TH = "px-5 py-3 font-medium";
+const HEAD_ROW = "border-b border-slate-100 text-left text-sm text-slate-600";
+const ROW = "border-b border-slate-100 last:border-0";
+const TOTAL_ROW = "border-t-2 border-slate-300 bg-slate-50 font-semibold text-slate-900";
+
 export default async function InventoryReportsPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const [tenant, access] = await Promise.all([getHotelTenantBySlug(slug), getHmsAccessContext(slug)]);
@@ -18,10 +24,9 @@ export default async function InventoryReportsPage({ params }: { params: Promise
   if (!tenant) {
     return (
       <HMSLayout slug={slug} requiredSection="inventory-reports">
-        <div className="px-8 py-8">
-          <h1 className="text-xl font-semibold text-slate-900">Inventory reports</h1>
-          <p className="mt-0.5 text-sm text-slate-500">Hotel not found.</p>
-        </div>
+        <HmsPage>
+          <HmsPageHeader eyebrow="Inventory" meaning="stock" title="Inventory reports" description="Hotel not found." />
+        </HmsPage>
       </HMSLayout>
     );
   }
@@ -80,180 +85,204 @@ export default async function InventoryReportsPage({ params }: { params: Promise
 
   return (
     <HMSLayout slug={slug} requiredSection="inventory-reports">
-      <div className="px-8 py-8">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <h1 className="text-xl font-semibold text-slate-900">Inventory reports</h1>
-          <SettingsSectionInfo
-            title="Inventory reports"
-            text="Read-only reporting drawn straight from the stock ledger: valuation by category, top-moving items, and recent count-variance history. Nothing here can be edited — it's a view of what already happened."
-          />
-        </div>
-        <p className="mt-0.5 text-sm text-slate-500">
-          Stock valuation, top-moving items, and count-variance history.
-        </p>
+      <HmsPage>
+        <HmsPageHeader
+          eyebrow="Inventory"
+          meaning="stock"
+          title="Inventory reports"
+          description="Stock valuation, top-moving items, waste and count-variance history, read straight from the stock ledger. Nothing here can be edited."
+        />
 
         <InventorySubNav slug={slug} canAccessAllDepartments={access.canAccessAllDepartments} />
 
-        <div className="space-y-6">
-          <section className="rounded-xl border border-slate-200 bg-white">
-            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-              <h2 className="text-sm font-semibold text-slate-900">Stock valuation by category</h2>
-              <span className="text-xs text-slate-400">Total: {formatPricingAmount(totalValuation, currency)}</span>
-            </div>
-            {valuationRows.length === 0 ? (
-              <p className="px-5 py-6 text-sm text-slate-500">No stock on hand to value yet.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-100 text-left text-xs font-medium uppercase tracking-wide text-slate-400">
-                      <th className="px-5 py-2.5">Category</th>
-                      <th className="px-5 py-2.5 text-right">Qty on hand</th>
-                      <th className="px-5 py-2.5 text-right">Value</th>
-                      <th className="px-5 py-2.5 text-right">Share</th>
+        <HmsCard
+          id="inventory-report-valuation"
+          title="Stock valuation by category"
+          description={`Total: ${formatPricingAmount(totalValuation, currency)}`}
+          icon={Wallet}
+          meaning="money"
+          flush
+          className="print:border-0 print:shadow-none"
+        >
+          {valuationRows.length === 0 ? (
+            <HmsEmptyState bare art="box" meaning="stock" title="Nothing to value yet" description="No stock on hand to value yet." />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className={HEAD_ROW}>
+                    <th className={TH}>Category</th>
+                    <th className={`${TH} text-right`}>Qty on hand</th>
+                    <th className={`${TH} text-right`}>Value</th>
+                    <th className={`${TH} text-right`}>Share</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {valuationRows.map((row) => (
+                    <tr key={row.name} className={ROW}>
+                      <td className="px-5 py-3 font-medium text-slate-900">{row.name}</td>
+                      <td className="px-5 py-3 text-right tabular-nums text-slate-700">{row.qty.toLocaleString()}</td>
+                      <td className="px-5 py-3 text-right tabular-nums text-slate-900">{formatPricingAmount(row.value, currency)}</td>
+                      <td className="px-5 py-3 text-right tabular-nums text-slate-700">
+                        {totalValuation > 0 ? `${Math.round((row.value / totalValuation) * 100)}%` : "—"}
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {valuationRows.map((row) => (
-                      <tr key={row.name} className="border-b border-slate-50 last:border-0">
-                        <td className="px-5 py-2.5 font-medium text-slate-800">{row.name}</td>
-                        <td className="px-5 py-2.5 text-right text-slate-600">{row.qty.toLocaleString()}</td>
-                        <td className="px-5 py-2.5 text-right text-slate-800">{formatPricingAmount(row.value, currency)}</td>
-                        <td className="px-5 py-2.5 text-right text-slate-500">
-                          {totalValuation > 0 ? `${Math.round((row.value / totalValuation) * 100)}%` : "—"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className={TOTAL_ROW}>
+                    <th scope="row" className="px-5 py-3 text-left">
+                      Total
+                    </th>
+                    <td className="px-5 py-3" />
+                    <td className="px-5 py-3 text-right tabular-nums">{formatPricingAmount(totalValuation, currency)}</td>
+                    <td className="px-5 py-3" />
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+        </HmsCard>
 
-          <section className="rounded-xl border border-slate-200 bg-white">
-            <div className="border-b border-slate-100 px-5 py-4">
-              <h2 className="text-sm font-semibold text-slate-900">Top-moving items</h2>
-              <p className="mt-0.5 text-xs text-slate-400">
-                Ranked by total issued, transferred out, or wasted quantity (last {movements.length} movements considered).
-              </p>
-            </div>
-            {topMovers.length === 0 ? (
-              <p className="px-5 py-6 text-sm text-slate-500">No outbound stock movements recorded yet.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-100 text-left text-xs font-medium uppercase tracking-wide text-slate-400">
-                      <th className="px-5 py-2.5">#</th>
-                      <th className="px-5 py-2.5">Item</th>
-                      <th className="px-5 py-2.5 text-right">Qty moved</th>
+        <HmsCard
+          id="inventory-report-top-movers"
+          title="Top-moving items"
+          description={`Ranked by total issued, transferred out or wasted quantity (last ${movements.length} movements considered).`}
+          icon={TrendingUp}
+          meaning="stock"
+          flush
+          className="print:border-0 print:shadow-none"
+        >
+          {topMovers.length === 0 ? (
+            <HmsEmptyState bare art="truck" meaning="stock" title="No outbound movements yet" description="No outbound stock movements recorded yet." />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className={HEAD_ROW}>
+                    <th className={TH}>Rank</th>
+                    <th className={TH}>Item</th>
+                    <th className={`${TH} text-right`}>Qty moved</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topMovers.map((row, idx) => (
+                    <tr key={row.sku || row.name} className={ROW}>
+                      <td className="px-5 py-3 tabular-nums text-slate-600">{idx + 1}</td>
+                      <td className="px-5 py-3">
+                        <div className="font-medium text-slate-900">{row.name}</div>
+                        <div className="text-xs text-slate-600">{row.sku}</div>
+                      </td>
+                      <td className="px-5 py-3 text-right font-medium tabular-nums text-slate-900">
+                        {row.qty.toLocaleString()} {row.unit}
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {topMovers.map((row, idx) => (
-                      <tr key={row.sku || row.name} className="border-b border-slate-50 last:border-0">
-                        <td className="px-5 py-2.5 text-slate-400">{idx + 1}</td>
-                        <td className="px-5 py-2.5">
-                          <div className="font-medium text-slate-800">{row.name}</div>
-                          <div className="text-xs text-slate-400">{row.sku}</div>
-                        </td>
-                        <td className="px-5 py-2.5 text-right font-medium text-slate-800">
-                          {row.qty.toLocaleString()} {row.unit}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </HmsCard>
 
-          <section className="rounded-xl border border-slate-200 bg-white">
-            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-              <div>
-                <h2 className="text-sm font-semibold text-slate-900">Cost of waste</h2>
-                <p className="mt-0.5 text-xs text-slate-400">By reason, using each movement&apos;s cost at the time it was recorded.</p>
-              </div>
-              <span className="text-xs text-slate-400">Total: {formatPricingAmount(totalWasteCost, currency)}</span>
-            </div>
-            {wasteRows.length === 0 ? (
-              <p className="px-5 py-6 text-sm text-slate-500">No waste recorded yet.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-100 text-left text-xs font-medium uppercase tracking-wide text-slate-400">
-                      <th className="px-5 py-2.5">Reason</th>
-                      <th className="px-5 py-2.5 text-right">Qty wasted</th>
-                      <th className="px-5 py-2.5 text-right">Cost</th>
+        <HmsCard
+          id="inventory-report-waste"
+          title="Cost of waste"
+          description={<>By reason, using each movement&apos;s cost at the time it was recorded. Total: {formatPricingAmount(totalWasteCost, currency)}</>}
+          icon={Trash2}
+          meaning="attention"
+          flush
+          className="print:border-0 print:shadow-none"
+        >
+          {wasteRows.length === 0 ? (
+            <HmsEmptyState bare art="basket" meaning="stock" title="No waste recorded" description="No waste recorded yet." />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className={HEAD_ROW}>
+                    <th className={TH}>Reason</th>
+                    <th className={`${TH} text-right`}>Qty wasted</th>
+                    <th className={`${TH} text-right`}>Cost</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {wasteRows.map((row) => (
+                    <tr key={row.reason} className={ROW}>
+                      <td className="px-5 py-3 font-medium text-slate-900">{row.reason}</td>
+                      <td className="px-5 py-3 text-right tabular-nums text-slate-700">{row.qty.toLocaleString()}</td>
+                      <td className="px-5 py-3 text-right tabular-nums text-slate-900">{formatPricingAmount(row.cost, currency)}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {wasteRows.map((row) => (
-                      <tr key={row.reason} className="border-b border-slate-50 last:border-0">
-                        <td className="px-5 py-2.5 font-medium text-slate-800">{row.reason}</td>
-                        <td className="px-5 py-2.5 text-right text-slate-600">{row.qty.toLocaleString()}</td>
-                        <td className="px-5 py-2.5 text-right text-slate-800">{formatPricingAmount(row.cost, currency)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className={TOTAL_ROW}>
+                    <th scope="row" className="px-5 py-3 text-left">
+                      Total
+                    </th>
+                    <td className="px-5 py-3" />
+                    <td className="px-5 py-3 text-right tabular-nums">{formatPricingAmount(totalWasteCost, currency)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+        </HmsCard>
 
-          <section className="rounded-xl border border-slate-200 bg-white">
-            <div className="border-b border-slate-100 px-5 py-4">
-              <h2 className="text-sm font-semibold text-slate-900">Recent variance history</h2>
-              <p className="mt-0.5 text-xs text-slate-400">Adjustments posted from completed stock counts.</p>
-            </div>
-            {varianceRows.length === 0 ? (
-              <p className="px-5 py-6 text-sm text-slate-500">No count variances recorded yet.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-100 text-left text-xs font-medium uppercase tracking-wide text-slate-400">
-                      <th className="px-5 py-2.5">Item</th>
-                      <th className="px-5 py-2.5">Location</th>
-                      <th className="px-5 py-2.5 text-right">Variance</th>
-                      <th className="px-5 py-2.5">Reason</th>
-                      <th className="px-5 py-2.5">When</th>
+        <HmsCard
+          id="inventory-report-variance"
+          title="Recent variance history"
+          description="Adjustments posted from completed stock counts."
+          icon={ClipboardCheck}
+          meaning="stock"
+          flush
+          className="print:border-0 print:shadow-none"
+        >
+          {varianceRows.length === 0 ? (
+            <HmsEmptyState bare art="page" meaning="stock" title="No count variances" description="No count variances recorded yet." />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className={HEAD_ROW}>
+                    <th className={TH}>Item</th>
+                    <th className={TH}>Location</th>
+                    <th className={`${TH} text-right`}>Variance</th>
+                    <th className={TH}>Reason</th>
+                    <th className={TH}>When</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {varianceRows.map((row) => (
+                    <tr key={row.id} className={ROW}>
+                      <td className="px-5 py-3">
+                        <div className="font-medium text-slate-900">{row.item_name}</div>
+                        <div className="text-xs text-slate-600">{row.item_sku}</div>
+                      </td>
+                      <td className="px-5 py-3 text-slate-700">{row.location_name}</td>
+                      <td
+                        className={`whitespace-nowrap px-5 py-3 text-right font-medium tabular-nums ${
+                          row.qty > 0 ? "text-emerald-700" : row.qty < 0 ? "text-red-700" : "text-slate-700"
+                        }`}
+                      >
+                        {row.qty > 0 ? `+${row.qty}` : row.qty} {row.unit_of_measure}
+                      </td>
+                      <td className="px-5 py-3 text-slate-700">{row.reason ?? "—"}</td>
+                      <td className="whitespace-nowrap px-5 py-3 text-slate-600">
+                        {new Date(row.created_at).toLocaleString("en-GB", {
+                          day: "2-digit",
+                          month: "short",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {varianceRows.map((row) => (
-                      <tr key={row.id} className="border-b border-slate-50 last:border-0">
-                        <td className="px-5 py-2.5">
-                          <div className="font-medium text-slate-800">{row.item_name}</div>
-                          <div className="text-xs text-slate-400">{row.item_sku}</div>
-                        </td>
-                        <td className="px-5 py-2.5 text-slate-600">{row.location_name}</td>
-                        <td
-                          className={`px-5 py-2.5 text-right font-medium ${
-                            row.qty > 0 ? "text-emerald-600" : row.qty < 0 ? "text-red-500" : "text-slate-500"
-                          }`}
-                        >
-                          {row.qty > 0 ? `+${row.qty}` : row.qty} {row.unit_of_measure}
-                        </td>
-                        <td className="px-5 py-2.5 text-slate-500">{row.reason ?? "—"}</td>
-                        <td className="px-5 py-2.5 text-slate-500">
-                          {new Date(row.created_at).toLocaleString("en-GB", {
-                            day: "2-digit",
-                            month: "short",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
-        </div>
-      </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </HmsCard>
+      </HmsPage>
     </HMSLayout>
   );
 }

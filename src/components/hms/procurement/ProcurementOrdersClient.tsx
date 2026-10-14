@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ChevronRight, Plus, ShoppingCart } from "lucide-react";
+import { HmsCard, HmsEmptyState, HmsPill, hmsButton } from "@/components/hms/hms-ui";
+import { HmsFilterChips, HmsSectionIntro } from "@/components/hms/hms-ui-client";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import type { PurchaseOrderStatus, PurchaseOrderWithLines } from "@/lib/hms/procurement-types";
 
@@ -19,16 +20,16 @@ const STATUS_TABS: { key: "all" | PurchaseOrderStatus; label: string }[] = [
   { key: "cancelled", label: "Cancelled" },
 ];
 
-const STATUS_BADGE: Record<PurchaseOrderStatus, string> = {
-  draft: "bg-slate-100 text-slate-500 border-slate-200",
-  pending_approval: "bg-amber-50 text-amber-700 border-amber-200",
-  approved: "bg-blue-50 text-blue-700 border-blue-200",
-  ordered: "bg-indigo-50 text-indigo-700 border-indigo-200",
-  partially_received: "bg-purple-50 text-purple-700 border-purple-200",
-  received: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  closed: "bg-slate-100 text-slate-500 border-slate-200",
-  rejected: "bg-red-50 text-red-700 border-red-200",
-  cancelled: "bg-slate-100 text-slate-500 border-slate-200",
+const STATUS_PILL: Record<PurchaseOrderStatus, { label: string; tone: "slate" | "green" | "amber" | "red" | "blue" }> = {
+  draft: { label: "Draft", tone: "slate" },
+  pending_approval: { label: "Waiting for approval", tone: "amber" },
+  approved: { label: "Approved", tone: "green" },
+  ordered: { label: "Ordered", tone: "blue" },
+  partially_received: { label: "Partly received", tone: "blue" },
+  received: { label: "Received", tone: "green" },
+  closed: { label: "Closed", tone: "slate" },
+  rejected: { label: "Rejected", tone: "red" },
+  cancelled: { label: "Cancelled", tone: "red" },
 };
 
 export function ProcurementOrdersClient({ slug, orders, currency }: { slug: string; orders: PurchaseOrderWithLines[]; currency: string }) {
@@ -36,58 +37,85 @@ export function ProcurementOrdersClient({ slug, orders, currency }: { slug: stri
 
   const filtered = useMemo(() => (statusFilter === "all" ? orders : orders.filter((o) => o.status === statusFilter)), [orders, statusFilter]);
 
-  return (
-    <div className="mt-6 space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-1">
-          {STATUS_TABS.map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => setStatusFilter(tab.key)}
-              className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-                statusFilter === tab.key ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-        <Button asChild className="rounded-lg">
-          <Link href={`/hms/${slug}/procurement/orders/new`}>
-            <Plus className="h-4 w-4" /> New purchase order
-          </Link>
-        </Button>
-      </div>
+  const filterOptions = useMemo(
+    () =>
+      STATUS_TABS.map((tab) => ({
+        value: tab.key,
+        label: tab.label,
+        count: tab.key === "all" ? orders.length : orders.filter((o) => o.status === tab.key).length,
+      })),
+    [orders],
+  );
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+  const newOrderLink = (
+    <Link href={`/hms/${slug}/procurement/orders/new`} className={hmsButton.primary}>
+      <Plus className="h-4 w-4" aria-hidden /> New purchase order
+    </Link>
+  );
+
+  return (
+    <div className="space-y-6">
+      <HmsSectionIntro
+        id="procurement-orders"
+        title="Every purchase order in one place"
+        meaning="stock"
+        art="truck"
+        points={[
+          "Follow each order from approval to delivery.",
+          "Use the filters to find orders waiting for approval or still to arrive.",
+          "Open an order to approve it, mark it as ordered, or record the invoice.",
+        ]}
+      />
+
+      <HmsFilterChips label="Filter purchase orders by status" options={filterOptions} value={statusFilter} onChange={setStatusFilter} meaning="stock" />
+
+      <HmsCard
+        id="procurement-orders-list"
+        title="Purchase orders"
+        description={`${filtered.length} ${filtered.length === 1 ? "order" : "orders"} in this view`}
+        icon={ShoppingCart}
+        meaning="stock"
+        flush
+        actions={newOrderLink}
+      >
         {filtered.length === 0 ? (
-          <p className="px-6 py-8 text-sm text-slate-500">No purchase orders in this view.</p>
+          <HmsEmptyState
+            bare
+            art="truck"
+            meaning="stock"
+            title={orders.length === 0 ? "No purchase orders yet" : "No purchase orders in this view"}
+            description={orders.length === 0 ? "Raise your first purchase order from an approved requisition or as a one-off." : "Try another filter to see more orders."}
+          />
         ) : (
           <ul className="divide-y divide-slate-100">
-            {filtered.map((o) => (
-              <li key={o.id}>
-                <Link href={`/hms/${slug}/procurement/orders/${o.id}`} className="flex items-center justify-between gap-3 px-6 py-4 hover:bg-slate-50">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-slate-900">
-                      {o.po_number} · {o.vendor_name}
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      {o.department} · {o.lines.length} line(s)
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-3">
-                    <span className="text-sm font-medium tabular-nums text-slate-700">{formatPricingAmount(o.total, o.currency || currency)}</span>
-                    <span className={`rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${STATUS_BADGE[o.status]}`}>
-                      {o.status.replace(/_/g, " ")}
+            {filtered.map((o) => {
+              const status = STATUS_PILL[o.status];
+              return (
+                <li key={o.id}>
+                  <Link
+                    href={`/hms/${slug}/procurement/orders/${o.id}`}
+                    className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 sm:px-6"
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-semibold text-slate-900">
+                        {o.po_number} · {o.vendor_name}
+                      </span>
+                      <span className="block text-sm text-slate-600">
+                        {o.department} · {o.lines.length} {o.lines.length === 1 ? "line" : "lines"}
+                      </span>
                     </span>
-                  </div>
-                </Link>
-              </li>
-            ))}
+                    <span className="flex shrink-0 flex-wrap items-center justify-end gap-3">
+                      <span className="text-sm font-medium tabular-nums text-slate-900">{formatPricingAmount(o.total, o.currency || currency)}</span>
+                      <HmsPill tone={status.tone}>{status.label}</HmsPill>
+                      <ChevronRight className="h-4 w-4 text-slate-500" aria-hidden />
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         )}
-      </div>
+      </HmsCard>
     </div>
   );
 }

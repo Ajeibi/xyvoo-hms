@@ -15,9 +15,27 @@ import type { ArrivalsRoleCapabilities } from "@/lib/hms/arrivals-rbac";
 import type { CheckInStaffOption } from "@/lib/hms/check-in-staff-options";
 import { PAYMENT_STATUS_LABEL } from "@/components/hms/frontdesk/board/payment-styles";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
-import { useReservationCheckIn, type CheckInRow } from "@/lib/hms/useReservationCheckIn";
+import { useReservationCheckIn, type CheckInRow, type CheckInStep } from "@/lib/hms/useReservationCheckIn";
+import { BedDouble, CheckCircle2, CreditCard, DoorOpen, UserCheck } from "lucide-react";
+import { HmsAlert, HmsField, HmsIconBadge, hmsInput } from "@/components/hms/hms-ui";
 
 export type { CheckInRow as ReservationCheckInDialogRow } from "@/lib/hms/useReservationCheckIn";
+
+const STEP_LABEL: Record<CheckInStep, string> = {
+  verify: "check the booking",
+  payment: "check payment",
+  room: "choose the room",
+  confirm: "confirm and check in",
+  done: "done",
+};
+
+const STEP_ICON: Record<CheckInStep, React.ComponentType<{ className?: string }>> = {
+  verify: DoorOpen,
+  payment: CreditCard,
+  room: BedDouble,
+  confirm: UserCheck,
+  done: CheckCircle2,
+};
 
 export function FrontDeskReservationCheckInDialog({
   slug,
@@ -71,66 +89,91 @@ export function FrontDeskReservationCheckInDialog({
 
   if (!row) return null;
 
+  const steps: CheckInStep[] = capabilities.canViewFolioFinancials
+    ? ["verify", "payment", "room", "confirm"]
+    : ["verify", "room", "confirm"];
+  const stepIndex = steps.indexOf(step);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Check in — {row.confirmationCode}</DialogTitle>
-          <DialogDescription>{row.guestName}</DialogDescription>
+        <DialogHeader className="flex-row items-start gap-3 space-y-0 text-left">
+          <HmsIconBadge icon={STEP_ICON[step] ?? DoorOpen} meaning={step === "payment" ? "money" : "rooms"} />
+          <div className="min-w-0">
+            <DialogTitle className="font-heading">Check in · {row.confirmationCode}</DialogTitle>
+            <DialogDescription className="text-slate-600">{row.guestName}</DialogDescription>
+          </div>
         </DialogHeader>
 
-        {loading && !detail ? (
-          <p className="text-sm text-slate-500">Loading reservation…</p>
+        {stepIndex >= 0 ? (
+          <p className="text-sm font-medium text-slate-700" aria-live="polite">
+            Step {stepIndex + 1} of {steps.length}: {STEP_LABEL[step]}
+          </p>
         ) : null}
-        {error ? <p className="text-sm text-red-600">{error}</p> : null}
+
+        {loading && !detail ? (
+          <p role="status" className="text-sm text-slate-600">
+            Loading booking…
+          </p>
+        ) : null}
+        {error ? <HmsAlert message={error} /> : null}
 
         {step === "verify" && detail ? (
-          <div className="space-y-3 text-sm">
-            <p>
-              <span className="text-slate-500">Arrival:</span>{" "}
-              {new Date(detail.reservation.arrivalAt).toLocaleString("en-US", { timeZone: "UTC" })}
-            </p>
-            <p>
-              <span className="text-slate-500">Room:</span>{" "}
-              {detail.reservation.roomCode ?? "Not assigned"}
-              {detail.reservation.roomReadiness
-                ? ` (${READINESS_LABEL[detail.reservation.roomReadiness] ?? detail.reservation.roomReadiness})`
-                : ""}
-            </p>
-          </div>
+          <dl className="grid gap-3 rounded-xl bg-sky-50 p-4 text-sm sm:grid-cols-2">
+            <div>
+              <dt className="text-slate-600">Arrival</dt>
+              <dd className="font-medium text-slate-900">
+                {new Date(detail.reservation.arrivalAt).toLocaleString("en-US", { timeZone: "UTC" })}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-slate-600">Room</dt>
+              <dd className="font-medium text-slate-900">
+                {detail.reservation.roomCode ?? "Not assigned yet"}
+                {detail.reservation.roomReadiness
+                  ? ` (${READINESS_LABEL[detail.reservation.roomReadiness] ?? detail.reservation.roomReadiness})`
+                  : ""}
+              </dd>
+            </div>
+          </dl>
         ) : null}
 
         {step === "payment" && detail && capabilities.canViewFolioFinancials ? (
-          <div className="space-y-3 text-sm">
+          <div className="space-y-3 rounded-xl bg-emerald-50 p-4 text-sm">
             {detail.folio.charges === 0 && detail.reservation.status === "confirmed" ? (
               <>
                 <p>
-                  <span className="text-slate-500">Expected total for stay:</span>{" "}
-                  {formatPricingAmount(detail.reservation.totalRoomCharges, currency)}
+                  <span className="text-slate-600">Expected total for the stay:</span>{" "}
+                  <span className="font-medium text-slate-900">
+                    {formatPricingAmount(detail.reservation.totalRoomCharges, currency)}
+                  </span>
                 </p>
-                <p className="text-xs text-slate-500">
-                  Room charges haven&apos;t posted to the folio yet — they post automatically when you complete
+                <p className="text-sm text-slate-700">
+                  Room charges aren&apos;t on the folio yet. They&apos;re added automatically when you complete
                   check-in.
                 </p>
               </>
             ) : (
               <>
                 <p>
-                  <span className="text-slate-500">Status:</span>{" "}
-                  {PAYMENT_STATUS_LABEL[detail.folio.displayStatus]}
+                  <span className="text-slate-600">Payment:</span>{" "}
+                  <span className="font-medium text-slate-900">{PAYMENT_STATUS_LABEL[detail.folio.displayStatus]}</span>
                 </p>
                 <p>
-                  <span className="text-slate-500">Balance:</span> {detail.folio.balanceFormatted}
+                  <span className="text-slate-600">Balance:</span>{" "}
+                  <span className="font-medium text-slate-900">{detail.folio.balanceFormatted}</span>
                 </p>
               </>
             )}
             <p>
-              <span className="text-slate-500">Settlement:</span> {settlementLabel}
+              <span className="text-slate-600">How they&apos;ll pay:</span>{" "}
+              <span className="font-medium text-slate-900">{settlementLabel}</span>
             </p>
             {capabilities.canPostFolioPayments ? (
-              <Button asChild variant="outline" size="sm">
+              <Button asChild variant="outline" size="sm" className="rounded-xl bg-white">
                 <Link href={`/hms/${slug}/frontdesk/folio?reservationId=${row?.id ?? ""}`} target="_blank">
-                  Record cash / POS on folio
+                  Record a cash or card payment on the folio
+                  <span className="sr-only"> (opens in a new tab)</span>
                 </Link>
               </Button>
             ) : null}
@@ -154,51 +197,62 @@ export function FrontDeskReservationCheckInDialog({
         ) : null}
 
         {step === "confirm" && detail ? (
-          <div className="space-y-3">
-            <div className="space-y-2">
-              <label htmlFor="arrival-checked-in-by" className="block text-sm font-medium text-slate-700">
-                Checked in by <span className="text-rose-600">*</span>
-              </label>
+          <div className="space-y-4">
+            <div>
+              <p id="arrival-checked-in-by-label" className="mb-1 block text-sm font-medium text-slate-800">
+                Checked in by
+              </p>
               {checkInStaffOptions.length === 0 ? (
-                <p className="text-sm text-amber-800">
-                  Your account is not linked to this hotel. Ask an administrator to add you under Settings before
-                  completing check-in.
+                <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                  Your account isn&apos;t linked to this hotel yet. Ask an administrator to add you in Settings, then
+                  you can complete check-in.
                 </p>
               ) : (
-                <p className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-900">
+                <p
+                  aria-labelledby="arrival-checked-in-by-label"
+                  aria-describedby="arrival-checked-in-by-hint"
+                  className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium text-slate-900"
+                >
                   {checkInStaffOptions[0]!.displayName}
                 </p>
               )}
-              <p className="text-xs text-slate-500">
-                Saved on the reservation so you can see who handled the arrival.
+              <p id="arrival-checked-in-by-hint" className="mt-1 text-xs text-slate-600">
+                Saved on the booking so you can see who welcomed the guest.
               </p>
             </div>
-            <label className="block text-sm font-medium text-slate-700">Guest remarks</label>
-            <textarea
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-              rows={3}
-              value={guestRemarks}
-              onChange={(e) => setGuestRemarks(e.target.value)}
-              disabled={!capabilities.canEditNotes}
-            />
-            <p className="text-xs text-slate-500">
-              Completing check-in will mark the room occupied and post room charges if not already on folio.
+            <HmsField id="arrival-checkin-remarks" label="Guest remarks" optional>
+              <textarea
+                id="arrival-checkin-remarks"
+                className={hmsInput}
+                rows={3}
+                value={guestRemarks}
+                onChange={(e) => setGuestRemarks(e.target.value)}
+                disabled={!capabilities.canEditNotes}
+              />
+            </HmsField>
+            <p className="rounded-xl bg-sky-50 px-4 py-3 text-sm text-slate-700">
+              Completing check-in marks the room as occupied and adds the room charges to the folio if they
+              aren&apos;t there already.
             </p>
           </div>
         ) : null}
 
         {step === "done" ? (
-          <p className="text-sm font-medium text-emerald-700">Guest checked in successfully.</p>
+          <p role="status" className="flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
+            <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden />
+            Guest checked in.
+          </p>
         ) : null}
 
         <DialogFooter className="gap-2">
           {step === "verify" ? (
             <>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <Button type="button" variant="outline" className="rounded-xl" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
               <Button
                 type="button"
+                className="rounded-xl font-semibold"
                 onClick={() => setStep(capabilities.canViewFolioFinancials ? "payment" : "room")}
                 disabled={!detail}
               >
@@ -208,31 +262,32 @@ export function FrontDeskReservationCheckInDialog({
           ) : null}
           {step === "payment" ? (
             <>
-              <Button type="button" variant="outline" onClick={() => setStep("verify")}>
+              <Button type="button" variant="outline" className="rounded-xl" onClick={() => setStep("verify")}>
                 Back
               </Button>
-              <Button type="button" onClick={() => setStep("room")}>
-                Continue
+              <Button type="button" className="rounded-xl font-semibold" onClick={() => setStep("room")}>
+                Next
               </Button>
             </>
           ) : null}
           {step === "room" ? (
             <>
-              <Button type="button" variant="outline" onClick={() => setStep("payment")}>
+              <Button type="button" variant="outline" className="rounded-xl" onClick={() => setStep("payment")}>
                 Back
               </Button>
-              <Button type="button" onClick={() => setStep("confirm")} disabled={!roomUnitId}>
-                Next: Confirm
+              <Button type="button" className="rounded-xl font-semibold" onClick={() => setStep("confirm")} disabled={!roomUnitId}>
+                Next: confirm
               </Button>
             </>
           ) : null}
           {step === "confirm" ? (
             <>
-              <Button type="button" variant="outline" onClick={() => setStep("room")}>
+              <Button type="button" variant="outline" className="rounded-xl" onClick={() => setStep("room")}>
                 Back
               </Button>
               <Button
                 type="button"
+                className="rounded-xl font-semibold"
                 onClick={() => completeCheckIn()}
                 disabled={
                   loading ||
@@ -246,7 +301,7 @@ export function FrontDeskReservationCheckInDialog({
             </>
           ) : null}
           {step === "done" ? (
-            <Button type="button" onClick={() => onOpenChange(false)}>
+            <Button type="button" className="rounded-xl" onClick={() => onOpenChange(false)}>
               Close
             </Button>
           ) : null}

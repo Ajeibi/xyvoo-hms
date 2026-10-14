@@ -25,7 +25,9 @@ export function KitchenHistoryClient({
       initial={initial}
       showAmount={false}
       overdueMinutes={overdueMinutes}
-      description="Completed and voided tickets (read-only)."
+      eyebrow="Kitchen"
+      title="Ticket history"
+      description="Finished and cancelled tickets with how long each took to cook. Nothing here can be changed."
       historyApiPath="/api/hotel/fb/kitchen/history"
     />
   );

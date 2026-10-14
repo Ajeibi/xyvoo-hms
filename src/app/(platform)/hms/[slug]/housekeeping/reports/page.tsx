@@ -1,9 +1,11 @@
+import { BadgeCheck, BedDouble, ClipboardList, Timer, Users } from "lucide-react";
 import HMSLayout from "@/components/hms/HMSLayout";
 import { getHmsAccessContext } from "@/lib/hms/access";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getHousekeepingDailyReport } from "@/lib/hms/housekeeping-reports";
 import { HousekeepingSubNav } from "@/components/hms/housekeeping/HousekeepingSubNav";
+import { HmsCard, HmsEmptyState, HmsPage, HmsPageHeader, HmsStatStrip, HmsStatTile } from "@/components/hms/hms-ui";
 
 export default async function HousekeepingReportsPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -12,10 +14,9 @@ export default async function HousekeepingReportsPage({ params }: { params: Prom
   if (!tenant) {
     return (
       <HMSLayout slug={slug} requiredSection="housekeeping-reports">
-        <div className="px-8 py-8">
-          <h1 className="text-xl font-semibold text-slate-900">Reports</h1>
-          <p className="mt-0.5 text-sm text-slate-500">Hotel not found.</p>
-        </div>
+        <HmsPage>
+          <HmsPageHeader eyebrow="Housekeeping" meaning="care" title="Reports" description="Hotel not found." />
+        </HmsPage>
       </HMSLayout>
     );
   }
@@ -25,51 +26,65 @@ export default async function HousekeepingReportsPage({ params }: { params: Prom
 
   return (
     <HMSLayout slug={slug} requiredSection="housekeeping-reports">
-      <div className="mx-auto w-full max-w-4xl px-6 py-8">
-        <h1 className="text-xl font-semibold text-slate-900">Reports</h1>
-        <p className="mt-0.5 text-sm text-slate-500">Today&apos;s housekeeping activity, updated as tasks move.</p>
+      <HmsPage>
+        <HmsPageHeader
+          eyebrow="Housekeeping"
+          meaning="care"
+          title="Reports"
+          description="Today's housekeeping activity, updated as tasks move."
+        />
 
         <HousekeepingSubNav slug={slug} canAccessAllDepartments={access.canAccessAllDepartments} />
 
-        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5">
-            <p className="text-xs uppercase tracking-wider text-slate-400">Tasks today</p>
-            <p className="mt-2 text-2xl font-semibold text-slate-900">{report.tasksCreatedToday}</p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-5">
-            <p className="text-xs uppercase tracking-wider text-slate-400">Rooms ready</p>
-            <p className="mt-2 text-2xl font-semibold text-slate-900">{report.tasksCompletedToday}</p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-5">
-            <p className="text-xs uppercase tracking-wider text-slate-400">Avg. clean time</p>
-            <p className="mt-2 text-2xl font-semibold text-slate-900">
-              {report.averageCleanMinutes != null ? `${report.averageCleanMinutes}m` : "—"}
-            </p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white p-5">
-            <p className="text-xs uppercase tracking-wider text-slate-400">First-pass inspection rate</p>
-            <p className="mt-2 text-2xl font-semibold text-slate-900">
-              {report.inspectionPassRate != null ? `${report.inspectionPassRate}%` : "—"}
-            </p>
-          </div>
-        </div>
+        <HmsStatStrip label="Today's housekeeping figures">
+          <HmsStatTile label="Tasks today" value={report.tasksCreatedToday} hint="Created today" icon={ClipboardList} meaning="care" />
+          <HmsStatTile label="Rooms ready" value={report.tasksCompletedToday} hint="Completed today" icon={BedDouble} meaning="rooms" />
+          <HmsStatTile
+            label="Average clean time"
+            value={report.averageCleanMinutes != null ? `${report.averageCleanMinutes}m` : "—"}
+            hint="Across today's cleans"
+            icon={Timer}
+            meaning="care"
+          />
+          <HmsStatTile
+            label="Passed first time"
+            value={report.inspectionPassRate != null ? `${report.inspectionPassRate}%` : "—"}
+            hint="First-pass inspection rate"
+            icon={BadgeCheck}
+            meaning="team"
+          />
+        </HmsStatStrip>
 
-        <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5">
-          <h2 className="text-sm font-semibold text-slate-800">Rooms cleaned per attendant (today)</h2>
+        <HmsCard
+          id="hk-report-attendants"
+          title="Rooms cleaned per attendant"
+          description="Today only."
+          icon={Users}
+          meaning="team"
+          flush={report.perAttendant.length > 0}
+        >
           {report.perAttendant.length === 0 ? (
-            <p className="mt-3 text-sm text-slate-500">No completed rooms yet today.</p>
+            <HmsEmptyState
+              bare
+              art="page"
+              meaning="care"
+              title="No completed rooms yet today"
+              description="Each attendant's total appears here as they finish rooms."
+            />
           ) : (
-            <div className="mt-3 divide-y divide-slate-100">
+            <ul className="divide-y divide-slate-100">
               {report.perAttendant.map((a) => (
-                <div key={a.name} className="flex items-center justify-between py-2 text-sm">
-                  <span className="text-slate-700">{a.name}</span>
-                  <span className="font-medium text-slate-900">{a.roomsCleaned}</span>
-                </div>
+                <li key={a.name} className="flex items-center justify-between px-5 py-3 text-sm sm:px-6">
+                  <span className="text-slate-800">{a.name}</span>
+                  <span className="font-semibold tabular-nums text-slate-900">
+                    {a.roomsCleaned} <span className="font-normal text-slate-600">room{a.roomsCleaned === 1 ? "" : "s"}</span>
+                  </span>
+                </li>
               ))}
-            </div>
+            </ul>
           )}
-        </div>
-      </div>
+        </HmsCard>
+      </HmsPage>
     </HMSLayout>
   );
 }

@@ -47,7 +47,7 @@ export function FrontDeskRoomFlagsEditor({
 
   return (
     <div className="mt-4 rounded-xl border border-slate-100 px-4 py-3">
-      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Room flags</p>
+      <p className="text-sm font-medium text-slate-600">Room flags</p>
       <div className="mt-3 space-y-2 text-sm">
         {(
           [

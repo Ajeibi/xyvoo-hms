@@ -1,4 +1,5 @@
 import HMSLayout from "@/components/hms/HMSLayout";
+import { HmsPage, HmsPageHeader } from "@/components/hms/hms-ui";
 import { ProcurementSubNav } from "@/components/hms/procurement/ProcurementSubNav";
 import { ProcurementVendorsClient } from "@/components/hms/procurement/ProcurementVendorsClient";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
@@ -19,12 +20,11 @@ export default async function ProcurementVendorsPage({ params }: { params: Promi
 
   return (
     <HMSLayout slug={slug} requiredSection="procurement-vendors">
-      <div className="px-8 py-8">
-        <h1 className="text-xl font-semibold text-slate-900">Vendors</h1>
-        <p className="mt-0.5 text-sm text-slate-500">The approved-vendor register — status, certifications, and category.</p>
+      <HmsPage>
+        <HmsPageHeader eyebrow="Procurement" meaning="stock" title="Vendors" description="The approved-vendor register: status, certifications and category." />
         <ProcurementSubNav slug={slug} canAccessAllDepartments={access.canAccessAllDepartments} />
         <ProcurementVendorsClient slug={slug} vendors={vendors} categories={categories} />
-      </div>
+      </HmsPage>
     </HMSLayout>
   );
 }

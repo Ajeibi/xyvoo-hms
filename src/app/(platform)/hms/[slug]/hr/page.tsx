@@ -8,6 +8,7 @@ export default async function HRPage({ params }: { params: Promise<{ slug: strin
     <HMSLayout slug={slug} requiredSection="hr">
       <DepartmentDashboardScaffold
         title="HR"
+        meaning="team"
         subtitle="Keep staffing, schedules, and HR follow-ups in one department-specific workspace."
         settingsHref={`/hms/${slug}/hr/settings`}
         highlights={[

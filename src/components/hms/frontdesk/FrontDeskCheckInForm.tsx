@@ -25,6 +25,9 @@ import {
   validateMinorGuest,
 } from "@/components/hms/frontdesk/WalkInGuestDetailFields";
 import { Button } from "@/components/ui/button";
+import { BedDouble, ClipboardList, UserRound, Wallet } from "lucide-react";
+import { HmsAlert, HmsCard } from "@/components/hms/hms-ui";
+import type { HmsMeaning } from "@/components/hms/meaning";
 import type { HotelPricingSetup, HotelRoomTypeSetup } from "@/lib/hms/room-pricing";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import { NATIONAL_ID_ID_EXPIRY_PLACEHOLDER, type AccompanyingAdultGuest, type MinorGuest } from "@/lib/hms/walk-in-check-in-payload";
@@ -68,7 +71,36 @@ type FrontDeskCheckInFormProps = {
   /** When set, submitting completes check-in for this existing reservation (update) rather than
    * creating a new one. */
   existingReservationId?: string;
+  /** Group the fields into their own cards. Defaults to on, except for "reserve", whose page wraps the form in a card. */
+  cards?: boolean;
 };
+
+/** Groups fields into meaning-coloured cards, or plain stacked sections when the page already supplies a card. */
+function Group({
+  cards,
+  id,
+  title,
+  description,
+  icon,
+  meaning,
+  children,
+}: {
+  cards: boolean;
+  id: string;
+  title: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  meaning: HmsMeaning;
+  children: React.ReactNode;
+}) {
+  return cards ? (
+    <HmsCard id={id} title={title} description={description} icon={icon} meaning={meaning}>
+      <div className="space-y-8">{children}</div>
+    </HmsCard>
+  ) : (
+    <div className="space-y-8">{children}</div>
+  );
+}
 
 /** `YYYY-MM-DD` in the user's local calendar (not UTC). */
 function localYmd(d: Date): string {
@@ -95,7 +127,9 @@ export function FrontDeskCheckInForm({
   mode = "check_in",
   initialData,
   existingReservationId,
+  cards,
 }: FrontDeskCheckInFormProps) {
+  const useCards = cards ?? mode !== "reserve";
   const router = useRouter();
   const searchParams = useSearchParams();
   const [assignedRoom, setAssignedRoom] = useState(() =>
@@ -563,16 +597,22 @@ export function FrontDeskCheckInForm({
     settlementMethod === "card" || settlementMethod === "partial_credit";
 
   const fieldClass =
-    "min-h-[88px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus-visible:border-blue-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/25";
+    "min-h-[88px] w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus-visible:border-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500";
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
-      {error ? (
-        <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{error}</p>
-      ) : null}
+    <form onSubmit={handleSubmit} className="space-y-6" aria-describedby={error ? "check-in-form-error" : undefined}>
+      <div id="check-in-form-error">{error ? <HmsAlert message={error} /> : null}</div>
 
-      <div className="lg:grid lg:grid-cols-[1fr_min(100%,380px)] lg:items-start lg:gap-10">
-        <div className="space-y-8">
+      <div className="lg:grid lg:grid-cols-[1fr_min(100%,380px)] lg:items-start lg:gap-8">
+        <div className={useCards ? "space-y-6" : "space-y-8"}>
+          <Group
+            cards={useCards}
+            id="check-in-guest"
+            title="Guest details"
+            description="Who is staying, how to reach them and the ID they showed."
+            icon={UserRound}
+            meaning="guests"
+          >
           <CheckInPrimaryGuestFieldset
             guestTitle={guestTitle}
             setGuestTitle={setGuestTitle}
@@ -591,7 +631,16 @@ export function FrontDeskCheckInForm({
             idExpiryDate={initialData?.idExpiryDate}
             dateOfBirth={initialData?.dateOfBirth}
           />
+          </Group>
 
+          <Group
+            cards={useCards}
+            id="check-in-stay"
+            title="Stay and room"
+            description="When they arrive and leave, how many people, and which room."
+            icon={BedDouble}
+            meaning="rooms"
+          >
           <StayInformationFieldset
             arrivalDate={arrivalDate}
             setArrivalDate={setArrivalDate}
@@ -634,7 +683,16 @@ export function FrontDeskCheckInForm({
             phone={phone}
             primaryEmailInput={primaryEmailInput}
           />
+          </Group>
 
+          <Group
+            cards={useCards}
+            id="check-in-rate"
+            title="Rate, discount and payment"
+            description="The rate to charge, any discount or tax exemption, and how the bill will be paid."
+            icon={Wallet}
+            meaning="money"
+          >
           <SeasonRateTypeFieldset
             seasonCode={initialData?.seasonCode}
             rateType={rateTypeField}
@@ -680,7 +738,16 @@ export function FrontDeskCheckInForm({
             guaranteeReleaseDate={initialData?.guaranteeReleaseDate}
             minPaymentPerDayToExtend={initialData?.minPaymentPerDayToExtend}
           />
+          </Group>
 
+          <Group
+            cards={useCards}
+            id="check-in-notes"
+            title="Notes, booking source and paperwork"
+            description="Remarks for the team, where the booking came from, and registration details."
+            icon={ClipboardList}
+            meaning="neutral"
+          >
           <GuestRemarksFieldset
             fieldClass={fieldClass}
             guestRemarksReservation={initialData?.guestRemarksReservation}
@@ -710,24 +777,26 @@ export function FrontDeskCheckInForm({
             immigrationRegistrationRequired={initialData?.immigrationRegistrationRequired}
             vipFlag={initialData?.vipFlag}
           />
+          </Group>
         </div>
 
         <CheckInRateSummaryCard nightlyBar={nightlyBar} nights={nights} pricing={pricing} pricingPreview={pricingPreview} />
       </div>
 
       {mode === "check_in" && (
-        <fieldset className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/60 px-4 py-4 sm:px-5">
-          <legend className="flex flex-wrap items-center gap-2 px-1 text-sm font-semibold text-slate-900">
-            <span>Check-in attribution</span>
+        <fieldset className="space-y-3 rounded-2xl bg-indigo-50 px-4 py-4 sm:px-5">
+          <legend className="sr-only">Who checked the guest in</legend>
+          <p aria-hidden className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-900">
+            <span>Who checked the guest in</span>
             <CheckInFieldInfo
               label="Checked in by"
-              text="Records which hotel team member attended this guest at check-in. Always your signed-in account."
+              text="Records which member of the team welcomed this guest. It's always the account you're signed in with."
             />
-          </legend>
+          </p>
           {checkInStaffOptions.length === 0 ? (
-            <p className="text-sm text-amber-800">
-              Your account is not linked to this hotel. Ask an administrator to add you under Settings → access
-              before completing check-in.
+            <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              Your account isn&apos;t linked to this hotel yet. Ask an administrator to add you in Settings, under
+              access, then you can complete check-in.
             </p>
           ) : (
             <div className="space-y-2">
@@ -749,7 +818,7 @@ export function FrontDeskCheckInForm({
         </fieldset>
       )}
 
-      <div className="flex flex-wrap gap-3 border-t border-slate-100 pt-6">
+      <div className={`flex flex-wrap gap-3 ${useCards ? "pt-2" : "border-t border-slate-100 pt-6"}`}>
         <Button
           type="submit"
           size="lg"

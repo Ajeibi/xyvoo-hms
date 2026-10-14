@@ -1,7 +1,11 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { getShopTenantBySlug } from "@/lib/shop/tenants";
 import { clientIp, rateLimitShared } from "@/lib/rate-limit";
 import { checkoutSessionSchema, saveCheckoutSession } from "@/lib/store/checkouts";
+import { runCartRemindersIfDue } from "@/lib/store/cart-reminders";
+import { runStockAlertsIfDue } from "@/lib/store/stock-alerts";
+import { runGiftCardEmailsIfDue } from "@/lib/store/gift-cards";
+import { runCampaignsIfDue } from "@/lib/store/campaigns-server";
 import { isShopLive } from "@/lib/store/site/data";
 
 /**
@@ -22,6 +26,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
 
   try {
     const saved = await saveCheckoutSession(tenant.id, parsed.data);
+    // A good moment to send any basket reminders that are due (at most every ten minutes).
+    after(runCartRemindersIfDue);
+  after(runStockAlertsIfDue);
+  after(runGiftCardEmailsIfDue);
+  after(runCampaignsIfDue);
     return NextResponse.json({ ok: true, saved });
   } catch (error) {
     console.error("[checkout-session] not saved", error);

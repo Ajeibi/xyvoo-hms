@@ -2,10 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search, Trash2 } from "lucide-react";
-import { SettingsSectionInfo } from "@/components/hms/settings/SettingsSectionInfo";
+import { ClipboardList, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +22,8 @@ import {
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { InventoryItemPicker } from "@/components/hms/inventory/InventoryItemPicker";
+import { HmsCard, HmsEmptyState, HmsField, HmsPill, hmsButton, hmsInput } from "@/components/hms/hms-ui";
+import { HmsFilterChips, HmsSectionIntro } from "@/components/hms/hms-ui-client";
 import type {
   InventoryItemRow,
   InventoryLocationRow,
@@ -43,23 +43,26 @@ const STATUS_TABS: { key: "all" | InventoryRequisitionStatus; label: string }[] 
   { key: "cancelled", label: "Cancelled" },
 ];
 
-const STATUS_BADGE: Record<InventoryRequisitionStatus, string> = {
-  pending: "bg-amber-50 text-amber-700",
-  approved: "bg-blue-50 text-blue-700",
-  partially_issued: "bg-violet-50 text-violet-700",
-  issued: "bg-emerald-50 text-emerald-700",
-  rejected: "bg-red-50 text-red-700",
-  cancelled: "bg-slate-100 text-slate-600",
+const STATUS_TONE: Record<InventoryRequisitionStatus, "slate" | "green" | "amber" | "red" | "blue"> = {
+  pending: "amber",
+  approved: "blue",
+  partially_issued: "blue",
+  issued: "green",
+  rejected: "red",
+  cancelled: "slate",
 };
 
 const STATUS_RAIL: Record<InventoryRequisitionStatus, string> = {
   pending: "bg-amber-500",
   approved: "bg-blue-600",
-  partially_issued: "bg-violet-600",
+  partially_issued: "bg-blue-400",
   issued: "bg-emerald-600",
   rejected: "bg-red-600",
   cancelled: "bg-slate-400",
 };
+
+const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500";
+const smallButton = "px-3 py-1.5";
 
 const STATUS_LABEL: Record<InventoryRequisitionStatus, string> = {
   pending: "Pending",
@@ -101,11 +104,7 @@ function groupByDate(list: InventoryRequisitionWithLines[]) {
 }
 
 function StatusBadge({ status }: { status: InventoryRequisitionStatus }) {
-  return (
-    <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold ${STATUS_BADGE[status]}`}>
-      {STATUS_LABEL[status]}
-    </span>
-  );
+  return <HmsPill tone={STATUS_TONE[status]}>{STATUS_LABEL[status]}</HmsPill>;
 }
 
 export function InventoryRequisitionsClient({
@@ -178,178 +177,185 @@ export function InventoryRequisitionsClient({
     }
   };
 
+  const cannotRequest = locations.length === 0 || items.length === 0;
+  const newButton = (
+    <button type="button" className={`${hmsButton.primary} ${focusRing}`} onClick={() => setNewOpen(true)} disabled={cannotRequest}>
+      <Plus className="h-4 w-4" aria-hidden />
+      New requisition
+    </button>
+  );
+
   return (
-    <div className="mt-6">
-      <p className="mb-1.5 text-xs text-slate-400">Inventory</p>
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-        <div className="flex items-center gap-1.5">
-          <h1 className="text-[23px] font-semibold tracking-tight text-slate-900">Requisitions</h1>
-          <SettingsSectionInfo
-            title="Requisitions"
-            text="Department stock requests. A request must be approved before it can be issued — issuing is the step that actually deducts stock from the store, not the initial request."
+    <div className="space-y-6">
+      <HmsSectionIntro
+        id="inventory-requisitions"
+        title="Stock requests from departments"
+        meaning="team"
+        art="page"
+        points={[
+          "A department asks for stock from a store, such as the kitchen asking the main store.",
+          "Each request is approved first, then issued.",
+          "Stock only leaves the store when it is issued, not when it is requested.",
+        ]}
+      />
+
+      <HmsCard
+        id="inventory-requisition-list"
+        title="Requisitions"
+        description="Open a request to see its items, approve it or issue the stock."
+        icon={ClipboardList}
+        meaning="team"
+        flush
+        actions={newButton}
+      >
+        <div className="space-y-4 border-b border-slate-100 px-5 py-4 sm:px-6">
+          <div className="sm:max-w-sm">
+            <label htmlFor="inventory-requisitions-search" className="mb-1 block text-sm font-medium text-slate-800">
+              Search requisitions
+            </label>
+            <input
+              id="inventory-requisitions-search"
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Requisition number, department or item"
+              className={hmsInput}
+            />
+          </div>
+          <HmsFilterChips
+            label="Filter by status"
+            meaning="team"
+            value={statusFilter}
+            onChange={setStatusFilter}
+            options={STATUS_TABS.map((tab) => ({ value: tab.key, label: tab.label, count: statusCounts[tab.key] }))}
           />
         </div>
-        <Button
-          type="button"
-          className="rounded-lg shadow-sm"
-          onClick={() => setNewOpen(true)}
-          disabled={locations.length === 0 || items.length === 0}
-        >
-          <Plus className="h-4 w-4" />
-          New requisition
-        </Button>
-      </div>
 
-      <div className="relative mb-5 max-w-sm">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by req #, department, or item"
-          className="pl-9"
-        />
-      </div>
-
-      <div className="flex flex-wrap gap-1">
-        {STATUS_TABS.map((tab) => {
-          const active = statusFilter === tab.key;
-          return (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => setStatusFilter(tab.key)}
-              className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                active ? "bg-blue-50 text-blue-700" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
-              }`}
-            >
-              {tab.label}
-              <span className={`ml-1 text-xs ${active ? "text-blue-600" : "text-slate-400"}`}>
-                {statusCounts[tab.key]}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {groupedRows.length === 0 ? (
-        <p className="mt-6 rounded-xl border border-slate-200 bg-white px-6 py-8 text-center text-sm text-slate-500">
-          {requisitions.length === 0 ? "No requisitions in this view." : "No requisitions match your search."}
-        </p>
-      ) : (
-        <div className="mt-6 space-y-6">
-          {groupedRows.map((group) => (
-            <div key={group.label}>
-              <p className="mb-2.5 ml-0.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                {group.label}
-              </p>
-              <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-                <Accordion type="multiple">
-                  {group.rows.map((r) => {
-                    const remainingTotal = r.lines.reduce((sum, l) => sum + (l.qty_requested - l.qty_issued), 0);
-                    return (
-                      <AccordionItem key={r.id} value={r.id} className="relative border-slate-100">
-                        <span className={`absolute inset-y-0 left-0 w-[3px] ${STATUS_RAIL[r.status]}`} aria-hidden />
-                        <AccordionTrigger className="items-center rounded-none border-none py-3.5 pl-4 pr-4 hover:bg-slate-50/60 hover:no-underline">
-                          <span className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-2 pr-2 text-left">
-                            <span className="min-w-0">
-                              <span className="block text-[13.5px] font-semibold tabular-nums text-slate-900">
-                                {r.requisition_number}
+        {groupedRows.length === 0 ? (
+          requisitions.length === 0 ? (
+            <HmsEmptyState
+              bare
+              art="page"
+              meaning="team"
+              title="No requisitions yet"
+              description={
+                cannotRequest
+                  ? "Add a store location and at least one item first, then departments can request stock."
+                  : "When a department needs stock from a store, raise a requisition here."
+              }
+              action={cannotRequest ? undefined : newButton}
+            />
+          ) : (
+            <p role="status" className="px-6 py-10 text-center text-sm text-slate-600">
+              No requisitions match this search or status.
+            </p>
+          )
+        ) : (
+          <div className="space-y-5 px-5 py-5 sm:px-6">
+            {groupedRows.map((group) => (
+              <section key={group.label} aria-label={`Requisitions on ${group.label}`}>
+                <h3 className="mb-2 text-sm font-semibold text-slate-700">{group.label}</h3>
+                <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+                  <Accordion type="multiple">
+                    {group.rows.map((r) => {
+                      const remainingTotal = r.lines.reduce((sum, l) => sum + (l.qty_requested - l.qty_issued), 0);
+                      return (
+                        <AccordionItem key={r.id} value={r.id} className="relative border-slate-100">
+                          <span className={`absolute inset-y-0 left-0 w-1 ${STATUS_RAIL[r.status]}`} aria-hidden />
+                          <AccordionTrigger className="items-center rounded-none border-none py-3 pl-5 pr-4 hover:bg-slate-50 hover:no-underline">
+                            <span className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-2 pr-2 text-left">
+                              <span className="min-w-0">
+                                <span className="block text-sm font-semibold tabular-nums text-slate-900">
+                                  {r.requisition_number}
+                                </span>
+                                <span className="mt-0.5 block text-sm font-normal text-slate-600">
+                                  <span className="font-medium text-slate-800">{r.requesting_department}</span> · from{" "}
+                                  {r.from_location_name} · {formatTime(r.created_at)}
+                                </span>
                               </span>
-                              <span className="mt-0.5 block text-[12.5px] text-slate-500">
-                                <span className="font-medium text-slate-700">{r.requesting_department}</span> · from{" "}
-                                {r.from_location_name} · {formatTime(r.created_at)}
-                              </span>
+                              <StatusBadge status={r.status} />
                             </span>
-                            <StatusBadge status={r.status} />
-                          </span>
-                        </AccordionTrigger>
-                        <AccordionContent className="bg-slate-50/50">
-                          <div className="space-y-3 pl-[30px] pr-4">
-                            <ul className="divide-y divide-slate-100">
-                              {r.lines.map((l) => (
-                                <li key={l.id} className="flex items-center justify-between gap-2 py-2 text-[13px]">
-                                  <span className="min-w-0 truncate text-slate-900">
-                                    {l.item_name} <span className="text-xs font-normal text-slate-400">{l.item_sku}</span>
-                                  </span>
-                                  <span className="shrink-0 tabular-nums text-[12.5px] text-slate-500">
-                                    {l.qty_issued} / {l.qty_requested} {l.unit_of_measure} issued
-                                  </span>
-                                </li>
-                              ))}
-                            </ul>
-                            {r.notes ? <p className="text-xs text-slate-500">Note: {r.notes}</p> : null}
+                          </AccordionTrigger>
+                          <AccordionContent className="bg-slate-50">
+                            <div className="space-y-3 pl-5 pr-4 pt-1">
+                              <ul className="divide-y divide-slate-200">
+                                {r.lines.map((l) => (
+                                  <li key={l.id} className="flex items-center justify-between gap-2 py-2 text-sm">
+                                    <span className="min-w-0 truncate text-slate-900">
+                                      {l.item_name} <span className="text-xs font-normal text-slate-600">{l.item_sku}</span>
+                                    </span>
+                                    <span className="shrink-0 tabular-nums text-slate-700">
+                                      {l.qty_issued} of {l.qty_requested} {l.unit_of_measure} issued
+                                    </span>
+                                  </li>
+                                ))}
+                              </ul>
+                              {r.notes ? <p className="text-sm text-slate-700">Note: {r.notes}</p> : null}
 
-                            <div className="flex flex-wrap gap-2 pb-1">
-                              {r.status === "pending" ? (
-                                <>
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    className="rounded-lg"
-                                    disabled={busyId === r.id}
-                                    onClick={() => void patchAction(r.id, "approve", `${r.requisition_number} approved`)}
-                                  >
-                                    Approve
-                                  </Button>
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="destructive"
-                                    className="rounded-lg"
-                                    disabled={busyId === r.id}
-                                    onClick={() => void patchAction(r.id, "reject", `${r.requisition_number} rejected`)}
-                                  >
-                                    Reject
-                                  </Button>
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    className="rounded-lg"
-                                    disabled={busyId === r.id}
-                                    onClick={() => void patchAction(r.id, "cancel", `${r.requisition_number} cancelled`)}
-                                  >
-                                    Cancel
-                                  </Button>
-                                </>
-                              ) : null}
-                              {r.status === "approved" || r.status === "partially_issued" ? (
-                                <>
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    className="rounded-lg"
-                                    disabled={busyId === r.id || remainingTotal <= 0}
-                                    onClick={() => setIssueTarget(r)}
-                                  >
-                                    Issue
-                                  </Button>
-                                  {r.status === "approved" ? (
-                                    <Button
+                              <div className="flex flex-wrap gap-2 pb-1">
+                                {r.status === "pending" ? (
+                                  <>
+                                    <button
                                       type="button"
-                                      size="sm"
-                                      variant="outline"
-                                      className="rounded-lg"
+                                      className={`${hmsButton.primary} ${smallButton} ${focusRing}`}
+                                      disabled={busyId === r.id}
+                                      onClick={() => void patchAction(r.id, "approve", `${r.requisition_number} approved`)}
+                                    >
+                                      Approve
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className={`${hmsButton.secondary} ${smallButton} text-red-700 ${focusRing}`}
+                                      disabled={busyId === r.id}
+                                      onClick={() => void patchAction(r.id, "reject", `${r.requisition_number} rejected`)}
+                                    >
+                                      Reject
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className={`${hmsButton.secondary} ${smallButton} ${focusRing}`}
                                       disabled={busyId === r.id}
                                       onClick={() => void patchAction(r.id, "cancel", `${r.requisition_number} cancelled`)}
                                     >
-                                      Cancel
-                                    </Button>
-                                  ) : null}
-                                </>
-                              ) : null}
+                                      Cancel request
+                                    </button>
+                                  </>
+                                ) : null}
+                                {r.status === "approved" || r.status === "partially_issued" ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      className={`${hmsButton.primary} ${smallButton} ${focusRing}`}
+                                      disabled={busyId === r.id || remainingTotal <= 0}
+                                      onClick={() => setIssueTarget(r)}
+                                    >
+                                      Issue stock
+                                    </button>
+                                    {r.status === "approved" ? (
+                                      <button
+                                        type="button"
+                                        className={`${hmsButton.secondary} ${smallButton} ${focusRing}`}
+                                        disabled={busyId === r.id}
+                                        onClick={() => void patchAction(r.id, "cancel", `${r.requisition_number} cancelled`)}
+                                      >
+                                        Cancel request
+                                      </button>
+                                    ) : null}
+                                  </>
+                                ) : null}
+                              </div>
                             </div>
-                          </div>
-                        </AccordionContent>
-                      </AccordionItem>
-                    );
-                  })}
-                </Accordion>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+                          </AccordionContent>
+                        </AccordionItem>
+                      );
+                    })}
+                  </Accordion>
+                </div>
+              </section>
+            ))}
+          </div>
+        )}
+      </HmsCard>
 
       <NewRequisitionDialog
         slug={slug}
@@ -473,35 +479,36 @@ function NewRequisitionDialog({
           <DialogDescription>Request stock from a store on behalf of a department.</DialogDescription>
         </DialogHeader>
 
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
-          <div className="grid gap-3 sm:grid-cols-2">
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">Requesting department</label>
-              <Select value={department} onValueChange={setDepartment}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select department" />
-                </SelectTrigger>
-                <SelectContent>
-                  {DEPARTMENT_OPTIONS.map((d) => (
-                    <SelectItem key={d} value={d}>
-                      {d}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <HmsField id="inventory-requisition-department" label="Requesting department">
+                <Select value={department} onValueChange={setDepartment}>
+                  <SelectTrigger id="inventory-requisition-department" className="rounded-xl border-slate-300">
+                    <SelectValue placeholder="Select department" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DEPARTMENT_OPTIONS.map((d) => (
+                      <SelectItem key={d} value={d}>
+                        {d}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </HmsField>
               {department === "Other" ? (
-                <Input
-                  className="mt-2"
+                <input
+                  aria-label="Department name"
+                  className={`${hmsInput} mt-2`}
                   value={customDepartment}
                   onChange={(e) => setCustomDepartment(e.target.value)}
                   placeholder="Department name"
                 />
               ) : null}
             </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">From store</label>
+            <HmsField id="inventory-requisition-from" label="From store">
               <Select value={fromLocationId} onValueChange={setFromLocationId}>
-                <SelectTrigger>
+                <SelectTrigger id="inventory-requisition-from" className="rounded-xl border-slate-300">
                   <SelectValue placeholder="Select a store" />
                 </SelectTrigger>
                 <SelectContent>
@@ -512,29 +519,35 @@ function NewRequisitionDialog({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </HmsField>
             <div className="sm:col-span-2">
-              <label className="mb-1 block text-xs font-medium text-slate-600">Notes (optional)</label>
-              <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes" />
+              <HmsField id="inventory-requisition-notes" label="Notes" optional>
+                <input
+                  id="inventory-requisition-notes"
+                  className={hmsInput}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                />
+              </HmsField>
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div role="group" aria-labelledby="inventory-requisition-lines" className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-medium text-slate-600">Items requested</label>
-              <Button type="button" variant="outline" size="sm" className="rounded-lg" onClick={addLine}>
-                <Plus className="h-3.5 w-3.5" />
+              <h3 id="inventory-requisition-lines" className="text-sm font-medium text-slate-800">Items requested</h3>
+              <button type="button" className={`${hmsButton.secondary} ${smallButton} ${focusRing}`} onClick={addLine}>
+                <Plus className="h-3.5 w-3.5" aria-hidden />
                 Add line
-              </Button>
+              </button>
             </div>
 
             <div className="space-y-2">
-              {lines.map((line) => {
+              {lines.map((line, index) => {
                 const item = itemById.get(line.itemId);
                 return (
                   <div
                     key={line.key}
-                    className="grid grid-cols-12 items-center gap-2 rounded-lg border border-slate-200 p-2"
+                    className="grid grid-cols-12 items-center gap-2 rounded-xl border border-slate-200 p-2"
                   >
                     <div className="col-span-7">
                       <InventoryItemPicker
@@ -548,10 +561,12 @@ function NewRequisitionDialog({
                       />
                     </div>
                     <div className="col-span-4">
-                      <Input
+                      <input
                         type="number"
                         min="0"
                         step="any"
+                        aria-label={`Quantity, line ${index + 1}`}
+                        className={hmsInput}
                         value={line.qty}
                         onChange={(e) => updateLine(line.key, { qty: e.target.value })}
                         placeholder="Qty"
@@ -562,14 +577,15 @@ function NewRequisitionDialog({
                         type="button"
                         variant="ghost"
                         size="icon-sm"
+                        aria-label={`Remove line ${index + 1}`}
                         onClick={() => removeLine(line.key)}
                         disabled={lines.length === 1}
                       >
-                        <Trash2 className="h-4 w-4 text-slate-400" />
+                        <Trash2 className="h-4 w-4 text-slate-600" aria-hidden />
                       </Button>
                     </div>
                     {item ? (
-                      <p className="col-span-12 -mt-1 text-xs text-slate-400">{item.unit_of_measure_name}</p>
+                      <p className="col-span-12 text-xs text-slate-600">Unit: {item.unit_of_measure_name}</p>
                     ) : null}
                   </div>
                 );
@@ -667,15 +683,18 @@ function IssueRequisitionDialog({
 
         <div className="space-y-2">
           {lines.map((l) => (
-            <div key={l.id} className="grid grid-cols-12 items-center gap-2 rounded-lg border border-slate-200 p-2">
-              <div className="col-span-7 text-sm text-slate-700">
-                {l.item_name} <span className="text-xs text-slate-400">({l.item_sku})</span>
-                <p className="text-xs text-slate-400">
+            <div key={l.id} className="grid grid-cols-12 items-center gap-2 rounded-xl border border-slate-200 p-3">
+              <div className="col-span-7 text-sm text-slate-900">
+                <label htmlFor={`inventory-issue-${l.id}`} className="font-medium">
+                  {l.item_name} <span className="text-xs font-normal text-slate-600">({l.item_sku})</span>
+                </label>
+                <p className="text-xs text-slate-600">
                   Requested {l.qty_requested} {l.unit_of_measure} · issued {l.qty_issued}
                 </p>
               </div>
               <div className="col-span-5">
-                <Input
+                <input
+                  id={`inventory-issue-${l.id}`}
                   type="number"
                   min="0"
                   max={l.remaining}
@@ -684,6 +703,7 @@ function IssueRequisitionDialog({
                   value={qtyByLine[l.id] ?? ""}
                   onChange={(e) => setQtyByLine((prev) => ({ ...prev, [l.id]: e.target.value }))}
                   placeholder="Qty to issue"
+                  className={`${hmsInput} disabled:bg-slate-50 disabled:text-slate-600`}
                 />
               </div>
             </div>

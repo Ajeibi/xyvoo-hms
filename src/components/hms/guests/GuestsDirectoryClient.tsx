@@ -1,21 +1,34 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { Crown, MessageSquareText, Repeat, Search, SearchX, Users } from "lucide-react";
+import {
+  HmsCard,
+  HmsEmptyState,
+  HmsPage,
+  HmsPageHeader,
+  HmsPill,
+  HmsStatStrip,
+  HmsStatTile,
+  hmsButton,
+  hmsInput,
+} from "@/components/hms/hms-ui";
+import { HmsFilterChips, HmsSectionIntro } from "@/components/hms/hms-ui-client";
 import { formatBoardDateTime } from "@/lib/hms/front-desk-board";
 import type { GuestDirectoryPayload } from "@/lib/hms/guests-directory";
 
 const GUESTS_PAGE_SIZE = 5;
 
-function SummaryCard({ label, value, subtitle }: { label: string; value: number; subtitle?: string }) {
+const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2";
+
+function Nothing() {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4">
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">{value}</p>
-      {subtitle ? <p className="mt-1 text-[11px] leading-snug text-slate-500">{subtitle}</p> : null}
-    </div>
+    <span className="text-slate-600">
+      <span aria-hidden>—</span>
+      <span className="sr-only">None</span>
+    </span>
   );
 }
 
@@ -53,143 +66,215 @@ export function GuestsDirectoryClient({ slug, initial }: { slug: string; initial
   }, [slug, search, vipOnly, page]);
 
   const totalPages = Math.max(1, Math.ceil(payload.total / GUESTS_PAGE_SIZE));
+  const noGuestsAtAll = payload.total === 0 && !search.trim() && !vipOnly;
 
   return (
-    <div className="w-full px-4 py-8 sm:px-6 lg:px-8">
-      <h1 className="text-xl font-semibold text-slate-900">Guests</h1>
-      <p className="mt-0.5 text-sm text-slate-500">Guest profiles and stay history</p>
+    <HmsPage wide>
+      <HmsPageHeader
+        eyebrow="Guests"
+        meaning="guests"
+        title="Guests"
+        description="Everyone who has stayed with you, with their contact details and stay history."
+      />
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <SummaryCard label="Total guests" value={payload.summary.totalGuests} />
-        <SummaryCard label="VIP" value={payload.summary.vipGuests} />
-        <SummaryCard label="With open requests" value={payload.summary.withOpenRequests} />
-        <SummaryCard label="Repeat guests" value={payload.summary.repeatGuests} subtitle="More than one stay" />
-      </div>
+      <HmsSectionIntro
+        id="guests"
+        meaning="guests"
+        art="people"
+        title="Get to know your guests"
+        points={[
+          "A guest is added here when they book or check in, so returning guests are easy to recognise.",
+          "Open a guest to see their past stays, what they've spent and any notes your team has made.",
+          "Mark someone as a VIP or add a note so the whole team knows the little things.",
+        ]}
+      />
 
-      <div className="mt-6 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div>
-          <p className="mb-1 text-xs font-medium text-slate-600">Search</p>
-          <Input
-            className="max-w-xs"
-            placeholder="Name, phone, email…"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-          />
+      <HmsStatStrip label="Your guests in figures">
+        <HmsStatTile label="Guests" value={payload.summary.totalGuests} icon={Users} meaning="guests" hint="Everyone on record" />
+        <HmsStatTile label="VIP guests" value={payload.summary.vipGuests} icon={Crown} meaning="guests" hint="Marked for extra care" />
+        <HmsStatTile
+          label="With open requests"
+          value={payload.summary.withOpenRequests}
+          icon={MessageSquareText}
+          meaning="guests"
+          hint="Waiting on the team"
+        />
+        <HmsStatTile label="Came back" value={payload.summary.repeatGuests} icon={Repeat} meaning="guests" hint="More than one stay" />
+      </HmsStatStrip>
+
+      <div className="space-y-3">
+        <div className="max-w-md">
+          <label htmlFor="guests-search" className="mb-1 block text-sm font-medium text-slate-800">
+            Search guests
+          </label>
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden />
+            <input
+              id="guests-search"
+              type="search"
+              className={`${hmsInput} pl-10`}
+              placeholder="Name, phone or email"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+            />
+          </div>
         </div>
-        <label className="mb-0.5 flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={vipOnly}
-            onChange={(e) => {
-              setVipOnly(e.target.checked);
+        <div className="flex flex-wrap items-center gap-3">
+          <HmsFilterChips
+            label="Show"
+            meaning="guests"
+            options={[
+              { value: "all", label: "Everyone", count: payload.summary.totalGuests },
+              { value: "vip", label: "VIP only", count: payload.summary.vipGuests },
+            ]}
+            value={vipOnly ? "vip" : "all"}
+            onChange={(v) => {
+              setVipOnly(v === "vip");
               setPage(1);
             }}
           />
-          VIP only
-        </label>
-        {loading ? <span className="mb-0.5 text-xs text-slate-400">Searching…</span> : null}
+          <span role="status" className="text-sm text-slate-600">
+            {loading ? "Searching…" : ""}
+          </span>
+        </div>
       </div>
 
-      <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <HmsCard
+        id="guests-list"
+        icon={Users}
+        meaning="guests"
+        title="Your guests"
+        description="Open a guest to see their stays, their bills and notes about them."
+        flush
+      >
         {payload.rows.length === 0 ? (
-          <p className="p-16 text-center text-sm text-slate-500">
-            {payload.total === 0 && !search.trim() && !vipOnly ? "No guests yet." : "No guests match your filters."}
-          </p>
-        ) : (
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-slate-100 text-xs font-medium uppercase tracking-wide text-slate-400">
-                <th className="py-3 pl-6 pr-4 font-medium">Name</th>
-                <th className="py-3 pr-4 font-medium">Contact</th>
-                <th className="py-3 pr-4 font-medium">Tags</th>
-                <th className="py-3 pr-4 text-center font-medium">Visits</th>
-                <th className="py-3 pr-4 text-center font-medium">Open requests</th>
-                <th className="py-3 pr-6 font-medium">Last stay</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {payload.rows.map((g) => (
-                <tr
-                  key={g.id}
-                  className="cursor-pointer transition-colors hover:bg-slate-50"
-                  onClick={() => router.push(`/hms/${slug}/guests/${g.id}`)}
+          noGuestsAtAll ? (
+            <HmsEmptyState
+              bare
+              art="people"
+              meaning="guests"
+              title="No guests yet"
+              description="Guests appear here after their first booking or check-in, with their stays and notes in one place."
+            />
+          ) : (
+            <HmsEmptyState
+              bare
+              icon={SearchX}
+              meaning="guests"
+              title="No guests match"
+              description="Try a different name, phone number or email, or show everyone."
+              action={
+                <button
+                  type="button"
+                  className={`${hmsButton.secondary} ${focusRing}`}
+                  onClick={() => {
+                    setSearch("");
+                    setVipOnly(false);
+                    setPage(1);
+                  }}
                 >
-                  <td className="whitespace-nowrap py-3 pl-6 pr-4">
-                    <span className="font-medium text-slate-900">{g.displayName}</span>
-                    {g.isVip ? (
-                      <span className="ml-2 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
-                        VIP
-                      </span>
-                    ) : null}
-                  </td>
-                  <td className="whitespace-nowrap py-3 pr-4 text-slate-600">
-                    {g.phone}
-                    <br />
-                    {g.email}
-                  </td>
-                  <td className="py-3 pr-4 text-slate-600">
-                    {g.tags.length > 0 ? (
-                      <span className="flex flex-wrap gap-1">
-                        {g.tags.map((t) => (
-                          <span
-                            key={t}
-                            className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-600"
-                          >
-                            {t}
-                          </span>
-                        ))}
-                      </span>
-                    ) : (
-                      <span className="text-slate-400">—</span>
-                    )}
-                  </td>
-                  <td className="py-3 pr-4 text-center tabular-nums text-slate-700">{g.visitCount}</td>
-                  <td className="py-3 pr-4 text-center">
-                    {g.openRequestCount > 0 ? (
-                      <span className="inline-flex rounded-full bg-violet-50 px-2.5 py-1 text-xs font-medium text-violet-700">
-                        {g.openRequestCount} open
-                      </span>
-                    ) : (
-                      <span className="text-slate-400">—</span>
-                    )}
-                  </td>
-                  <td className="whitespace-nowrap py-3 pr-6 text-slate-600">
-                    {g.lastStayAt ? formatBoardDateTime(g.lastStayAt) : "—"}
-                  </td>
+                  Show everyone
+                </button>
+              }
+            />
+          )
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <caption className="sr-only">Guests, {payload.total} found</caption>
+              <thead className="bg-slate-50 text-sm text-slate-700">
+                <tr>
+                  <th scope="col" className="py-3 pl-6 pr-4 font-semibold">Name</th>
+                  <th scope="col" className="py-3 pr-4 font-semibold">Contact</th>
+                  <th scope="col" className="py-3 pr-4 font-semibold">Tags</th>
+                  <th scope="col" className="py-3 pr-4 text-center font-semibold">Stays</th>
+                  <th scope="col" className="py-3 pr-4 text-center font-semibold">Open requests</th>
+                  <th scope="col" className="py-3 pr-6 font-semibold">Last stay</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {payload.rows.map((g) => (
+                  <tr
+                    key={g.id}
+                    className="cursor-pointer transition-colors hover:bg-amber-50/40"
+                    onClick={() => router.push(`/hms/${slug}/guests/${g.id}`)}
+                  >
+                    <td className="whitespace-nowrap py-3 pl-6 pr-4">
+                      <Link
+                        href={`/hms/${slug}/guests/${g.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className={`rounded font-medium text-slate-900 hover:text-blue-700 hover:underline ${focusRing}`}
+                      >
+                        {g.displayName}
+                      </Link>
+                      {g.isVip ? (
+                        <span className="ml-2">
+                          <HmsPill tone="amber">VIP</HmsPill>
+                        </span>
+                      ) : null}
+                    </td>
+                    <td className="whitespace-nowrap py-3 pr-4 text-slate-700">
+                      {g.phone}
+                      <br />
+                      {g.email}
+                    </td>
+                    <td className="py-3 pr-4 text-slate-700">
+                      {g.tags.length > 0 ? (
+                        <span className="flex flex-wrap gap-1">
+                          {g.tags.map((t) => (
+                            <HmsPill key={t}>{t}</HmsPill>
+                          ))}
+                        </span>
+                      ) : (
+                        <Nothing />
+                      )}
+                    </td>
+                    <td className="py-3 pr-4 text-center tabular-nums text-slate-700">{g.visitCount}</td>
+                    <td className="py-3 pr-4 text-center">
+                      {g.openRequestCount > 0 ? <HmsPill tone="amber">{g.openRequestCount} open</HmsPill> : <Nothing />}
+                    </td>
+                    <td className="whitespace-nowrap py-3 pr-6 text-slate-700">
+                      {g.lastStayAt ? formatBoardDateTime(g.lastStayAt) : <Nothing />}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
-      </div>
+      </HmsCard>
 
       {payload.total > 0 ? (
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
+        <nav aria-label="Pages of guests" className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-700">
           <p>
-            Showing {(page - 1) * GUESTS_PAGE_SIZE + 1}–{Math.min(page * GUESTS_PAGE_SIZE, payload.total)} of {payload.total}
+            Showing {(page - 1) * GUESTS_PAGE_SIZE + 1} to {Math.min(page * GUESTS_PAGE_SIZE, payload.total)} of {payload.total}
           </p>
           <div className="flex items-center gap-2">
-            <Button type="button" variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage(Math.max(1, page - 1))}>
+            <button
+              type="button"
+              className={`${hmsButton.secondary} px-3 py-1.5 ${focusRing}`}
+              disabled={page <= 1}
+              onClick={() => setPage(Math.max(1, page - 1))}
+            >
               Previous
-            </Button>
-            <span className="px-2 text-xs font-medium text-slate-500">
+            </button>
+            <span className="px-2 text-sm font-medium text-slate-700">
               Page {page} of {totalPages}
             </span>
-            <Button
+            <button
               type="button"
-              variant="outline"
-              size="sm"
+              className={`${hmsButton.secondary} px-3 py-1.5 ${focusRing}`}
               disabled={page >= totalPages}
               onClick={() => setPage(Math.min(totalPages, page + 1))}
             >
               Next
-            </Button>
+            </button>
           </div>
-        </div>
+        </nav>
       ) : null}
-    </div>
+    </HmsPage>
   );
 }

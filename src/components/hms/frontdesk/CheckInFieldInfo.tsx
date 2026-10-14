@@ -21,9 +21,9 @@ export function CheckInFieldInfo({ label, text, className }: CheckInFieldInfoPro
         <button
           type="button"
           className={cn(
-            "inline-flex size-7 shrink-0 items-center justify-center rounded-md text-slate-400 transition-colors",
-            "hover:bg-slate-100 hover:text-slate-700",
-            "focus-visible:outline-none",
+            "inline-flex size-7 shrink-0 items-center justify-center rounded-md text-slate-500 transition-colors",
+            "hover:bg-slate-100 hover:text-slate-800",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
             className,
           )}
           aria-label={`Explain: ${label}`}
@@ -57,7 +57,7 @@ export function CheckInFieldLabelRow({
 }: CheckInFieldLabelRowProps) {
   return (
     <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-      <label htmlFor={htmlFor} className="text-sm font-medium text-slate-700">
+      <label htmlFor={htmlFor} className="text-sm font-medium text-slate-800">
         {children}
         {required ? <span className="text-rose-600"> *</span> : null}
       </label>

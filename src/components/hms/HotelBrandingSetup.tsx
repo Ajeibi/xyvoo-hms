@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { ImagePlus } from "lucide-react";
+import { ImagePlus, Palette } from "lucide-react";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { SettingsSectionInfo } from "@/components/hms/settings/SettingsSectionInfo";
+import { HmsAlert, HmsCard, HmsField, hmsButton, hmsInput } from "@/components/hms/hms-ui";
 
 export default function HotelBrandingSetup({
   slug,
@@ -52,78 +53,85 @@ export default function HotelBrandingSetup({
     if (data.logo_url) setPreviewUrl(data.logo_url);
   };
 
+  const nameId = `hotel-name-${slug}`;
+
   return (
-    <form onSubmit={handleSave} className="bg-white border border-slate-200 rounded-xl p-6 space-y-4">
-      <div className="flex flex-wrap items-center gap-1.5">
-        <h2 className="text-sm font-semibold text-slate-800">Hotel Branding</h2>
-        <SettingsSectionInfo
-          title="Hotel Branding"
-          text="The name and logo shown at the top-left of every HMS page, on printed registration cards, and on the public guest menu. Set this up once — it rarely needs to change."
-        />
-      </div>
-      <p className="text-xs text-slate-500">Update logo and dashboard name shown at the top-left of HMS.</p>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-xs font-medium text-slate-500 mb-1.5">Hotel name</label>
-          <input
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-800"
-            placeholder="Hotel name"
-            required
+    <div id="hotel-branding-setup" className="scroll-mt-24">
+      <HmsCard
+        id="hotel-branding"
+        title="Hotel branding"
+        description="The name and logo your team sees at the top of every page."
+        icon={Palette}
+        meaning="guests"
+        actions={
+          <SettingsSectionInfo
+            title="Hotel branding"
+            text="The name and logo shown at the top-left of every HMS page, on printed registration cards, and on the public guest menu. Set this up once — it rarely needs to change."
           />
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-slate-500 mb-1.5">Logo (max 2MB)</label>
-          <input
-            id={fileInputId}
-            type="file"
-            accept="image/*"
-            onChange={(e) => onLogoChange(e.target.files?.[0] || null)}
-            className="sr-only"
-          />
-          <label
-            htmlFor={fileInputId}
-            className="flex cursor-pointer items-center gap-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4 transition-colors hover:border-blue-400 hover:bg-blue-50/40"
-          >
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white">
-              {previewUrl ? (
-                <img src={previewUrl} alt="Logo preview" className="h-full w-full object-contain" />
-              ) : (
-                <ImagePlus className="h-6 w-6 text-slate-400" />
-              )}
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-slate-800">
-                {logoFile ? "Replace logo" : "Upload logo"}
-              </p>
-              <p className="mt-0.5 text-xs text-slate-500">
-                PNG, JPG or WEBP. Recommended square image, up to 2MB.
-              </p>
-              <p className="mt-1 truncate text-xs text-slate-400">
-                {logoFile ? logoFile.name : "Click to choose an image"}
-              </p>
-            </div>
-          </label>
-        </div>
-      </div>
-
-      {previewUrl ? (
-        <div className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg">
-          <img src={previewUrl} alt="Logo preview" className="h-10 w-10 rounded object-contain bg-slate-50" />
-          <p className="text-xs text-slate-500">Current logo preview</p>
-        </div>
-      ) : null}
-
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
-      <button
-        type="submit"
-        disabled={loading}
-        className="px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-60"
+        }
       >
-        {loading ? "Saving..." : "Save Branding"}
-      </button>
-    </form>
+        <form onSubmit={handleSave} className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <HmsField id={nameId} label="Hotel name" hint="Shown at the top of every page and on registration cards.">
+              <input
+                id={nameId}
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                className={hmsInput}
+                placeholder="Hotel name"
+                aria-describedby={`${nameId}-hint`}
+                required
+              />
+            </HmsField>
+            <div>
+              <p aria-hidden className="mb-1 block text-sm font-medium text-slate-800">
+                Logo
+              </p>
+              <input
+                id={fileInputId}
+                type="file"
+                accept="image/*"
+                onChange={(e) => onLogoChange(e.target.files?.[0] || null)}
+                aria-describedby={`${fileInputId}-hint`}
+                className="peer sr-only"
+              />
+              <label
+                htmlFor={fileInputId}
+                className="flex cursor-pointer items-center gap-4 rounded-xl border border-dashed border-slate-300 bg-amber-50/50 px-4 py-4 transition-colors hover:border-amber-400 hover:bg-amber-50 peer-focus-visible:ring-2 peer-focus-visible:ring-blue-500"
+              >
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white">
+                  {previewUrl ? (
+                    <img src={previewUrl} alt="" className="h-full w-full object-contain" />
+                  ) : (
+                    <ImagePlus className="h-6 w-6 text-amber-600" aria-hidden />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-900">{logoFile ? "Replace logo" : "Upload logo"}</p>
+                  <p id={`${fileInputId}-hint`} className="mt-0.5 text-xs text-slate-600">
+                    PNG, JPG or WEBP. A square image works best, up to 2MB.
+                  </p>
+                  <p className="mt-1 truncate text-xs text-slate-700">
+                    {logoFile ? logoFile.name : "Choose an image"}
+                  </p>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {previewUrl ? (
+            <div className="flex items-center gap-3 rounded-xl border border-slate-200 p-3">
+              <img src={previewUrl} alt="Your current logo" className="h-10 w-10 rounded bg-slate-50 object-contain" />
+              <p className="text-sm text-slate-700">Current logo</p>
+            </div>
+          ) : null}
+
+          <HmsAlert message={error} />
+          <button type="submit" disabled={loading} className={hmsButton.primary}>
+            {loading ? "Saving…" : "Save branding"}
+          </button>
+        </form>
+      </HmsCard>
+    </div>
   );
 }

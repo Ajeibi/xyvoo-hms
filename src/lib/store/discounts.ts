@@ -22,6 +22,10 @@ export type DiscountCode = {
   usageLimit: number | null;
   perCustomerLimit: number | null;
   isActive: boolean;
+  /** Show the code across the shop with a countdown to its last day. */
+  showBanner: boolean;
+  /** Set on a customer's friend code: the account that shared it. Not shown in the shop's discount list. */
+  referralAccountId: string | null;
   createdAt: string;
 };
 
@@ -39,11 +43,13 @@ export type DiscountCodeRow = {
   usage_limit: number | null;
   per_customer_limit: number | null;
   is_active: boolean;
+  show_banner?: boolean | null;
+  referral_account_id?: string | null;
   created_at: string;
 };
 
 export const DISCOUNT_COLUMNS =
-  "id, code, description, kind, value, product_ids, collection_ids, min_subtotal, starts_at, ends_at, usage_limit, per_customer_limit, is_active, created_at";
+  "id, code, description, kind, value, product_ids, collection_ids, min_subtotal, starts_at, ends_at, usage_limit, per_customer_limit, is_active, show_banner, referral_account_id, created_at";
 
 export function mapDiscountCode(row: DiscountCodeRow): DiscountCode {
   return {
@@ -60,6 +66,8 @@ export function mapDiscountCode(row: DiscountCodeRow): DiscountCode {
     usageLimit: row.usage_limit,
     perCustomerLimit: row.per_customer_limit,
     isActive: row.is_active,
+    showBanner: Boolean(row.show_banner),
+    referralAccountId: row.referral_account_id ?? null,
     createdAt: row.created_at,
   };
 }
@@ -105,6 +113,7 @@ export const discountInputSchema = z
     usageLimit: optionalPositive("The number of uses must be at least 1, or left empty.").refine((v) => v === null || Number.isInteger(v), "Use a whole number."),
     perCustomerLimit: optionalPositive("The uses per customer must be at least 1, or left empty.").refine((v) => v === null || Number.isInteger(v), "Use a whole number."),
     isActive: z.boolean().default(true),
+    showBanner: z.boolean().default(false),
   })
   .transform((d) => (d.kind === "free_delivery" ? { ...d, value: 0 } : d))
   .superRefine((d, ctx) => {
@@ -112,6 +121,7 @@ export const discountInputSchema = z
       ctx.addIssue({ code: "custom", path: ["value"], message: "Enter how much the code takes off." });
     }
     if (d.kind === "percent" && d.value > 100) ctx.addIssue({ code: "custom", path: ["value"], message: "A percentage can't be more than 100." });
+    if (d.showBanner && !d.endsAt) ctx.addIssue({ code: "custom", path: ["showBanner"], message: "Choose a last day to show a countdown." });
     if (d.startsAt && d.endsAt && new Date(d.endsAt) <= new Date(d.startsAt)) {
       ctx.addIssue({ code: "custom", path: ["endsAt"], message: "The end date must be after the start date." });
     }
@@ -133,6 +143,7 @@ export function toDiscountRow(input: DiscountInput) {
     usage_limit: input.usageLimit,
     per_customer_limit: input.perCustomerLimit,
     is_active: input.isActive,
+    show_banner: input.showBanner,
   };
 }
 
@@ -191,6 +202,20 @@ export function describeDiscount(
   const scope = code.productIds.length || code.collectionIds.length ? "selected products" : "everything";
   const min = code.minSubtotal != null ? `, on orders over ${formatMoney(code.minSubtotal)}` : "";
   return `${amount} ${scope}${min}`;
+}
+
+/** "2 days 4 hours left", "5 hours 12 minutes left" or "23 minutes left"; null once it has ended. */
+export function countdownLabel(endsAt: string, now: Date) {
+  const ms = new Date(endsAt).getTime() - now.getTime();
+  if (!Number.isFinite(ms) || ms <= 0) return null;
+  const plural = (n: number, unit: string) => `${n} ${unit}${n === 1 ? "" : "s"}`;
+  const minutes = Math.max(1, Math.ceil(ms / 60_000));
+  const days = Math.floor(minutes / 1440);
+  const hours = Math.floor((minutes % 1440) / 60);
+  const mins = minutes % 60;
+  if (days >= 1) return `${hours ? `${plural(days, "day")} ${plural(hours, "hour")}` : plural(days, "day")} left`;
+  if (hours >= 1) return `${mins ? `${plural(hours, "hour")} ${plural(mins, "minute")}` : plural(hours, "hour")} left`;
+  return `${plural(mins, "minute")} left`;
 }
 
 /** Where a code stands today, for the dashboard. */

@@ -12,6 +12,7 @@ export default async function MaintenancePage({
     <HMSLayout slug={slug} requiredSection="maintenance">
       <DepartmentDashboardScaffold
         title="Maintenance"
+        meaning="care"
         subtitle="Coordinate work orders, planned servicing, and room recovery from one maintenance dashboard."
         settingsHref={`/hms/${slug}/maintenance/settings`}
         highlights={[

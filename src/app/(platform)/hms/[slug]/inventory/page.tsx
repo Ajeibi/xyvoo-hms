@@ -1,4 +1,5 @@
 import HMSLayout from "@/components/hms/HMSLayout";
+import { HmsPage, HmsPageHeader } from "@/components/hms/hms-ui";
 import { InventoryDashboardClient } from "@/components/hms/inventory/InventoryDashboardClient";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { getHmsAccessContext } from "@/lib/hms/access";
@@ -13,10 +14,9 @@ export default async function InventoryPage({ params }: { params: Promise<{ slug
   if (!tenant) {
     return (
       <HMSLayout slug={slug} requiredSection="inventory">
-        <div className="px-8 py-8">
-          <h1 className="text-xl font-semibold text-slate-900">Inventory</h1>
-          <p className="mt-0.5 text-sm text-slate-500">Hotel not found.</p>
-        </div>
+        <HmsPage>
+          <HmsPageHeader eyebrow="Inventory" meaning="stock" title="Inventory" description="Hotel not found." />
+        </HmsPage>
       </HMSLayout>
     );
   }

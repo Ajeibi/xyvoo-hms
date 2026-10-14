@@ -2,16 +2,18 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { formatDateTime } from "@/lib/format-date";
 import type { ChartOfAccountRow } from "@/lib/hms/chart-of-accounts";
 import { ACCOUNTS_DEPARTMENTS } from "@/lib/hms/journal-entries";
 import type { VendorBillRow } from "@/lib/hms/vendor-bills";
 import { AccountsSubNav } from "@/components/hms/accounts/AccountsSubNav";
+import { HmsCard, HmsEmptyState, HmsField, HmsPage, HmsPageHeader, HmsPill, hmsButton, hmsInput } from "@/components/hms/hms-ui";
+import { HmsSectionIntro } from "@/components/hms/hms-ui-client";
+import { Plus, ReceiptText } from "lucide-react";
 
 type VendorOption = { id: string; name: string; currency: string };
 
@@ -23,6 +25,19 @@ const STATUS_LABEL: Record<string, string> = {
   cancelled: "Cancelled",
   paid: "Paid",
 };
+
+const STATUS_TONE: Record<string, "slate" | "green" | "amber" | "red" | "blue"> = {
+  draft: "slate",
+  pending_approval: "amber",
+  approved: "green",
+  rejected: "red",
+  cancelled: "slate",
+  paid: "green",
+};
+
+function isPastDue(dueDate: string | null) {
+  return !!dueDate && dueDate.slice(0, 10) < new Date().toISOString().slice(0, 10);
+}
 
 function emptyForm(defaultDepartment: string, defaultCurrency: string) {
   return {
@@ -236,138 +251,167 @@ export function AccountsVendorBillsClient({
   };
 
   return (
-    <div className="w-full px-6 py-8 sm:px-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900">Vendor bills</h1>
-          <p className="mt-0.5 text-sm text-slate-500">
-            Accounts Payable. A bill posts to the ledger once approved — below every configured threshold, that happens automatically.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          {canRecordPayment && selectedIds.size > 0 ? (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setPaymentAmounts(Object.fromEntries(selectedBills.map((b) => [b.id, String(remainingFor(b))])));
-                setPayOpen(true);
-              }}
-            >
-              Pay selected ({selectedIds.size})
-            </Button>
-          ) : null}
-          {canCreate ? (
-            <Button type="button" onClick={() => setCreateOpen(true)} disabled={accounts.length === 0 || vendors.length === 0}>
-              New bill
-            </Button>
-          ) : null}
-        </div>
-      </div>
+    <HmsPage wide>
+      <HmsPageHeader
+        eyebrow="Accounts"
+        meaning="money"
+        title="Vendor bills"
+        description="Money the hotel owes suppliers. A bill posts to the ledger once it's approved; below your approval limits that happens automatically."
+        actions={
+          <>
+            {canRecordPayment && selectedIds.size > 0 ? (
+              <button
+                type="button"
+                className={hmsButton.secondary}
+                onClick={() => {
+                  setPaymentAmounts(Object.fromEntries(selectedBills.map((b) => [b.id, String(remainingFor(b))])));
+                  setPayOpen(true);
+                }}
+              >
+                Pay selected ({selectedIds.size})
+              </button>
+            ) : null}
+            {canCreate ? (
+              <button
+                type="button"
+                className={hmsButton.primary}
+                onClick={() => setCreateOpen(true)}
+                disabled={accounts.length === 0 || vendors.length === 0}
+              >
+                <Plus className="h-4 w-4" aria-hidden />
+                New bill
+              </button>
+            ) : null}
+          </>
+        }
+      />
 
       <AccountsSubNav slug={slug} canAccessAllDepartments={canAccessAllDepartments} />
 
+      <HmsSectionIntro
+        id="accounts-bills"
+        meaning="money"
+        art="page"
+        title="Keeping track of what you owe"
+        points={[
+          "Record each supplier invoice as a bill so it shows in what you owe.",
+          "Bills above your approval limit wait for a manager to approve them.",
+          "Tick approved bills, then choose Pay selected when you pay them.",
+        ]}
+      />
+
       {vendors.length === 0 ? (
-        <div className="mt-6 rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
-          No active vendors yet — add one in Procurement → Vendors first.
-        </div>
-      ) : bills.length === 0 ? (
-        <div className="mt-6 rounded-xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">
-          No vendor bills yet.
-        </div>
+        <HmsEmptyState
+          art="page"
+          meaning="money"
+          title="No active vendors yet"
+          description="Bills are recorded against a vendor, so add one in Procurement first."
+          action={
+            <Link href={`/hms/${slug}/procurement/vendors`} className={hmsButton.primary}>
+              Go to vendors
+            </Link>
+          }
+        />
       ) : (
-        <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[880px] text-left text-sm">
-              <thead className="border-b bg-slate-50 text-xs font-semibold uppercase text-slate-500">
-                <tr>
-                  {canRecordPayment ? <th className="px-4 py-3" /> : null}
-                  <th className="px-4 py-3">Vendor</th>
-                  <th className="px-4 py-3">Reference</th>
-                  <th className="px-4 py-3">Department</th>
-                  <th className="px-4 py-3">Account</th>
-                  <th className="px-4 py-3 text-right">Total</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {bills.map((b) => {
-                  const busy = busyIds.has(b.id);
-                  return (
-                    <tr key={b.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/80">
-                      {canRecordPayment ? (
-                        <td className="px-4 py-2.5">
-                          {b.status === "approved" ? (
-                            <input
-                              type="checkbox"
-                              checked={selectedIds.has(b.id)}
-                              onChange={() => toggleSelected(b.id)}
-                              aria-label={`Select bill from ${b.vendorName} for payment`}
-                            />
+        <HmsCard id="accounts-bills-list" title="Bills" icon={ReceiptText} meaning="money" flush>
+          {bills.length === 0 ? (
+            <HmsEmptyState
+              bare
+              art="page"
+              meaning="money"
+              title="No vendor bills yet"
+              description="Bills you record will appear here with what's still to pay on each."
+            />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[880px] text-left text-sm">
+                <thead className="border-b border-slate-200 bg-slate-50 text-sm font-medium text-slate-600">
+                  <tr>
+                    {canRecordPayment ? (
+                      <th scope="col" className="w-12 px-5 py-3">
+                        <span className="sr-only">Select</span>
+                      </th>
+                    ) : null}
+                    <th scope="col" className="px-5 py-3">Vendor</th>
+                    <th scope="col" className="px-5 py-3">Reference</th>
+                    <th scope="col" className="px-5 py-3">Department</th>
+                    <th scope="col" className="px-5 py-3">Account</th>
+                    <th scope="col" className="px-5 py-3 text-right">Total</th>
+                    <th scope="col" className="px-5 py-3">Status</th>
+                    <th scope="col" className="px-5 py-3">
+                      <span className="sr-only">Actions</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bills.map((b) => {
+                    const busy = busyIds.has(b.id);
+                    const overdue = b.status === "approved" && isPastDue(b.dueDate);
+                    return (
+                      <tr key={b.id} className={`border-b border-slate-100 last:border-0 hover:bg-slate-50 ${selectedIds.has(b.id) ? "bg-emerald-50/60" : ""}`}>
+                        {canRecordPayment ? (
+                          <td className="px-5 py-3">
+                            {b.status === "approved" ? (
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4 rounded border-slate-300 accent-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                                checked={selectedIds.has(b.id)}
+                                onChange={() => toggleSelected(b.id)}
+                                aria-label={`Select bill from ${b.vendorName} for payment`}
+                              />
+                            ) : null}
+                          </td>
+                        ) : null}
+                        <td className="px-5 py-3 font-medium text-slate-900">{b.vendorName}</td>
+                        <td className="px-5 py-3 text-slate-700">
+                          {b.billReference ?? "—"}
+                          <p className="text-sm text-slate-600">{formatDateTime(b.createdAt)}</p>
+                        </td>
+                        <td className="px-5 py-3 text-slate-700">{b.department}</td>
+                        <td className="px-5 py-3 text-slate-700">
+                          {b.expenseAccountCode} {b.expenseAccountName}
+                        </td>
+                        <td className="whitespace-nowrap px-5 py-3 text-right tabular-nums text-slate-900">
+                          {b.total.toFixed(2)} {b.currency}
+                          {b.amountPaid > 0 && b.status !== "paid" ? (
+                            <p className="text-sm font-normal text-amber-800">{remainingFor(b).toFixed(2)} remaining</p>
                           ) : null}
                         </td>
-                      ) : null}
-                      <td className="px-4 py-2.5 font-medium text-slate-900">{b.vendorName}</td>
-                      <td className="px-4 py-2.5 text-slate-600">
-                        {b.billReference ?? "—"}
-                        <p className="text-xs text-slate-400">{formatDateTime(b.createdAt)}</p>
-                      </td>
-                      <td className="px-4 py-2.5 text-slate-600">{b.department}</td>
-                      <td className="px-4 py-2.5 text-slate-600">
-                        {b.expenseAccountCode} {b.expenseAccountName}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums text-slate-700">
-                        {b.total.toFixed(2)} {b.currency}
-                        {b.amountPaid > 0 && b.status !== "paid" ? (
-                          <p className="text-[11px] font-normal text-amber-600">{remainingFor(b).toFixed(2)} remaining</p>
-                        ) : null}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <span
-                          className={cn(
-                            "rounded-full px-2 py-0.5 text-xs font-semibold",
-                            b.status === "approved" && "bg-emerald-100 text-emerald-900",
-                            b.status === "paid" && "bg-emerald-100 text-emerald-900",
-                            b.status === "rejected" && "bg-red-100 text-red-800",
-                            b.status === "cancelled" && "bg-slate-200 text-slate-700",
-                            b.status === "pending_approval" && "bg-amber-100 text-amber-900",
-                            b.status === "draft" && "bg-slate-100 text-slate-700",
-                          )}
-                        >
-                          {STATUS_LABEL[b.status] ?? b.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2.5">
-                        {b.status === "pending_approval" && canApprove ? (
-                          <div className="flex gap-2">
-                            <Button type="button" size="sm" disabled={busy} onClick={() => void approve(b.id)}>
-                              {busy ? "Approving…" : "Approve"}
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              disabled={busy}
-                              onClick={() => {
-                                setRejectTarget(b.id);
-                                setRejectReason("");
-                              }}
-                            >
-                              Reject
-                            </Button>
+                        <td className="px-5 py-3">
+                          <div className="flex flex-wrap gap-1.5">
+                            <HmsPill tone={STATUS_TONE[b.status] ?? "slate"}>{STATUS_LABEL[b.status] ?? b.status}</HmsPill>
+                            {overdue ? <HmsPill tone="red">Overdue</HmsPill> : null}
                           </div>
-                        ) : (
-                          <span className="text-xs text-slate-400">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                        </td>
+                        <td className="px-5 py-3">
+                          {b.status === "pending_approval" && canApprove ? (
+                            <div className="flex justify-end gap-2">
+                              <Button type="button" size="sm" disabled={busy} onClick={() => void approve(b.id)}>
+                                {busy ? "Approving…" : "Approve"}
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                disabled={busy}
+                                onClick={() => {
+                                  setRejectTarget(b.id);
+                                  setRejectReason("");
+                                }}
+                              >
+                                Reject
+                              </Button>
+                            </div>
+                          ) : null}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </HmsCard>
       )}
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
@@ -375,11 +419,11 @@ export function AccountsVendorBillsClient({
           <DialogHeader>
             <DialogTitle>New vendor bill</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <p className="mb-1 text-xs font-medium text-slate-600">Vendor</p>
+          <div className="max-h-[70vh] space-y-4 overflow-y-auto px-0.5">
+            <HmsField id="bill-vendor" label="Vendor">
               <select
-                className="h-10 w-full rounded-lg border border-input px-3 text-sm"
+                id="bill-vendor"
+                className={hmsInput}
                 value={form.vendorId}
                 onChange={(e) => {
                   const vendor = vendors.find((v) => v.id === e.target.value);
@@ -393,12 +437,12 @@ export function AccountsVendorBillsClient({
                   </option>
                 ))}
               </select>
-            </div>
+            </HmsField>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <p className="mb-1 text-xs font-medium text-slate-600">Department</p>
+              <HmsField id="bill-department" label="Department">
                 <select
-                  className="h-10 w-full rounded-lg border border-input px-3 text-sm"
+                  id="bill-department"
+                  className={hmsInput}
                   value={form.department}
                   onChange={(e) => setForm((s) => ({ ...s, department: e.target.value }))}
                 >
@@ -408,30 +452,29 @@ export function AccountsVendorBillsClient({
                     </option>
                   ))}
                 </select>
-              </div>
-              <div>
-                <p className="mb-1 text-xs font-medium text-slate-600">Bill reference</p>
-                <Input
+              </HmsField>
+              <HmsField id="bill-reference" label="Bill reference">
+                <input
+                  id="bill-reference"
+                  className={hmsInput}
                   value={form.billReference}
                   onChange={(e) => setForm((s) => ({ ...s, billReference: e.target.value }))}
                   placeholder="Vendor's invoice #"
                 />
-              </div>
+              </HmsField>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <p className="mb-1 text-xs font-medium text-slate-600">Bill date</p>
-                <Input type="date" value={form.billDate} onChange={(e) => setForm((s) => ({ ...s, billDate: e.target.value }))} />
-              </div>
-              <div>
-                <p className="mb-1 text-xs font-medium text-slate-600">Due date (optional)</p>
-                <Input type="date" value={form.dueDate} onChange={(e) => setForm((s) => ({ ...s, dueDate: e.target.value }))} />
-              </div>
+              <HmsField id="bill-date" label="Bill date">
+                <input id="bill-date" type="date" className={hmsInput} value={form.billDate} onChange={(e) => setForm((s) => ({ ...s, billDate: e.target.value }))} />
+              </HmsField>
+              <HmsField id="bill-due" label="Due date" optional>
+                <input id="bill-due" type="date" className={hmsInput} value={form.dueDate} onChange={(e) => setForm((s) => ({ ...s, dueDate: e.target.value }))} />
+              </HmsField>
             </div>
-            <div>
-              <p className="mb-1 text-xs font-medium text-slate-600">Expense / asset account</p>
+            <HmsField id="bill-account" label="Expense / asset account">
               <select
-                className="h-10 w-full rounded-lg border border-input px-3 text-sm"
+                id="bill-account"
+                className={hmsInput}
                 value={form.expenseAccountId}
                 onChange={(e) => setForm((s) => ({ ...s, expenseAccountId: e.target.value }))}
               >
@@ -442,54 +485,61 @@ export function AccountsVendorBillsClient({
                   </option>
                 ))}
               </select>
-            </div>
+            </HmsField>
             <div className="grid grid-cols-3 gap-3">
-              <div>
-                <p className="mb-1 text-xs font-medium text-slate-600">Subtotal</p>
-                <Input
+              <HmsField id="bill-subtotal" label="Subtotal">
+                <input
+                  id="bill-subtotal"
                   type="number"
                   min="0"
                   step="0.01"
+                  className={`${hmsInput} tabular-nums`}
                   value={form.subtotal}
                   onChange={(e) => setForm((s) => ({ ...s, subtotal: e.target.value }))}
                 />
-              </div>
-              <div>
-                <p className="mb-1 text-xs font-medium text-slate-600">Tax</p>
-                <Input type="number" min="0" step="0.01" value={form.tax} onChange={(e) => setForm((s) => ({ ...s, tax: e.target.value }))} />
-              </div>
-              <div>
-                <p className="mb-1 text-xs font-medium text-slate-600">Currency</p>
-                <Input value={form.currency} onChange={(e) => setForm((s) => ({ ...s, currency: e.target.value }))} />
-              </div>
+              </HmsField>
+              <HmsField id="bill-tax" label="Tax">
+                <input id="bill-tax" type="number" min="0" step="0.01" className={`${hmsInput} tabular-nums`} value={form.tax} onChange={(e) => setForm((s) => ({ ...s, tax: e.target.value }))} />
+              </HmsField>
+              <HmsField id="bill-currency" label="Currency">
+                <input id="bill-currency" className={hmsInput} value={form.currency} onChange={(e) => setForm((s) => ({ ...s, currency: e.target.value }))} />
+              </HmsField>
             </div>
             {form.currency.trim().toUpperCase() !== defaultCurrency.toUpperCase() ? (
               <div>
-                <p className="mb-1 text-xs font-medium text-slate-600">
+                <label htmlFor="bill-fx" className="mb-1 block text-sm font-medium text-slate-800">
                   FX rate (1 {form.currency || "?"} → {defaultCurrency})
-                </p>
-                <Input
+                </label>
+                <input
+                  id="bill-fx"
                   type="number"
                   min="0"
                   step="any"
+                  className={`${hmsInput} tabular-nums`}
+                  aria-describedby="bill-fx-hint"
                   value={form.fxRate}
                   onChange={(e) => setForm((s) => ({ ...s, fxRate: e.target.value }))}
                 />
-                <p className="mt-1 text-xs text-slate-400">
-                  Posts to the ledger as {(total * (Number(form.fxRate) || 1)).toFixed(2)} {defaultCurrency} — the ledger has
-                  no separate currency of its own, so this is what hits the trial balance.
+                <p id="bill-fx-hint" className="mt-1 text-sm text-slate-600">
+                  Posts to the ledger as {(total * (Number(form.fxRate) || 1)).toFixed(2)} {defaultCurrency}. The ledger has no
+                  separate currency of its own, so this is what reaches the trial balance.
                 </p>
               </div>
             ) : null}
-            <div>
-              <p className="mb-1 text-xs font-medium text-slate-600">Notes (optional)</p>
+            <HmsField id="bill-notes" label="Notes" optional>
               <textarea
-                className="min-h-[64px] w-full rounded-lg border border-input px-3 py-2 text-sm"
+                id="bill-notes"
+                className={`${hmsInput} min-h-[64px]`}
                 value={form.notes}
                 onChange={(e) => setForm((s) => ({ ...s, notes: e.target.value }))}
               />
-            </div>
-            <p className="text-sm font-medium tabular-nums text-slate-700">Total: {total.toFixed(2)} {form.currency}</p>
+            </HmsField>
+            <p className="flex items-center justify-between rounded-xl border-t-2 border-slate-300 bg-slate-50 px-3 py-2 text-sm font-semibold tabular-nums text-slate-900">
+              <span>Total</span>
+              <span>
+                {total.toFixed(2)} {form.currency}
+              </span>
+            </p>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
@@ -507,15 +557,16 @@ export function AccountsVendorBillsClient({
           <DialogHeader>
             <DialogTitle>Reject vendor bill</DialogTitle>
           </DialogHeader>
-          <div>
-            <p className="mb-1 text-xs font-medium text-slate-600">Reason</p>
+          <HmsField id="bill-reject-reason" label="Reason" hint="The person who recorded the bill will see this.">
             <textarea
-              className="min-h-[80px] w-full rounded-lg border border-input px-3 py-2 text-sm"
+              id="bill-reject-reason"
+              className={`${hmsInput} min-h-[80px]`}
+              aria-describedby="bill-reject-reason-hint"
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
               placeholder="Why is this bill being rejected?"
             />
-          </div>
+          </HmsField>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setRejectTarget(null)}>
               Cancel
@@ -532,39 +583,41 @@ export function AccountsVendorBillsClient({
           <DialogHeader>
             <DialogTitle>Pay {selectedBills.length} vendor bill{selectedBills.length === 1 ? "" : "s"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <div className="max-h-52 space-y-2 overflow-y-auto rounded-lg border border-slate-200 p-2">
+          <div className="space-y-4">
+            <div className="max-h-52 divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-200">
               {selectedBills.map((b) => (
-                <div key={b.id} className="flex items-center justify-between gap-2 text-xs">
+                <div key={b.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
                   <div className="min-w-0">
-                    <p className="truncate text-slate-700">
+                    <p className="truncate font-medium text-slate-900">
                       {b.vendorName} {b.billReference ? `· ${b.billReference}` : ""}
                     </p>
-                    <p className="text-[11px] text-slate-400">
+                    <p id={`payment-${b.id}-hint`} className="text-sm tabular-nums text-slate-600">
                       {b.amountPaid > 0
                         ? `${remainingFor(b).toFixed(2)} remaining of ${b.total.toFixed(2)} ${b.currency}`
                         : `${b.total.toFixed(2)} ${b.currency}`}
                     </p>
                   </div>
-                  <Input
+                  <input
                     type="number"
                     min="0.01"
                     max={remainingFor(b)}
                     step="0.01"
-                    className="h-8 w-28 text-right"
+                    aria-label={`Amount to pay ${b.vendorName}${b.billReference ? ` (${b.billReference})` : ""}`}
+                    aria-describedby={`payment-${b.id}-hint`}
+                    className="h-10 w-28 rounded-lg border border-slate-300 bg-white px-2 text-right text-sm tabular-nums focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={paymentAmounts[b.id] ?? String(remainingFor(b))}
                     onChange={(e) => setPaymentAmounts((s) => ({ ...s, [b.id]: e.target.value }))}
                   />
                 </div>
               ))}
             </div>
-            <p className="text-[11px] text-slate-400">
-              Defaults to the full remaining balance — lower it for a partial payment. The bill stays open until fully paid.
+            <p className="text-sm text-slate-600">
+              Each amount starts at the full remaining balance. Lower it for a part payment; the bill stays open until it&apos;s fully paid.
             </p>
-            <div>
-              <p className="mb-1 text-xs font-medium text-slate-600">Pay from</p>
+            <HmsField id="payment-account" label="Pay from">
               <select
-                className="h-10 w-full rounded-lg border border-input px-3 text-sm"
+                id="payment-account"
+                className={hmsInput}
                 value={paymentForm.bankAccountId}
                 onChange={(e) => setPaymentForm((s) => ({ ...s, bankAccountId: e.target.value }))}
               >
@@ -575,26 +628,31 @@ export function AccountsVendorBillsClient({
                   </option>
                 ))}
               </select>
-            </div>
+            </HmsField>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <p className="mb-1 text-xs font-medium text-slate-600">Payment date</p>
-                <Input
+              <HmsField id="payment-date" label="Payment date">
+                <input
+                  id="payment-date"
                   type="date"
+                  className={hmsInput}
                   value={paymentForm.paymentDate}
                   onChange={(e) => setPaymentForm((s) => ({ ...s, paymentDate: e.target.value }))}
                 />
-              </div>
-              <div>
-                <p className="mb-1 text-xs font-medium text-slate-600">Reference (optional)</p>
-                <Input
+              </HmsField>
+              <HmsField id="payment-reference" label="Reference" optional>
+                <input
+                  id="payment-reference"
+                  className={hmsInput}
                   value={paymentForm.reference}
                   onChange={(e) => setPaymentForm((s) => ({ ...s, reference: e.target.value }))}
                   placeholder="Transfer/cheque ref"
                 />
-              </div>
+              </HmsField>
             </div>
-            <p className="text-sm font-medium tabular-nums text-slate-700">Total to pay: {selectedTotal.toFixed(2)}</p>
+            <p className="flex items-center justify-between rounded-xl border-t-2 border-slate-300 bg-slate-50 px-3 py-2 text-sm font-semibold tabular-nums text-slate-900">
+              <span>Total to pay</span>
+              <span>{selectedTotal.toFixed(2)}</span>
+            </p>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setPayOpen(false)}>
@@ -606,6 +664,6 @@ export function AccountsVendorBillsClient({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </HmsPage>
   );
 }

@@ -1,5 +1,6 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { STORE_PATHS } from "@/lib/store/site/links";
+import { listPublishedPosts } from "@/lib/store/blog-server";
 import { getStorefront } from "@/lib/store/site/storefront";
 
 const escapeXml = (value: string) =>
@@ -25,6 +26,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
     .order("updated_at", { ascending: false })
     .limit(5000);
 
+  const posts = await listPublishedPosts(storefront.tenant.id, 500).catch(() => []);
+
   const entries: Array<{ path: string; lastModified?: string }> = [
     { path: "/" },
     { path: STORE_PATHS.products },
@@ -32,6 +35,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
     ...(products || []).map((p) => ({ path: STORE_PATHS.product((p.slug as string | null) || (p.id as string)), lastModified: p.updated_at as string })),
     ...storefront.collections.map((c) => ({ path: STORE_PATHS.collection(c.slug) })),
     ...storefront.pages.map((p) => ({ path: STORE_PATHS.page(p.slug) })),
+    ...(posts.length ? [{ path: STORE_PATHS.blog }] : []),
+    ...posts.map((p) => ({ path: STORE_PATHS.blogPost(p.slug), lastModified: p.updatedAt })),
   ];
 
   const xml = [

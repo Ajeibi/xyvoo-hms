@@ -379,6 +379,28 @@ export async function getShopProductBySlug(tenantId: string, slug: string): Prom
   return (await mapRows(tenantId, [data as unknown as ShopProductRow]))[0];
 }
 
+/** Products on sale in the shop, by id (e.g. to put a saved basket back). Ones no longer on sale are left out. */
+export async function getShopProductsByIds(tenantId: string, ids: string[]): Promise<ShopProduct[]> {
+  const wanted = [...new Set(ids.filter((id) => UUID_PATTERN.test(id)))];
+  if (!wanted.length) return [];
+  const supabase = createServerSupabaseClient();
+  const lookup = (columns: string) =>
+    supabase
+      .schema("store")
+      .from("products")
+      .select(columns)
+      .eq("tenant_id", tenantId)
+      .in("id", wanted)
+      .eq("status", "active")
+      .eq("visibility", "visible")
+      .eq("approval_status", "approved");
+
+  let { data, error } = await lookup(SHOP_PRODUCT_COLUMNS);
+  if (missingSaleColumns(error)) ({ data, error } = await lookup(LEGACY_PRODUCT_COLUMNS));
+  if (error) throw new Error(error.message);
+  return mapRows(tenantId, (data || []) as unknown as ShopProductRow[]);
+}
+
 /** Maps rows for the shop, with sale prices applied when the shop's plan includes flash sales. */
 async function mapRows(tenantId: string, rows: ShopProductRow[]) {
   const hasSale = rows.some((r) => r.sale_price != null || (r.product_variants || []).some((v) => v.sale_price != null));

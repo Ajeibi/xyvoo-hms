@@ -81,9 +81,9 @@ const STOREFRONT_FEATURES: StorefrontFeatureRow[] = [
     visualIcon: CreditCard,
     title: "Fast, trusted local checkout.",
     description:
-      "Paystack, Flutterwave, and Stripe. Accept card, bank transfer, and USSD out of the box.",
+      "Paystack today, with Flutterwave to follow. Accept card, bank transfer, and USSD out of the box.",
     bullets: [
-      "Paystack, Flutterwave, and Stripe integrations",
+      "Paystack checkout, with Flutterwave to follow",
       "Supports card, transfer, and USSD payment flows",
       "Checkout events feed directly into sales analytics",
     ],

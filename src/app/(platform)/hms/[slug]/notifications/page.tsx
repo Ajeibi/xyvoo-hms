@@ -1,5 +1,5 @@
-import { Bell } from "lucide-react";
 import HMSLayout from "@/components/hms/HMSLayout";
+import { HmsPage, HmsPageHeader } from "@/components/hms/hms-ui";
 import { NotificationsPageClient } from "@/components/hms/notifications/NotificationsPageClient";
 import { getHmsAccessContext } from "@/lib/hms/access";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
@@ -49,20 +49,15 @@ export default async function NotificationsPage({
 
   return (
     <HMSLayout slug={slug} requiredSection="notifications">
-      <div className="w-full px-6 py-8 sm:px-8">
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
-            <Bell className="h-5 w-5" />
-          </div>
-          <div>
-            <h1 className="text-xl font-semibold text-slate-900">Notifications</h1>
-            <p className="mt-0.5 text-sm text-slate-500">
-              Alerts, reminders, and system updates for this property.
-            </p>
-          </div>
-        </div>
+      <HmsPage>
+        <HmsPageHeader
+          eyebrow="Notifications"
+          meaning="neutral"
+          title="Notifications"
+          description="Alerts, reminders and updates for your hotel, newest first."
+        />
         <NotificationsPageClient slug={slug} initialItems={items} />
-      </div>
+      </HmsPage>
     </HMSLayout>
   );
 }

@@ -129,11 +129,11 @@ export async function proxy(request: NextRequest) {
     },
   });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Verifies the session token (refreshing it first if it is about to expire). With asymmetric
+  // JWT signing keys this happens here, without a request to Supabase Auth on every page.
+  const { data: claimsData } = await supabase.auth.getClaims();
 
-  if (!user) {
+  if (!claimsData?.claims?.sub) {
     const loginUrl = new URL(loginPathFor(request.nextUrl.pathname), request.url);
     loginUrl.searchParams.set("from", request.nextUrl.pathname);
     return NextResponse.redirect(loginUrl);

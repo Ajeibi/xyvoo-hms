@@ -6,6 +6,7 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import { CircleAlert, Eye, EyeOff } from "lucide-react";
 import WebsiteLayout from "@/components/website/WebsiteLayout";
+import AuthShowcase from "@/components/storefront/onboarding/AuthShowcase";
 import { supabaseAuthBrowser } from "@/lib/supabase/auth-browser";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
@@ -280,19 +281,12 @@ export default function StorefrontLoginPage() {
       <div className="relative w-full overflow-hidden bg-white pt-[76px] pb-16 lg:grid lg:grid-cols-2 lg:overflow-visible lg:pb-0">
         {/* Mobile: faded image behind the form */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden lg:hidden" aria-hidden>
-          <Image src="/images/storefront/login.png" alt="" fill className="object-cover opacity-10" sizes="100vw" />
+          <Image src="/onboarding/oche-ajeibi.webp" alt="" fill className="object-cover object-[center_20%] opacity-10" sizes="100vw" />
         </div>
 
         {/* Desktop: image sticks in view while the form scrolls past it, then the page continues into the CTA + footer */}
-        <div className="relative hidden h-[calc(100vh-76px)] overflow-hidden bg-white lg:sticky lg:top-[76px] lg:block">
-          <Image
-            src="/images/storefront/login.png"
-            alt="Sign in to XYVOO Storefront"
-            fill
-            className="object-cover"
-            sizes="50vw"
-            preload
-          />
+        <div className="relative hidden h-[calc(100vh-76px)] overflow-hidden bg-slate-900 lg:sticky lg:top-[76px] lg:block">
+          <AuthShowcase start={0} />
         </div>
 
         <div className="relative z-10 flex items-center justify-center p-4 sm:p-6 lg:items-stretch lg:p-12">

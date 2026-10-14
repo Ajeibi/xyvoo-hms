@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toastError, toastSuccess } from "@/lib/app-toast";
@@ -48,28 +49,36 @@ export function HousekeepingAssigneeField({
 
   if (!canEdit) {
     return (
-      <p className="text-xs text-slate-500">{initialNote ? `Assigned: ${initialNote}` : "Unassigned"}</p>
+      <p className="flex items-center gap-1.5 text-sm text-slate-700">
+        <UserRound className="h-4 w-4 text-violet-600" aria-hidden />
+        {initialNote ? `Assigned: ${initialNote}` : "Unassigned"}
+      </p>
     );
   }
 
   if (editing) {
+    const inputId = `hk-assignee-${taskId}`;
     return (
-      <div className="flex items-center gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <label htmlFor={inputId} className="sr-only">
+          Who is looking after this room
+        </label>
         <Input
+          id={inputId}
           autoFocus
           value={value}
           onChange={(e) => setValue(e.target.value)}
           placeholder="Staff name"
-          className="h-7 text-xs"
+          className="h-9 min-w-0 flex-1 text-sm"
           onKeyDown={(e) => {
             if (e.key === "Enter") void save();
             if (e.key === "Escape") setEditing(false);
           }}
         />
-        <Button type="button" size="sm" className="h-7 px-2 text-xs" disabled={saving} onClick={() => void save()}>
+        <Button type="button" size="sm" className="h-9 px-3 text-sm" disabled={saving} onClick={() => void save()}>
           Save
         </Button>
-        <Button type="button" size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setEditing(false)}>
+        <Button type="button" size="sm" variant="ghost" className="h-9 px-3 text-sm" onClick={() => setEditing(false)}>
           Cancel
         </Button>
       </div>
@@ -79,13 +88,14 @@ export function HousekeepingAssigneeField({
   return (
     <button
       type="button"
-      className="text-xs text-slate-500 underline decoration-dotted underline-offset-2 hover:text-slate-700"
+      className="inline-flex min-h-8 items-center gap-1.5 rounded-lg text-sm text-slate-700 underline decoration-dotted underline-offset-2 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
       onClick={() => {
         setValue(initialNote ?? "");
         setEditing(true);
       }}
     >
-      {initialNote ? `Assigned: ${initialNote}` : "Unassigned — tap to assign"}
+      <UserRound className="h-4 w-4 text-violet-600" aria-hidden />
+      {initialNote ? `Assigned: ${initialNote}` : "Unassigned, tap to assign"}
     </button>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { CHANNEL_LABELS } from "@/lib/store/manual-orders";
 import { useId, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -133,6 +134,7 @@ export default function OrderDetailView({ slug, detail, countryCode, canRefund }
         </div>
         <div className="flex flex-wrap gap-2">
           <DashPill tone={STATUS_TONE[order.status]}>{order.status}</DashPill>
+          {order.channel !== "online" ? <DashPill tone="blue">Recorded by hand · {CHANNEL_LABELS[order.channel as keyof typeof CHANNEL_LABELS] ?? "Other"}</DashPill> : null}
           <DashPill tone={order.paymentStatus === "refunded" || order.paymentStatus === "failed" ? "red" : order.paymentStatus === "paid" ? "green" : "slate"}>{paymentStatusLabel(order)}</DashPill>
         </div>
       </header>
@@ -249,6 +251,7 @@ export default function OrderDetailView({ slug, detail, countryCode, canRefund }
         <DashCard id={`${ids}-payment`} title="Payment" icon={CreditCard}>
           <dl className="space-y-1 text-sm">
             <Row label="Method" value={order.paymentMethod} />
+            {order.shopNote ? <Row label="Team note" value={order.shopNote} /> : null}
             <Row label="Status" value={paymentStatusLabel(order)} />
             {detail.paidAt ? <Row label="Paid" value={dateTime(detail.paidAt)} /> : null}
             <Row label="Amount" value={money(order.totalAmount)} />

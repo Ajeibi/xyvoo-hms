@@ -59,7 +59,7 @@ export function FrontDeskFolioSummary({
 
   return (
     <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 px-4 py-3">
-      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-800">Folio</p>
+      <p className="text-sm font-medium text-emerald-800">Folio</p>
       <p className="mt-1 text-sm font-medium text-slate-900">
         {folioNumber}
         {balance != null ? (

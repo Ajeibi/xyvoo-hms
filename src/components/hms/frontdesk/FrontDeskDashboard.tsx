@@ -76,20 +76,22 @@ export function FrontDeskDashboard({
   return (
     <div className="mx-auto w-full max-w-[1500px] px-6 py-8 sm:px-8">
       <section
-        className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm shadow-slate-200/30"
+        className="overflow-hidden rounded-[28px] border border-slate-200 bg-gradient-to-br from-white via-white to-sky-50/70 shadow-sm shadow-slate-200/30"
         aria-labelledby="fd-hero-title"
       >
         <div className="px-6 py-6 sm:px-7 sm:py-7">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Front desk</p>
-          <h1 id="fd-hero-title" className="mt-3 text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl">
+          <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
+            <span aria-hidden className="h-2 w-2 rounded-full bg-sky-500" />
+            Front desk
+          </p>
+          <h1 id="fd-hero-title" className="mt-2 font-heading text-2xl font-bold tracking-tight text-slate-900 sm:text-[1.75rem]">
             {hero.title}
           </h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">{hero.description}</p>
+          <p className="mt-1 max-w-2xl text-base text-slate-600">{hero.description}</p>
           {showInventory ? (
-            <div className="mt-5 inline-flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm text-slate-700">
-              <span className="text-slate-500">Registered inventory on file</span>
+            <div className="mt-5 inline-flex flex-wrap items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm text-slate-700 ring-1 ring-sky-200">
+              <span className="text-slate-600">Rooms registered for this hotel</span>
               <span className="font-semibold tabular-nums text-slate-900">{inventoryRoomCount}</span>
-              <span className="text-slate-500">rooms</span>
             </div>
           ) : null}
         </div>
@@ -123,7 +125,7 @@ export function FrontDeskDashboard({
           return (
             <section
               key={block.id}
-              className="scroll-mt-6 overflow-hidden rounded-[24px] border border-slate-200 bg-white px-6 py-6 shadow-sm shadow-slate-200/25 sm:px-7 sm:py-7"
+              className="scroll-mt-6 overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6"
               aria-labelledby={sectionDomId}
             >
               <FrontDeskSectionHeader id={sectionDomId} eyebrow={block.eyebrow} title={block.title} />
@@ -131,8 +133,9 @@ export function FrontDeskDashboard({
                 <>
                   <FrontDeskLiveKpiSection tiles={boardData.kpiTiles} />
                   {showInventory ? (
-                    <p className="mt-3 text-xs text-slate-500">
-                      Inventory on file: {inventoryRoomCount} rooms · Rooms ready KPI uses live unit status.
+                    <p className="mt-3 text-sm text-slate-600">
+                      {inventoryRoomCount}{" "}rooms registered. &ldquo;Rooms ready&rdquo; counts each room&apos;s live
+                      status.
                     </p>
                   ) : null}
                 </>

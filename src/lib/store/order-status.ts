@@ -17,7 +17,7 @@ export const ORDER_ACTION_LABELS: Record<OrderAction, string> = {
 type OrderState = { status: string; paymentStatus: string; paymentMethod: string };
 
 /** Payment methods where the money arrives at or after delivery (labels as stored on the order). */
-const PAY_LATER_METHODS = new Set(["Pay on Delivery", "WhatsApp"]);
+const PAY_LATER_METHODS = new Set(["Pay on Delivery", "WhatsApp", "Pay later"]);
 
 /** The actions available for an order, in the order they're shown. */
 export function availableOrderActions(order: OrderState): OrderAction[] {

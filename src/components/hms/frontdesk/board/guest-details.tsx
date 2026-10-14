@@ -52,7 +52,7 @@ export function GuestDetailRows({ guest }: { guest: FrontDeskGuestInfo }) {
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col gap-0.5 border-b border-slate-50 py-2.5 last:border-0 sm:flex-row sm:justify-between sm:gap-6">
-      <dt className="shrink-0 text-xs font-medium uppercase tracking-wide text-slate-400">{label}</dt>
+      <dt className="shrink-0 text-sm text-slate-600">{label}</dt>
       <dd className="text-sm font-medium break-words text-slate-900 sm:max-w-[65%] sm:text-right">{value}</dd>
     </div>
   );

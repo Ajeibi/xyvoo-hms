@@ -24,7 +24,7 @@ export default async function StorefrontCheckoutPage({ params }: { params: Promi
     createServerSupabaseClient()
       .schema("store")
       .from("delivery_zones")
-      .select("id, name, regions, fee, free_over, eta_text, is_pickup, is_active, sort_order")
+      .select("id, name, regions, fee, weight_bands, free_over, eta_text, is_pickup, is_active, sort_order")
       .eq("tenant_id", storefront.tenant.id)
       .eq("is_active", true)
       .order("sort_order"),
@@ -39,6 +39,7 @@ export default async function StorefrontCheckoutPage({ params }: { params: Promi
     etaText: z.etaText,
     isPickup: z.isPickup,
     regions: z.regions,
+    weightBands: z.weightBands,
   }));
 
   return (
@@ -54,6 +55,7 @@ export default async function StorefrontCheckoutPage({ params }: { params: Promi
       {storefront.paymentMethods.length ? (
         <StoreCheckout
           countryCode={storefront.profile.countryCode}
+          storeName={storefront.storeName}
           termsHref={pageHref("terms")}
           privacyHref={pageHref("privacy")}
           deliveryOptions={deliveryOptions}

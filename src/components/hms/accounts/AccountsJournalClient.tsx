@@ -3,9 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { formatDateTime } from "@/lib/format-date";
 import type { ChartOfAccountRow } from "@/lib/hms/chart-of-accounts";
@@ -15,12 +13,18 @@ import {
   type JournalEntryRow,
 } from "@/lib/hms/journal-entries";
 import { AccountsSubNav } from "@/components/hms/accounts/AccountsSubNav";
+import { HmsCard, HmsEmptyState, HmsField, HmsPage, HmsPageHeader, HmsPill, hmsButton, hmsInput } from "@/components/hms/hms-ui";
+import { HmsSectionIntro } from "@/components/hms/hms-ui-client";
+import { CircleAlert, CircleCheck, NotebookPen, Plus, X } from "lucide-react";
 
 type DraftLine = { accountId: string; department: string; description: string; debit: string; credit: string };
 
 function emptyLine(): DraftLine {
   return { accountId: "", department: "", description: "", debit: "", credit: "" };
 }
+
+const lineInput =
+  "h-10 w-full rounded-lg border border-slate-300 bg-white px-2 text-sm text-slate-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500";
 
 export function AccountsJournalClient({
   slug,
@@ -148,104 +152,148 @@ export function AccountsJournalClient({
     }
   };
 
+  const detailTotals = detail
+    ? detail.lines.reduce((acc, l) => ({ debit: acc.debit + l.debit, credit: acc.credit + l.credit }), { debit: 0, credit: 0 })
+    : null;
+  const detailBalanced = detailTotals ? Math.abs(detailTotals.debit - detailTotals.credit) < 0.01 : true;
+
   return (
-    <div className="w-full px-6 py-8 sm:px-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900">Journal entries</h1>
-          <p className="mt-0.5 text-sm text-slate-500">Every balanced posting to the ledger, most recent first.</p>
-        </div>
-        {canPost ? (
-          <Button type="button" onClick={() => setCreateOpen(true)} disabled={accounts.length === 0}>
-            New entry
-          </Button>
-        ) : null}
-      </div>
+    <HmsPage wide>
+      <HmsPageHeader
+        eyebrow="Accounts"
+        meaning="money"
+        title="Journal entries"
+        description="Every balanced posting to the ledger, most recent first."
+        actions={
+          canPost ? (
+            <button type="button" className={hmsButton.primary} onClick={() => setCreateOpen(true)} disabled={accounts.length === 0}>
+              <Plus className="h-4 w-4" aria-hidden />
+              New entry
+            </button>
+          ) : null
+        }
+      />
 
       <AccountsSubNav slug={slug} canAccessAllDepartments={canAccessAllDepartments} />
 
+      <HmsSectionIntro
+        id="accounts-journal"
+        meaning="money"
+        art="page"
+        title="How journal entries work"
+        points={[
+          "Each entry moves money between at least two accounts.",
+          "Debits and credits must match before an entry can be posted.",
+          "Posted entries can't be edited. To undo one, reverse it.",
+        ]}
+      />
+
       {accounts.length === 0 ? (
-        <div className="mt-6 rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
-          Set up the chart of accounts before posting journal entries.
-        </div>
-      ) : entries.length === 0 ? (
-        <div className="mt-6 rounded-xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">
-          No journal entries posted yet.
-        </div>
+        <HmsEmptyState
+          art="page"
+          meaning="money"
+          title="Set up your chart of accounts first"
+          description="Journal entries post against accounts, so you'll need some before you can post."
+        />
       ) : (
-        <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b bg-slate-50 text-xs font-semibold uppercase text-slate-500">
-              <tr>
-                <th className="px-4 py-3">Date</th>
-                <th className="px-4 py-3">Memo</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3 text-right">Total</th>
-                <th className="px-4 py-3">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {entries.map((e) => (
-                <tr key={e.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/80">
-                  <td className="whitespace-nowrap px-4 py-2.5 text-slate-600">{new Date(e.entryDate).toLocaleDateString()}</td>
-                  <td className="px-4 py-2.5 font-medium text-slate-900">{e.memo}</td>
-                  <td className="px-4 py-2.5">
-                    {e.reversedBy ? (
-                      <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-700">Reversed</span>
-                    ) : e.reversedOf ? (
-                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">Reversal</span>
-                    ) : (
-                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-900">Posted</span>
-                    )}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums text-slate-700">{e.total.toFixed(2)}</td>
-                  <td className="px-4 py-2.5">
-                    <Button type="button" size="sm" variant="outline" onClick={() => void openDetail(e.id)}>
-                      View
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <HmsCard id="accounts-journal-list" title="Posted entries" icon={NotebookPen} meaning="money" flush>
+          {entries.length === 0 ? (
+            <HmsEmptyState bare art="page" meaning="money" title="No journal entries posted yet" description="Entries you post will appear here, newest first." />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="border-b border-slate-200 bg-slate-50 text-sm font-medium text-slate-600">
+                  <tr>
+                    <th scope="col" className="px-5 py-3">Date</th>
+                    <th scope="col" className="px-5 py-3">Memo</th>
+                    <th scope="col" className="px-5 py-3">Status</th>
+                    <th scope="col" className="px-5 py-3 text-right">Total</th>
+                    <th scope="col" className="px-5 py-3">
+                      <span className="sr-only">Actions</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {entries.map((e) => (
+                    <tr key={e.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                      <td className="whitespace-nowrap px-5 py-3 text-slate-600">{new Date(e.entryDate).toLocaleDateString()}</td>
+                      <td className="px-5 py-3 font-medium text-slate-900">{e.memo}</td>
+                      <td className="px-5 py-3">
+                        {e.reversedBy ? (
+                          <HmsPill tone="slate">Reversed</HmsPill>
+                        ) : e.reversedOf ? (
+                          <HmsPill tone="amber">Reversal</HmsPill>
+                        ) : (
+                          <HmsPill tone="green">Posted</HmsPill>
+                        )}
+                      </td>
+                      <td className="whitespace-nowrap px-5 py-3 text-right tabular-nums text-slate-900">{e.total.toFixed(2)}</td>
+                      <td className="px-5 py-3 text-right">
+                        <button type="button" className={hmsButton.quiet} onClick={() => void openDetail(e.id)}>
+                          View<span className="sr-only"> entry: {e.memo}</span>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </HmsCard>
       )}
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>New journal entry</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div>
-                <p className="mb-1 text-xs font-medium text-slate-600">Date</p>
-                <Input type="date" value={entryDate} onChange={(e) => setEntryDate(e.target.value)} />
-              </div>
+          <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-3">
+              <HmsField id="je-date" label="Date">
+                <input id="je-date" type="date" className={hmsInput} value={entryDate} onChange={(e) => setEntryDate(e.target.value)} />
+              </HmsField>
               <div className="sm:col-span-2">
-                <p className="mb-1 text-xs font-medium text-slate-600">Memo</p>
-                <Input value={memo} onChange={(e) => setMemo(e.target.value)} placeholder="What is this entry for?" />
+                <HmsField id="je-memo" label="Memo" hint="A short note on what this entry is for.">
+                  <input
+                    id="je-memo"
+                    className={hmsInput}
+                    aria-describedby="je-memo-hint"
+                    value={memo}
+                    onChange={(e) => setMemo(e.target.value)}
+                    placeholder="What is this entry for?"
+                  />
+                </HmsField>
               </div>
             </div>
-            <div>
-              <p className="mb-1 text-xs font-medium text-slate-600">Reference (optional)</p>
-              <Input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="e.g. invoice or PO number" />
-            </div>
+            <HmsField id="je-reference" label="Reference" optional>
+              <input
+                id="je-reference"
+                className={hmsInput}
+                value={reference}
+                onChange={(e) => setReference(e.target.value)}
+                placeholder="e.g. invoice or PO number"
+              />
+            </HmsField>
 
-            <div className="rounded-lg border border-slate-200">
-              <div className="grid grid-cols-[1fr_110px_1fr_90px_90px_28px] gap-2 border-b border-slate-100 bg-slate-50 px-3 py-2 text-xs font-semibold uppercase text-slate-500">
+            <fieldset className="rounded-xl border border-slate-200">
+              <legend className="sr-only">Entry lines</legend>
+              <div
+                aria-hidden
+                className="grid grid-cols-[1fr_110px_1fr_90px_90px_36px] gap-2 border-b border-slate-100 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-600"
+              >
                 <span>Account</span>
                 <span>Department</span>
                 <span>Description</span>
-                <span>Debit</span>
-                <span>Credit</span>
+                <span className="text-right">Debit</span>
+                <span className="text-right">Credit</span>
                 <span />
               </div>
               <div className="max-h-72 overflow-y-auto">
                 {lines.map((line, i) => (
-                  <div key={i} className="grid grid-cols-[1fr_110px_1fr_90px_90px_28px] gap-2 border-b border-slate-50 px-3 py-2 last:border-0">
+                  <div key={i} className="grid grid-cols-[1fr_110px_1fr_90px_90px_36px] items-center gap-2 border-b border-slate-100 px-3 py-2 last:border-0">
                     <select
-                      className="h-9 w-full rounded-md border border-input px-2 text-xs"
+                      aria-label={`Line ${i + 1} account`}
+                      className={lineInput}
                       value={line.accountId}
                       onChange={(e) => updateLine(i, { accountId: e.target.value })}
                     >
@@ -257,7 +305,8 @@ export function AccountsJournalClient({
                       ))}
                     </select>
                     <select
-                      className="h-9 w-full rounded-md border border-input px-1 text-xs"
+                      aria-label={`Line ${i + 1} department`}
+                      className={lineInput}
                       value={line.department}
                       onChange={(e) => updateLine(i, { department: e.target.value })}
                     >
@@ -268,22 +317,25 @@ export function AccountsJournalClient({
                         </option>
                       ))}
                     </select>
-                    <Input
-                      className="h-9 text-xs"
+                    <input
+                      aria-label={`Line ${i + 1} description`}
+                      className={lineInput}
                       value={line.description}
                       onChange={(e) => updateLine(i, { description: e.target.value })}
                       placeholder="Optional"
                     />
-                    <Input
-                      className="h-9 text-xs"
+                    <input
+                      aria-label={`Line ${i + 1} debit`}
+                      className={`${lineInput} text-right tabular-nums`}
                       type="number"
                       min="0"
                       step="0.01"
                       value={line.debit}
                       onChange={(e) => updateLine(i, { debit: e.target.value, credit: e.target.value ? "" : line.credit })}
                     />
-                    <Input
-                      className="h-9 text-xs"
+                    <input
+                      aria-label={`Line ${i + 1} credit`}
+                      className={`${lineInput} text-right tabular-nums`}
                       type="number"
                       min="0"
                       step="0.01"
@@ -292,26 +344,31 @@ export function AccountsJournalClient({
                     />
                     <button
                       type="button"
-                      className="text-slate-400 hover:text-red-600 disabled:opacity-30"
+                      className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 hover:bg-red-50 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-30"
                       disabled={lines.length <= 2}
                       onClick={() => removeLine(i)}
-                      aria-label="Remove line"
+                      aria-label={`Remove line ${i + 1}`}
                     >
-                      ×
+                      <X className="h-4 w-4" aria-hidden />
                     </button>
                   </div>
                 ))}
               </div>
-              <div className="flex items-center justify-between border-t border-slate-100 px-3 py-2">
-                <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={addLine}>
-                  + Add line
-                </Button>
-                <p className={cn("text-xs font-medium tabular-nums", totals.balanced ? "text-emerald-700" : "text-red-600")}>
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 bg-slate-50 px-3 py-2.5">
+                <button type="button" className={hmsButton.quiet} onClick={addLine}>
+                  <Plus className="h-4 w-4" aria-hidden />
+                  Add line
+                </button>
+                <p
+                  aria-live="polite"
+                  className={`flex items-center gap-1.5 text-sm font-semibold tabular-nums ${totals.balanced ? "text-emerald-800" : "text-rose-700"}`}
+                >
+                  {totals.balanced ? <CircleCheck className="h-4 w-4" aria-hidden /> : <CircleAlert className="h-4 w-4" aria-hidden />}
                   Debit {totals.debit.toFixed(2)} · Credit {totals.credit.toFixed(2)}
-                  {!totals.balanced ? " — not balanced" : ""}
+                  {totals.balanced ? " · Balanced" : " · Not balanced"}
                 </p>
               </div>
-            </div>
+            </fieldset>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
@@ -330,37 +387,58 @@ export function AccountsJournalClient({
             <DialogTitle>Journal entry</DialogTitle>
           </DialogHeader>
           {detailLoading || !detail ? (
-            <p className="text-sm text-slate-500">Loading…</p>
+            <p role="status" className="text-sm text-slate-600">
+              Loading…
+            </p>
           ) : (
             <div className="space-y-3">
               <div className="text-sm">
                 <p className="font-medium text-slate-900">{detail.memo}</p>
-                <p className="text-xs text-slate-500">
+                <p className="text-sm text-slate-600">
                   {formatDateTime(detail.createdAt)}
                   {detail.reference ? ` · Ref ${detail.reference}` : ""}
                 </p>
               </div>
-              <div className="rounded-lg border border-slate-200">
-                <div className="grid grid-cols-[1fr_90px_90px] gap-2 border-b border-slate-100 bg-slate-50 px-3 py-1.5 text-xs font-semibold uppercase text-slate-500">
-                  <span>Account</span>
-                  <span className="text-right">Debit</span>
-                  <span className="text-right">Credit</span>
-                </div>
-                {detail.lines.map((l) => (
-                  <div key={l.id} className="grid grid-cols-[1fr_90px_90px] gap-2 border-b border-slate-50 px-3 py-1.5 text-xs last:border-0">
-                    <span>
-                      {l.accountCode} {l.accountName}
-                      {l.department ? <span className="ml-1 text-slate-400">· {l.department}</span> : null}
-                    </span>
-                    <span className="text-right tabular-nums">{l.debit > 0 ? l.debit.toFixed(2) : ""}</span>
-                    <span className="text-right tabular-nums">{l.credit > 0 ? l.credit.toFixed(2) : ""}</span>
-                  </div>
-                ))}
-              </div>
+              <table className="w-full overflow-hidden rounded-xl border border-slate-200 text-sm">
+                <thead className="border-b border-slate-200 bg-slate-50 text-left font-medium text-slate-600">
+                  <tr>
+                    <th scope="col" className="px-3 py-2">Account</th>
+                    <th scope="col" className="w-24 px-3 py-2 text-right">Debit</th>
+                    <th scope="col" className="w-24 px-3 py-2 text-right">Credit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {detail.lines.map((l) => (
+                    <tr key={l.id} className="border-b border-slate-100 last:border-0">
+                      <td className="px-3 py-2 text-slate-900">
+                        {l.accountCode} {l.accountName}
+                        {l.department ? <span className="ml-1 text-slate-600">· {l.department}</span> : null}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums">{l.debit > 0 ? l.debit.toFixed(2) : ""}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{l.credit > 0 ? l.credit.toFixed(2) : ""}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                {detailTotals ? (
+                  <tfoot>
+                    <tr className="border-t-2 border-slate-300 bg-slate-50 font-semibold text-slate-900">
+                      <th scope="row" className="px-3 py-2 text-left">Total</th>
+                      <td className="px-3 py-2 text-right tabular-nums">{detailTotals.debit.toFixed(2)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{detailTotals.credit.toFixed(2)}</td>
+                    </tr>
+                  </tfoot>
+                ) : null}
+              </table>
+              {!detailBalanced ? (
+                <p role="alert" className="flex items-center gap-1.5 rounded-xl bg-rose-50 px-3 py-2 text-sm font-medium text-rose-800">
+                  <CircleAlert className="h-4 w-4 shrink-0" aria-hidden />
+                  Not balanced: debits and credits on this entry don&apos;t match.
+                </p>
+              ) : null}
               {detail.reversedBy ? (
-                <p className="text-xs font-medium text-slate-500">This entry has already been reversed.</p>
+                <p className="text-sm font-medium text-slate-700">This entry has already been reversed.</p>
               ) : detail.reversedOf ? (
-                <p className="text-xs font-medium text-amber-700">This entry reverses another entry.</p>
+                <p className="text-sm font-medium text-amber-800">This entry reverses another entry.</p>
               ) : canReverse ? (
                 <Button type="button" variant="outline" disabled={reversing} onClick={() => void reverseEntry()}>
                   {reversing ? "Reversing…" : "Reverse entry"}
@@ -370,6 +448,6 @@ export function AccountsJournalClient({
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </HmsPage>
   );
 }

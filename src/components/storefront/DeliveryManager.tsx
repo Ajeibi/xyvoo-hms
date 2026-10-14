@@ -7,9 +7,10 @@ import type { DeliveryZone } from "@/lib/store/delivery";
 import AreaPicker from "./AreaPicker";
 import { DashAlert, dashButton, DashCard, DashEmptyState, DashField, dashInput, DashPill, DashStatus, sendJson } from "./dashboard-ui";
 
-type Draft = { id: string | null; name: string; regions: string[]; fee: string; freeOver: string; etaText: string; isPickup: boolean; isActive: boolean };
+type BandDraft = { upToKg: string; fee: string };
+type Draft = { id: string | null; name: string; regions: string[]; fee: string; byWeight: boolean; bands: BandDraft[]; freeOver: string; etaText: string; isPickup: boolean; isActive: boolean };
 
-const EMPTY: Draft = { id: null, name: "", regions: [], fee: "0", freeOver: "", etaText: "", isPickup: false, isActive: true };
+const EMPTY: Draft = { id: null, name: "", regions: [], fee: "0", byWeight: false, bands: [], freeOver: "", etaText: "", isPickup: false, isActive: true };
 
 /** A clear keyboard focus ring for buttons. */
 const ring = "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-xyvoo-blue";
@@ -70,6 +71,8 @@ export default function DeliveryManager({ slug, currency, countryCode = "NG" }: 
       name: z.name,
       regions: z.regions,
       fee: String(z.fee),
+      byWeight: z.weightBands.length > 0,
+      bands: z.weightBands.map((b) => ({ upToKg: b.upToKg == null ? "" : String(b.upToKg), fee: String(b.fee) })),
       freeOver: z.freeOver == null ? "" : String(z.freeOver),
       etaText: z.etaText ?? "",
       isPickup: z.isPickup,
@@ -87,6 +90,7 @@ export default function DeliveryManager({ slug, currency, countryCode = "NG" }: 
       name: draft.name,
       regions: draft.isPickup ? [] : draft.regions,
       fee: draft.fee === "" ? 0 : draft.fee,
+      weightBands: draft.byWeight && !draft.isPickup ? draft.bands.map((b) => ({ upToKg: b.upToKg.trim() === "" ? null : b.upToKg, fee: b.fee === "" ? 0 : b.fee })) : [],
       freeOver: draft.freeOver === "" ? null : draft.freeOver,
       etaText: draft.etaText || null,
       isPickup: draft.isPickup,
@@ -120,7 +124,7 @@ export default function DeliveryManager({ slug, currency, countryCode = "NG" }: 
   const price = (z: DeliveryZone) =>
     z.isPickup
       ? "Free collection"
-      : `${z.fee === 0 ? "Free" : formatShopCurrency(z.fee, currency)}${z.freeOver != null ? `, free on orders over ${formatShopCurrency(z.freeOver, currency)}` : ""}`;
+      : `${z.weightBands.length ? `By weight, from ${formatShopCurrency(Math.min(...z.weightBands.map((b) => b.fee)), currency)}` : z.fee === 0 ? "Free" : formatShopCurrency(z.fee, currency)}${z.freeOver != null ? `, free on orders over ${formatShopCurrency(z.freeOver, currency)}` : ""}`;
 
   const shown = zones?.filter((z) => z.isActive).length ?? 0;
   const summary =
@@ -226,13 +230,61 @@ export default function DeliveryManager({ slug, currency, countryCode = "NG" }: 
             </label>
             {!draft.isPickup ? (
               <div className="grid gap-4 sm:grid-cols-2">
-                <DashField id="zone-fee" label={`Charge per order (${currency})`}>
-                  <input id="zone-fee" className={dashInput} type="number" min={0} step="any" inputMode="decimal" value={draft.fee} onChange={(e) => setDraft({ ...draft, fee: e.target.value })} />
-                </DashField>
+                {!draft.byWeight ? (
+                  <DashField id="zone-fee" label={`Charge per order (${currency})`}>
+                    <input id="zone-fee" className={dashInput} type="number" min={0} step="any" inputMode="decimal" value={draft.fee} onChange={(e) => setDraft({ ...draft, fee: e.target.value })} />
+                  </DashField>
+                ) : (
+                  <p className="self-end pb-2.5 text-sm text-slate-600">The charge depends on the weight of the order (below).</p>
+                )}
                 <DashField id="zone-free" label={`Free on orders over (${currency})`} optional>
                   <input id="zone-free" className={dashInput} type="number" min={0} step="any" inputMode="decimal" value={draft.freeOver} onChange={(e) => setDraft({ ...draft, freeOver: e.target.value })} />
                 </DashField>
               </div>
+            ) : null}
+            {!draft.isPickup ? (
+              <fieldset className="space-y-3 rounded-xl border border-slate-200 bg-white p-4">
+                <legend className="px-1 text-sm font-medium text-slate-800">Charge by weight</legend>
+                <label className="flex items-start gap-3 text-sm text-slate-800">
+                  <input
+                    type="checkbox"
+                    checked={draft.byWeight}
+                    onChange={(e) =>
+                      setDraft({ ...draft, byWeight: e.target.checked, bands: e.target.checked && draft.bands.length === 0 ? [{ upToKg: "1", fee: draft.fee || "0" }, { upToKg: "", fee: draft.fee || "0" }] : draft.bands })
+                    }
+                    className="mt-0.5 h-4 w-4"
+                  />
+                  <span>
+                    Charge by the weight of the order instead of one charge per order
+                    <span className="block text-slate-600">Uses the weight you enter on each product. Products with no weight count as nothing.</span>
+                  </span>
+                </label>
+                {draft.byWeight ? (
+                  <div className="space-y-2">
+                    <ul className="space-y-2">
+                      {draft.bands.map((b, i) => (
+                        <li key={i} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+                          <DashField id={`band-${i}-kg`} label={i === 0 ? "Orders up to (kg)" : "Then up to (kg)"} hint={b.upToKg === "" ? "Empty means any weight above the last band." : undefined}>
+                            <input id={`band-${i}-kg`} className={dashInput} type="number" min={0} step="any" inputMode="decimal" placeholder="No limit" value={b.upToKg} onChange={(e) => setDraft({ ...draft, bands: draft.bands.map((x, j) => (j === i ? { ...x, upToKg: e.target.value } : x)) })} aria-describedby={b.upToKg === "" ? `band-${i}-kg-hint` : undefined} />
+                          </DashField>
+                          <DashField id={`band-${i}-fee`} label={`Charge (${currency})`}>
+                            <input id={`band-${i}-fee`} className={dashInput} type="number" min={0} step="any" inputMode="decimal" value={b.fee} onChange={(e) => setDraft({ ...draft, bands: draft.bands.map((x, j) => (j === i ? { ...x, fee: e.target.value } : x)) })} />
+                          </DashField>
+                          <button type="button" onClick={() => setDraft({ ...draft, bands: draft.bands.filter((_, j) => j !== i) })} disabled={draft.bands.length <= 1} className={`${dashButton.danger} ${ring} justify-self-start disabled:opacity-40`}>
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden /> Remove<span className="sr-only"> band {i + 1}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                    {draft.bands.length < 10 ? (
+                      <button type="button" onClick={() => setDraft({ ...draft, bands: [...draft.bands, { upToKg: "", fee: draft.fee || "0" }] })} className={`${dashButton.secondary} ${ring}`}>
+                        <Plus className="h-3.5 w-3.5" aria-hidden /> Add a band
+                      </button>
+                    ) : null}
+                    <p className="text-sm text-slate-600">An order heavier than the last band, if it has a limit, can&rsquo;t use this option at checkout.</p>
+                  </div>
+                ) : null}
+              </fieldset>
             ) : null}
             <DashField
               id="zone-eta"

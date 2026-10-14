@@ -5,6 +5,7 @@ import { Loader2 } from "lucide-react";
 import { useFbRealtime } from "@/hooks/useFbRealtime";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { cn } from "@/lib/utils";
+import { HmsEmptyState, HmsPageHeader } from "@/components/hms/hms-ui";
 import { isMenuItemSoldOut } from "@/lib/hms/fb-menu-availability";
 import type { FbConfigPayload } from "@/lib/hms/load-fb-pages";
 
@@ -91,54 +92,71 @@ export function KitchenMenuClient({
   };
 
   return (
-    <div className="w-full space-y-4 px-6 py-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900">Menu</h1>
-          <p className="text-sm text-slate-500">
-            Tap any item to mark it sold out or back in stock — no order needed.
+    <div className="w-full space-y-4 px-4 py-6 sm:px-6">
+      <HmsPageHeader
+        eyebrow="Kitchen"
+        meaning="food"
+        title="Menu"
+        description={
+          <>
+            Tap any dish to mark it sold out or back in stock. No order is needed.
             {soldOutCount > 0
-              ? ` ${soldOutCount} item${soldOutCount === 1 ? "" : "s"} currently sold out.`
+              ? ` ${soldOutCount} item${soldOutCount === 1 ? " is" : "s are"} sold out right now.`
               : ""}
-          </p>
-        </div>
-        {activeOutlets.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
-            {activeOutlets.map((o) => (
-              <button
-                key={o.id}
-                type="button"
-                onClick={() => setOutletId(o.id)}
-                className={cn(
-                  "rounded-xl px-4 py-2 text-sm font-medium transition-colors",
-                  outletId === o.id
-                    ? "bg-blue-600 text-white"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200",
-                )}
-              >
-                {o.name}
-              </button>
-            ))}
-          </div>
-        ) : null}
-      </div>
+          </>
+        }
+        actions={
+          activeOutlets.length > 0 ? (
+            <div role="group" aria-label="Menu to show" className="flex flex-wrap gap-2">
+              {activeOutlets.map((o) => {
+                const on = outletId === o.id;
+                return (
+                  <button
+                    key={o.id}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => setOutletId(o.id)}
+                    className={cn(
+                      "min-h-11 rounded-full border px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1",
+                      on
+                        ? "border-orange-600 bg-orange-50 text-orange-900"
+                        : "border-slate-200 bg-white text-slate-700 hover:border-orange-300 hover:bg-slate-50",
+                    )}
+                  >
+                    {o.name}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null
+        }
+      />
 
       {activeOutlets.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-6 py-12 text-center text-sm text-slate-600">
-          No menu sections configured yet.
-        </p>
+        <HmsEmptyState
+          art="box"
+          meaning="food"
+          title="No menu sections yet"
+          description="Menu sections such as Bar or Restaurant are set up in Restaurant & bar settings."
+        />
       ) : outlet && items.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-6 py-10 text-center text-sm text-slate-600">
-          No menu for {outlet.name} yet.
-        </p>
+        <HmsEmptyState
+          art="box"
+          meaning="food"
+          title={`No menu for ${outlet.name} yet`}
+          description="Dishes appear here once they're added in Restaurant & bar settings."
+        />
       ) : (
         <div className="space-y-4">
           {categories.map((cat) => {
             const catItems = items.filter((i) => i.category_id === cat.id);
             if (!catItems.length) return null;
             return (
-              <div key={cat.id} className="rounded-2xl border border-slate-200 bg-white p-4">
-                <h2 className="mb-3 text-sm font-semibold text-slate-800">{cat.name}</h2>
+              <section key={cat.id} aria-label={cat.name} className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
+                <h2 className="mb-3 flex items-center gap-2 font-heading text-base font-semibold text-slate-900">
+                  <span aria-hidden className="h-2 w-2 rounded-full bg-orange-500" />
+                  {cat.name}
+                </h2>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
                   {catItems.map((item) => {
                     const soldOut = isMenuItemSoldOut(item);
@@ -148,31 +166,28 @@ export function KitchenMenuClient({
                         key={item.id}
                         type="button"
                         disabled={busy}
+                        aria-label={`${item.name}: ${soldOut ? "sold out. Tap to put back in stock" : "in stock. Tap to mark sold out"}`}
                         onClick={() => void toggleItem(item)}
                         className={cn(
-                          "relative rounded-xl border px-3 py-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60",
+                          "relative min-h-16 rounded-xl border px-3 py-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-60",
                           soldOut
-                            ? "border-slate-300 bg-slate-100"
+                            ? "border-slate-300 bg-slate-100 hover:bg-slate-200/70"
                             : "border-emerald-200 bg-emerald-50/60 hover:border-emerald-300 hover:bg-emerald-50",
                         )}
                       >
                         <span
                           className={cn(
-                            "absolute right-2 top-2 flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-                            soldOut
-                              ? "bg-slate-500 text-white"
-                              : "bg-emerald-600 text-white",
+                            "absolute right-2 top-2 flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold",
+                            soldOut ? "bg-slate-700 text-white" : "bg-emerald-700 text-white",
                           )}
                         >
-                          {busy ? (
-                            <Loader2 className="h-2.5 w-2.5 animate-spin" aria-hidden />
-                          ) : null}
+                          {busy ? <Loader2 className="h-3 w-3 animate-spin" aria-hidden /> : null}
                           {soldOut ? "Sold out" : "In stock"}
                         </span>
                         <p
                           className={cn(
-                            "pr-14 text-sm font-medium",
-                            soldOut ? "text-slate-500 line-through" : "text-slate-900",
+                            "pr-20 text-sm font-semibold",
+                            soldOut ? "text-slate-600 line-through" : "text-slate-900",
                           )}
                         >
                           {item.name}
@@ -181,7 +196,7 @@ export function KitchenMenuClient({
                     );
                   })}
                 </div>
-              </div>
+              </section>
             );
           })}
         </div>

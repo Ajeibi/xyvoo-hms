@@ -59,6 +59,8 @@ export type StoreProductRow = {
   taxable: boolean;
   tax_class: string | null;
   minimum_order_qty: number;
+  wholesale_price?: number | string | null;
+  wholesale_min_qty?: number | null;
 
   // Inventory
   stock: number;
@@ -154,6 +156,9 @@ export type DashboardProduct = {
   taxable: boolean;
   taxClass: string | null;
   minimumOrderQty: number;
+  /** The price a trade customer pays, and the smallest quantity it applies from. */
+  wholesalePrice: number | null;
+  wholesaleMinQty: number;
 
   stock: number;
   reorderLevel: number;
@@ -247,6 +252,8 @@ export const WRITABLE_PRODUCT_FIELDS = [
   "taxable",
   "tax_class",
   "minimum_order_qty",
+  "wholesale_price",
+  "wholesale_min_qty",
 
   // Inventory
   "stock",
@@ -342,6 +349,8 @@ export function mapProductRowToDashboard(row: StoreProductRow): DashboardProduct
     taxable: row.taxable,
     taxClass: row.tax_class,
     minimumOrderQty: row.minimum_order_qty,
+    wholesalePrice: row.wholesale_price != null ? Number(row.wholesale_price) : null,
+    wholesaleMinQty: row.wholesale_min_qty ?? 1,
 
     stock: row.stock,
     reorderLevel: row.reorder_level,

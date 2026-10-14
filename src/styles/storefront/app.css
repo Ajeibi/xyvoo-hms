@@ -193,3 +193,114 @@
 .review-verified { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.8125rem; font-weight: 600; color: var(--ink-2); }
 .review-reply { margin-top: 0.25rem; padding: 0.875rem 1rem; border-left: 3px solid var(--accent); background: var(--surface); }
 .review-reply strong { display: block; margin-bottom: 0.25rem; font-size: 0.875rem; color: var(--ink); }
+
+/* Shopper accounts (AccountPrompt.tsx, AccountPage.tsx, AccountForms.tsx). The invitation is fixed-position and never blocks the page. */
+.account-form { display: grid; gap: 1rem; }
+.account-form > .hint { margin: 0; font-size: 0.875rem; color: var(--muted); line-height: 1.55; }
+.account-form .hint a { color: inherit; text-decoration: underline; text-underline-offset: 0.2em; }
+.account-form__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1.25rem; }
+.account-form__actions .link-button { min-height: 2.75rem; }
+.account-form__code { max-width: 12rem; font-size: 1.375rem; letter-spacing: 0.4em; font-variant-numeric: tabular-nums; }
+.account-prompt {
+  position: fixed; z-index: 65; left: 1rem; right: 1rem; bottom: 1rem; max-width: 26rem; margin-left: auto;
+  max-height: calc(100dvh - 2rem); overflow-y: auto; overscroll-behavior: contain;
+  display: grid; gap: 0.75rem; padding: 1.25rem 1.25rem 1rem;
+  background: var(--surface); color: var(--ink); border-radius: var(--card-radius, 0.75rem);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.22); font-size: 0.9375rem; line-height: 1.55;
+  animation: store-app-in 0.25s ease-out;
+}
+@media (prefers-reduced-motion: reduce) { .account-prompt { animation: none; } }
+.account-prompt p { margin: 0; }
+.account-prompt__title { margin: 0; padding-right: 2.5rem; font-family: var(--font-display); font-weight: var(--display-weight); font-size: 1.125rem; }
+.account-prompt__title:focus { outline: none; }
+.account-prompt__optional { padding: 0.625rem 0.75rem; border-radius: 0.5rem; background: color-mix(in srgb, var(--accent) 8%, var(--surface)); font-size: 0.875rem; }
+.account-prompt__signin { font-size: 0.875rem; }
+.account-prompt__signin a { color: var(--accent); text-decoration: underline; text-underline-offset: 0.2em; }
+.account-prompt__close {
+  position: absolute; top: 0.5rem; right: 0.5rem; width: 2.75rem; height: 2.75rem;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: none; border: 0; border-radius: 999px; color: var(--ink); font-size: 1.5rem; line-height: 1; cursor: pointer;
+}
+.account-prompt__close:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); }
+.account-prompt button:focus-visible, .account-prompt a:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.account-grid { display: grid; gap: 1.5rem; margin-top: 1.5rem; }
+@media (min-width: 860px) { .account-grid { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); align-items: start; } }
+.account-card { display: grid; gap: 1rem; padding: 1.5rem; border: 1px solid var(--line); border-radius: var(--card-radius, 0.75rem); background: var(--surface); }
+.account-card .h-section { margin: 0; }
+.account-card--soft { background: color-mix(in srgb, var(--accent) 6%, var(--surface)); }
+.account-benefits { margin: 0; padding-left: 1.25rem; display: grid; gap: 0.375rem; line-height: 1.55; }
+.account-switch { margin: 0; font-size: 0.9375rem; }
+.account-orders { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.75rem; }
+.account-orders li { padding: 0.875rem 1rem; border: 1px solid var(--line); border-radius: 0.625rem; }
+.account-orders__top { display: flex; justify-content: space-between; gap: 1rem; }
+.account-orders__meta, .account-orders__items { margin: 0.25rem 0 0; font-size: 0.875rem; color: var(--muted); }
+.account-card .h-section { font-size: 1.375rem; }
+.checkout-account { margin: 0; font-size: 0.9375rem; } .checkout-account a { color: var(--accent); text-decoration: underline; text-underline-offset: 0.2em; }
+
+/* "Email me when it's back" on sold-out products (StockAlertForm.tsx). */
+.stock-alert { display: grid; gap: 0.75rem; margin-top: 1.25rem; padding: 1.125rem 1.25rem; border: 1px solid var(--line); border-radius: var(--card-radius, 0.75rem); background: color-mix(in srgb, var(--accent) 6%, var(--surface)); }
+.stock-alert p { margin: 0; }
+.stock-alert__title { font-family: var(--font-display); font-weight: var(--display-weight); font-size: 1.0625rem; }
+.stock-alert__text { font-size: 0.9375rem; }
+.stock-alert .btn { justify-self: start; }
+
+/* Gift card page (GiftCardBuy.tsx). */
+.giftcard { display: grid; gap: 2rem; }
+@media (min-width: 900px) { .giftcard { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; } .giftcard__preview { position: sticky; top: 6rem; } }
+.giftcard__preview {
+  display: grid; align-content: space-between; gap: 1rem; aspect-ratio: 1.6 / 1; padding: clamp(1.25rem, 4vw, 2rem);
+  border-radius: 1.25rem; color: #fff; background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 45%, #312e81));
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
+}
+.giftcard__shop { font-size: 0.875rem; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.9; }
+.giftcard__amount { font-family: var(--font-display); font-weight: var(--display-weight); font-size: clamp(2rem, 6vw, 3.25rem); line-height: 1; }
+.giftcard__label { justify-self: end; font-size: 0.875rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.giftcard__form { display: grid; gap: 1.25rem; }
+.giftcard__form .h-page { margin: 0; }
+.giftcard__form .lead { margin: 0; }
+.giftcard__group { display: grid; gap: 1rem; margin: 0; padding: 1.25rem; border: 1px solid var(--line); border-radius: var(--card-radius, 0.75rem); }
+.giftcard__group legend { padding: 0 0.375rem; font-weight: 700; }
+.giftcard__form textarea.input { min-height: 5.5rem; resize: vertical; }
+.giftcard__form .btn--primary { justify-self: start; }
+
+/* "What's in the bundle" on a bundle's product page. */
+.bundle-contents { display: grid; gap: 0.75rem; margin: 1.25rem 0; padding: 1.125rem 1.25rem; border: 1px solid var(--line); border-radius: var(--card-radius, 0.75rem); background: var(--surface); }
+.bundle-contents__title { margin: 0; font-family: var(--font-display); font-weight: var(--display-weight); font-size: 1.0625rem; }
+.bundle-contents ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.375rem; }
+.bundle-contents li { font-size: 0.9375rem; }
+.bundle-contents a { color: inherit; text-decoration: underline; text-underline-offset: 0.2em; }
+.bundle-contents__qty { display: inline-block; min-width: 2rem; font-weight: 700; }
+.bundle-contents__saving { margin: 0; padding-top: 0.75rem; border-top: 1px solid var(--line); font-size: 0.9375rem; }
+
+/* ---------- Offer banner with a countdown ---------- */
+.promo-bar { background: var(--accent); color: var(--on-accent); font-size: 0.875rem; }
+.promo-bar__inner { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0.25rem 0.75rem; min-height: 2.75rem; padding-block: 0.375rem; text-align: center; }
+.promo-bar p { margin: 0; }
+.promo-bar__time { font-weight: 600; }
+.promo-bar__copy { min-height: 2.75rem; padding: 0 0.75rem; border: 1px solid currentColor; border-radius: 999px; background: transparent; color: inherit; font: inherit; font-size: 0.8125rem; cursor: pointer; }
+.promo-bar__copy:hover { background: color-mix(in srgb, var(--on-accent) 15%, transparent); }
+.promo-bar__copy:focus-visible { outline: 3px solid var(--on-accent); outline-offset: 2px; }
+
+/* ---------- Trade price ---------- */
+.trade-price { margin: 0.25rem 0 0; font-size: 0.9375rem; font-weight: 600; color: var(--ink); }
+
+/* ---------- Blog ---------- */
+.blog-list { display: grid; gap: 2rem; margin: 0; padding: 0; list-style: none; }
+.blog-card { display: grid; gap: 1rem; }
+.blog-card__media { display: block; position: relative; aspect-ratio: 3 / 2; overflow: hidden; border-radius: var(--radius, 0.75rem); }
+.blog-card__media img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.blog-card__body > * + * { margin-top: 0.5rem; }
+.blog-card__body a { color: inherit; text-decoration: none; }
+.blog-card__body a:hover { text-decoration: underline; }
+.blog-head { max-width: 46rem; margin-bottom: 2rem; }
+.blog-cover { position: relative; aspect-ratio: 16 / 9; overflow: hidden; border-radius: var(--radius, 0.75rem); margin-bottom: 2rem; }
+.blog-cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.blog-body { max-width: 46rem; }
+.blog-body > * + * { margin-top: 1.25rem; }
+.blog-body ul { padding-left: 1.25rem; list-style: disc; }
+.blog-figure { margin: 0; }
+.blog-figure .media { position: relative; aspect-ratio: 3 / 2; overflow: hidden; border-radius: var(--radius, 0.75rem); }
+.blog-figure img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.blog-figure figcaption { margin-top: 0.5rem; font-size: 0.875rem; color: var(--ink-2); }
+@media (min-width: 48rem) { .blog-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 64rem) { .blog-list { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

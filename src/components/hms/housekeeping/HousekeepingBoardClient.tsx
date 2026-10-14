@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { AlarmClock, BedDouble, ClipboardCheck, Layers, Loader2, Sparkles, SprayCan } from "lucide-react";
+import { HmsCard, HmsEmptyState, HmsPage, HmsPageHeader, HmsStatStrip, HmsStatTile, hmsButton } from "@/components/hms/hms-ui";
+import { HmsSectionIntro } from "@/components/hms/hms-ui-client";
 import { useFrontDeskRealtime } from "@/hooks/useFrontDeskRealtime";
 import { useClientNow } from "@/hooks/useClientNow";
 import { toastError, toastSuccess } from "@/lib/app-toast";
@@ -100,45 +102,108 @@ export function HousekeepingBoardClient({
     }
   };
 
+  const counts = useMemo(() => {
+    let dirty = 0;
+    let cleaning = 0;
+    let awaitingInspection = 0;
+    let overdue = 0;
+    for (const t of tasks) {
+      if (t.status === "dirty") dirty += 1;
+      else if (t.status === "cleaning_in_progress") cleaning += 1;
+      else if (t.status === "cleaned") awaitingInspection += 1;
+      if (now != null) {
+        const due = effectiveTaskDueBy(t.createdAt, t.taskType, t.dueBy, settings);
+        if (due && new Date(due).getTime() < now) overdue += 1;
+      }
+    }
+    return { dirty, cleaning, awaitingInspection, overdue };
+  }, [tasks, now, settings]);
+
   return (
-    <div className="mx-auto w-full max-w-[1400px] px-6 py-8 sm:px-8">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900">Housekeeping</h1>
-          <p className="mt-0.5 text-sm text-slate-500">Live room-cleaning board, grouped by floor.</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {canCreateManualTask ? (
-            <HousekeepingNewTaskDialog slug={slug} rooms={rooms} onCreated={() => router.refresh()} />
-          ) : null}
-          {canManage ? (
-            <Button onClick={() => void generate()} disabled={generating} className="rounded-lg">
-              {generating ? "Generating…" : "Generate today's tasks"}
-            </Button>
-          ) : null}
-        </div>
-      </div>
+    <HmsPage wide>
+      <HmsPageHeader
+        eyebrow="Housekeeping"
+        meaning="care"
+        title="Housekeeping board"
+        description="Every room that needs cleaning today, grouped by floor."
+        actions={
+          <>
+            {canCreateManualTask ? (
+              <HousekeepingNewTaskDialog slug={slug} rooms={rooms} onCreated={() => router.refresh()} />
+            ) : null}
+            {canManage ? (
+              <button type="button" onClick={() => void generate()} disabled={generating} className={hmsButton.primary}>
+                {generating ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Sparkles className="h-4 w-4" aria-hidden />}
+                {generating ? "Generating…" : "Generate today's tasks"}
+              </button>
+            ) : null}
+          </>
+        }
+      />
 
       <HousekeepingSubNav slug={slug} canAccessAllDepartments={canAccessAllDepartments} />
 
+      <HmsSectionIntro
+        id="housekeeping-board"
+        meaning="care"
+        title="How the board works"
+        points={[
+          "Each card is a room. Tap the button on the card to start cleaning, then to mark it cleaned.",
+          "Cleaned rooms wait for an inspection before they're ready for guests.",
+          canManage
+            ? "Use Generate today's tasks each morning to add stayover cleans for occupied rooms."
+            : "The time on each card shows how long is left before the clean is due.",
+        ]}
+      />
+
+      <HmsStatStrip label="Rooms at a glance">
+        <HmsStatTile label="Dirty" value={counts.dirty} hint="Not started yet" icon={BedDouble} meaning="care" />
+        <HmsStatTile label="Being cleaned" value={counts.cleaning} hint="Someone is in the room" icon={SprayCan} meaning="care" />
+        <HmsStatTile
+          label="Awaiting inspection"
+          value={counts.awaitingInspection}
+          hint="Cleaned, needs a check"
+          icon={ClipboardCheck}
+          meaning="team"
+        />
+        <HmsStatTile
+          label="Overdue"
+          value={now == null ? "—" : counts.overdue}
+          hint="Past the time they were due"
+          icon={AlarmClock}
+          meaning="attention"
+          status={counts.overdue > 0 ? "critical" : undefined}
+          statusText="Past due, needs someone now"
+        />
+      </HmsStatStrip>
+
       {tasks.length === 0 ? (
-        <div className="mt-6 rounded-xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">
-          No open housekeeping tasks right now.
-        </div>
+        <HmsEmptyState
+          icon={Sparkles}
+          meaning="care"
+          title="No open housekeeping tasks"
+          description="Nothing needs cleaning at the moment. New tasks appear here as soon as a room needs attention."
+        />
       ) : (
-        <div className="mt-6 space-y-6">
+        <div className="space-y-6">
           {byFloor.map(([floor, floorTasks]) => (
-            <div key={floor} className="rounded-2xl border border-slate-200 bg-white p-4">
-              <h2 className="mb-3 text-sm font-semibold text-slate-800">Floor {floor}</h2>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+            <HmsCard
+              key={floor}
+              id={`housekeeping-floor-${floor}`}
+              title={`Floor ${floor}`}
+              description={`${floorTasks.length} room${floorTasks.length === 1 ? "" : "s"} to look after`}
+              icon={Layers}
+              meaning="care"
+            >
+              <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
                 {floorTasks.map((t) => {
                   const next = NEXT_STATUS[t.status];
                   return (
-                    <div key={t.id} className="rounded-xl border border-slate-200 p-4 shadow-sm">
+                    <li key={t.id} className="rounded-xl border border-violet-100 bg-violet-50/50 p-4">
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <p className="font-semibold text-slate-900">Room {t.roomCode}</p>
-                          <p className="text-xs text-slate-500">{taskTypeLabel(t.taskType)}</p>
+                          <p className="font-heading text-base font-semibold text-slate-900">Room {t.roomCode}</p>
+                          <p className="text-sm text-slate-700">{taskTypeLabel(t.taskType)}</p>
                         </div>
                         <PriorityBadge level={t.priorityLevel} />
                       </div>
@@ -158,26 +223,28 @@ export function HousekeepingBoardClient({
                         />
                       </div>
                       {next ? (
-                        <Button
+                        <button
                           type="button"
-                          size="sm"
-                          className="mt-3 w-full rounded-lg"
+                          className={`${hmsButton.primary} mt-3 min-h-11 w-full`}
                           disabled={busyIds.has(t.id)}
                           onClick={() => void advance(t.id, next.status, `Room ${t.roomCode}: ${next.label}`)}
                         >
                           {busyIds.has(t.id) ? "Saving…" : next.label}
-                        </Button>
+                        </button>
                       ) : t.status === "cleaned" ? (
-                        <p className="mt-3 text-xs font-medium text-amber-700">Awaiting inspection</p>
+                        <p className="mt-3 flex items-center gap-1.5 text-sm font-medium text-amber-800">
+                          <ClipboardCheck className="h-4 w-4" aria-hidden />
+                          Awaiting inspection
+                        </p>
                       ) : null}
-                    </div>
+                    </li>
                   );
                 })}
-              </div>
-            </div>
+              </ul>
+            </HmsCard>
           ))}
         </div>
       )}
-    </div>
+    </HmsPage>
   );
 }

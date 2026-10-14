@@ -713,7 +713,7 @@ export function FrontDeskRoomDetailSheet({
                             <span className="font-medium">{a.label}</span>
                             <span className="ml-2 text-xs text-slate-500">{a.assetType}</span>
                             {a.serialNumber ? (
-                              <span className="ml-1 text-xs text-slate-400">· {a.serialNumber}</span>
+                              <span className="ml-1 text-xs text-slate-600">· {a.serialNumber}</span>
                             ) : null}
                           </span>
                           <span className="flex items-center gap-2">

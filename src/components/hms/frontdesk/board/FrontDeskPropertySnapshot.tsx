@@ -27,10 +27,10 @@ export function FrontDeskPropertySnapshot({
 
   return (
     <section
-      className="overflow-hidden rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/25 sm:p-7"
+      className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6"
       aria-label="Property snapshot metrics"
     >
-      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Property metrics</p>
+      <p className="text-sm font-medium text-slate-600">Property metrics</p>
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         {items.map((item) => (
           <div
@@ -39,7 +39,7 @@ export function FrontDeskPropertySnapshot({
           >
             <div className="flex items-center gap-2 text-slate-500">
               <item.icon className="h-4 w-4" aria-hidden />
-              <p className="text-[11px] font-medium uppercase tracking-[0.2em]">{item.label}</p>
+              <p className="text-sm font-medium">{item.label}</p>
             </div>
             <p className="mt-3 text-2xl font-semibold tabular-nums text-slate-900">{item.value}</p>
             <p className="mt-2 text-xs leading-6 text-slate-500">{item.description}</p>

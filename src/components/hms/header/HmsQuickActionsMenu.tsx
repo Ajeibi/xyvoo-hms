@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, Sparkles, Wrench } from "lucide-react";
+import { CalendarPlus, ChevronDown, LogIn, LogOut, Sparkles, UserPlus, Wrench } from "lucide-react";
+import { HmsField, hmsInput } from "@/components/hms/hms-ui";
+import { HMS_MEANING, type HmsMeaning } from "@/components/hms/meaning";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -22,6 +24,15 @@ import {
 } from "@/components/ui/dialog";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { openCheckoutDialog } from "@/lib/hms/open-checkout-bus";
+
+function ActionIcon({ icon: Icon, meaning }: { icon: React.ComponentType<{ className?: string }>; meaning: HmsMeaning }) {
+  const tone = HMS_MEANING[meaning];
+  return (
+    <span aria-hidden className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${tone.tint} ${tone.icon}`}>
+      <Icon className="h-4 w-4" />
+    </span>
+  );
+}
 
 export function HmsQuickActionsMenu({ slug }: { slug: string }) {
   const router = useRouter();
@@ -65,64 +76,83 @@ export function HmsQuickActionsMenu({ slug }: { slug: string }) {
             <ChevronDown className="h-4 w-4 opacity-60" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56 rounded-2xl p-2">
-          <DropdownMenuLabel className="text-xs text-slate-500">Front desk</DropdownMenuLabel>
-          <DropdownMenuItem asChild>
-            <Link href={`${base}/frontdesk/check-in`}>Check in guest</Link>
+        <DropdownMenuContent align="end" className="w-64 rounded-2xl p-2">
+          <DropdownMenuLabel className="text-sm font-semibold text-slate-700">Front desk</DropdownMenuLabel>
+          <DropdownMenuItem asChild className="gap-2.5 rounded-xl">
+            <Link href={`${base}/frontdesk/check-in`}>
+              <ActionIcon icon={LogIn} meaning="rooms" />
+              Check in a guest
+            </Link>
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => openCheckoutDialog()}>
-            Check out guest
+          <DropdownMenuItem className="gap-2.5 rounded-xl" onSelect={() => openCheckoutDialog()}>
+            <ActionIcon icon={LogOut} meaning="rooms" />
+            Check out a guest
           </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link href={`${base}/reservations/new`}>Create reservation</Link>
+          <DropdownMenuItem asChild className="gap-2.5 rounded-xl">
+            <Link href={`${base}/reservations/new`}>
+              <ActionIcon icon={CalendarPlus} meaning="rooms" />
+              New reservation
+            </Link>
           </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link href={`${base}/frontdesk/check-in`}>Walk-in booking</Link>
+          <DropdownMenuItem asChild className="gap-2.5 rounded-xl">
+            <Link href={`${base}/frontdesk/check-in`}>
+              <ActionIcon icon={UserPlus} meaning="guests" />
+              Walk-in booking
+            </Link>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
+          <DropdownMenuLabel className="text-sm font-semibold text-slate-700">Rooms</DropdownMenuLabel>
           <DropdownMenuItem
+            className="gap-2.5 rounded-xl"
             onClick={() => {
               const code = window.prompt("Room number to mark cleaned?");
               if (code?.trim()) void patchRoom({ roomCode: code.trim(), status: "ready_for_occupancy" });
             }}
           >
-            <Sparkles className="mr-2 h-4 w-4" />
-            Mark room cleaned
+            <ActionIcon icon={Sparkles} meaning="care" />
+            Mark a room as cleaned
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setMaintOpen(true)}>
-            <Wrench className="mr-2 h-4 w-4" />
-            Report maintenance
+          <DropdownMenuItem className="gap-2.5 rounded-xl" onClick={() => setMaintOpen(true)}>
+            <ActionIcon icon={Wrench} meaning="care" />
+            Report a repair
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem disabled>Extend stay (coming soon)</DropdownMenuItem>
-          <DropdownMenuItem disabled>Change room (coming soon)</DropdownMenuItem>
-          <DropdownMenuItem disabled>Add payment (coming soon)</DropdownMenuItem>
+          <DropdownMenuLabel className="text-sm font-semibold text-slate-700">Coming soon</DropdownMenuLabel>
+          <DropdownMenuItem disabled className="rounded-xl">Extend a stay</DropdownMenuItem>
+          <DropdownMenuItem disabled className="rounded-xl">Change room</DropdownMenuItem>
+          <DropdownMenuItem disabled className="rounded-xl">Add a payment</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
       <Dialog open={maintOpen} onOpenChange={setMaintOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Report maintenance</DialogTitle>
+            <DialogTitle>Report a repair</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <input
-              value={roomCode}
-              onChange={(e) => setRoomCode(e.target.value)}
-              placeholder="Room number"
-              className="h-10 w-full rounded-xl border border-slate-200 px-3 text-sm"
-            />
-            <textarea
-              value={maintNotes}
-              onChange={(e) => setMaintNotes(e.target.value)}
-              placeholder="Issue description"
-              rows={3}
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            />
+          <div className="space-y-4">
+            <HmsField id="quick-maint-room" label="Room number">
+              <input
+                id="quick-maint-room"
+                value={roomCode}
+                onChange={(e) => setRoomCode(e.target.value)}
+                className={hmsInput}
+              />
+            </HmsField>
+            <HmsField id="quick-maint-notes" label="What's wrong?" optional hint="For example: the shower drips and won't turn off fully.">
+              <textarea
+                id="quick-maint-notes"
+                value={maintNotes}
+                onChange={(e) => setMaintNotes(e.target.value)}
+                aria-describedby="quick-maint-notes-hint"
+                rows={3}
+                className={hmsInput}
+              />
+            </HmsField>
           </div>
           <DialogFooter>
             <Button
               type="button"
+              className="rounded-xl"
               disabled={busy || !roomCode.trim()}
               onClick={() =>
                 void patchRoom({
@@ -132,7 +162,7 @@ export function HmsQuickActionsMenu({ slug }: { slug: string }) {
                 })
               }
             >
-              Submit
+              {busy ? "Sending…" : "Report repair"}
             </Button>
           </DialogFooter>
         </DialogContent>

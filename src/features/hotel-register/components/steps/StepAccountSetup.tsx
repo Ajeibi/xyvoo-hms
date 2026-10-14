@@ -1,71 +1,127 @@
 "use client";
 
 import { useState } from "react";
-import { AlertCircle, CheckCircle2, Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { INPUT_CLASS } from "@/features/hotel-register/constants";
-import { passwordStrength } from "@/features/hotel-register/utils";
+import { ErrorBanner, Field, PasswordStrength, PRIMARY_BUTTON_CLASS, Spinner } from "@/features/hotel-register/components/fields";
 import { useHotelRegisterStore } from "@/features/hotel-register/store";
+
+const TOGGLE_CLASS =
+  "absolute inset-y-0 right-0 flex w-11 cursor-pointer items-center justify-center rounded-r-xl text-slate-600 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-xyvoo-blue";
 
 export default function StepAccountSetup() {
   const [showPw, setShowPw] = useState(false);
   const [showCpw, setShowCpw] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
   const account = useHotelRegisterStore((s) => s.account);
   const accountError = useHotelRegisterStore((s) => s.accountError);
   const loading = useHotelRegisterStore((s) => s.loading);
   const setAccountField = useHotelRegisterStore((s) => s.setAccountField);
   const saveAccountDetails = useHotelRegisterStore((s) => s.saveAccountDetails);
-  const pwStrength = passwordStrength(account.password);
+
+  const showStrength = account.password.length > 0 || passwordFocused;
+  const mismatch = Boolean(account.confirm) && account.password !== account.confirm;
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
-      <h2 className="mb-1 text-2xl font-bold text-xyvoo-navy">Set up your account</h2>
-      <p className="text-slate-500 text-sm mb-6">Almost done — just a few more details.</p>
-      <div className="space-y-4">
-        <div>
-          <label htmlFor="account-contact-name" className="text-xs font-semibold text-slate-500 mb-1 block">Contact Name <span className="text-slate-400 font-normal">(optional)</span></label>
-          <input id="account-contact-name" autoComplete="name" value={account.contact_name} onChange={(e) => setAccountField("contact_name", e.target.value)} className={INPUT_CLASS} placeholder="John Doe" />
-          <p className="text-xs text-slate-400 mt-1">Primary contact name for this account (optional). Displayed where your profile appears when signed in.</p>
-        </div>
-        <div>
-          <label htmlFor="account-password" className="text-xs font-semibold text-slate-500 mb-1 block">Password *</label>
-          <div className="relative">
-            <input id="account-password" type={showPw ? "text" : "password"} autoComplete="new-password" value={account.password} onChange={(e) => setAccountField("password", e.target.value)} className={`${INPUT_CLASS} pr-10`} placeholder="Min 8 chars, uppercase, number, symbol" />
-            <button type="button" onClick={() => setShowPw((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer">
-              {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </div>
-          {account.password && (
-            <div className="mt-2">
-              <div className="flex gap-1 mb-1">{[1, 2, 3, 4].map((i) => <div key={i} className={`h-1 flex-1 rounded-full transition-all ${i <= pwStrength.score ? pwStrength.color : "bg-slate-200"}`} />)}</div>
-              <p className="text-xs text-slate-400">Strength: <span className="font-semibold">{pwStrength.label}</span></p>
-            </div>
-          )}
-        </div>
-        <div>
-          <label htmlFor="account-confirm-password" className="text-xs font-semibold text-slate-500 mb-1 block">Confirm Password *</label>
-          <div className="relative">
-            <input id="account-confirm-password" type={showCpw ? "text" : "password"} autoComplete="new-password" value={account.confirm} onChange={(e) => setAccountField("confirm", e.target.value)} className={`${INPUT_CLASS} pr-10`} placeholder="Re-enter password" />
-            <button type="button" onClick={() => setShowCpw((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer">
-              {showCpw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </div>
-          {account.confirm && account.password !== account.confirm && <p className="text-xs text-red-500 mt-1">Passwords do not match.</p>}
-          {account.confirm && account.password === account.confirm && <p className="text-xs text-green-600 mt-1 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Passwords match</p>}
-        </div>
-        <label className="flex items-start gap-3 cursor-pointer p-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors">
-          <input type="checkbox" checked={account.whatsapp} onChange={(e) => setAccountField("whatsapp", e.target.checked)} className="mt-0.5 w-4 h-4 rounded accent-blue-600 flex-shrink-0" />
-          <div>
-            <p className="text-sm font-medium text-slate-800">WhatsApp notifications</p>
-            <p className="text-xs text-slate-400 mt-0.5">Receive important onboarding and account alerts on WhatsApp.</p>
-          </div>
+    <div className="space-y-4">
+      <ErrorBanner message={accountError} />
+
+      <Field
+        id="account-contact-name"
+        label="Contact name"
+        optional
+        hint="The main contact for this account. It's shown where your profile appears when you're signed in."
+      >
+        <input
+          id="account-contact-name"
+          autoComplete="name"
+          value={account.contact_name}
+          onChange={(e) => setAccountField("contact_name", e.target.value)}
+          className={INPUT_CLASS}
+          placeholder="e.g. John Doe"
+          aria-describedby="account-contact-name-hint"
+        />
+      </Field>
+
+      <div>
+        <label htmlFor="account-password" className="mb-1.5 block text-sm font-medium text-black">
+          Password
         </label>
-        {accountError && <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 rounded-xl px-4 py-3"><AlertCircle className="w-4 h-4 flex-shrink-0" /> {accountError}</div>}
-        <button
-          onClick={saveAccountDetails}
-          disabled={loading}
-          className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-xyvoo-blue py-3.5 font-semibold text-white transition-all disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : "Continue to Plan →"}
+        <div className="relative">
+          <input
+            id="account-password"
+            type={showPw ? "text" : "password"}
+            autoComplete="new-password"
+            value={account.password}
+            onChange={(e) => setAccountField("password", e.target.value)}
+            onFocus={() => setPasswordFocused(true)}
+            className={`${INPUT_CLASS} pr-12`}
+            placeholder="Create a strong password"
+            aria-describedby={showStrength ? "account-password-strength" : undefined}
+          />
+          <button type="button" aria-label={showPw ? "Hide password" : "Show password"} onClick={() => setShowPw((v) => !v)} className={TOGGLE_CLASS}>
+            {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
+        {showStrength ? <PasswordStrength id="account-password-strength" password={account.password} /> : null}
+      </div>
+
+      <div>
+        <label htmlFor="account-confirm-password" className="mb-1.5 block text-sm font-medium text-black">
+          Confirm password
+        </label>
+        <div className="relative">
+          <input
+            id="account-confirm-password"
+            type={showCpw ? "text" : "password"}
+            autoComplete="new-password"
+            value={account.confirm}
+            onChange={(e) => setAccountField("confirm", e.target.value)}
+            className={`${INPUT_CLASS} pr-12`}
+            placeholder="Re-enter your password"
+            aria-invalid={mismatch || undefined}
+            aria-describedby={account.confirm ? "account-confirm-password-match" : undefined}
+          />
+          <button type="button" aria-label={showCpw ? "Hide password" : "Show password"} onClick={() => setShowCpw((v) => !v)} className={TOGGLE_CLASS}>
+            {showCpw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
+        {account.confirm ? (
+          <p
+            id="account-confirm-password-match"
+            className={`mt-1.5 text-sm font-medium ${mismatch ? "text-rose-700" : "text-green-700"}`}
+          >
+            {mismatch ? "Passwords do not match" : "✓ Passwords match"}
+          </p>
+        ) : null}
+      </div>
+
+      <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3 transition-colors hover:bg-slate-50">
+        <input
+          type="checkbox"
+          checked={account.whatsapp}
+          onChange={(e) => setAccountField("whatsapp", e.target.checked)}
+          className="mt-0.5 h-4 w-4 shrink-0 rounded accent-xyvoo-blue-deep"
+          aria-describedby="account-whatsapp-hint"
+        />
+        <span>
+          <span className="block text-sm font-medium text-black">WhatsApp notifications</span>
+          <span id="account-whatsapp-hint" className="mt-0.5 block text-sm text-slate-600">
+            Receive important onboarding and account alerts on WhatsApp.
+          </span>
+        </span>
+      </label>
+
+      <div className="border-t border-slate-200 pt-6">
+        <button type="button" onClick={saveAccountDetails} disabled={loading} className={PRIMARY_BUTTON_CLASS}>
+          {loading ? (
+            <>
+              <Spinner />
+              <span className="sr-only">Saving your details…</span>
+            </>
+          ) : (
+            "Continue to plan"
+          )}
         </button>
       </div>
     </div>

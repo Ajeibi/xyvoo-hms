@@ -1,12 +1,21 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Armchair, Loader2, Plus, Sparkles, Trash2, Users, X } from "lucide-react";
 import type { FbOrderWithItems, FbTableRow } from "@/lib/hms/fb-types";
 import type { FbRoleCapabilities } from "@/lib/hms/fb-rbac";
 import { useFbRealtime } from "@/hooks/useFbRealtime";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import {
+  HmsCard,
+  HmsEmptyState,
+  HmsField,
+  HmsPageHeader,
+  HmsPill,
+  HmsStatStrip,
+  HmsStatTile,
+  hmsButton,
+  hmsInput,
+} from "@/components/hms/hms-ui";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,6 +28,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { cn } from "@/lib/utils";
+
+const TABLE_STATUS_LABEL: Record<string, string> = {
+  available: "Free",
+  seated: "Seated",
+  dirty: "Needs clearing",
+};
 
 export function FbTablesClient({
   slug,
@@ -137,98 +152,132 @@ export function FbTablesClient({
     await loadConfig();
   };
 
-  return (
-    <div className="w-full px-6 py-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900">Tables</h1>
-          <p className="mt-1 text-sm text-slate-500">Restaurant table status and open orders.</p>
-        </div>
-        {canManage ? (
-          <Button
-            type="button"
-            variant={adding ? "secondary" : "default"}
-            onClick={() => setAdding((v) => !v)}
-            className="gap-1.5"
-          >
-            <Plus className="h-4 w-4" aria-hidden />
-            {adding ? "Close" : "Add table"}
-          </Button>
-        ) : null}
-      </div>
+  const tableStatus = (table: FbTableRow) => (orderByTable.has(table.id) ? "seated" : table.status);
+  const freeCount = tables.filter((t) => tableStatus(t) === "available").length;
+  const seatedCount = tables.filter((t) => tableStatus(t) === "seated").length;
+  const dirtyCount = tables.filter((t) => tableStatus(t) === "dirty").length;
 
-      {canManage && adding ? (
-        <div className="mt-4 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="w-32">
-            <label className="mb-1 block text-xs font-medium text-slate-600">Table code</label>
-            <Input
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              placeholder="T7"
-              maxLength={20}
-              disabled={busy}
-              className="rounded-xl"
-            />
-          </div>
-          <div className="w-24">
-            <label className="mb-1 block text-xs font-medium text-slate-600">Covers</label>
-            <Input
-              type="number"
-              min={1}
-              max={30}
-              value={covers}
-              onChange={(e) => setCovers(e.target.value)}
-              disabled={busy}
-              className="rounded-xl"
-            />
-          </div>
-          <Button type="button" onClick={() => void addTable()} disabled={busy} className="gap-1.5">
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
-            Save table
-          </Button>
-        </div>
+  return (
+    <div className="w-full space-y-6 px-4 py-6 sm:px-6">
+      <HmsPageHeader
+        eyebrow="Restaurant & bar"
+        meaning="food"
+        title="Tables"
+        description="Which tables are free, who is seated and which have an open order."
+        actions={
+          canManage ? (
+            <button
+              type="button"
+              aria-expanded={adding}
+              aria-controls="fb-add-table"
+              onClick={() => setAdding((v) => !v)}
+              className={adding ? hmsButton.secondary : hmsButton.primary}
+            >
+              {adding ? <X className="h-4 w-4" aria-hidden /> : <Plus className="h-4 w-4" aria-hidden />}
+              {adding ? "Close" : "Add table"}
+            </button>
+          ) : null
+        }
+      />
+
+      {tables.length > 0 ? (
+        <HmsStatStrip label="Tables at a glance" columns={3}>
+          <HmsStatTile label="Free" value={freeCount} hint="Ready for the next guests" icon={Armchair} meaning="food" />
+          <HmsStatTile label="Seated" value={seatedCount} hint="Guests at the table now" icon={Users} meaning="guests" />
+          <HmsStatTile label="Needs clearing" value={dirtyCount} hint="Clear and reset before seating" icon={Sparkles} meaning="care" />
+        </HmsStatStrip>
       ) : null}
 
-      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-        {tables.length === 0 ? (
-          <p className="col-span-full rounded-2xl border border-slate-200 bg-white py-12 text-center text-sm text-slate-500">
-            No tables yet.
-          </p>
-        ) : (
-          tables.map((table) => {
+      {canManage && adding ? (
+        <HmsCard id="fb-add-table" title="Add a table" icon={Plus} meaning="food">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="w-36">
+              <HmsField id="fb-table-code" label="Table code">
+                <input
+                  id="fb-table-code"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  placeholder="T7"
+                  maxLength={20}
+                  disabled={busy}
+                  className={hmsInput}
+                />
+              </HmsField>
+            </div>
+            <div className="w-28">
+              <HmsField id="fb-table-covers" label="Covers">
+                <input
+                  id="fb-table-covers"
+                  type="number"
+                  min={1}
+                  max={30}
+                  value={covers}
+                  onChange={(e) => setCovers(e.target.value)}
+                  disabled={busy}
+                  className={hmsInput}
+                />
+              </HmsField>
+            </div>
+            <button type="button" onClick={() => void addTable()} disabled={busy} className={hmsButton.primary}>
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
+              Save table
+            </button>
+          </div>
+        </HmsCard>
+      ) : null}
+
+      {tables.length === 0 ? (
+        <HmsEmptyState
+          art="basket"
+          meaning="food"
+          title="No tables yet"
+          description={
+            canManage
+              ? "Add your restaurant tables so staff can link orders to a seat."
+              : "Tables appear here once a manager adds them."
+          }
+        />
+      ) : (
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+          {tables.map((table) => {
             const order = orderByTable.get(table.id);
             const status = order ? "seated" : table.status;
             return (
-              <div
+              <li
                 key={table.id}
                 className={cn(
                   "relative rounded-2xl border p-4",
                   status === "available" && "border-emerald-200 bg-emerald-50",
-                  status === "seated" && "border-blue-200 bg-blue-50",
-                  status === "dirty" && "border-amber-200 bg-amber-50",
+                  status === "seated" && "border-amber-200 bg-amber-50",
+                  status === "dirty" && "border-violet-200 bg-violet-50",
+                  !["available", "seated", "dirty"].includes(status) && "border-slate-200 bg-white",
                 )}
               >
                 {canManage && !order ? (
                   <button
                     type="button"
                     onClick={() => setDeleteTarget(table)}
-                    title="Delete table"
-                    className="absolute right-2 top-2 rounded-lg p-1 text-slate-400 transition-colors hover:bg-white hover:text-red-600"
+                    aria-label={`Delete table ${table.table_code}`}
+                    className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-white hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                   >
                     <Trash2 className="h-4 w-4" aria-hidden />
                   </button>
                 ) : null}
-                <p className="text-lg font-bold text-slate-900">{table.table_code}</p>
-                <p className="text-xs capitalize text-slate-600">{status}</p>
-                <p className="mt-1 text-xs text-slate-500">{table.covers} covers</p>
+                <p className="font-heading text-lg font-bold text-slate-900">{table.table_code}</p>
+                <p className="mt-1">
+                  <HmsPill tone={status === "available" ? "green" : status === "seated" ? "amber" : "slate"}>
+                    {TABLE_STATUS_LABEL[status] ?? status.replace(/_/g, " ")}
+                  </HmsPill>
+                </p>
+                <p className="mt-2 text-sm text-slate-700">{table.covers} covers</p>
                 {order ? (
-                  <p className="mt-2 text-xs font-medium text-blue-700">#{order.order_number}</p>
+                  <p className="mt-1 text-sm font-medium text-orange-800">Order #{order.order_number}</p>
                 ) : null}
-              </div>
+              </li>
             );
-          })
-        )}
-      </div>
+          })}
+        </ul>
+      )}
 
       <AlertDialog
         open={deleteTarget !== null}

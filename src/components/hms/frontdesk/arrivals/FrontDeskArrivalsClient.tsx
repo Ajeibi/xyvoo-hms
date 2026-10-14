@@ -2,14 +2,32 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarOff, RefreshCw, Search } from "lucide-react";
+import {
+  BedDouble,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  DoorOpen,
+  ListFilter,
+  RefreshCw,
+  Search,
+  Star,
+  UserX,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import {
-  FRONT_DESK_ACCENT_BORDER_CLASS,
-  FRONT_DESK_ACCENT_WELL_CLASS,
-} from "@/lib/hms/frontdesk-capabilities";
+  HmsCard,
+  HmsEmptyState,
+  HmsPageHeader,
+  HmsPill,
+  HmsStatStrip,
+  HmsStatTile,
+  hmsButton,
+} from "@/components/hms/hms-ui";
+import { HmsFilterChips, HmsSectionIntro } from "@/components/hms/hms-ui-client";
 import type {
   ArrivalSummary,
   ArrivalWorkbenchRow,
@@ -33,6 +51,7 @@ import {
   arrivalRowSurfaceClasses,
 } from "./arrival-movement-ui";
 import { cn } from "@/lib/utils";
+import { StaleDataNotice } from "@/components/hms/StaleDataNotice";
 
 const STATUS_LABEL: Record<string, string> = {
   confirmed: "Confirmed",
@@ -41,6 +60,21 @@ const STATUS_LABEL: Record<string, string> = {
   cancelled: "Cancelled",
   no_show: "No-show",
 };
+
+const STATUS_TONE: Record<string, "slate" | "green" | "amber" | "red" | "blue"> = {
+  confirmed: "blue",
+  checked_in: "green",
+  checked_out: "slate",
+  cancelled: "slate",
+  no_show: "red",
+};
+
+const DATE_PRESETS = [
+  { value: "today", label: "Today" },
+  { value: "tomorrow", label: "Tomorrow" },
+  { value: "week", label: "This week" },
+  { value: "custom", label: "Choose dates" },
+];
 
 const READINESS_LABEL: Record<string, string> = {
   ready: "Ready",
@@ -75,13 +109,15 @@ function formatUtcDateTime(iso: string) {
   });
 }
 
-const TH = "px-4 py-3.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
+const TH = "px-4 py-3 text-left text-sm font-semibold text-slate-700";
 const TD = "px-4 py-4 align-middle text-sm text-slate-700";
+const SORT_BUTTON =
+  "inline-flex cursor-pointer items-center gap-1 rounded hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500";
 
-const FILTER_LABEL =
-  "mb-2 block text-[11px] font-semibold uppercase tracking-wide text-slate-500";
+const FILTER_LABEL = "mb-1 block text-sm font-medium text-slate-800";
 const FILTER_SELECT =
-  "h-10 w-full cursor-pointer rounded-lg border border-input bg-white px-3 text-sm text-slate-800 shadow-xs outline-none transition-colors focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50";
+  "h-11 w-full cursor-pointer rounded-xl border border-slate-300 bg-white px-4 text-sm text-slate-800 outline-none transition-colors focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-blue-500";
+const FILTER_INPUT = "h-11 rounded-xl border-slate-300 bg-white";
 
 const ARRIVAL_STATUS_FILTER_OPTIONS = [
   { value: "", label: "All statuses" },
@@ -117,18 +153,23 @@ const ARRIVAL_READINESS_FILTER_OPTIONS = [
   { value: "maintenance", label: "Maintenance" },
 ];
 
+/** A visible label over a filter. `htmlFor` for real inputs; popover pickers use the label's id instead. */
 function FilterField({
+  id,
   label,
   children,
   className,
 }: {
+  id: string;
   label: string;
   children: ReactNode;
   className?: string;
 }) {
   return (
     <div className={className}>
-      <span className={FILTER_LABEL}>{label}</span>
+      <label id={`${id}-label`} htmlFor={id} className={FILTER_LABEL}>
+        {label}
+      </label>
       {children}
     </div>
   );
@@ -177,6 +218,9 @@ export function FrontDeskArrivalsClient({
   const [sortKey, setSortKey] = useState<SortKey>("arrivalAt");
   const [sortAsc, setSortAsc] = useState(true);
   const [loading, setLoading] = useState(false);
+  // Set when a refresh fails: when the list on screen was last loaded successfully.
+  const [lastGoodAt, setLastGoodAt] = useState(() => new Date());
+  const [refreshFailed, setRefreshFailed] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [detailId, setDetailId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
@@ -203,11 +247,17 @@ export function FrontDeskArrivalsClient({
     if (sourceFilter) params.set("source", sourceFilter);
     try {
       const res = await fetch(`/api/hotel/frontdesk/arrivals?${params}`);
-      const json = await res.json();
-      if (!json.error) {
+      const json = await res.json().catch(() => null);
+      if (res.ok && json && !json.error) {
         setData(json);
         setPage(1);
+        setLastGoodAt(new Date());
+        setRefreshFailed(false);
+      } else {
+        setRefreshFailed(true);
       }
+    } catch {
+      setRefreshFailed(true);
     } finally {
       setLoading(false);
     }
@@ -370,85 +420,94 @@ export function FrontDeskArrivalsClient({
   }
 
   return (
-    <div className="space-y-8 p-6 lg:p-8">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Front desk</p>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Arrivals & check-in</h1>
-          <p className="mt-1 max-w-2xl text-sm text-slate-600">
-            {data.rangeLabel} · Manage expected arrivals, assign rooms, and check guests in.
-          </p>
-        </div>
-        <Button type="button" variant="outline" size="sm" onClick={() => refresh()} disabled={loading}>
-          <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} />
-          {loading ? "Refreshing…" : "Refresh"}
-        </Button>
-      </header>
+    <div className="mx-auto w-full max-w-[1500px] space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+      <HmsPageHeader
+        eyebrow="Front desk"
+        meaning="rooms"
+        title="Arrivals and check-in"
+        description={`${data.rangeLabel}: see who is due, give them a room and check them in.`}
+        actions={
+          <button type="button" className={hmsButton.secondary} onClick={() => refresh()} disabled={loading}>
+            <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} aria-hidden />
+            {loading ? "Refreshing…" : "Refresh"}
+          </button>
+        }
+      />
+
+      <HmsSectionIntro
+        id="frontdesk-arrivals"
+        meaning="rooms"
+        art="people"
+        title="What you can do here"
+        points={[
+          "See everyone due to arrive today, tomorrow or this week, and who has already checked in.",
+          "Give each guest a room before they arrive, so check-in at the desk is quick.",
+          "Open a guest to see their booking and balance, then check them in.",
+        ]}
+      />
+
+      {refreshFailed ? (
+        <StaleDataNotice what="arrivals" since={lastGoodAt} onRetry={() => refresh()} retrying={loading} />
+      ) : null}
 
       <ArrivalsSummaryCards summary={data.summary} preset={preset} />
 
-      <section className="-mx-2 rounded-2xl border border-slate-200 bg-white shadow-sm sm:mx-0">
-        <div className="space-y-6 p-6">
+      <HmsCard
+        id="arrivals-filters"
+        icon={ListFilter}
+        meaning="rooms"
+        title="Find an arrival"
+        description="Choose the dates, then narrow the list down."
+        flush
+      >
+        <div className="space-y-6 p-5 sm:p-6">
           <div className="space-y-3">
-            <h2 className="text-sm font-semibold text-slate-900">Arrival window</h2>
+            <h3 className="text-sm font-semibold text-slate-900">Arriving</h3>
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-              <div
-                className="inline-flex flex-wrap rounded-xl bg-slate-100/90 p-1.5 ring-1 ring-slate-200/60"
-                role="tablist"
-                aria-label="Date preset"
-              >
-                {(["today", "tomorrow", "week", "custom"] as const).map((p) => (
-                  <button
-                    key={p}
-                    type="button"
-                    role="tab"
-                    aria-selected={preset === p}
-                    onClick={() => setPreset(p)}
-                    className={cn(
-                      "cursor-pointer rounded-lg px-5 py-2.5 text-sm font-medium transition-all",
-                      preset === p
-                        ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/80"
-                        : "text-slate-600 hover:text-slate-900",
-                    )}
-                  >
-                    {p === "custom" ? "Custom" : p.charAt(0).toUpperCase() + p.slice(1)}
-                  </button>
-                ))}
-              </div>
+              <HmsFilterChips
+                label="Arrival dates"
+                meaning="rooms"
+                options={DATE_PRESETS}
+                value={preset}
+                onChange={setPreset}
+              />
               {preset === "custom" ? (
                 <div className="flex flex-wrap gap-4">
-                  <FilterField label="From" className="min-w-[160px]">
+                  <FilterField id="arrivals-from" label="From" className="min-w-[160px]">
                     <Input
+                      id="arrivals-from"
                       type="date"
-                      className="h-10 bg-white"
+                      className={FILTER_INPUT}
                       value={customStart}
                       onChange={(e) => setCustomStart(e.target.value)}
                     />
                   </FilterField>
-                  <FilterField label="To" className="min-w-[160px]">
+                  <FilterField id="arrivals-to" label="To" className="min-w-[160px]">
                     <Input
+                      id="arrivals-to"
                       type="date"
-                      className="h-10 bg-white"
+                      className={FILTER_INPUT}
                       value={customEnd}
                       onChange={(e) => setCustomEnd(e.target.value)}
                     />
                   </FilterField>
                 </div>
               ) : (
-                <p className="text-sm text-slate-500 lg:pb-2">{data.rangeLabel}</p>
+                <p className="text-sm text-slate-600 lg:pb-2">{data.rangeLabel}</p>
               )}
             </div>
           </div>
 
           <Separator className="bg-slate-200" />
 
-          <FilterField label="Search arrivals">
+          <FilterField id="arrivals-search" label="Search arrivals">
             <div className="relative">
-              <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden />
               <Input
+                id="arrivals-search"
                 type="search"
-                placeholder="Name, confirmation, phone, email, room…"
-                className="h-11 bg-white pl-10 text-base md:text-sm"
+                placeholder="Name, booking reference, phone, email or room"
+                className={cn(FILTER_INPUT, "pl-10 text-base md:text-sm")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -456,126 +515,148 @@ export function FrontDeskArrivalsClient({
           </FilterField>
 
           <div className="space-y-3">
-            <h2 className="text-sm font-semibold text-slate-900">Refine list</h2>
+            <h3 className="text-sm font-semibold text-slate-900">Narrow the list</h3>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-              <FilterField label="Status">
+              <FilterField id="arrivals-status" label="Status">
                 <FrontDeskPopoverSelect
+                  id="arrivals-status"
+                  aria-labelledby="arrivals-status-label"
                   value={statusFilter}
                   onChange={setStatusFilter}
                   placeholder="All statuses"
                   options={ARRIVAL_STATUS_FILTER_OPTIONS}
                 />
               </FilterField>
-              <FilterField label="Payment">
+              <FilterField id="arrivals-payment" label="Payment">
                 <FrontDeskPopoverSelect
+                  id="arrivals-payment"
+                  aria-labelledby="arrivals-payment-label"
                   value={paymentFilter}
                   onChange={setPaymentFilter}
                   placeholder="All payments"
                   options={ARRIVAL_PAYMENT_FILTER_OPTIONS}
                 />
               </FilterField>
-              <FilterField label="Source">
+              <FilterField id="arrivals-source" label="Booked through">
                 <FrontDeskPopoverSelect
+                  id="arrivals-source"
+                  aria-labelledby="arrivals-source-label"
                   value={sourceFilter}
                   onChange={setSourceFilter}
                   placeholder="All sources"
                   options={ARRIVAL_SOURCE_FILTER_OPTIONS}
                 />
               </FilterField>
-              <FilterField label="Room readiness">
+              <FilterField id="arrivals-readiness" label="Room ready?">
                 <FrontDeskPopoverSelect
+                  id="arrivals-readiness"
+                  aria-labelledby="arrivals-readiness-label"
                   value={readinessFilter}
                   onChange={setReadinessFilter}
                   placeholder="Any readiness"
                   options={ARRIVAL_READINESS_FILTER_OPTIONS}
                 />
               </FilterField>
-              <FilterField label="Guest type">
+              <FilterField id="arrivals-vip" label="Guest type">
                 <button
+                  id="arrivals-vip"
                   type="button"
+                  aria-pressed={vipOnly}
                   onClick={() => setVipOnly((v) => !v)}
                   className={cn(
                     FILTER_SELECT,
-                    "flex items-center justify-center font-medium transition-colors",
+                    "flex items-center justify-center gap-2 font-medium transition-colors",
                     vipOnly
-                      ? "border-amber-300 bg-amber-50 text-amber-900 ring-amber-200/60"
-                      : "text-slate-600 hover:bg-slate-50",
+                      ? "border-amber-600 bg-amber-50 text-amber-900"
+                      : "text-slate-700 hover:bg-slate-50",
                   )}
                 >
-                  {vipOnly ? "VIP only · On" : "VIP only · Off"}
+                  <Star className="h-4 w-4" aria-hidden />
+                  {vipOnly ? "VIP guests only: on" : "VIP guests only: off"}
                 </button>
               </FilterField>
             </div>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/80 px-6 py-3.5">
-          <p className="text-xs text-slate-500">
-            Click a row for full guest details · Late arrivals show a red edge and{" "}
-            <span className="font-medium text-red-700">Delayed</span> badge
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-slate-50 px-5 py-3.5 sm:px-6">
+          <p className="text-sm text-slate-600">
+            Select a row to see the guest&apos;s full details. Late arrivals have a red edge and a{" "}
+            <span className="font-medium text-red-700">Delayed</span> label.
           </p>
           {hasActiveFilters ? (
-            <Button type="button" variant="ghost" size="sm" className="h-8 text-slate-600" onClick={clearFilters}>
+            <button type="button" className={hmsButton.quiet} onClick={clearFilters}>
               Clear all filters
-            </Button>
+            </button>
           ) : null}
         </div>
-        <div className="border-t border-slate-100 px-6 py-3">
+        <div className="border-t border-slate-100 px-5 py-3 sm:px-6">
           <PaymentLegend />
-          <p className="mt-1 text-[11px] text-slate-400">Dot shown next to the Balance amount for each arrival.</p>
+          <p className="mt-1 text-xs text-slate-600">The dot sits next to each guest&apos;s balance.</p>
         </div>
-      </section>
+      </HmsCard>
 
       {capabilities.canBulkActions && selectedIds.size > 0 ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50/80 px-4 py-3">
-          <p className="text-sm font-medium text-blue-900">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-sky-50 px-4 py-3">
+          <p className="text-sm font-medium text-sky-950" role="status">
             {selectedIds.size} reservation{selectedIds.size === 1 ? "" : "s"} selected
           </p>
           <div className="flex flex-wrap gap-2">
-            <Button type="button" size="sm" variant="outline" className="bg-white" onClick={() => bulkExport()}>
-              Copy codes
-            </Button>
-            <Button type="button" size="sm" variant="outline" className="bg-white" onClick={() => bulkReopen()}>
+            <button type="button" className={hmsButton.secondary} onClick={() => bulkExport()}>
+              Copy booking references
+            </button>
+            <button type="button" className={hmsButton.secondary} onClick={() => bulkReopen()}>
               Reopen selected
-            </Button>
-            <Button type="button" size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>
+            </button>
+            <button type="button" className={hmsButton.quiet} onClick={() => setSelectedIds(new Set())}>
               Clear selection
-            </Button>
+            </button>
           </div>
         </div>
       ) : null}
 
-      <div className="thin-scrollbar relative rounded-xl border border-slate-200 bg-white shadow-sm">
+      <HmsCard
+        id="arrivals-list"
+        icon={DoorOpen}
+        meaning="rooms"
+        title="Arrivals"
+        description={`${sortedRows.length} ${sortedRows.length === 1 ? "booking" : "bookings"} · ${data.rangeLabel}`}
+        flush
+      >
+      <div className="thin-scrollbar relative" aria-busy={loading}>
         {loading ? (
           <div
             className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-white/70 backdrop-blur-[1px]"
             aria-hidden
           >
-            <RefreshCw className="h-7 w-7 animate-spin text-slate-400" />
+            <RefreshCw className="h-7 w-7 animate-spin text-sky-700" />
           </div>
         ) : null}
         {sortedRows.length === 0 && !loading ? (
-          <div className="flex flex-col items-center gap-3 px-4 py-16 text-center">
-            <CalendarOff className="h-10 w-10 text-slate-300" aria-hidden />
-            <div>
-              <p className="font-medium text-slate-800">No arrivals in this view</p>
-              <p className="mt-1 text-sm text-slate-500">
-                {hasActiveFilters
-                  ? "Try clearing filters or choosing a wider date range."
-                  : "There are no reservations arriving for the selected period."}
-              </p>
-            </div>
-            {hasActiveFilters ? (
-              <Button type="button" size="sm" variant="outline" onClick={clearFilters}>
-                Clear filters
-              </Button>
-            ) : null}
-          </div>
+          <HmsEmptyState
+            bare
+            art="people"
+            meaning="rooms"
+            title="No arrivals in this view"
+            description={
+              hasActiveFilters
+                ? "Try clearing the filters or choosing a wider range of dates."
+                : "No one is booked to arrive in these dates."
+            }
+            action={
+              hasActiveFilters ? (
+                <button type="button" className={hmsButton.secondary} onClick={clearFilters}>
+                  Clear filters
+                </button>
+              ) : undefined
+            }
+          />
         ) : (
         <div className="overflow-x-auto pb-0.5">
         <table className="min-w-[1900px] w-full border-collapse text-left">
+          <caption className="sr-only">Arrivals, {data.rangeLabel}</caption>
           <thead>
-            <tr className="border-b border-slate-200 bg-slate-100/80">
+            <tr className="border-b border-slate-200 bg-slate-50">
               {capabilities.canBulkActions ? (
                 <th className={cn(TH, "w-12")}>
                   <input
@@ -589,48 +670,45 @@ export function FrontDeskArrivalsClient({
                   />
                 </th>
               ) : null}
-              <th className={cn(TH, "min-w-[120px]")}>
-                <button
-                  type="button"
-                  className="cursor-pointer hover:text-slate-800"
-                  onClick={() => toggleSort("confirmationCode")}
-                >
-                  Ref
+              <th
+                className={cn(TH, "min-w-[120px]")}
+                aria-sort={sortKey === "confirmationCode" ? (sortAsc ? "ascending" : "descending") : undefined}
+              >
+                <button type="button" className={SORT_BUTTON} onClick={() => toggleSort("confirmationCode")}>
+                  Reference
                 </button>
               </th>
               <th className={cn(TH, "min-w-[100px]")}>Booked</th>
-              <th className={cn(TH, "min-w-[260px]")}>
-                <button
-                  type="button"
-                  className="cursor-pointer hover:text-slate-800"
-                  onClick={() => toggleSort("guestName")}
-                >
+              <th
+                className={cn(TH, "min-w-[260px]")}
+                aria-sort={sortKey === "guestName" ? (sortAsc ? "ascending" : "descending") : undefined}
+              >
+                <button type="button" className={SORT_BUTTON} onClick={() => toggleSort("guestName")}>
                   Guest
                 </button>
               </th>
               <th className={cn(TH, "min-w-[240px]")}>Contact</th>
-              <th className={cn(TH, "min-w-[160px]")}>
-                <button
-                  type="button"
-                  className="cursor-pointer hover:text-slate-800"
-                  onClick={() => toggleSort("arrivalAt")}
-                >
+              <th
+                className={cn(TH, "min-w-[160px]")}
+                aria-sort={sortKey === "arrivalAt" ? (sortAsc ? "ascending" : "descending") : undefined}
+              >
+                <button type="button" className={SORT_BUTTON} onClick={() => toggleSort("arrivalAt")}>
                   Arrival
                 </button>
               </th>
               <th className={cn(TH, "min-w-[110px]")}>Departure</th>
               <th className={cn(TH, "min-w-[72px] text-center")}>Nights</th>
-              <th className={cn(TH, "min-w-[180px]")}>Type / floor</th>
+              <th className={cn(TH, "min-w-[180px]")}>Room type and floor</th>
               <th className={cn(TH, "min-w-[90px]")}>Room</th>
-              <th className={cn(TH, "min-w-[64px] text-center")}>Party</th>
+              <th className={cn(TH, "min-w-[64px] text-center")}>Guests</th>
               <th className={cn(TH, "min-w-[100px] text-right")}>Total</th>
               <th className={cn(TH, "min-w-[100px] text-right")}>Paid</th>
               <th className={cn(TH, "min-w-[120px] text-right")}>Balance</th>
               <th className={cn(TH, "min-w-[100px]")}>Status</th>
-              <th className={cn(TH, "min-w-[88px]")}>HK</th>
+              <th className={cn(TH, "min-w-[100px]")}>Room cleaning</th>
               <th className={cn(TH, "min-w-[100px]")}>Progress</th>
               <th className={cn(TH, "min-w-[88px]")}>Requests</th>
-              <th className={cn(TH, "sticky right-0 z-10 min-w-[168px] bg-slate-100/95 backdrop-blur-sm text-right")}>
+              <th className={cn(TH, "sticky right-0 z-10 min-w-[168px] bg-slate-50/95 backdrop-blur-sm text-right")}>
                 Actions
               </th>
             </tr>
@@ -676,17 +754,18 @@ export function FrontDeskArrivalsClient({
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="font-semibold text-slate-900">{row.guestName}</span>
                           {row.isVip ? (
-                            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-900">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">
+                              <Star className="h-3 w-3" aria-hidden />
                               VIP
                             </span>
                           ) : null}
                         </div>
-                        <p className="text-xs text-slate-500">{row.bookingSourceLabel}</p>
+                        <p className="text-xs text-slate-600">{row.bookingSourceLabel}</p>
                       </div>
                     </td>
                     <td className={cn(TD, "whitespace-nowrap text-xs leading-relaxed text-slate-600", surface)}>
                       <div>{row.phone}</div>
-                      <div className="text-slate-500">{row.email}</div>
+                      <div className="text-slate-600">{row.email}</div>
                       <div className="font-medium text-slate-700">{row.nationality}</div>
                     </td>
                     <td className={cn(TD, "whitespace-nowrap text-xs", surface)}>
@@ -699,7 +778,7 @@ export function FrontDeskArrivalsClient({
                     <td className={cn(TD, "text-center text-sm font-medium tabular-nums", surface)}>{row.nights}</td>
                     <td className={cn(TD, "whitespace-nowrap text-xs", surface)}>
                       <div className="font-medium">{row.roomTypeCode}</div>
-                      {row.floor != null ? <div className="text-slate-500">Floor {row.floor}</div> : null}
+                      {row.floor != null ? <div className="text-slate-600">Floor {row.floor}</div> : null}
                     </td>
                     <td className={cn(TD, "font-medium text-slate-900", surface)}>{row.roomCode ?? "—"}</td>
                     <td className={cn(TD, "text-center tabular-nums", surface)}>{row.partySize}</td>
@@ -712,16 +791,16 @@ export function FrontDeskArrivalsClient({
                     <td className={cn(TD, "whitespace-nowrap text-right", surface)}>
                       <span className="inline-flex items-center justify-end gap-2 text-xs font-medium tabular-nums">
                         <span
+                          aria-hidden
                           className={`h-2.5 w-2.5 shrink-0 rounded-full ${PAYMENT_DOT_CLASS[row.paymentStatus]}`}
                           title={PAYMENT_STATUS_LABEL[row.paymentStatus]}
                         />
+                        <span className="sr-only">{PAYMENT_STATUS_LABEL[row.paymentStatus]}: </span>
                         {formatPricingAmount(row.outstandingBalance, currency)}
                       </span>
                     </td>
                     <td className={cn(TD, "text-xs", surface)}>
-                      <span className="inline-flex rounded-md bg-slate-200/60 px-2 py-1 font-medium text-slate-800">
-                        {STATUS_LABEL[row.status] ?? row.status}
-                      </span>
+                      <HmsPill tone={STATUS_TONE[row.status] ?? "slate"}>{STATUS_LABEL[row.status] ?? row.status}</HmsPill>
                     </td>
                     <td className={cn(TD, "text-xs", surface)}>
                       {row.roomReadiness ? (
@@ -739,7 +818,10 @@ export function FrontDeskArrivalsClient({
                           {row.openRequestCount} open
                         </span>
                       ) : (
-                        <span className="text-slate-400">—</span>
+                        <span className="text-slate-500">
+                          <span aria-hidden>—</span>
+                          <span className="sr-only">None</span>
+                        </span>
                       )}
                     </td>
                     <td
@@ -769,7 +851,10 @@ export function FrontDeskArrivalsClient({
       </div>
 
       {sortedRows.length > 0 ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
+        <nav
+          aria-label="Arrivals pages"
+          className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-3 text-sm text-slate-700 sm:px-6"
+        >
           <p>
             Showing {(currentPage - 1) * ARRIVALS_PAGE_SIZE + 1}–
             {Math.min(currentPage * ARRIVALS_PAGE_SIZE, sortedRows.length)} of {sortedRows.length}
@@ -779,37 +864,48 @@ export function FrontDeskArrivalsClient({
               type="button"
               variant="outline"
               size="sm"
+              className="rounded-xl"
               disabled={currentPage <= 1}
               onClick={() => setPage(Math.max(1, currentPage - 1))}
             >
               Previous
             </Button>
-            <span className="px-2 text-xs font-medium text-slate-500">
+            <span className="px-2 text-sm font-medium text-slate-700">
               Page {currentPage} of {totalPages}
             </span>
             <Button
               type="button"
               variant="outline"
               size="sm"
+              className="rounded-xl"
               disabled={currentPage >= totalPages}
               onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
             >
               Next
             </Button>
           </div>
-        </div>
+        </nav>
       ) : null}
+      </HmsCard>
 
-      <section>
+      <section aria-labelledby="arrivals-timeline-toggle">
         <button
+          id="arrivals-timeline-toggle"
           type="button"
-          className="cursor-pointer text-sm font-semibold text-slate-900"
+          aria-expanded={showTimeline}
+          aria-controls="arrivals-timeline"
+          className="inline-flex cursor-pointer items-center gap-2 rounded-lg font-heading text-base font-semibold text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           onClick={() => setShowTimeline(!showTimeline)}
         >
-          Arrival timeline {showTimeline ? "▾" : "▸"}
+          {showTimeline ? (
+            <ChevronDown className="h-4 w-4 text-sky-700" aria-hidden />
+          ) : (
+            <ChevronRight className="h-4 w-4 text-sky-700" aria-hidden />
+          )}
+          Arrivals through the day
         </button>
         {showTimeline ? (
-          <div className="mt-4">
+          <div id="arrivals-timeline" className="mt-4">
             <FrontDeskArrivalTimeline
               slug={slug}
               preset={preset}
@@ -877,32 +973,31 @@ export function FrontDeskArrivalsClient({
 }
 
 function ArrivalsSummaryCards({ summary, preset }: { summary: ArrivalSummary; preset: string }) {
-  const rangeDetail = preset === "today" ? "Today (UTC)" : "In selected range";
-  const cards: { key: string; title: string; value: string; detail: string; accent: keyof typeof FRONT_DESK_ACCENT_BORDER_CLASS }[] = [
-    { key: "total", title: "Arrivals", value: String(summary.totalArrivals), detail: rangeDetail, accent: "checkin" },
-    { key: "in", title: "Checked in", value: String(summary.checkedIn), detail: "Already on property", accent: "checkin" },
-    { key: "pending", title: "Pending", value: String(summary.pending), detail: "Awaiting check-in", accent: "admin" },
-    { key: "vip", title: "VIP", value: String(summary.vip), detail: "Priority arrivals", accent: "guest" },
-    { key: "noshow", title: "No-shows", value: String(summary.noShows), detail: "Marked no-show", accent: "incidents" },
-    { key: "ready", title: "Rooms ready", value: String(summary.roomsReady), detail: "Clean / inspected", accent: "rooms" },
-  ];
-
+  const rangeDetail = preset === "today" ? "Due today (UTC)" : "In the dates you chose";
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-      {cards.map((c) => (
-        <article
-          key={c.key}
-          className={`rounded-2xl border border-slate-200 border-l-4 bg-white p-5 shadow-sm ${FRONT_DESK_ACCENT_BORDER_CLASS[c.accent]}`}
-        >
-          <div
-            className={`mb-3 inline-flex h-9 w-9 items-center justify-center rounded-xl ${FRONT_DESK_ACCENT_WELL_CLASS[c.accent]}`}
-          >
-            <span className="text-lg font-bold text-slate-700">{c.value}</span>
-          </div>
-          <h3 className="text-sm font-semibold text-slate-900">{c.title}</h3>
-          <p className="text-xs text-slate-500">{c.detail}</p>
-        </article>
-      ))}
-    </div>
+    <HmsStatStrip label="Arrivals at a glance" columns={3}>
+      <HmsStatTile label="Arrivals" value={summary.totalArrivals} hint={rangeDetail} icon={DoorOpen} meaning="rooms" />
+      <HmsStatTile label="Checked in" value={summary.checkedIn} hint="Already in the hotel" icon={CheckCircle2} meaning="rooms" />
+      <HmsStatTile
+        label="Still to check in"
+        value={summary.pending}
+        hint="No one waiting"
+        icon={Clock}
+        meaning="guests"
+        status={summary.pending > 0 ? "warning" : undefined}
+        statusText={summary.pending > 0 ? "Waiting to check in" : undefined}
+      />
+      <HmsStatTile label="VIP guests" value={summary.vip} hint="Guests to look after first" icon={Star} meaning="guests" />
+      <HmsStatTile
+        label="No-shows"
+        value={summary.noShows}
+        hint="None marked"
+        icon={UserX}
+        meaning="attention"
+        status={summary.noShows > 0 ? "critical" : undefined}
+        statusText={summary.noShows > 0 ? "Marked as no-show" : undefined}
+      />
+      <HmsStatTile label="Rooms ready" value={summary.roomsReady} hint="Clean or inspected" icon={BedDouble} meaning="rooms" />
+    </HmsStatStrip>
   );
 }

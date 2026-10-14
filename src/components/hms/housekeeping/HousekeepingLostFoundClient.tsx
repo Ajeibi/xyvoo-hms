@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Copy, Loader2, PackagePlus } from "lucide-react";
+import { HmsCard, HmsEmptyState, HmsField, HmsPage, HmsPageHeader, HmsPill, hmsButton, hmsInput } from "@/components/hms/hms-ui";
 import { useFrontDeskRealtime } from "@/hooks/useFrontDeskRealtime";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import type { LostFoundItemRow, LostFoundStatus } from "@/lib/hms/housekeeping-lost-found";
@@ -14,6 +14,13 @@ const STATUS_LABEL: Record<LostFoundStatus, string> = {
   guest_notified: "Guest notified",
   returned: "Returned",
   disposed: "Disposed",
+};
+
+const STATUS_TONE: Record<LostFoundStatus, "slate" | "green" | "amber" | "blue"> = {
+  logged: "amber",
+  guest_notified: "blue",
+  returned: "green",
+  disposed: "slate",
 };
 
 export function HousekeepingLostFoundClient({
@@ -82,83 +89,102 @@ export function HousekeepingLostFoundClient({
   };
 
   return (
-    <div className="w-full px-6 py-8 sm:px-8">
-      <h1 className="text-xl font-semibold text-slate-900">Lost &amp; found</h1>
-      <p className="mt-0.5 text-sm text-slate-500">Log items found during cleaning and track their return status.</p>
+    <HmsPage wide>
+      <HmsPageHeader
+        eyebrow="Housekeeping"
+        meaning="guests"
+        title="Lost & found"
+        description="Log anything found while cleaning, and keep track of whether it's gone back to the guest."
+      />
 
       <HousekeepingSubNav slug={slug} canAccessAllDepartments={canAccessAllDepartments} />
 
-      <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4">
-        <h2 className="text-sm font-semibold text-slate-800">Log a found item</h2>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <Input placeholder="Room (optional)" value={roomCode} onChange={(e) => setRoomCode(e.target.value)} />
-          <Input
-            placeholder="Where it was found (optional) — e.g. under the bed, bathroom counter"
-            value={whereFound}
-            onChange={(e) => setWhereFound(e.target.value)}
-          />
+      <HmsCard id="hk-lost-found-log" title="Log a found item" icon={PackagePlus} meaning="guests">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <HmsField id="hk-lf-room" label="Room" optional>
+            <input id="hk-lf-room" className={hmsInput} value={roomCode} onChange={(e) => setRoomCode(e.target.value)} />
+          </HmsField>
+          <HmsField id="hk-lf-where" label="Where it was found" optional hint="For example, under the bed or on the bathroom counter.">
+            <input
+              id="hk-lf-where"
+              className={hmsInput}
+              aria-describedby="hk-lf-where-hint"
+              value={whereFound}
+              onChange={(e) => setWhereFound(e.target.value)}
+            />
+          </HmsField>
         </div>
-        <textarea
-          className="mt-3 min-h-[88px] w-full rounded-lg border border-input px-3 py-2 text-sm"
-          placeholder="Description — what the item is, color, brand, any identifying detail…"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-        />
-        <Button className="mt-3 rounded-lg" disabled={submitting} onClick={() => void logItem()}>
+        <div className="mt-3">
+          <HmsField id="hk-lf-description" label="Description" hint="What the item is, its colour, brand and anything that helps identify it.">
+            <textarea
+              id="hk-lf-description"
+              className={`${hmsInput} min-h-[88px]`}
+              aria-describedby="hk-lf-description-hint"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </HmsField>
+        </div>
+        <button type="button" className={`${hmsButton.primary} mt-4`} disabled={submitting} onClick={() => void logItem()}>
+          {submitting ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <PackagePlus className="h-4 w-4" aria-hidden />}
           Log item
-        </Button>
-      </div>
+        </button>
+      </HmsCard>
 
       {items.length === 0 ? (
-        <div className="mt-6 rounded-xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">
-          No items logged yet.
-        </div>
+        <HmsEmptyState
+          art="box"
+          meaning="guests"
+          title="No items logged yet"
+          description="Items you log above appear here with a tag, so they're easy to find when a guest asks."
+        />
       ) : (
-        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((item) => (
-            <div key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <li key={item.id} className="rounded-2xl border border-amber-100 bg-white p-4 shadow-sm">
               <div className="flex items-center justify-between gap-2">
-                <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-semibold text-slate-700">
-                  {item.tag}
-                </code>
-                <Button
+                <code className="rounded-lg bg-amber-50 px-2 py-0.5 text-sm font-semibold text-amber-900">{item.tag}</code>
+                <button
                   type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 px-1.5 text-[10px]"
+                  className={hmsButton.quiet}
                   onClick={() => void navigator.clipboard.writeText(item.tag)}
                 >
-                  Copy
-                </Button>
+                  <Copy className="h-4 w-4" aria-hidden />
+                  Copy<span className="sr-only"> tag {item.tag}</span>
+                </button>
               </div>
               <p className="mt-2 text-sm font-medium text-slate-900">{item.description}</p>
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-sm text-slate-700">
                 {item.roomCode ? `Room ${item.roomCode} · ` : ""}
-                Found by {item.foundByName} · {new Date(item.foundAt).toLocaleDateString()}
+                Found by {item.foundByName} · {new Date(item.foundAt).toLocaleDateString("en-GB")}
               </p>
               <div className="mt-3">
                 {canResolve ? (
-                  <select
-                    className="h-9 w-full rounded-lg border border-slate-200 px-3 text-sm"
-                    value={item.status}
-                    onChange={(e) => void updateStatus(item.id, e.target.value as LostFoundStatus)}
-                  >
-                    {Object.entries(STATUS_LABEL).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
+                  <>
+                    <label htmlFor={`hk-lf-status-${item.id}`} className="mb-1 block text-sm font-medium text-slate-800">
+                      Status
+                    </label>
+                    <select
+                      id={`hk-lf-status-${item.id}`}
+                      className={`${hmsInput} min-h-10`}
+                      value={item.status}
+                      onChange={(e) => void updateStatus(item.id, e.target.value as LostFoundStatus)}
+                    >
+                      {Object.entries(STATUS_LABEL).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  </>
                 ) : (
-                  <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
-                    {STATUS_LABEL[item.status]}
-                  </span>
+                  <HmsPill tone={STATUS_TONE[item.status]}>{STATUS_LABEL[item.status]}</HmsPill>
                 )}
               </div>
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
-    </div>
+    </HmsPage>
   );
 }

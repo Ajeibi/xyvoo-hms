@@ -12,12 +12,12 @@ export function FrontDeskSectionHeader({
       {eyebrow ? (
         <p
           id={`${id}-eyebrow`}
-          className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400"
+          className="text-sm font-medium text-slate-600"
         >
           {eyebrow}
         </p>
       ) : null}
-      <h2 id={id} className="mt-2 text-lg font-semibold tracking-tight text-slate-900">
+      <h2 id={id} className="mt-0.5 font-heading text-lg font-semibold tracking-tight text-slate-900">
         {title}
       </h2>
     </header>

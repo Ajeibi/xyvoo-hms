@@ -9,7 +9,7 @@ export async function GET(req: Request) {
   const resolved = await resolveStoreRequest(new URL(req.url).searchParams.get("slug") || "");
   if (resolved.error) return resolved.error;
   const tenantId = resolved.access.tenantId;
-  const { data, error } = await resolved.service.schema("store").from("discount_codes").select(DISCOUNT_COLUMNS).eq("tenant_id", tenantId).order("created_at", { ascending: false });
+  const { data, error } = await resolved.service.schema("store").from("discount_codes").select(DISCOUNT_COLUMNS).eq("tenant_id", tenantId).is("referral_account_id", null).order("created_at", { ascending: false });
   if (error) {
     console.error("[discounts] list failed", error);
     return NextResponse.json({ error: "We couldn't load your discount codes." }, { status: 500 });

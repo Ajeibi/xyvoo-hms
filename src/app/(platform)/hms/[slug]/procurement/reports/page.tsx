@@ -1,4 +1,5 @@
 import HMSLayout from "@/components/hms/HMSLayout";
+import { HmsPage, HmsPageHeader } from "@/components/hms/hms-ui";
 import { ProcurementSubNav } from "@/components/hms/procurement/ProcurementSubNav";
 import { ProcurementReportsClient } from "@/components/hms/procurement/ProcurementReportsClient";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
@@ -30,9 +31,8 @@ export default async function ProcurementReportsPage({ params }: { params: Promi
 
   return (
     <HMSLayout slug={slug} requiredSection="procurement-reports">
-      <div className="px-8 py-8">
-        <h1 className="text-xl font-semibold text-slate-900">Reports</h1>
-        <p className="mt-0.5 text-sm text-slate-500">Spend and vendor performance across every purchase order that has left draft.</p>
+      <HmsPage wide>
+        <HmsPageHeader eyebrow="Procurement" meaning="stock" title="Reports" description="Spend and vendor performance across every purchase order that has left draft." />
         <ProcurementSubNav slug={slug} canAccessAllDepartments={access.canAccessAllDepartments} />
         <ProcurementReportsClient
           spendByVendor={spendByVendor}
@@ -41,7 +41,7 @@ export default async function ProcurementReportsPage({ params }: { params: Promi
           vendorPerformance={vendorPerformance}
           currency={currency}
         />
-      </div>
+      </HmsPage>
     </HMSLayout>
   );
 }

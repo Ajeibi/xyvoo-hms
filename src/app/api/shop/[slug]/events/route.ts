@@ -1,8 +1,12 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { getShopTenantBySlug } from "@/lib/shop/tenants";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { eventBatchSchema, ingestEvents, isBot } from "@/lib/store/analytics";
 import { getStoreSite } from "@/lib/store/site/data";
+import { runCartRemindersIfDue } from "@/lib/store/cart-reminders";
+import { runStockAlertsIfDue } from "@/lib/store/stock-alerts";
+import { runGiftCardEmailsIfDue } from "@/lib/store/gift-cards";
+import { runCampaignsIfDue } from "@/lib/store/campaigns-server";
 
 /**
  * POST /api/shop/<store>/events — analytics events from a store page, sent only
@@ -44,5 +48,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
   } catch (error) {
     console.error("[store events] not saved", error);
   }
+  // Shop traffic keeps basket reminders on time between cron runs (at most every ten minutes).
+  after(runCartRemindersIfDue);
+  after(runStockAlertsIfDue);
+  after(runGiftCardEmailsIfDue);
+  after(runCampaignsIfDue);
   return done;
 }

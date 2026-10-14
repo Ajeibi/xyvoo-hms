@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import HMSLayout from "@/components/hms/HMSLayout";
+import { HmsPage, HmsPageHeader } from "@/components/hms/hms-ui";
 import { InventoryItemsClient } from "@/components/hms/inventory/InventoryItemsClient";
 import { SettingsSectionInfo } from "@/components/hms/settings/SettingsSectionInfo";
 import { getHmsAccessContext } from "@/lib/hms/access";
@@ -30,27 +31,26 @@ export default async function InventorySettingsPage({
 
   return (
     <HMSLayout slug={slug} requiredSection="inventory-settings">
-      <div className="w-full space-y-6 px-6 py-6">
-        <div>
-          <div className="flex flex-wrap items-center gap-1.5">
-            <h1 className="text-xl font-semibold text-slate-900">Inventory settings</h1>
+      <HmsPage wide>
+        <HmsPageHeader
+          eyebrow="Inventory"
+          meaning="stock"
+          title="Inventory settings"
+          description="Manage stock categories and the item catalogue: add a new item, retire one, or reorganise categories whenever your stock changes."
+          actions={
             <SettingsSectionInfo
               title="Inventory settings"
               text="Manage stock categories and the item catalog here. Store locations and lookup lists (units, item types, location types) are structural setup and live on the central Admin Settings page instead — see the link below."
             />
-          </div>
-          <p className="text-sm text-slate-500">
-            Manage stock categories and the item catalog — add a new item, retire one, or reorganize
-            categories whenever your stock lineup changes.
-          </p>
-        </div>
+          }
+        />
 
         {access.canAccessAllDepartments ? (
           <Link
             href={`/hms/${slug}/settings#inventory-procurement-setup`}
-            className="flex items-center justify-between gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50/60 px-5 py-3 text-sm text-slate-600 transition-colors hover:border-blue-300 hover:bg-blue-50/40 hover:text-blue-700"
+            className="flex items-center justify-between gap-3 rounded-2xl border border-teal-200 bg-teal-50 px-5 py-3.5 text-sm font-medium text-teal-900 transition-colors hover:bg-teal-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           >
-            <span>Store locations, units of measure, item types, and store types are structural setup — manage those on the Admin hub.</span>
+            <span>Store locations, units of measure, item types and store types are structural setup. Manage those in the Admin settings hub.</span>
             <ArrowRight className="size-4 shrink-0" aria-hidden />
           </Link>
         ) : null}
@@ -62,7 +62,7 @@ export default async function InventorySettingsPage({
           initialUnits={units}
           initialItemTypes={itemTypes}
         />
-      </div>
+      </HmsPage>
     </HMSLayout>
   );
 }

@@ -104,7 +104,7 @@ export function FrontDeskRoomAssignmentPicker({
                 key={floor}
                 className={floorIdx > 0 ? "mt-1 border-t border-slate-100 pt-1" : "mt-1"}
               >
-                <div className="px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                <div className="px-2 py-1.5 text-xs font-semibold text-slate-600">
                   Floor {floor}
                 </div>
                 <ul className="space-y-0.5">

@@ -1,9 +1,15 @@
-export default function StepVerifyingPayment() {
+export default function StepVerifyingPayment({ headingRef }: { headingRef?: React.Ref<HTMLHeadingElement> }) {
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-10 text-center">
-      <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin mx-auto mb-4" />
-      <h2 className="text-lg font-bold text-xyvoo-navy">Verifying your payment…</h2>
-      <p className="text-slate-400 text-sm mt-1">Just a moment</p>
+    <div role="status" className="space-y-4 py-6 text-center">
+      <span
+        aria-hidden
+        className="mx-auto block h-12 w-12 rounded-full border-4 border-blue-100 border-t-xyvoo-blue animate-spin motion-reduce:animate-none"
+      />
+      <p className="text-sm font-bold uppercase tracking-wider text-xyvoo-blue-deep">XYVOO Hotel</p>
+      <h1 ref={headingRef} tabIndex={-1} className="text-4xl font-bold leading-tight text-black focus:outline-none">
+        Verifying your payment…
+      </h1>
+      <p className="text-base text-slate-700">Just a moment.</p>
     </div>
   );
 }

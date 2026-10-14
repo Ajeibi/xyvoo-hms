@@ -13,8 +13,8 @@ export default async function HousekeepingInspectionsPage({ params }: { params: 
     return (
       <HMSLayout slug={slug} requiredSection="housekeeping-inspections">
         <div className="px-8 py-8">
-          <h1 className="text-xl font-semibold text-slate-900">Inspections</h1>
-          <p className="mt-0.5 text-sm text-slate-500">Hotel not found.</p>
+          <h1 className="font-heading text-2xl font-bold tracking-tight text-slate-900">Inspections</h1>
+          <p className="mt-1 text-base text-slate-600">Hotel not found.</p>
         </div>
       </HMSLayout>
     );

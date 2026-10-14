@@ -10,6 +10,7 @@ import type { DashboardFbOrderRow } from "@/lib/hms/dashboard-fb-metrics";
 import { countChildrenJson, countInHouseGuestHeadcount } from "@/lib/hms/reservation-metrics";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { computeFolioBalance, mapFolioLineRow, type FolioLineRow } from "@/lib/hms/folio";
+import { assertQueriesSucceeded } from "@/lib/hms/data-unavailable";
 
 export type PaymentDisplayStatus = "paid" | "partial" | "unpaid" | "refund_pending" | "unknown";
 
@@ -454,14 +455,17 @@ async function resolveReservationGuests(
     return { primaryByReservation, partyByReservation };
   }
 
-  const [{ data: rgRows }, { data: tenantGuestRows }] = await Promise.all([
-    supabase
-      .schema("hotel")
-      .from("reservation_guests")
-      .select("reservation_id,guest_id,is_primary,relationship")
-      .in("reservation_id", missingIds),
-    supabase.schema("hotel").from("guests").select(guestSelect).eq("tenant_id", tenantId),
-  ]);
+  const { data: rgRows, error: rgError } = await supabase
+    .schema("hotel")
+    .from("reservation_guests")
+    .select("reservation_id,guest_id,is_primary,relationship")
+    .in("reservation_id", missingIds);
+  // Only the guests on these stays, not the hotel's whole guest book.
+  const linkedGuestIds = [...new Set(((rgRows ?? []) as ReservationGuestRow[]).map((l) => l.guest_id))];
+  const { data: tenantGuestRows, error: guestError } = linkedGuestIds.length
+    ? await supabase.schema("hotel").from("guests").select(guestSelect).eq("tenant_id", tenantId).in("id", linkedGuestIds)
+    : { data: [], error: null };
+  assertQueriesSucceeded("front-desk-board guests", [{ error: rgError }, { error: guestError }]);
 
   const guestById = new Map(
     ((tenantGuestRows ?? []) as unknown as GuestRow[]).map((g) => [g.id, g]),
@@ -791,10 +795,13 @@ function buildKpiTiles(params: {
   });
 }
 
+/** Months shown in the board's occupancy trend; also how far back the board loads finished stays. */
+const OCCUPANCY_TREND_MONTHS = 6;
+
 function buildOccupancyTrend(
   reservations: ReservationRow[],
   totalRooms: number,
-  monthsBack = 6,
+  monthsBack = OCCUPANCY_TREND_MONTHS,
 ): OccupancyTrend {
   const now = new Date();
   const labels: string[] = [];
@@ -930,38 +937,44 @@ export async function getFrontDeskBoardData(params: {
   const guestSelect =
     "id,title,first_name,last_name,nationality,id_type,id_number,id_expiry_date,date_of_birth,gender,phone,email,whatsapp,preferred_channel,tags";
 
-  const [
-    { data: roomRows, error: roomError },
-    { data: resRows, error: resError },
-    { data: flagRows },
-    { data: folioRows },
-    { data: notificationRows },
-    { data: shiftNoteRows },
-    { data: auditRows },
-    { data: profileRows },
-    { data: hkRows },
-    { data: paymentIntentRows },
-    { data: fbOrderRows },
-  ] = await Promise.all([
+  // The oldest date any board figure looks at is the start of the occupancy trend; older
+  // finished stays change nothing on the board, so they are not loaded.
+  const loadStart = new Date();
+  const trendWindowStartIso = new Date(
+    Date.UTC(loadStart.getUTCFullYear(), loadStart.getUTCMonth() - (OCCUPANCY_TREND_MONTHS - 1), 1),
+  ).toISOString();
+  const { startIso: todayStartIso, nextIso: tomorrowStartIso } = utcDayRangeIso(loadStart);
+
+  const results = await Promise.all([
     supabase
       .schema("hotel")
       .from("room_units")
       .select("id,room_code,floor,room_type_code,status,notes,created_at")
       .eq("tenant_id", tenantId)
       .order("room_code"),
+    // Every in-house and upcoming stay, plus finished ones inside the trend window, each with
+    // its own folio lines (rather than every folio line the hotel has ever posted).
     supabase
       .schema("hotel")
       .from("reservations")
       .select(
-        `id,confirmation_code,status,arrival_at,departure_at,room_unit_id,room_type_code,checked_in_at,checked_out_at,settlement_method,preauth_amount,total_room_charges,rate_per_night,guest_remarks,folio_number,vip_flag,source,booking_channel,adults,children_json,reservation_guests(is_primary,relationship,guests(${guestSelect}))`,
+        `id,confirmation_code,status,arrival_at,departure_at,room_unit_id,room_type_code,checked_in_at,checked_out_at,settlement_method,preauth_amount,total_room_charges,rate_per_night,guest_remarks,folio_number,vip_flag,source,booking_channel,adults,children_json,reservation_guests(is_primary,relationship,guests(${guestSelect})),folio_transactions!folio_transactions_reservation_id_fkey(*)`,
       )
-      .eq("tenant_id", tenantId),
+      .eq("tenant_id", tenantId)
+      .or(`status.in.(checked_in,confirmed),departure_at.gte."${trendWindowStartIso}"`),
     supabase
       .schema("hotel")
       .from("room_unit_flags")
       .select("room_unit_id,dnd,security_hold,staff_restricted")
       .eq("tenant_id", tenantId),
-    supabase.schema("hotel").from("folio_transactions").select("*").eq("tenant_id", tenantId),
+    // Today's folio activity, for today's revenue.
+    supabase
+      .schema("hotel")
+      .from("folio_transactions")
+      .select("reservation_id,kind,amount,voided_at,created_at")
+      .eq("tenant_id", tenantId)
+      .gte("created_at", todayStartIso)
+      .lt("created_at", tomorrowStartIso),
     supabase
       .schema("hotel")
       .from("notifications")
@@ -1002,36 +1015,65 @@ export async function getFrontDeskBoardData(params: {
       .select("reservation_id,purpose,status")
       .eq("tenant_id", tenantId)
       .eq("status", "success"),
+    // Orders closed today, for today's revenue.
     supabase
       .schema("hotel")
       .from("fb_orders")
       .select("status,settlement_method,subtotal,closed_at,voided_at")
+      .eq("tenant_id", tenantId)
+      .gte("closed_at", todayStartIso)
+      .lt("closed_at", tomorrowStartIso),
+    // Each room's most recent checkout, however long ago: two small columns per stay.
+    supabase
+      .schema("hotel")
+      .from("reservations")
+      .select("room_unit_id,checked_out_at")
+      .eq("tenant_id", tenantId)
+      .eq("status", "checked_out")
+      .not("room_unit_id", "is", null)
+      .not("checked_out_at", "is", null),
+    supabase
+      .schema("hotel")
+      .from("reservations")
+      .select("id", { count: "exact", head: true })
       .eq("tenant_id", tenantId),
   ]);
 
-  if (roomError || resError) {
-    console.warn("[front-desk-board] query failed:", roomError ?? resError);
-    return emptyBoard(currency);
-  }
+  // A board built from half its data looks complete but is wrong; say it could not load instead.
+  assertQueriesSucceeded("front-desk-board", results);
+
+  const [
+    { data: roomRows },
+    { data: resRows },
+    { data: flagRows },
+    { data: todayFolioRows },
+    { data: notificationRows },
+    { data: shiftNoteRows },
+    { data: auditRows },
+    { data: profileRows },
+    { data: hkRows },
+    { data: paymentIntentRows },
+    { data: fbOrderRows },
+    { data: checkoutRows },
+    { count: reservationRecordCount },
+  ] = results;
 
   const rooms = (roomRows ?? []) as RoomUnitRow[];
   if (rooms.length === 0) return emptyBoard(currency);
 
   type ReservationWithGuests = ReservationRow & {
     reservation_guests?: ReservationGuestEmbed[] | null;
+    folio_transactions?: Record<string, unknown>[] | null;
   };
 
-  const reservationsRaw = (resRows ?? []) as ReservationWithGuests[];
+  const reservationsRaw = (resRows ?? []) as unknown as ReservationWithGuests[];
   const reservations: ReservationRow[] = reservationsRaw.map(
-    ({ reservation_guests: _rg, ...row }) => row as ReservationRow,
+    ({ reservation_guests: _rg, folio_transactions: _ft, ...row }) => row as ReservationRow,
   );
 
   const folioLinesByReservation = new Map<string, FolioLineRow[]>();
-  for (const tx of folioRows ?? []) {
-    const row = mapFolioLineRow(tx as Record<string, unknown>);
-    const list = folioLinesByReservation.get(row.reservation_id) ?? [];
-    list.push(row);
-    folioLinesByReservation.set(row.reservation_id, list);
+  for (const r of reservationsRaw) {
+    if (r.folio_transactions?.length) folioLinesByReservation.set(r.id, r.folio_transactions.map(mapFolioLineRow));
   }
 
   const cardSecuredReservationIds = new Set<string>();
@@ -1039,8 +1081,7 @@ export async function getFrontDeskBoardData(params: {
     const rid = (intent as { reservation_id: string | null }).reservation_id;
     if (rid) cardSecuredReservationIds.add(rid);
   }
-  for (const tx of folioRows ?? []) {
-    const row = mapFolioLineRow(tx as Record<string, unknown>);
+  for (const row of [...folioLinesByReservation.values()].flat()) {
     if (
       row.kind === "payment" &&
       !row.voided_at &&
@@ -1109,11 +1150,11 @@ export async function getFrontDeskBoardData(params: {
         reservedByRoom.set(r.room_unit_id, r);
       }
     }
-    if (r.status === "checked_out" && r.checked_out_at) {
-      const prev = lastCheckoutByRoom.get(r.room_unit_id);
-      if (!prev || parseTs(r.checked_out_at) > parseTs(prev)) {
-        lastCheckoutByRoom.set(r.room_unit_id, r.checked_out_at);
-      }
+  }
+  for (const c of (checkoutRows ?? []) as { room_unit_id: string; checked_out_at: string }[]) {
+    const prev = lastCheckoutByRoom.get(c.room_unit_id);
+    if (!prev || parseTs(c.checked_out_at) > parseTs(prev)) {
+      lastCheckoutByRoom.set(c.room_unit_id, c.checked_out_at);
     }
   }
 
@@ -1453,7 +1494,7 @@ export async function getFrontDeskBoardData(params: {
     createdAt: log.created_at,
   }));
 
-  const folioForRevenue = (folioRows ?? []).map((tx) => ({
+  const folioForRevenue = (todayFolioRows ?? []).map((tx) => ({
     reservation_id: tx.reservation_id as string,
     kind: tx.kind as string,
     amount: tx.amount as string | number,
@@ -1506,7 +1547,7 @@ export async function getFrontDeskBoardData(params: {
   };
 
   const analytics: FrontDeskAnalytics = {
-    occupancyTrend: buildOccupancyTrend(reservations, rooms.length),
+    occupancyTrend: buildOccupancyTrend(reservations, rooms.length, OCCUPANCY_TREND_MONTHS),
     dailyCheckIns: buildDailyMovementSeries(reservations, "checked_in_at"),
     dailyCheckOuts: buildDailyMovementSeries(reservations, "checked_out_at"),
     roomMix: {
@@ -1541,7 +1582,7 @@ export async function getFrontDeskBoardData(params: {
     calendarWeek,
     analytics,
     currency,
-    reservationRecordCount: reservations.length,
+    reservationRecordCount: reservationRecordCount ?? 0,
   };
 }
 

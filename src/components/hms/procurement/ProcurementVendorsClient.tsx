@@ -3,19 +3,19 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { ChevronRight, Plus, Truck } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { HmsCard, HmsEmptyState, HmsField, HmsPill, hmsButton, hmsInput } from "@/components/hms/hms-ui";
+import { HmsFilterChips, HmsSectionIntro } from "@/components/hms/hms-ui-client";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import type { VendorCategoryRow, VendorStatus, VendorWithCategory } from "@/lib/hms/procurement-types";
 
-const STATUS_BADGE: Record<VendorStatus, string> = {
-  active: "bg-blue-50 text-blue-700 border-blue-200",
-  preferred: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  inactive: "bg-slate-100 text-slate-500 border-slate-200",
-  blacklisted: "bg-red-50 text-red-700 border-red-200",
+const STATUS_TONE: Record<VendorStatus, "slate" | "green" | "amber" | "red" | "blue"> = {
+  active: "blue",
+  preferred: "green",
+  inactive: "slate",
+  blacklisted: "red",
 };
 
 const STATUS_LABEL: Record<VendorStatus, string> = {
@@ -43,53 +43,80 @@ export function ProcurementVendorsClient({
     [vendors, statusFilter],
   );
 
-  return (
-    <div className="mt-6 space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-1">
-          {(["all", "active", "preferred", "inactive", "blacklisted"] as const).map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => setStatusFilter(s)}
-              className={`rounded-full border px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
-                statusFilter === s ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
-              }`}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-        <Button type="button" className="rounded-lg" onClick={() => setNewOpen(true)}>
-          <Plus className="h-4 w-4" />
-          New vendor
-        </Button>
-      </div>
+  const filterOptions = useMemo(
+    () =>
+      (["all", "active", "preferred", "inactive", "blacklisted"] as const).map((s) => ({
+        value: s,
+        label: s === "all" ? "All" : STATUS_LABEL[s],
+        count: s === "all" ? vendors.length : vendors.filter((v) => v.status === s).length,
+      })),
+    [vendors],
+  );
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+  const newButton = (
+    <button type="button" className={hmsButton.primary} onClick={() => setNewOpen(true)}>
+      <Plus className="h-4 w-4" aria-hidden />
+      New vendor
+    </button>
+  );
+
+  return (
+    <div className="space-y-6">
+      <HmsSectionIntro
+        id="procurement-vendors"
+        title="Your approved suppliers"
+        meaning="stock"
+        art="truck"
+        points={[
+          "Only active and preferred vendors can be chosen on a new purchase order.",
+          "Open a vendor to see their prices, orders and delivery record.",
+        ]}
+      />
+
+      <HmsFilterChips label="Filter vendors by status" options={filterOptions} value={statusFilter} onChange={setStatusFilter} meaning="stock" />
+
+      <HmsCard
+        id="procurement-vendors-list"
+        title="Vendors"
+        description={`${filtered.length} ${filtered.length === 1 ? "vendor" : "vendors"} in this view`}
+        icon={Truck}
+        meaning="stock"
+        flush
+        actions={newButton}
+      >
         {filtered.length === 0 ? (
-          <p className="px-6 py-8 text-sm text-slate-500">No vendors in this view.</p>
+          <HmsEmptyState
+            bare
+            art="truck"
+            meaning="stock"
+            title={vendors.length === 0 ? "No vendors yet" : "No vendors in this view"}
+            description={vendors.length === 0 ? "Add your first supplier to start raising purchase orders." : "Try another filter to see more vendors."}
+          />
         ) : (
           <ul className="divide-y divide-slate-100">
             {filtered.map((v) => (
               <li key={v.id}>
-                <Link href={`/hms/${slug}/procurement/vendors/${v.id}`} className="flex items-center justify-between gap-3 px-6 py-4 hover:bg-slate-50">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-slate-900">{v.name}</p>
-                    <p className="text-xs text-slate-500">
-                      {v.category_name ?? "Uncategorized"}
-                      {v.country ? ` · ${v.country}` : ""} · {v.lead_time_days}d lead time
-                    </p>
-                  </div>
-                  <span className={`shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[v.status]}`}>
-                    {STATUS_LABEL[v.status]}
+                <Link
+                  href={`/hms/${slug}/procurement/vendors/${v.id}`}
+                  className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500 sm:px-6"
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-semibold text-slate-900">{v.name}</span>
+                    <span className="block text-sm text-slate-600">
+                      {v.category_name ?? "Uncategorised"}
+                      {v.country ? ` · ${v.country}` : ""} · {v.lead_time_days} {v.lead_time_days === 1 ? "day" : "days"} lead time
+                    </span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-3">
+                    <HmsPill tone={STATUS_TONE[v.status]}>{STATUS_LABEL[v.status]}</HmsPill>
+                    <ChevronRight className="h-4 w-4 text-slate-500" aria-hidden />
                   </span>
                 </Link>
               </li>
             ))}
           </ul>
         )}
-      </div>
+      </HmsCard>
 
       <NewVendorDialog
         slug={slug}
@@ -184,15 +211,13 @@ function NewVendorDialog({
           <DialogDescription>Add a supplier to the approved-vendor register.</DialogDescription>
         </DialogHeader>
 
-        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-6 py-5">
-          <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">Vendor name</label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Lagos Fresh Produce Ltd" />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">Category</label>
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
+          <HmsField id="new-vendor-name" label="Vendor name">
+            <input id="new-vendor-name" aria-required className={hmsInput} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Lagos Fresh Produce Ltd" />
+          </HmsField>
+          <HmsField id="new-vendor-category" label="Category" optional>
             <Select value={categoryId} onValueChange={setCategoryId}>
-              <SelectTrigger>
+              <SelectTrigger id="new-vendor-category" className="h-11 rounded-xl border-slate-300">
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
@@ -203,42 +228,44 @@ function NewVendorDialog({
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">Contact name</label>
-              <Input value={contactName} onChange={(e) => setContactName(e.target.value)} />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">Phone</label>
-              <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">Email</label>
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">Country</label>
-              <Input value={country} onChange={(e) => setCountry(e.target.value)} />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">Payment terms</label>
-              <Input value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} placeholder="e.g. Net 30" />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">Lead time (days)</label>
-              <Input type="number" min="0" value={leadTimeDays} onChange={(e) => setLeadTimeDays(e.target.value)} />
-            </div>
+          </HmsField>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <HmsField id="new-vendor-contact" label="Contact name" optional>
+              <input id="new-vendor-contact" className={hmsInput} autoComplete="off" value={contactName} onChange={(e) => setContactName(e.target.value)} />
+            </HmsField>
+            <HmsField id="new-vendor-phone" label="Phone" optional>
+              <input id="new-vendor-phone" type="tel" className={hmsInput} autoComplete="off" value={phone} onChange={(e) => setPhone(e.target.value)} />
+            </HmsField>
+            <HmsField id="new-vendor-email" label="Email" optional>
+              <input id="new-vendor-email" type="email" className={hmsInput} autoComplete="off" value={email} onChange={(e) => setEmail(e.target.value)} />
+            </HmsField>
+            <HmsField id="new-vendor-country" label="Country" optional>
+              <input id="new-vendor-country" className={hmsInput} value={country} onChange={(e) => setCountry(e.target.value)} />
+            </HmsField>
+            <HmsField id="new-vendor-terms" label="Payment terms" optional>
+              <input id="new-vendor-terms" className={hmsInput} value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} placeholder="e.g. Net 30" />
+            </HmsField>
+            <HmsField id="new-vendor-lead-time" label="Lead time (days)">
+              <input
+                id="new-vendor-lead-time"
+                type="number"
+                min="0"
+                inputMode="numeric"
+                className={`${hmsInput} tabular-nums`}
+                value={leadTimeDays}
+                onChange={(e) => setLeadTimeDays(e.target.value)}
+              />
+            </HmsField>
           </div>
         </div>
 
         <DialogFooter className="shrink-0 border-t border-slate-100 px-6 py-4">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={submitting}>
+          <button type="button" className={hmsButton.secondary} onClick={() => onOpenChange(false)} disabled={submitting}>
             Cancel
-          </Button>
-          <Button type="button" disabled={!canSubmit || submitting} onClick={() => void submit()}>
+          </button>
+          <button type="button" className={hmsButton.primary} disabled={!canSubmit || submitting} onClick={() => void submit()}>
             {submitting ? "Saving…" : "Add vendor"}
-          </Button>
+          </button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

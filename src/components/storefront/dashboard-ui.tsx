@@ -137,7 +137,7 @@ export function DashSectionIntro({
   );
 }
 
-export async function sendJson(url: string, method: "POST" | "PATCH" | "DELETE", body?: object) {
+export async function sendJson(url: string, method: "POST" | "PUT" | "PATCH" | "DELETE", body?: object) {
   const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(typeof data.error === "string" ? data.error : "Something went wrong. Please try again.");

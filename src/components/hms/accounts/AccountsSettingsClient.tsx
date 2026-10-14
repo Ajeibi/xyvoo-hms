@@ -2,9 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { CircleAlert, Plus, ShieldCheck, Trash2 } from "lucide-react";
+import { HmsCard, HmsField, HmsPage, HmsPageHeader, HmsPill, hmsButton, hmsInput } from "@/components/hms/hms-ui";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import type { ApprovalThresholdRow, ApproverRole } from "@/lib/hms/procurement-types";
@@ -67,64 +66,97 @@ export function AccountsSettingsClient({
   };
 
   return (
-    <div className="w-full px-6 py-8 sm:px-8">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-900">Accounts settings</h1>
-        <p className="mt-0.5 text-sm text-slate-500">
-          Approval thresholds — the same bands used to gate purchase orders also decide when a vendor bill needs GM/Owner
-          sign-off before it posts to the ledger. Managed here too so Accounts staff don&apos;t need Procurement access to
-          see or change them.
-        </p>
-      </div>
+    <HmsPage>
+      <HmsPageHeader
+        eyebrow="Accounts"
+        meaning="money"
+        title="Accounts settings"
+        description="Decide when a vendor bill needs sign-off before it posts to the ledger. These are the same limits Procurement uses for purchase orders, so Accounts staff can manage them without Procurement access."
+      />
 
       <AccountsSubNav slug={slug} canAccessAllDepartments={canAccessAllDepartments} />
 
-      <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6">
-        <h2 className="text-sm font-semibold text-slate-900">Approval thresholds</h2>
-        <p className="mt-1 text-xs text-slate-500">
-          Every vendor bill is checked against these bands by amount and department. The most specific match wins;
-          everything defaults to requiring GM/Owner sign-off until you configure this.
-        </p>
-
-        <div className="mt-3 space-y-2">
-          {thresholds.length === 0 ? (
-            <p className="text-sm text-slate-500">No thresholds configured yet — every bill requires GM/Owner approval.</p>
-          ) : (
-            thresholds.map((t) => (
-              <div key={t.id} className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-sm">
+      <HmsCard
+        id="accounts-approval-thresholds"
+        title="Approval thresholds"
+        description="Every vendor bill is checked against these bands by amount and department. The most specific match wins."
+        icon={ShieldCheck}
+        meaning="money"
+      >
+        {thresholds.length === 0 ? (
+          <p className="flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+            <CircleAlert className="h-4 w-4 shrink-0" aria-hidden />
+            No thresholds set yet, so every bill needs GM / Owner approval.
+          </p>
+        ) : (
+          <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200">
+            {thresholds.map((t) => (
+              <li key={t.id} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
                 <span className="text-slate-700">
-                  {t.department}: {t.min_amount.toLocaleString()} – {t.max_amount === null ? "∞" : t.max_amount.toLocaleString()} →{" "}
-                  <span className="font-medium">{APPROVER_LABELS[t.approver_role]}</span>
+                  <span className="font-medium text-slate-900">{t.department}</span>:{" "}
+                  <span className="tabular-nums">
+                    {t.min_amount.toLocaleString()} to {t.max_amount === null ? "no upper limit" : t.max_amount.toLocaleString()}
+                  </span>{" "}
+                  → <HmsPill tone={t.approver_role === "auto" ? "green" : "blue"}>{APPROVER_LABELS[t.approver_role]}</HmsPill>
                 </span>
-                <button type="button" onClick={() => void removeThreshold(t.id)} className="text-slate-400 hover:text-red-600">
-                  <Trash2 className="h-4 w-4" />
+                <button
+                  type="button"
+                  onClick={() => void removeThreshold(t.id)}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-600 hover:bg-red-50 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                >
+                  <Trash2 className="h-4 w-4" aria-hidden />
+                  <span className="sr-only">
+                    Remove threshold for {t.department}, {t.min_amount.toLocaleString()} and up
+                  </span>
                 </button>
-              </div>
-            ))
-          )}
-        </div>
+              </li>
+            ))}
+          </ul>
+        )}
 
-        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <Input value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="Department" />
-          <Input type="number" min="0" value={minAmount} onChange={(e) => setMinAmount(e.target.value)} placeholder="Min amount" />
-          <Input type="number" min="0" value={maxAmount} onChange={(e) => setMaxAmount(e.target.value)} placeholder="Max amount (blank = ∞)" />
-          <Select value={approverRole} onValueChange={(v) => setApproverRole(v as ApproverRole)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {(Object.keys(APPROVER_LABELS) as ApproverRole[]).map((r) => (
-                <SelectItem key={r} value={r}>
-                  {APPROVER_LABELS[r]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="mt-5 border-t border-slate-100 pt-5">
+          <h3 className="text-sm font-semibold text-slate-900">Add a threshold</h3>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <HmsField id="threshold-department" label="Department">
+              <input id="threshold-department" className={hmsInput} value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="Department" />
+            </HmsField>
+            <HmsField id="threshold-min" label="From amount">
+              <input id="threshold-min" type="number" min="0" className={`${hmsInput} tabular-nums`} value={minAmount} onChange={(e) => setMinAmount(e.target.value)} />
+            </HmsField>
+            <HmsField id="threshold-max" label="Up to amount" hint="Leave blank for no upper limit.">
+              <input
+                id="threshold-max"
+                type="number"
+                min="0"
+                aria-describedby="threshold-max-hint"
+                className={`${hmsInput} tabular-nums`}
+                value={maxAmount}
+                onChange={(e) => setMaxAmount(e.target.value)}
+              />
+            </HmsField>
+            <div>
+              <p id="threshold-approver-label" className="mb-1 block text-sm font-medium text-slate-800">
+                Who approves
+              </p>
+              <Select value={approverRole} onValueChange={(v) => setApproverRole(v as ApproverRole)}>
+                <SelectTrigger aria-labelledby="threshold-approver-label" className="h-auto rounded-xl border-slate-300 py-2.5">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(APPROVER_LABELS) as ApproverRole[]).map((r) => (
+                    <SelectItem key={r} value={r}>
+                      {APPROVER_LABELS[r]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <button type="button" className={`${hmsButton.primary} mt-4`} disabled={submitting} onClick={() => void addThreshold()}>
+            <Plus className="h-4 w-4" aria-hidden /> {submitting ? "Adding…" : "Add threshold"}
+          </button>
         </div>
-        <Button type="button" size="sm" className="mt-2 rounded-lg" disabled={submitting} onClick={() => void addThreshold()}>
-          <Plus className="h-3.5 w-3.5" /> Add threshold
-        </Button>
-      </div>
-    </div>
+      </HmsCard>
+    </HmsPage>
   );
 }

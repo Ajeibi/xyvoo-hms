@@ -27,6 +27,7 @@ import {
   capitalize,
   formatCompactAmount,
   sumValues,
+  type MetricTileItem,
 } from "./shared";
 
 ChartJS.register(CategoryScale, Filler, Legend, LinearScale, LineElement, PointElement, Tooltip);
@@ -71,7 +72,7 @@ export default function FinancialPerformanceSection({
   const useAggregatePrimaryMetric =
     financeMetric === "revenue" || financeMetric === "expenses" || financeMetric === "profit";
 
-  const financialHighlights = [
+  const financialHighlights: MetricTileItem[] = [
     {
       label: useAggregatePrimaryMetric
         ? `${capitalize(financePeriod)} total`
@@ -82,21 +83,25 @@ export default function FinancialPerformanceSection({
         currency,
       ),
       description: activeFinancialView.summary,
+      meaning: "money",
     },
     {
       label: "Average",
       value: formatFinanceMetricValue(financeMetric, activeMetricAverage, currency),
       description: `Average ${activeMetricConfig.shortLabel.toLowerCase()} per ${activeFinancialView.unitLabel}.`,
+      meaning: "rooms",
     },
     {
       label: "Peak",
       value: formatFinanceMetricValue(financeMetric, activeMetricPeak, currency),
       description: `Highest ${activeMetricConfig.shortLabel.toLowerCase()} recorded in this ${financePeriod} view.`,
+      meaning: "guests",
     },
     {
       label: "Change",
       value: formatFinanceMetricDelta(financeMetric, activeMetricChange, currency),
       description: `${activeMetricChange >= 0 ? "Up" : "Down"} ${Math.abs(activeMetricChangePercent)}% from the first ${activeFinancialView.unitLabel} in the selected view.`,
+      meaning: activeMetricChange >= 0 ? "money" : "attention",
     },
   ];
 
@@ -167,6 +172,7 @@ export default function FinancialPerformanceSection({
   return (
     <AnalyticsCard
       icon={Wallet}
+      meaning="money"
       title="Financial Performance"
       description="Gross revenue from folio activity and PoS collections; occupancy and ADR from reservations."
     >
@@ -178,11 +184,12 @@ export default function FinancialPerformanceSection({
             <button
               key={metric}
               type="button"
+              aria-pressed={financeMetric === metric}
               onClick={() => setFinanceMetric(metric)}
-              className={`rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
+              className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
                 financeMetric === metric
-                  ? "bg-blue-50 text-blue-600 shadow-sm shadow-blue-100"
-                  : "bg-slate-50 text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                  ? "border-emerald-600 bg-emerald-50 text-emerald-900"
+                  : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
               }`}
             >
               {getFinanceMetricConfig(metric).tabLabel}
@@ -205,11 +212,12 @@ export default function FinancialPerformanceSection({
               <button
                 key={period}
                 type="button"
+                aria-pressed={financePeriod === period}
                 onClick={() => setFinancePeriod(period)}
                 className={`rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
                   financePeriod === period
-                    ? "bg-white text-blue-600 shadow-sm shadow-slate-200/70"
-                    : "text-slate-500 hover:text-slate-700"
+                    ? "bg-white text-blue-700 shadow-sm shadow-slate-200/70"
+                    : "text-slate-600 hover:text-slate-900"
                 }`}
               >
                 {capitalize(period)}

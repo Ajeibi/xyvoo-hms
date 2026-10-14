@@ -6,6 +6,7 @@ import { getAccountsCapabilities } from "@/lib/hms/accounts-rbac";
 import { getIncomeStatement } from "@/lib/hms/financial-statements";
 import { normalizePricingSetup } from "@/lib/hms/room-pricing";
 import { AccountsIncomeStatementClient } from "@/components/hms/accounts/AccountsIncomeStatementClient";
+import { HmsPage, HmsPageHeader } from "@/components/hms/hms-ui";
 
 function firstOfMonth(): string {
   const d = new Date();
@@ -23,10 +24,9 @@ export default async function AccountsIncomeStatementPage({ params }: { params: 
   if (!tenant) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-income-statement">
-        <div className="px-8 py-8">
-          <h1 className="text-xl font-semibold text-slate-900">Income statement</h1>
-          <p className="mt-0.5 text-sm text-slate-500">Hotel not found.</p>
-        </div>
+        <HmsPage>
+          <HmsPageHeader eyebrow="Accounts" meaning="money" title="Income statement" description="Hotel not found." />
+        </HmsPage>
       </HMSLayout>
     );
   }
@@ -35,10 +35,9 @@ export default async function AccountsIncomeStatementPage({ params }: { params: 
   if (!caps.canViewReports) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-income-statement">
-        <div className="px-8 py-8">
-          <h1 className="text-xl font-semibold text-slate-900">Income statement</h1>
-          <p className="mt-0.5 text-sm text-slate-500">You don&apos;t have access to this report.</p>
-        </div>
+        <HmsPage>
+          <HmsPageHeader eyebrow="Accounts" meaning="money" title="Income statement" description="You don't have access to this report." />
+        </HmsPage>
       </HMSLayout>
     );
   }

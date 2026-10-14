@@ -1,7 +1,8 @@
 "use client";
 
-import { AlertCircle } from "lucide-react";
+import { Check } from "lucide-react";
 import { BILLING_CYCLES, FEATURES } from "@/features/hotel-register/constants";
+import { ErrorBanner, PRIMARY_BUTTON_CLASS, Spinner } from "@/features/hotel-register/components/fields";
 import { useHotelRegisterStore } from "@/features/hotel-register/store";
 
 export default function StepChoosePlan() {
@@ -12,56 +13,81 @@ export default function StepChoosePlan() {
   const startTrial = useHotelRegisterStore((s) => s.startTrial);
 
   return (
-    <div>
-      <div className="text-center mb-6">
-        <h2 className="mb-1 text-2xl font-bold text-xyvoo-navy">Choose your billing cycle</h2>
-        <p className="text-slate-500 text-sm">All cycles include every feature. 14-day free trial — no card required.</p>
-      </div>
+    <div className="space-y-6">
+      <ErrorBanner message={error} />
 
-      <div className="grid grid-cols-3 gap-3 mb-6">
-        {BILLING_CYCLES.map((c) => (
-          <button key={c.id} onClick={() => setBillingCycle(c.id)} className={`relative text-left rounded-2xl p-4 border-2 transition-all cursor-pointer ${billingCycle === c.id ? "border-blue-500 bg-blue-50" : "border-slate-200 bg-white hover:border-slate-300"}`}>
-            {c.badge ? (
-              <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-xyvoo-blue px-2 py-0.5 text-[10px] font-bold text-white">
-                {c.badge}
-              </span>
-            ) : null}
-            <p className="mb-1 text-sm font-bold text-xyvoo-navy">{c.label}</p>
-            <p
-              className={`text-lg font-black ${billingCycle === c.id ? "text-xyvoo-blue" : "text-xyvoo-navy"}`}
-            >
-              {c.price}
-            </p>
-            <p className="text-xs text-slate-400">{c.period}</p>
-            <p className="text-xs text-slate-400 mt-2">{c.effective}</p>
-            {"saving" in c ? <p className="text-xs font-bold text-green-600 mt-1">{c.saving}</p> : null}
-            <p className="text-xs text-slate-400 mt-1">{c.commitment}</p>
-          </button>
-        ))}
-      </div>
-
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 mb-5">
-        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Everything included</p>
-        <div className="grid grid-cols-2 gap-y-2 gap-x-4">
-          {FEATURES.map((f) => (
-            <div key={f} className="flex items-center gap-2 text-sm text-slate-600">
-              <span className="w-4 h-4 rounded-full bg-green-100 text-green-600 flex items-center justify-center text-xs font-bold flex-shrink-0">✓</span>
-              {f}
-            </div>
-          ))}
+      <fieldset>
+        <legend className="sr-only">Choose a billing cycle</legend>
+        <div className="grid gap-4 pt-3">
+          {BILLING_CYCLES.map((c) => {
+            const selected = billingCycle === c.id;
+            return (
+              <label
+                key={c.id}
+                className={`relative flex cursor-pointer gap-3 rounded-2xl border-2 p-5 transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-xyvoo-blue has-[:focus-visible]:ring-offset-2 ${
+                  selected ? "border-xyvoo-blue bg-blue-50/50" : "border-slate-200 bg-white hover:border-slate-300"
+                } ${c.badge ? "shadow-lg" : ""}`}
+              >
+                {c.badge ? (
+                  <span className="absolute -top-3 left-5 rounded-full bg-xyvoo-blue-deep px-3 py-1 text-xs font-semibold text-white shadow-sm">
+                    {c.badge}
+                  </span>
+                ) : null}
+                <input
+                  type="radio"
+                  name="billing-cycle"
+                  value={c.id}
+                  checked={selected}
+                  onChange={() => setBillingCycle(c.id)}
+                  className="mt-1 h-4 w-4 shrink-0 accent-xyvoo-blue-deep"
+                />
+                <span className="flex flex-1 flex-wrap items-start justify-between gap-x-4 gap-y-2">
+                  <span>
+                    <span className="block text-base font-semibold text-slate-900">{c.label}</span>
+                    <span className="mt-0.5 block text-sm text-slate-600">Commitment: {c.commitment}</span>
+                  </span>
+                  <span className="sm:text-right">
+                    <span className="block text-2xl font-bold text-slate-900">
+                      {c.price}
+                      <span className="text-sm font-medium text-slate-600">{c.period}</span>
+                    </span>
+                    <span className="block text-sm text-slate-600">{c.effective}</span>
+                    {c.saving ? <span className="block text-sm font-semibold text-emerald-700">{c.saving}</span> : null}
+                  </span>
+                </span>
+              </label>
+            );
+          })}
         </div>
+      </fieldset>
+
+      <section aria-labelledby="plan-features-title" className="rounded-2xl border border-slate-200 bg-white p-5">
+        <h2 id="plan-features-title" className="text-base font-semibold text-slate-900">
+          Everything included
+        </h2>
+        <ul className="mt-3 grid grid-cols-1 gap-x-4 gap-y-2 text-sm text-slate-700 sm:grid-cols-2">
+          {FEATURES.map((f) => (
+            <li key={f} className="flex gap-2">
+              <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden />
+              {f}
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <div className="space-y-3 border-t border-slate-200 pt-6">
+        <button type="button" onClick={startTrial} disabled={loading} className={PRIMARY_BUTTON_CLASS}>
+          {loading ? (
+            <>
+              <Spinner />
+              <span className="sr-only">Starting your trial…</span>
+            </>
+          ) : (
+            "Start 14-day free trial"
+          )}
+        </button>
+        <p className="text-center text-sm text-slate-600">No credit card required for trial · Cancel anytime</p>
       </div>
-
-      {error ? <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 rounded-xl px-4 py-3 mb-4"><AlertCircle className="w-4 h-4 flex-shrink-0" /> {error}</div> : null}
-
-      <button
-        onClick={startTrial}
-        disabled={loading}
-        className="mb-3 flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl bg-xyvoo-blue py-4 text-base font-bold text-white transition-all disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : "Start 14-Day Free Trial →"}
-      </button>
-      <p className="text-center text-xs text-slate-400 mt-3">No credit card required for trial · Cancel anytime</p>
     </div>
   );
 }

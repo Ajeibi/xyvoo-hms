@@ -1,4 +1,5 @@
 import HMSLayout from "@/components/hms/HMSLayout";
+import { HmsPage, HmsPageHeader } from "@/components/hms/hms-ui";
 import { ProcurementSubNav } from "@/components/hms/procurement/ProcurementSubNav";
 import { ProcurementReceivingClient } from "@/components/hms/procurement/ProcurementReceivingClient";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
@@ -41,11 +42,13 @@ export default async function ProcurementReceivingPage({
 
   return (
     <HMSLayout slug={slug} requiredSection="procurement-receiving">
-      <div className="px-8 py-8">
-        <h1 className="text-xl font-semibold text-slate-900">Receiving</h1>
-        <p className="mt-0.5 text-sm text-slate-500">
-          Record goods received against a purchase order, run the quality checklist, and flag discrepancies before stock is accepted.
-        </p>
+      <HmsPage>
+        <HmsPageHeader
+          eyebrow="Procurement"
+          meaning="stock"
+          title="Receiving"
+          description="Record goods received against a purchase order, run the quality checklist, and flag discrepancies before stock is accepted."
+        />
         <ProcurementSubNav slug={slug} canAccessAllDepartments={access.canAccessAllDepartments} />
         <ProcurementReceivingClient
           slug={slug}
@@ -55,7 +58,7 @@ export default async function ProcurementReceivingPage({
           checklistByItemId={checklistByItemId}
           preselectedOrder={preselectedOrder}
         />
-      </div>
+      </HmsPage>
     </HMSLayout>
   );
 }

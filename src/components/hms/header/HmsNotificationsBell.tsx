@@ -118,23 +118,29 @@ export function HmsNotificationsBell({
           className="relative h-10 w-10 rounded-xl text-slate-600"
           aria-label={`Notifications${unread > 0 ? `, ${unread} unread` : ""}`}
         >
-          <Bell className="h-5 w-5" />
+          <Bell className="h-5 w-5" aria-hidden />
           {unread > 0 ? (
-            <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-xyvoo-blue px-1 text-[10px] font-bold text-white">
+            <span
+              aria-hidden
+              className="absolute right-1 top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-xyvoo-blue px-1 text-[11px] font-bold text-white ring-2 ring-white"
+            >
               {unread > 9 ? "9+" : unread}
             </span>
           ) : null}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80 rounded-2xl p-2">
-        <DropdownMenuLabel className="flex items-center justify-between px-2 py-1.5">
-          <span className="text-sm font-semibold">Notifications</span>
-          <div className="flex gap-2">
+      <DropdownMenuContent align="end" className="w-[22rem] max-w-[calc(100vw-2rem)] rounded-2xl p-2">
+        <DropdownMenuLabel className="flex items-center justify-between gap-2 px-2 py-1.5">
+          <span className="font-heading text-base font-semibold text-slate-900">
+            Notifications
+            {unread > 0 ? <span className="ml-1.5 text-sm font-medium text-slate-600">({unread} unread)</span> : null}
+          </span>
+          <div className="flex gap-1">
             {items.some((n) => n.read) ? (
               <button
                 type="button"
                 onClick={() => void clearRead()}
-                className="text-xs font-medium text-slate-500 hover:underline"
+                className="rounded-lg px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               >
                 Clear read
               </button>
@@ -143,16 +149,22 @@ export function HmsNotificationsBell({
               <button
                 type="button"
                 onClick={() => void markAllRead()}
-                className="text-xs font-medium text-blue-600 hover:underline"
+                className="rounded-lg px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               >
-                Mark all read
+                Mark all as read
               </button>
             ) : null}
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {items.length === 0 ? (
-          <p className="px-3 py-4 text-sm text-slate-500">No notifications yet.</p>
+          <div className="flex flex-col items-center px-3 py-6 text-center">
+            <span aria-hidden className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
+              <Bell className="h-5 w-5" />
+            </span>
+            <p className="mt-2 text-sm font-medium text-slate-900">No notifications yet</p>
+            <p className="mt-0.5 text-xs text-slate-600">Alerts and reminders will appear here.</p>
+          </div>
         ) : (
           <div className="max-h-[320px] space-y-2 overflow-y-auto px-1 py-1">
             {items.slice(0, 8).map((n) => (
@@ -162,8 +174,8 @@ export function HmsNotificationsBell({
         )}
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild className="cursor-pointer rounded-xl">
-          <Link href={notificationsPath} className="w-full text-center text-sm text-blue-600">
-            View all
+          <Link href={notificationsPath} className="w-full justify-center text-center text-sm font-medium text-blue-700">
+            See all notifications
           </Link>
         </DropdownMenuItem>
       </DropdownMenuContent>

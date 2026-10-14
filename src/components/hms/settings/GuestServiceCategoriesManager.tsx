@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ConciergeBell } from "lucide-react";
+import { HmsCard, HmsEmptyState, HmsField, HmsPill, hmsButton, hmsInput } from "@/components/hms/hms-ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toastError, toastSuccess } from "@/lib/app-toast";
@@ -101,29 +103,36 @@ export function GuestServiceCategoriesManager({
   };
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5">
-      <div className="flex flex-wrap items-center gap-1.5">
-        <h2 className="text-sm font-semibold text-slate-800">Guest service categories</h2>
+    <HmsCard
+      id="guest-service-categories"
+      title="Guest service categories"
+      description="What staff pick from when logging a guest request, and which department each one goes to."
+      icon={ConciergeBell}
+      meaning="guests"
+      actions={
         <SettingsSectionInfo
           title="Guest service categories"
           text="The categories staff choose from when logging a guest request (e.g. Housekeeping, Laundry, Spa) and which department each one notifies and routes to. Set up once; only revisit when adding a new type of request or changing which department handles one."
         />
-      </div>
-      <p className="mt-1 text-sm text-slate-500">
-        The categories staff pick from when logging a guest service request, and which department
-        each one routes and notifies.
-      </p>
-
-      <div className="mt-4 divide-y divide-slate-100 rounded-lg border border-slate-100">
+      }
+    >
+      <div className="divide-y divide-slate-100 rounded-xl border border-slate-200">
         {rows.length === 0 ? (
-          <p className="p-3 text-sm text-slate-500">No categories configured yet.</p>
+          <HmsEmptyState
+            bare
+            icon={ConciergeBell}
+            meaning="guests"
+            title="No categories yet"
+            description="Add your first one below, for example Extra towels going to Housekeeping."
+          />
         ) : (
           rows.map((row) => (
-            <div key={row.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm">
+            <div key={row.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
               {renamingId === row.id ? (
                 <Input
                   autoFocus
-                  className="h-8 max-w-[220px]"
+                  aria-label={`New name for ${row.name}`}
+                  className="h-9 max-w-[220px]"
                   value={renameValue}
                   onChange={(e) => setRenameValue(e.target.value)}
                   onKeyDown={(e) => {
@@ -132,22 +141,27 @@ export function GuestServiceCategoriesManager({
                   }}
                 />
               ) : (
-                <button
-                  type="button"
-                  className={`text-left font-medium ${row.isActive ? "text-slate-800" : "text-slate-400 line-through"}`}
-                  onClick={() => {
-                    setRenamingId(row.id);
-                    setRenameValue(row.name);
-                  }}
-                  title="Click to rename"
-                >
-                  {row.name}
-                </button>
+                <span className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    className={`rounded-md text-left font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${row.isActive ? "text-slate-900" : "text-slate-600 line-through"}`}
+                    onClick={() => {
+                      setRenamingId(row.id);
+                      setRenameValue(row.name);
+                    }}
+                    title="Click to rename"
+                  >
+                    {row.name}
+                    <span className="sr-only"> (select to rename)</span>
+                  </button>
+                  {!row.isActive ? <HmsPill>Inactive</HmsPill> : null}
+                </span>
               )}
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <select
-                  className="h-8 rounded-md border border-slate-200 px-2 text-xs"
+                  aria-label={`Department for ${row.name}`}
+                  className="h-9 rounded-lg border border-slate-300 bg-white px-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={row.department}
                   disabled={busyId === row.id}
                   onChange={(e) => void patch(row.id, { department: e.target.value }, "Department updated.")}
@@ -162,48 +176,59 @@ export function GuestServiceCategoriesManager({
                   type="button"
                   size="sm"
                   variant="outline"
-                  className="h-8 text-xs"
+                  className="h-9 text-sm"
                   disabled={busyId === row.id}
                   onClick={() => void patch(row.id, { isActive: !row.isActive }, row.isActive ? "Category deactivated." : "Category reactivated.")}
                 >
                   {row.isActive ? "Deactivate" : "Activate"}
+                  <span className="sr-only"> {row.name}</span>
                 </Button>
-                <Button
+                <button
                   type="button"
-                  size="sm"
-                  variant="outline"
-                  className="h-8 text-xs text-red-700 hover:bg-red-50"
+                  className={hmsButton.danger}
                   disabled={busyId === row.id}
                   onClick={() => void remove(row.id)}
                 >
                   Delete
-                </Button>
+                  <span className="sr-only"> {row.name}</span>
+                </button>
               </div>
             </div>
           ))
         )}
       </div>
 
-      <div className="mt-4 grid grid-cols-[1fr_180px_auto] gap-2">
-        <Input placeholder="New category name" value={newName} onChange={(e) => setNewName(e.target.value)} />
-        <select
-          className="h-10 rounded-lg border border-slate-200 px-3 text-sm"
-          value={newDepartment}
-          onChange={(e) => setNewDepartment(e.target.value)}
-        >
-          {DEPARTMENT_OPTIONS.map((d) => (
-            <option key={d.value} value={d.value}>
-              {d.label}
-            </option>
-          ))}
-        </select>
-        <Button type="button" disabled={saving} onClick={() => void add()} className="rounded-lg">
-          Add
-        </Button>
+      <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_200px_auto] sm:items-end">
+        <HmsField id="guest-service-new-name" label="New category">
+          <input
+            id="guest-service-new-name"
+            className={hmsInput}
+            placeholder="For example, Laundry"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+          />
+        </HmsField>
+        <HmsField id="guest-service-new-department" label="Goes to">
+          <select
+            id="guest-service-new-department"
+            className={hmsInput}
+            value={newDepartment}
+            onChange={(e) => setNewDepartment(e.target.value)}
+          >
+            {DEPARTMENT_OPTIONS.map((d) => (
+              <option key={d.value} value={d.value}>
+                {d.label}
+              </option>
+            ))}
+          </select>
+        </HmsField>
+        <button type="button" disabled={saving} onClick={() => void add()} className={hmsButton.primary}>
+          Add category
+        </button>
       </div>
-      <p className="mt-2 text-xs text-slate-400">
+      <p className="mt-3 text-sm text-slate-600">
         Currently mapped: {rows.filter((r) => r.isActive).map((r) => `${r.name} → ${departmentLabel(r.department)}`).join(", ") || "none"}
       </p>
-    </section>
+    </HmsCard>
   );
 }

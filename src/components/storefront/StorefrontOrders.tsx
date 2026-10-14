@@ -1,13 +1,15 @@
 "use client";
 
+import { CHANNEL_LABELS } from "@/lib/store/manual-orders";
 import { Fragment, useEffect, useId, useState } from "react";
 import Link from "next/link";
-import { ChevronDown, ChevronRight, Clock, Download, Landmark, Mail, MessageCircle, Phone, Search, Truck } from "lucide-react";
+import { ChevronDown, ChevronRight, Clock, Download, Landmark, Mail, MessageCircle, Phone, Plus, Search, Truck } from "lucide-react";
 import type { DashboardOrder } from "@/lib/store/orders";
 import { availableOrderActions, ORDER_ACTION_LABELS, ORDER_ACTIONS, type OrderAction } from "@/lib/store/order-status";
 import { ORDER_STATUSES, ORDER_VIEWS, ORDERS_PAGE_SIZE, orderListSearchParams, paymentStatusLabel, type OrderListQuery, type OrderPaymentFilter, type OrderView } from "@/lib/store/order-list";
 import { formatShopCurrency } from "@/lib/shop/format";
 import { whatsappLink } from "@/lib/store/whatsapp";
+import RecordOrderDialog from "./RecordOrderDialog";
 import { DashAlert, DashEmptyState, DashPageHeader, DashSectionIntro, DashStatStrip, DashStatTile, DashStatus, dashButton, dashInput, sendJson } from "./dashboard-ui";
 
 const STATUS_BADGE: Record<DashboardOrder["status"], string> = {
@@ -64,6 +66,9 @@ export default function StorefrontOrders({ slug, currency, initialFilter, canExp
   const [bulkAction, setBulkAction] = useState<OrderAction | "">("");
   const [confirmBulk, setConfirmBulk] = useState(false);
   const [upgradeNote, setUpgradeNote] = useState(false);
+  // "Record an order": a sale made outside the online shop.
+  const [recording, setRecording] = useState(false);
+  const [recordedId, setRecordedId] = useState<string | null>(null);
 
   const query: Partial<OrderListQuery> = { view, status, payment, q, from: dayToIso(fromDay, false), to: dayToIso(toDay, true), page };
   const queryString = orderListSearchParams(query).toString();
@@ -189,17 +194,41 @@ export default function StorefrontOrders({ slug, currency, initialFilter, canExp
         title="Orders"
         description="Everything customers have bought. Open an order to see what to send and where, then update it as it goes out."
         actions={
-          canExport ? (
-            <a href={exportHref} className={dashButton.secondary} download>
-              <Download className="h-4 w-4" aria-hidden /> Download CSV
-            </a>
-          ) : (
-            <button type="button" className={dashButton.secondary} onClick={() => setUpgradeNote(true)} aria-expanded={upgradeNote} aria-controls={`${ids}-upgrade`}>
-              <Download className="h-4 w-4" aria-hidden /> Download CSV
+          <>
+            {canExport ? (
+              <a href={exportHref} className={dashButton.secondary} download>
+                <Download className="h-4 w-4" aria-hidden /> Download CSV
+              </a>
+            ) : (
+              <button type="button" className={dashButton.secondary} onClick={() => setUpgradeNote(true)} aria-expanded={upgradeNote} aria-controls={`${ids}-upgrade`}>
+                <Download className="h-4 w-4" aria-hidden /> Download CSV
+              </button>
+            )}
+            <button type="button" className={dashButton.primary} onClick={() => setRecording(true)}>
+              <Plus className="h-4 w-4" aria-hidden /> Record an order
             </button>
-          )
+          </>
         }
       />
+
+      <RecordOrderDialog
+        slug={slug}
+        currency={currency}
+        open={recording}
+        onOpenChange={setRecording}
+        onRecorded={(orderId) => {
+          setRecordedId(orderId);
+          load();
+        }}
+      />
+      {recordedId ? (
+        <div role="status" className="flex flex-wrap items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+          Order {recordedId.slice(0, 8).toUpperCase()} recorded. Stock has been updated.
+          <Link href={`/storefront/${slug}/orders/${recordedId}`} className="font-semibold underline">
+            View the order
+          </Link>
+        </div>
+      ) : null}
 
       {upgradeNote && !canExport ? (
         <div id={`${ids}-upgrade`} className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
@@ -520,7 +549,10 @@ export default function StorefrontOrders({ slug, currency, initialFilter, canExp
                         <td className="px-4 py-3 text-slate-600">{order.itemCount}</td>
                         <td className="px-4 py-3 text-slate-600">
                           {order.paymentMethod}
-                          <span className="block text-xs text-slate-500">{paymentStatusLabel(order)}</span>
+                          <span className="block text-xs text-slate-500">
+                            {paymentStatusLabel(order)}
+                            {order.channel !== "online" ? ` · ${CHANNEL_LABELS[order.channel as keyof typeof CHANNEL_LABELS] ?? "Recorded by hand"}` : ""}
+                          </span>
                         </td>
                         <td className="px-4 py-3 font-medium text-slate-800">{money(order.totalAmount)}</td>
                         <td className="px-4 py-3">

@@ -1,7 +1,7 @@
 import HMSLayout from "@/components/hms/HMSLayout";
 import { InventorySubNav } from "@/components/hms/inventory/InventorySubNav";
-import { SettingsSectionInfo } from "@/components/hms/settings/SettingsSectionInfo";
 import { InventoryStockCountsClient } from "@/components/hms/inventory/InventoryStockCountsClient";
+import { HmsPage, HmsPageHeader } from "@/components/hms/hms-ui";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { getHmsAccessContext } from "@/lib/hms/access";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -25,20 +25,16 @@ export default async function InventoryStockCountsPage({ params }: { params: Pro
 
   return (
     <HMSLayout slug={slug} requiredSection="inventory-counts">
-      <div className="px-8 py-8">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <h1 className="text-xl font-semibold text-slate-900">Stock counts</h1>
-          <SettingsSectionInfo
-            title="Stock counts"
-            text="Reconcile a physical count against what the system expects. Starting a count snapshots current balances; posting it writes off any difference as a variance adjustment to stock."
-          />
-        </div>
-        <p className="mt-0.5 text-sm text-slate-500">
-          Reconcile physical counts against system balances and post variances.
-        </p>
+      <HmsPage>
+        <HmsPageHeader
+          eyebrow="Inventory"
+          meaning="stock"
+          title="Stock counts"
+          description="Check physical counts against system balances. Posting a count adjusts stock by any difference."
+        />
         <InventorySubNav slug={slug} canAccessAllDepartments={access.canAccessAllDepartments} />
         <InventoryStockCountsClient slug={slug} initialCounts={counts} locations={locations} />
-      </div>
+      </HmsPage>
     </HMSLayout>
   );
 }

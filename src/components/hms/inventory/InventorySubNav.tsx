@@ -29,7 +29,7 @@ export function InventorySubNav({ slug, canAccessAllDepartments }: { slug: strin
   if (!canAccessAllDepartments) return null;
 
   return (
-    <nav className="-mx-8 mb-6 flex gap-1 overflow-x-auto px-8 py-1">
+    <nav aria-label="Inventory pages" className="flex gap-2 overflow-x-auto py-1">
       {TABS.map((tab) => {
         const href = `${base}${tab.suffix}`;
         const active = pathname === href;
@@ -38,8 +38,10 @@ export function InventorySubNav({ slug, canAccessAllDepartments }: { slug: strin
             key={tab.key}
             href={href}
             aria-current={active ? "page" : undefined}
-            className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-              active ? "bg-blue-50 text-blue-700" : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+            className={`whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+              active
+                ? "border-teal-600 bg-teal-50 text-teal-900"
+                : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"
             }`}
           >
             {tab.label}

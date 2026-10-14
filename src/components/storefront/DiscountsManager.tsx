@@ -40,6 +40,7 @@ type FormState = {
   endsOn: string;
   usageLimit: string;
   oncePerCustomer: boolean;
+  showBanner: boolean;
 };
 
 const EMPTY: FormState = {
@@ -56,6 +57,7 @@ const EMPTY: FormState = {
   endsOn: "",
   usageLimit: "",
   oncePerCustomer: false,
+  showBanner: false,
 };
 
 const STATE_PILL = {
@@ -204,6 +206,7 @@ export default function DiscountsManager({
       endsOn: toDay(c.endsAt),
       usageLimit: c.usageLimit != null ? String(c.usageLimit) : "",
       oncePerCustomer: c.perCustomerLimit === 1,
+      showBanner: c.showBanner,
     });
   };
 
@@ -242,6 +245,7 @@ export default function DiscountsManager({
             ? previous.perCustomerLimit
             : null,
         isActive: previous ? previous.isActive : true,
+        showBanner: Boolean(form.endsOn) && form.showBanner,
       };
       const data = form.id
         ? await sendJson(`/api/store/discounts/${form.id}`, "PATCH", body)
@@ -575,7 +579,8 @@ export default function DiscountsManager({
                 form.startsOn ||
                 form.endsOn ||
                 form.usageLimit ||
-                form.oncePerCustomer,
+                form.oncePerCustomer ||
+                form.showBanner,
               )}
             >
               <summary className="cursor-pointer list-none rounded-xl px-4 py-3 text-sm font-medium text-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-xyvoo-blue">
@@ -666,6 +671,25 @@ export default function DiscountsManager({
                     </span>
                     <span className="block text-slate-500">
                       Checked against the email address they order with.
+                    </span>
+                  </span>
+                </label>
+                <label className="flex items-start gap-3 text-sm text-slate-700 sm:col-span-2">
+                  <input
+                    type="checkbox"
+                    checked={form.showBanner && Boolean(form.endsOn)}
+                    disabled={!form.endsOn}
+                    onChange={(e) => set("showBanner", e.target.checked)}
+                    className="mt-0.5 h-4 w-4 accent-blue-600 disabled:opacity-50"
+                  />
+                  <span>
+                    <span className="font-medium text-slate-800">
+                      Show it on my shop with a countdown
+                    </span>
+                    <span className="block text-slate-500">
+                      {form.endsOn
+                        ? "A banner at the top of every page shows the code and how long is left. It disappears when the code ends."
+                        : "Choose a last day first, then you can show the countdown."}
                     </span>
                   </span>
                 </label>

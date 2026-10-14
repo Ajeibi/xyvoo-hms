@@ -1,4 +1,5 @@
 import HMSLayout from "@/components/hms/HMSLayout";
+import { HmsEmptyState, HmsPage, HmsPageHeader } from "@/components/hms/hms-ui";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { getHmsAccessContext } from "@/lib/hms/access";
 import { getTenantFolioSettings } from "@/lib/hms/folio";
@@ -18,10 +19,10 @@ export default async function ReservationsSettingsPage({
   if (!tenant) {
     return (
       <HMSLayout slug={slug} requiredSection="reservations-settings">
-        <div className="px-8 py-8">
-          <h1 className="text-xl font-semibold text-slate-900">Reservations settings</h1>
-          <p className="mt-0.5 text-sm text-slate-500">Hotel not found.</p>
-        </div>
+        <HmsPage>
+          <HmsPageHeader eyebrow="Reservations" meaning="rooms" title="Reservation settings" />
+          <HmsEmptyState art="page" meaning="rooms" title="We couldn't find this hotel" description="Check the web address, or go back to your dashboard and try again." />
+        </HmsPage>
       </HMSLayout>
     );
   }

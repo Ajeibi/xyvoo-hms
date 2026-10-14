@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, Search } from "lucide-react";
+import { AlarmClock, Banknote, BedDouble, Check, Flame, Loader2, Search, Send } from "lucide-react";
 import type { FbOrderWithItems } from "@/lib/hms/fb-types";
 import type { FbRoleCapabilities } from "@/lib/hms/fb-rbac";
 import { DEFAULT_KITCHEN_OVERDUE_MINUTES } from "@/lib/hms/fb-settings";
@@ -39,6 +39,8 @@ import {
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { toastError, toastSuccess } from "@/lib/app-toast";
+import { HmsAlert, HmsEmptyState, HmsField, HmsPageHeader, HmsPill, hmsButton, hmsInput } from "@/components/hms/hms-ui";
+import { HmsFilterChips } from "@/components/hms/hms-ui-client";
 
 const CLOCK_MS = 15_000;
 
@@ -61,7 +63,7 @@ type OrderStage = "not_sent" | "in_kitchen" | "ready_to_serve" | "pending_paymen
 const ORDER_STAGE_OPTIONS: { key: OrderStage; label: string }[] = [
   { key: "not_sent", label: "Not sent to kitchen" },
   { key: "in_kitchen", label: "Awaiting kitchen" },
-  { key: "ready_to_serve", label: "Ready — pending serve" },
+  { key: "ready_to_serve", label: "Ready to serve" },
   { key: "pending_payment", label: "Pending payment" },
 ];
 
@@ -357,22 +359,29 @@ export function FbOrdersClient({
   const paySheetBusy = payTarget !== null && busyKeys.has(busyKey(payTarget.id, "pos"));
 
   return (
-    <div className="w-full space-y-4 px-6 py-6">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-900">Open orders</h1>
-        <p className="text-sm text-slate-500">Kitchen status and settlement.</p>
-      </div>
+    <div className="w-full space-y-4 px-4 py-6 sm:px-6">
+      <HmsPageHeader
+        eyebrow="Restaurant & bar"
+        meaning="food"
+        title="Open orders"
+        description="See where each order is in the kitchen, then take payment or charge it to a room."
+      />
 
-      <div className="max-w-md">
-        <label className="mb-1 block text-xs font-medium text-slate-500">
-          Reservation ID (for in-house PoS payment)
-        </label>
-        <Input
-          value={reservationId}
-          onChange={(e) => setReservationId(e.target.value)}
-          placeholder="Optional — leave blank to close walk-in at PoS"
-          className="rounded-xl"
-        />
+      <div className="max-w-md rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
+        <HmsField
+          id="fb-orders-reservation-id"
+          label="Reservation ID for an in-house guest"
+          optional
+          hint="Leave blank to close a walk-in order at the PoS."
+        >
+          <input
+            id="fb-orders-reservation-id"
+            value={reservationId}
+            onChange={(e) => setReservationId(e.target.value)}
+            aria-describedby="fb-orders-reservation-id-hint"
+            className={hmsInput}
+          />
+        </HmsField>
       </div>
 
       <AlertDialog
@@ -397,10 +406,11 @@ export function FbOrdersClient({
                   and remove it from the kitchen display. This cannot be undone.
                 </p>
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-500">
-                    Reason (optional)
+                  <label htmlFor="fb-orders-cancel-reason" className="mb-1 block text-sm font-medium text-slate-800">
+                    Reason <span className="font-normal text-slate-600">(optional)</span>
                   </label>
                   <Input
+                    id="fb-orders-cancel-reason"
                     value={cancelReason}
                     onChange={(e) => setCancelReason(e.target.value)}
                     placeholder="e.g. Guest changed mind"
@@ -441,8 +451,8 @@ export function FbOrdersClient({
           </SheetHeader>
 
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+            <div className="rounded-xl bg-emerald-50 px-4 py-3">
+              <p className="text-sm font-medium text-emerald-900">
                 Amount to charge
               </p>
               <p className="text-2xl font-bold tabular-nums text-slate-900">
@@ -450,11 +460,15 @@ export function FbOrdersClient({
               </p>
             </div>
 
+            <label htmlFor="fb-orders-charge-search" className="-mb-2 block text-sm font-medium text-slate-800">
+              Room number or guest name
+            </label>
             <div className="flex gap-2">
               <Input
+                id="fb-orders-charge-search"
                 value={chargeQuery}
                 onChange={(e) => setChargeQuery(e.target.value)}
-                placeholder="Room number or guest name…"
+                placeholder="e.g. 204 or Smith"
                 className="h-11 rounded-xl"
                 autoFocus
                 onKeyDown={(e) => {
@@ -482,8 +496,9 @@ export function FbOrdersClient({
                   <li key={hit.reservationId}>
                     <button
                       type="button"
+                      aria-pressed={chargeSelected?.reservationId === hit.reservationId}
                       className={cn(
-                        "w-full rounded-lg px-3 py-2.5 text-left text-sm hover:bg-white",
+                        "w-full rounded-lg px-3 py-2.5 text-left text-sm hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
                         chargeSelected?.reservationId === hit.reservationId &&
                           "bg-white ring-2 ring-blue-500",
                       )}
@@ -510,7 +525,7 @@ export function FbOrdersClient({
               </div>
             ) : null}
 
-            {chargeError ? <p className="text-sm text-red-600">{chargeError}</p> : null}
+            <HmsAlert message={chargeError ?? ""} />
           </div>
 
           <SheetFooter className="border-t border-slate-100">
@@ -542,43 +557,45 @@ export function FbOrdersClient({
             <AlertDialogTitle>Confirm payment</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-4 text-left text-sm text-slate-600">
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                <div className="rounded-xl bg-emerald-50 px-4 py-3">
+                  <p className="text-sm font-medium text-emerald-900">
                     Amount due
                   </p>
                   <p className="text-2xl font-bold tabular-nums text-slate-900">
                     {payTarget ? formatPricingAmount(payTarget.subtotal, currency) : ""}
                   </p>
-                  <p className="text-slate-500">
+                  <p className="text-slate-700">
                     #{payTarget?.order_number}
                     {reservationId.trim() ? "" : " · Walk-in"}
                   </p>
                 </div>
                 <div>
-                  <p className="mb-2 text-xs font-medium text-slate-500">Payment method</p>
-                  <div className="flex gap-2">
+                  <p id="fb-orders-pay-method" className="mb-2 text-sm font-medium text-slate-800">Payment method</p>
+                  <div role="group" aria-labelledby="fb-orders-pay-method" className="flex gap-2">
                     <button
                       type="button"
+                      aria-pressed={payMethod === "cash"}
                       disabled={paySheetBusy}
                       onClick={() => setPayMethod("cash")}
                       className={cn(
-                        "flex-1 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors",
+                        "min-h-11 flex-1 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
                         payMethod === "cash"
-                          ? "border-blue-500 bg-blue-50 text-blue-700"
-                          : "border-slate-200 text-slate-600 hover:bg-slate-50",
+                          ? "border-emerald-600 bg-emerald-50 text-emerald-900"
+                          : "border-slate-200 text-slate-700 hover:bg-slate-50",
                       )}
                     >
                       Cash
                     </button>
                     <button
                       type="button"
+                      aria-pressed={payMethod === "pos"}
                       disabled={paySheetBusy}
                       onClick={() => setPayMethod("pos")}
                       className={cn(
-                        "flex-1 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors",
+                        "min-h-11 flex-1 rounded-xl border px-4 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
                         payMethod === "pos"
-                          ? "border-blue-500 bg-blue-50 text-blue-700"
-                          : "border-slate-200 text-slate-600 hover:bg-slate-50",
+                          ? "border-emerald-600 bg-emerald-50 text-emerald-900"
+                          : "border-slate-200 text-slate-700 hover:bg-slate-50",
                       )}
                     >
                       PoS terminal
@@ -603,41 +620,38 @@ export function FbOrdersClient({
         </AlertDialogContent>
       </AlertDialog>
 
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setStageFilter("all")}
-          className={cn(
-            "rounded-xl px-4 py-2 text-sm font-medium transition-colors",
-            stageFilter === "all"
-              ? "bg-blue-600 text-white"
-              : "bg-slate-100 text-slate-600 hover:bg-slate-200",
-          )}
-        >
-          All ({orders.length})
-        </button>
-        {ORDER_STAGE_OPTIONS.map((option) => (
-          <button
-            key={option.key}
-            type="button"
-            onClick={() => setStageFilter(option.key)}
-            className={cn(
-              "rounded-xl px-4 py-2 text-sm font-medium transition-colors",
-              stageFilter === option.key
-                ? "bg-blue-600 text-white"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200",
-            )}
-          >
-            {option.label} ({stageCounts[option.key]})
-          </button>
-        ))}
-      </div>
+      <HmsFilterChips<OrderStage | "all">
+        label="Show orders by stage"
+        meaning="food"
+        value={stageFilter}
+        onChange={setStageFilter}
+        options={[
+          { value: "all", label: "All", count: orders.length },
+          ...ORDER_STAGE_OPTIONS.map((option) => ({
+            value: option.key,
+            label: option.label,
+            count: stageCounts[option.key],
+          })),
+        ]}
+      />
 
       <div className="space-y-3">
         {visibleOrders.length === 0 ? (
-          <p className="text-sm text-slate-500">
-            {orders.length === 0 ? "No open orders." : "No orders in this stage."}
-          </p>
+          orders.length === 0 ? (
+            <HmsEmptyState
+              art="basket"
+              meaning="food"
+              title="No open orders"
+              description="Orders taken on the POS appear here until they're paid or charged to a room."
+            />
+          ) : (
+            <HmsEmptyState
+              art="basket"
+              meaning="food"
+              title="No orders at this stage"
+              description="Choose another stage, or All, to see the rest."
+            />
+          )
         ) : (
           visibleOrders.map(({ order }) => {
             const chargeLoading = busyKeys.has(busyKey(order.id, "charge"));
@@ -695,145 +709,140 @@ export function FbOrdersClient({
               >
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
-                    <p className="font-semibold text-slate-900">
+                    <p className="flex flex-wrap items-center gap-2 font-heading text-base font-semibold text-slate-900">
                       #{order.order_number}
                       {order.rush ? (
-                        <span className="ml-2 rounded bg-red-100 px-2 py-0.5 text-xs text-red-700">
-                          RUSH
+                        <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-xs font-bold text-rose-800 ring-1 ring-rose-200">
+                          <Flame className="h-3.5 w-3.5" aria-hidden />
+                          Rush
                         </span>
                       ) : null}
                     </p>
-                    <p className="text-sm text-slate-500">
+                    <p className="text-sm text-slate-700">
                       {order.table_code ?? order.tab_label ?? order.outlet_name}
                       {notSent ? " · Not sent to kitchen" : ` · ${order.status.replace(/_/g, " ")}`}
                     </p>
                   </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <p className="text-lg font-bold tabular-nums">
+                  <div className="flex flex-col items-end gap-1.5">
+                    <p className="font-heading text-lg font-bold tabular-nums text-slate-900">
                       {formatPricingAmount(order.subtotal, currency)}
                     </p>
                     {notSent ? (
-                      <span className="rounded-lg bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">
-                        Awaiting send to kitchen
-                      </span>
+                      <HmsPill tone="amber">Waiting to be sent to the kitchen</HmsPill>
                     ) : fullyServed ? (
-                      <span className="rounded-lg bg-blue-600 px-2 py-0.5 text-xs font-bold text-white">
-                        Served · {waitLabel}
-                      </span>
+                      <HmsPill tone="blue">Served · {waitLabel}</HmsPill>
                     ) : inKitchen ? (
-                      <span
-                        className={cn(
-                          "rounded-lg px-2 py-0.5 text-xs font-bold tabular-nums",
-                          kitchenDone
-                            ? "bg-emerald-600 text-white"
-                            : overdue
-                              ? "bg-red-600 text-white"
-                              : "bg-slate-100 text-slate-700",
-                        )}
-                      >
-                        {kitchenDone ? `Kitchen ready · ${waitLabel}` : `Kitchen wait · ${waitLabel}`}
-                      </span>
+                      kitchenDone ? (
+                        <HmsPill tone="green">Kitchen ready · {waitLabel}</HmsPill>
+                      ) : overdue ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-rose-600 px-2 py-0.5 text-xs font-bold tabular-nums text-white">
+                          <AlarmClock className="h-3.5 w-3.5" aria-hidden />
+                          Overdue · {waitLabel}
+                        </span>
+                      ) : (
+                        <HmsPill tone="slate">Kitchen wait · {waitLabel}</HmsPill>
+                      )
                     ) : null}
                     {alreadyPaid ? (
-                      <span className="rounded-lg bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800">
-                        Paid · {formatSettlementMethod(order.settlement_method as string)}
-                      </span>
+                      <HmsPill tone="green">Paid · {formatSettlementMethod(order.settlement_method as string)}</HmsPill>
                     ) : null}
                   </div>
                 </div>
-                <ul className="mt-3 space-y-1 text-sm text-slate-700">
+                <ul className="mt-3 space-y-1.5 text-sm text-slate-800">
                   {order.items.map((item) => (
-                    <li key={item.id} className="flex justify-between">
+                    <li key={item.id} className="flex flex-wrap items-center gap-2">
                       <span>
                         {item.quantity}× {item.name_snapshot}
-                        <span
-                          className={cn(
-                            "ml-2 text-xs",
-                            item.kitchen_status === "served"
-                              ? "font-medium text-blue-600"
-                              : item.kitchen_status === "ready"
-                                ? "font-medium text-emerald-600"
-                                : "text-slate-400",
-                          )}
-                        >
-                          {formatItemKitchenStatus(item.kitchen_status)}
-                        </span>
                       </span>
+                      <HmsPill
+                        tone={
+                          item.kitchen_status === "served"
+                            ? "blue"
+                            : item.kitchen_status === "ready"
+                              ? "green"
+                              : item.kitchen_status === "voided"
+                                ? "red"
+                                : "slate"
+                        }
+                      >
+                        {formatItemKitchenStatus(item.kitchen_status)}
+                      </HmsPill>
                     </li>
                   ))}
                 </ul>
                 <div className="mt-4 flex flex-wrap gap-2">
                   {notSent ? (
-                    <Button
+                    <button
                       type="button"
-                      size="sm"
                       disabled={orderBusy}
                       onClick={() => void sendToKitchen(order.id)}
-                      className="gap-1.5"
+                      className={hmsButton.primary}
                     >
                       {sendLoading ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-                      ) : null}
+                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                      ) : (
+                        <Send className="h-4 w-4" aria-hidden />
+                      )}
                       Send to kitchen
-                    </Button>
+                    </button>
                   ) : null}
                   {showMarkServed ? (
-                    <Button
+                    <button
                       type="button"
-                      size="sm"
                       disabled={orderBusy}
                       onClick={() => void markServed(order.id, order.order_number)}
-                      className="gap-1.5 bg-blue-600 hover:bg-blue-700"
+                      className={hmsButton.primary}
                     >
                       {serveLoading ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-                      ) : null}
+                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                      ) : (
+                        <Check className="h-4 w-4" aria-hidden />
+                      )}
                       Mark as served
-                    </Button>
+                    </button>
                   ) : null}
                   {!alreadyPaid ? (
-                    <Button
+                    <button
                       type="button"
-                      size="sm"
                       disabled={orderBusy}
                       onClick={() => openChargeSheet(order)}
-                      className="gap-1.5"
+                      className={hmsButton.secondary}
                     >
                       {chargeLoading ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-                      ) : null}
+                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                      ) : (
+                        <BedDouble className="h-4 w-4 text-sky-700" aria-hidden />
+                      )}
                       Charge {formatPricingAmount(order.subtotal, currency)} to room
-                    </Button>
+                    </button>
                   ) : null}
                   {!alreadyPaid ? (
-                    <Button
+                    <button
                       type="button"
-                      size="sm"
-                      variant="outline"
                       disabled={orderBusy}
                       onClick={() => openPaySheet(order)}
-                      className="gap-1.5"
+                      className={hmsButton.secondary}
                     >
                       {posLoading ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
-                      ) : null}
+                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                      ) : (
+                        <Banknote className="h-4 w-4 text-emerald-600" aria-hidden />
+                      )}
                       PoS / Cash · {formatPricingAmount(order.subtotal, currency)}
-                    </Button>
+                    </button>
                   ) : null}
                   {canCancel ? (
-                    <Button
+                    <button
                       type="button"
-                      size="sm"
-                      variant="destructive"
                       disabled={orderBusy}
                       onClick={() => setCancelTarget(order)}
-                      className="gap-1.5"
+                      className={cn(hmsButton.danger, "min-h-10")}
                     >
                       {cancelLoading ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
                       ) : null}
                       Cancel order
-                    </Button>
+                    </button>
                   ) : null}
                 </div>
               </div>

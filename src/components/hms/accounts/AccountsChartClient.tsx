@@ -4,11 +4,12 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { ACCOUNT_TYPES, type AccountType, type ChartOfAccountRow } from "@/lib/hms/chart-of-accounts";
 import { AccountsSubNav } from "@/components/hms/accounts/AccountsSubNav";
+import { HmsCard, HmsEmptyState, HmsField, HmsPage, HmsPageHeader, HmsPill, hmsButton, hmsInput } from "@/components/hms/hms-ui";
+import { Landmark, Plus, Receipt, Scale, TrendingUp, Wallet } from "lucide-react";
 
 const TYPE_LABELS: Record<AccountType, string> = {
   asset: "Assets",
@@ -16,6 +17,14 @@ const TYPE_LABELS: Record<AccountType, string> = {
   equity: "Equity",
   revenue: "Revenue",
   expense: "Expenses",
+};
+
+const TYPE_ICONS: Record<AccountType, React.ComponentType<{ className?: string }>> = {
+  asset: Wallet,
+  liability: Landmark,
+  equity: Scale,
+  revenue: TrendingUp,
+  expense: Receipt,
 };
 
 export function AccountsChartClient({
@@ -118,68 +127,93 @@ export function AccountsChartClient({
   };
 
   return (
-    <div className="w-full px-6 py-8 sm:px-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900">Chart of accounts</h1>
-          <p className="mt-0.5 text-sm text-slate-500">The full list of accounts every journal entry posts against.</p>
-        </div>
-        {canManage ? (
-          <div className="flex gap-2">
-            <Button type="button" variant="outline" disabled={seeding} onClick={() => void seedTemplate()}>
-              {seeding ? "Loading…" : "Load hospitality template"}
-            </Button>
-            <Button type="button" onClick={() => setAddOpen(true)}>
-              Add account
-            </Button>
-          </div>
-        ) : null}
-      </div>
+    <HmsPage>
+      <HmsPageHeader
+        eyebrow="Accounts"
+        meaning="money"
+        title="Chart of accounts"
+        description="The full list of accounts every journal entry posts against."
+        actions={
+          canManage ? (
+            <>
+              <button type="button" className={hmsButton.secondary} disabled={seeding} onClick={() => void seedTemplate()}>
+                {seeding ? "Loading…" : "Load hospitality template"}
+              </button>
+              <button type="button" className={hmsButton.primary} onClick={() => setAddOpen(true)}>
+                <Plus className="h-4 w-4" aria-hidden />
+                Add account
+              </button>
+            </>
+          ) : null
+        }
+      />
 
       <AccountsSubNav slug={slug} canAccessAllDepartments={canAccessAllDepartments} />
 
       {accounts.length === 0 ? (
-        <div className="mt-6 rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-500">
-          No accounts yet. Load the hospitality starter template above, or add one manually.
-        </div>
+        <HmsEmptyState
+          art="page"
+          meaning="money"
+          title="No accounts yet"
+          description={
+            canManage
+              ? "Load the hospitality starter template, or add accounts one at a time."
+              : "Accounts will appear here once someone with access sets them up."
+          }
+          action={
+            canManage ? (
+              <button type="button" className={hmsButton.primary} disabled={seeding} onClick={() => void seedTemplate()}>
+                {seeding ? "Loading…" : "Load hospitality template"}
+              </button>
+            ) : undefined
+          }
+        />
       ) : (
-        <div className="mt-6 space-y-6">
+        <div className="space-y-6">
           {ACCOUNT_TYPES.map((t) => {
             const rows = grouped.get(t) ?? [];
             if (rows.length === 0) return null;
             return (
-              <div key={t} className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <div className="border-b border-slate-100 px-4 py-2.5">
-                  <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">{TYPE_LABELS[t]}</h2>
-                </div>
-                <div className="divide-y divide-slate-100">
+              <HmsCard
+                key={t}
+                id={`accounts-chart-${t}`}
+                title={TYPE_LABELS[t]}
+                description={`${rows.length} ${rows.length === 1 ? "account" : "accounts"}`}
+                icon={TYPE_ICONS[t]}
+                meaning="money"
+                flush
+              >
+                <ul className="divide-y divide-slate-100">
                   {rows.map((a) => (
-                    <div key={a.id} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
-                      <div className="flex items-center gap-3">
-                        <code className="w-14 shrink-0 font-mono text-xs text-slate-500">{a.code}</code>
-                        <span className={a.isActive ? "text-slate-900" : "text-slate-400 line-through"}>{a.name}</span>
-                        <Link href={`/hms/${slug}/accounts/ledger/${a.id}`} className="text-xs text-blue-600 hover:underline">
-                          View ledger
+                    <li key={a.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm sm:px-6">
+                      <div className="flex min-w-0 flex-wrap items-center gap-3">
+                        <code className="w-14 shrink-0 font-mono text-sm tabular-nums text-slate-600">{a.code}</code>
+                        <span className={a.isActive ? "font-medium text-slate-900" : "text-slate-600 line-through"}>{a.name}</span>
+                        {a.isActive ? null : <HmsPill tone="slate">Inactive</HmsPill>}
+                        <Link
+                          href={`/hms/${slug}/accounts/ledger/${a.id}`}
+                          className="rounded text-sm font-medium text-blue-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                        >
+                          View ledger<span className="sr-only"> for {a.name}</span>
                         </Link>
                       </div>
                       {canManage ? (
-                        <Button
+                        <button
                           type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 px-2 text-xs"
+                          className={a.isActive ? hmsButton.danger : hmsButton.quiet}
                           disabled={busyIds.has(a.id)}
                           onClick={() => void toggleActive(a)}
                         >
                           {busyIds.has(a.id) ? "Saving…" : a.isActive ? "Deactivate" : "Reactivate"}
-                        </Button>
-                      ) : (
-                        <span className="text-xs text-slate-400">{a.isActive ? "Active" : "Inactive"}</span>
-                      )}
-                    </div>
+                          <span className="sr-only"> {a.name}</span>
+                        </button>
+                      ) : a.isActive ? (
+                        <HmsPill tone="green">Active</HmsPill>
+                      ) : null}
+                    </li>
                   ))}
-                </div>
-              </div>
+                </ul>
+              </HmsCard>
             );
           })}
         </div>
@@ -190,19 +224,17 @@ export function AccountsChartClient({
           <DialogHeader>
             <DialogTitle>Add account</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <p className="mb-1 text-xs font-medium text-slate-600">Code</p>
-              <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="e.g. 4400" />
-            </div>
-            <div>
-              <p className="mb-1 text-xs font-medium text-slate-600">Name</p>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Spa Revenue" />
-            </div>
-            <div>
-              <p className="mb-1 text-xs font-medium text-slate-600">Type</p>
+          <div className="space-y-4">
+            <HmsField id="coa-code" label="Code" hint="A short number that sorts the account, e.g. 4400.">
+              <input id="coa-code" className={hmsInput} value={code} onChange={(e) => setCode(e.target.value)} placeholder="e.g. 4400" />
+            </HmsField>
+            <HmsField id="coa-name" label="Name">
+              <input id="coa-name" className={hmsInput} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Spa Revenue" />
+            </HmsField>
+            <HmsField id="coa-type" label="Type">
               <select
-                className="h-10 w-full rounded-lg border border-input px-3 text-sm"
+                id="coa-type"
+                className={hmsInput}
                 value={type}
                 onChange={(e) => setType(e.target.value as AccountType)}
               >
@@ -212,7 +244,7 @@ export function AccountsChartClient({
                   </option>
                 ))}
               </select>
-            </div>
+            </HmsField>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setAddOpen(false)}>
@@ -224,6 +256,6 @@ export function AccountsChartClient({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </HmsPage>
   );
 }

@@ -2,13 +2,34 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import {
+  Banknote,
+  BedDouble,
+  BookUser,
+  Building2,
+  CircleAlert,
+  CircleHelp,
+  CreditCard,
+  History,
+  Moon,
+  Shapes,
+  UtensilsCrossed,
+} from "lucide-react";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { formatDateTime } from "@/lib/format-date";
 import type { NightAuditBreakdown, NightAuditRunRow } from "@/lib/hms/night-audit";
 import { AccountsSubNav } from "@/components/hms/accounts/AccountsSubNav";
+import {
+  HmsCard,
+  HmsEmptyState,
+  HmsField,
+  HmsPage,
+  HmsPageHeader,
+  HmsStatStrip,
+  HmsStatTile,
+  hmsButton,
+  hmsInput,
+} from "@/components/hms/hms-ui";
 
 function yesterday(): string {
   const d = new Date();
@@ -20,12 +41,12 @@ function fmt(n: number) {
   return n.toFixed(2);
 }
 
-function StatCard({ label, value, warn }: { label: string; value: number; warn?: boolean }) {
+function Warning({ children }: { children: React.ReactNode }) {
   return (
-    <div className={cn("rounded-xl border p-4", warn && value !== 0 ? "border-amber-300 bg-amber-50" : "border-slate-200 bg-white")}>
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-      <p className={cn("mt-1 text-xl font-bold tabular-nums", warn && value !== 0 ? "text-amber-800" : "text-slate-900")}>{fmt(value)}</p>
-    </div>
+    <p className="flex gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+      <CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" aria-hidden />
+      <span>{children}</span>
+    </p>
   );
 }
 
@@ -86,97 +107,119 @@ export function AccountsNightAuditClient({
   };
 
   return (
-    <div className="w-full px-6 py-8 sm:px-8">
-      <h1 className="text-xl font-semibold text-slate-900">Night audit</h1>
-      <p className="mt-0.5 text-sm text-slate-500">
-        Summarizes a day&apos;s guest folio activity and walk-in F&amp;B sales into one balanced posting to the ledger.
-      </p>
+    <HmsPage>
+      <HmsPageHeader
+        eyebrow="Accounts"
+        meaning="money"
+        title="Night audit"
+        description="Summarises a day's guest folio activity and walk-in F&B sales into one balanced posting to the ledger."
+      />
 
       <AccountsSubNav slug={slug} canAccessAllDepartments={canAccessAllDepartments} />
 
-      <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="mb-1 text-xs font-medium text-slate-600">Audit date</p>
-            <Input type="date" className="w-48" value={date} onChange={(e) => setDate(e.target.value)} />
-          </div>
-          {canRun ? (
-            <Button type="button" disabled={running || loading || alreadyRun} onClick={() => void runAudit()}>
-              {running ? "Posting…" : alreadyRun ? "Already audited" : "Run night audit"}
-            </Button>
-          ) : null}
-        </div>
-
-        {loading ? (
-          <p className="mt-6 text-sm text-slate-500">Loading…</p>
-        ) : breakdown ? (
-          <>
-            <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <StatCard label="Room revenue" value={breakdown.roomRevenue} />
-              <StatCard label="F&B revenue" value={breakdown.fbRevenue} />
-              <StatCard label="Other dept. revenue" value={breakdown.otherRevenue} />
-              <StatCard label="Unclassified revenue" value={breakdown.unclassifiedRevenue} warn />
-              <StatCard label="Cash" value={breakdown.cashTotal} />
-              <StatCard label="Card / POS" value={breakdown.cardTotal} />
-              <StatCard label="City ledger" value={breakdown.cityLedgerTotal} />
-              <StatCard label="Guest ledger movement" value={breakdown.guestLedgerNet} />
+      <HmsCard
+        id="night-audit-day"
+        title={`Day summary for ${date}`}
+        icon={Moon}
+        meaning="money"
+        className="print:border-0 print:shadow-none"
+        actions={
+          <div className="flex flex-wrap items-end gap-3 print:hidden">
+            <div className="w-[12rem]">
+              <HmsField id="night-audit-date" label="Audit date">
+                <input id="night-audit-date" type="date" className={hmsInput} value={date} onChange={(e) => setDate(e.target.value)} />
+              </HmsField>
             </div>
+            {canRun ? (
+              <button type="button" className={hmsButton.primary} disabled={running || loading || alreadyRun} onClick={() => void runAudit()}>
+                {running ? "Posting…" : alreadyRun ? "Already audited" : "Run night audit"}
+              </button>
+            ) : null}
+          </div>
+        }
+      >
+        {loading ? (
+          <p role="status" className="text-sm text-slate-600">
+            Loading…
+          </p>
+        ) : breakdown ? (
+          <div className="space-y-4">
+            <HmsStatStrip label={`Revenue and settlements for ${date}`}>
+              <HmsStatTile label="Room revenue" value={fmt(breakdown.roomRevenue)} icon={BedDouble} meaning="rooms" />
+              <HmsStatTile label="F&B revenue" value={fmt(breakdown.fbRevenue)} icon={UtensilsCrossed} meaning="food" />
+              <HmsStatTile label="Other department revenue" value={fmt(breakdown.otherRevenue)} icon={Shapes} meaning="money" />
+              <HmsStatTile
+                label="Unclassified revenue"
+                value={fmt(breakdown.unclassifiedRevenue)}
+                icon={CircleHelp}
+                meaning={breakdown.unclassifiedRevenue !== 0 ? "attention" : "neutral"}
+                status={breakdown.unclassifiedRevenue !== 0 ? "warning" : undefined}
+                statusText="Needs a department"
+              />
+              <HmsStatTile label="Cash" value={fmt(breakdown.cashTotal)} icon={Banknote} meaning="money" />
+              <HmsStatTile label="Card / POS" value={fmt(breakdown.cardTotal)} icon={CreditCard} meaning="money" />
+              <HmsStatTile label="City ledger" value={fmt(breakdown.cityLedgerTotal)} icon={Building2} meaning="money" />
+              <HmsStatTile label="Guest ledger movement" value={fmt(breakdown.guestLedgerNet)} icon={BookUser} meaning="guests" />
+            </HmsStatStrip>
             {breakdown.unclassifiedRevenue !== 0 ? (
-              <p className="mt-3 text-xs font-medium text-amber-700">
-                {fmt(Math.abs(breakdown.unclassifiedRevenue))} in charges had no department tag and posted to Miscellaneous Income —
-                review and reclassify the source transactions when convenient.
-              </p>
+              <Warning>
+                {fmt(Math.abs(breakdown.unclassifiedRevenue))} in charges had no department tag and posted to Miscellaneous Income.
+                Review and reclassify the source transactions when convenient.
+              </Warning>
             ) : null}
             {breakdown.unmatchedPaymentTotal !== 0 ? (
-              <p className="mt-1 text-xs font-medium text-amber-700">
-                {fmt(breakdown.unmatchedPaymentTotal)} in payments had an unrecognized settlement method and were not matched to a
+              <Warning>
+                {fmt(breakdown.unmatchedPaymentTotal)} in payments had an unrecognised settlement method and were not matched to a
                 clearing account.
-              </p>
+              </Warning>
             ) : null}
-            <p className="mt-3 text-xs text-slate-400">
+            <p className="text-sm text-slate-600">
               {breakdown.folioLineCount} folio line(s), {breakdown.walkInFbOrderCount} walk-in F&amp;B order(s) for {date}.
             </p>
-          </>
+          </div>
         ) : (
-          <p className="mt-6 text-sm text-slate-500">No activity found for this date.</p>
+          <p className="text-sm text-slate-600">No activity found for this date.</p>
         )}
-      </div>
+      </HmsCard>
 
-      <h2 className="mt-8 text-sm font-semibold text-slate-800">Run history</h2>
-      {runs.length === 0 ? (
-        <div className="mt-3 rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
-          No night audits run yet.
-        </div>
-      ) : (
-        <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <HmsCard id="night-audit-history" title="Run history" icon={History} meaning="money" flush className="print:border-0 print:shadow-none">
+        {runs.length === 0 ? (
+          <HmsEmptyState
+            bare
+            art="page"
+            meaning="money"
+            title="No night audits run yet"
+            description="Each audit you run appears here with its totals."
+          />
+        ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[760px] text-left text-sm">
-              <thead className="border-b bg-slate-50 text-xs font-semibold uppercase text-slate-500">
+              <thead className="border-b border-slate-200 bg-slate-50 text-sm font-medium text-slate-600">
                 <tr>
-                  <th className="px-4 py-3">Date</th>
-                  <th className="px-4 py-3 text-right">Room</th>
-                  <th className="px-4 py-3 text-right">F&amp;B</th>
-                  <th className="px-4 py-3 text-right">Other</th>
-                  <th className="px-4 py-3 text-right">Guest ledger</th>
-                  <th className="px-4 py-3">Posted</th>
+                  <th scope="col" className="px-5 py-3">Date</th>
+                  <th scope="col" className="px-5 py-3 text-right">Room</th>
+                  <th scope="col" className="px-5 py-3 text-right">F&amp;B</th>
+                  <th scope="col" className="px-5 py-3 text-right">Other</th>
+                  <th scope="col" className="px-5 py-3 text-right">Guest ledger</th>
+                  <th scope="col" className="px-5 py-3">Posted</th>
                 </tr>
               </thead>
               <tbody>
                 {runs.map((r) => (
-                  <tr key={r.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/80">
-                    <td className="px-4 py-2.5 font-medium text-slate-900">{r.auditDate}</td>
-                    <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums text-slate-600">{fmt(r.breakdown.roomRevenue)}</td>
-                    <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums text-slate-600">{fmt(r.breakdown.fbRevenue)}</td>
-                    <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums text-slate-600">{fmt(r.breakdown.otherRevenue)}</td>
-                    <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums text-slate-600">{fmt(r.breakdown.guestLedgerNet)}</td>
-                    <td className="whitespace-nowrap px-4 py-2.5 text-xs text-slate-400">{formatDateTime(r.createdAt)}</td>
+                  <tr key={r.id} className="border-b border-slate-100 last:border-0">
+                    <th scope="row" className="whitespace-nowrap px-5 py-3 text-left font-medium tabular-nums text-slate-900">{r.auditDate}</th>
+                    <td className="whitespace-nowrap px-5 py-3 text-right tabular-nums text-slate-700">{fmt(r.breakdown.roomRevenue)}</td>
+                    <td className="whitespace-nowrap px-5 py-3 text-right tabular-nums text-slate-700">{fmt(r.breakdown.fbRevenue)}</td>
+                    <td className="whitespace-nowrap px-5 py-3 text-right tabular-nums text-slate-700">{fmt(r.breakdown.otherRevenue)}</td>
+                    <td className="whitespace-nowrap px-5 py-3 text-right tabular-nums text-slate-700">{fmt(r.breakdown.guestLedgerNet)}</td>
+                    <td className="whitespace-nowrap px-5 py-3 text-sm text-slate-600">{formatDateTime(r.createdAt)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </HmsCard>
+    </HmsPage>
   );
 }

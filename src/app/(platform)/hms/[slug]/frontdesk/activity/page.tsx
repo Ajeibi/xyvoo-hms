@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { ArrowLeft, History } from "lucide-react";
 import HMSLayout from "@/components/hms/HMSLayout";
+import { HmsCard, HmsEmptyState, HmsPage, HmsPageHeader } from "@/components/hms/hms-ui";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { formatAuditMessage } from "@/lib/hms/front-desk-ops";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -26,33 +28,57 @@ export default async function FrontDeskActivityPage({
   ]);
 
   const names = new Map((profiles ?? []).map((p) => [p.user_id, p.contact_name ?? "Staff"]));
+  const entries = logs ?? [];
 
   return (
     <HMSLayout slug={slug} requiredSection="frontdesk">
-      <div className="mx-auto max-w-3xl px-6 py-8 sm:px-8">
-        <Link href={`/hms/${slug}/frontdesk`} className="text-sm text-blue-600 hover:underline">
-          ← Front desk
+      <HmsPage>
+        <Link
+          href={`/hms/${slug}/frontdesk`}
+          className="inline-flex items-center gap-2 rounded-lg text-sm font-medium text-blue-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden />
+          Back to the front desk
         </Link>
-        <h1 className="mt-4 text-2xl font-semibold text-slate-900">Activity log</h1>
-        <p className="mt-1 text-sm text-slate-500">Recent staff actions on property operations.</p>
-        <ul className="mt-6 space-y-2">
-          {(logs ?? []).map((log) => (
-            <li
-              key={log.id}
-              className="rounded-xl border border-slate-100 bg-white px-4 py-3 text-sm text-slate-700"
-            >
-              {formatAuditMessage({
-                actorName: log.actor_user_id ? (names.get(log.actor_user_id) ?? "Staff") : "System",
-                action: log.action,
-                entityType: log.entity_type,
-                before: log.before_state as Record<string, unknown> | null,
-                after: log.after_state as Record<string, unknown> | null,
-                createdAt: log.created_at,
-              })}
-            </li>
-          ))}
-        </ul>
-      </div>
+        <HmsPageHeader
+          eyebrow="Front desk"
+          meaning="neutral"
+          title="Activity log"
+          description="The latest things staff have done around the hotel, newest first."
+        />
+        {entries.length === 0 ? (
+          <HmsEmptyState
+            art="chart"
+            meaning="neutral"
+            title="Nothing logged yet"
+            description="When staff check guests in, move rooms or change bookings, each action will be listed here."
+          />
+        ) : (
+          <HmsCard
+            id="activity-log"
+            icon={History}
+            meaning="neutral"
+            title="Recent activity"
+            description={`The last ${entries.length} ${entries.length === 1 ? "action" : "actions"}.`}
+            flush
+          >
+            <ul className="divide-y divide-slate-100">
+              {entries.map((log) => (
+                <li key={log.id} className="px-5 py-3 text-sm text-slate-700 sm:px-6">
+                  {formatAuditMessage({
+                    actorName: log.actor_user_id ? (names.get(log.actor_user_id) ?? "Staff") : "System",
+                    action: log.action,
+                    entityType: log.entity_type,
+                    before: log.before_state as Record<string, unknown> | null,
+                    after: log.after_state as Record<string, unknown> | null,
+                    createdAt: log.created_at,
+                  })}
+                </li>
+              ))}
+            </ul>
+          </HmsCard>
+        )}
+      </HmsPage>
     </HMSLayout>
   );
 }

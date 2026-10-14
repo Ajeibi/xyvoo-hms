@@ -1,9 +1,49 @@
 import Link from "next/link";
+import { ArrowLeft, BedDouble, Banknote, ConciergeBell, Heart, History, UserRound, Wallet } from "lucide-react";
 import type { GuestProfileData } from "@/lib/hms/guest-profile";
 import { formatGuestProfileRevenue } from "@/lib/hms/guest-profile";
 import { formatBoardDateTime } from "@/lib/hms/front-desk-board";
 import { GuestDetailRows } from "@/components/hms/frontdesk/board/guest-details";
 import { GuestFlagsAndNotes } from "@/components/hms/guests/GuestFlagsAndNotes";
+import { HmsCard, HmsEmptyState, HmsPage, HmsPageHeader, HmsPill, HmsStatStrip, HmsStatTile } from "@/components/hms/hms-ui";
+
+const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2";
+
+type Tone = "slate" | "green" | "amber" | "red" | "blue";
+
+const STAY_TONE: Record<string, Tone> = {
+  confirmed: "blue",
+  checked_in: "green",
+  checked_out: "slate",
+  cancelled: "red",
+  no_show: "amber",
+};
+
+const REQUEST_TONE: Record<string, Tone> = {
+  open: "amber",
+  new: "amber",
+  pending: "amber",
+  in_progress: "blue",
+  assigned: "blue",
+  completed: "green",
+  resolved: "green",
+  closed: "slate",
+  cancelled: "slate",
+};
+
+const words = (s: string) => {
+  const t = s.replace(/_/g, " ");
+  return t.charAt(0).toUpperCase() + t.slice(1);
+};
+
+function Nothing() {
+  return (
+    <>
+      <span aria-hidden>—</span>
+      <span className="sr-only">None</span>
+    </>
+  );
+}
 
 export function GuestProfileView({
   slug,
@@ -14,40 +54,59 @@ export function GuestProfileView({
   data: GuestProfileData;
   canEdit: boolean;
 }) {
+  const otherTags = data.guest.tags.filter((tag) => !["vip", "do_not_walk"].includes(tag.toLowerCase()));
+
   return (
-    <div className="w-full px-4 py-8 sm:px-6 lg:px-8">
-      <Link href={`/hms/${slug}/guests`} className="text-sm text-blue-600 hover:underline">
-        ← Guests
+    <HmsPage wide>
+      <Link
+        href={`/hms/${slug}/guests`}
+        className="inline-flex items-center gap-2 rounded-lg text-sm font-medium text-blue-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+      >
+        <ArrowLeft className="h-4 w-4" aria-hidden />
+        Back to guests
       </Link>
-      <header className="mt-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Guest profile</p>
-        <h1 className="mt-2 text-2xl font-semibold text-slate-900">{data.guest.displayName}</h1>
-        <p className="mt-3 flex flex-wrap gap-1.5">
-          {data.isVip ? (
-            <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold uppercase text-amber-900">
-              VIP
-            </span>
-          ) : null}
-          {data.isDoNotWalk ? (
-            <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold uppercase text-red-800">
-              Do Not Walk
-            </span>
-          ) : null}
-          {data.guest.tags
-            .filter((tag) => !["vip", "do_not_walk"].includes(tag.toLowerCase()))
-            .map((tag) => (
-              <span
-                key={tag}
-                className="rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-semibold uppercase text-violet-800"
-              >
-                {tag}
-              </span>
-            ))}
-        </p>
-        <dl className="mt-4">
+
+      <HmsPageHeader eyebrow="Guests" meaning="guests" title={data.guest.displayName} description="Their details, stays, bills and the notes your team has made." />
+
+      <HmsCard
+        id="guest-details"
+        icon={UserRound}
+        meaning="guests"
+        title="Guest details"
+        actions={
+          data.isVip || data.isDoNotWalk || otherTags.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              {data.isVip ? <HmsPill tone="amber">VIP</HmsPill> : null}
+              {data.isDoNotWalk ? <HmsPill tone="red">Do not walk</HmsPill> : null}
+              {otherTags.map((tag) => (
+                <HmsPill key={tag}>{tag}</HmsPill>
+              ))}
+            </div>
+          ) : undefined
+        }
+      >
+        <dl>
           <GuestDetailRows guest={data.guest} />
         </dl>
-      </header>
+      </HmsCard>
+
+      <HmsStatStrip label="This guest in figures" columns={3}>
+        <HmsStatTile label="Completed stays" value={data.visitCount} icon={BedDouble} meaning="rooms" hint="Stays they've checked out of" />
+        <HmsStatTile
+          label="Spent with you"
+          value={formatGuestProfileRevenue(data.totalRevenue, data.currency)}
+          icon={Banknote}
+          meaning="money"
+          hint="Across all their stays"
+        />
+        <HmsStatTile
+          label="Still to pay"
+          value={formatGuestProfileRevenue(data.openBalance, data.currency)}
+          icon={Wallet}
+          meaning="money"
+          hint="An estimate of what's owed"
+        />
+      </HmsStatStrip>
 
       <GuestFlagsAndNotes
         slug={slug}
@@ -58,60 +117,40 @@ export function GuestProfileView({
         canEdit={canEdit}
       />
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-xs text-slate-500">Completed stays</p>
-          <p className="mt-1 text-2xl font-bold tabular-nums">{data.visitCount}</p>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-xs text-slate-500">Total revenue</p>
-          <p className="mt-1 text-2xl font-bold tabular-nums">
-            {formatGuestProfileRevenue(data.totalRevenue, data.currency)}
-          </p>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <p className="text-xs text-slate-500">Open balance (est.)</p>
-          <p className="mt-1 text-2xl font-bold tabular-nums">
-            {formatGuestProfileRevenue(data.openBalance, data.currency)}
-          </p>
-        </div>
-      </div>
-
       {data.preferences ? (
-        <section className="mt-6 rounded-xl border border-slate-200 bg-white p-6">
-          <h2 className="text-sm font-semibold text-slate-900">Preferences & notes</h2>
-          <p className="mt-2 text-sm text-slate-600">{data.preferences}</p>
-        </section>
+        <HmsCard id="guest-preferences" icon={Heart} meaning="guests" title="Preferences">
+          <p className="text-sm text-slate-700">{data.preferences}</p>
+        </HmsCard>
       ) : null}
 
-      <section className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <div className="border-b border-slate-100 px-6 py-4">
-          <h2 className="text-sm font-semibold text-slate-900">Stay history</h2>
-        </div>
+      <HmsCard id="guest-stays" icon={History} meaning="rooms" title="Stays" description="Every booking linked to this guest." flush>
         {data.stays.length === 0 ? (
-          <p className="px-6 py-8 text-sm text-slate-500">No reservations linked.</p>
+          <HmsEmptyState bare art="page" meaning="rooms" title="No stays yet" description="Bookings for this guest will be listed here." />
         ) : (
           <div className="thin-scrollbar overflow-x-auto [-webkit-overflow-scrolling:touch]">
             <table className="min-w-[720px] w-full border-collapse text-sm">
-              <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+              <caption className="sr-only">Stays for {data.guest.displayName}</caption>
+              <thead className="bg-slate-50 text-left text-sm text-slate-700">
                 <tr>
-                  <th className="whitespace-nowrap px-6 py-3">Ref</th>
-                  <th className="whitespace-nowrap px-6 py-3">Status</th>
-                  <th className="whitespace-nowrap px-6 py-3">Room</th>
-                  <th className="whitespace-nowrap px-6 py-3">Arrival</th>
-                  <th className="whitespace-nowrap px-6 py-3">Departure</th>
-                  <th className="whitespace-nowrap px-6 py-3 text-right">Charges</th>
+                  <th scope="col" className="whitespace-nowrap px-6 py-3 font-semibold">Booking</th>
+                  <th scope="col" className="whitespace-nowrap px-6 py-3 font-semibold">Status</th>
+                  <th scope="col" className="whitespace-nowrap px-6 py-3 font-semibold">Room</th>
+                  <th scope="col" className="whitespace-nowrap px-6 py-3 font-semibold">Arrival</th>
+                  <th scope="col" className="whitespace-nowrap px-6 py-3 font-semibold">Departure</th>
+                  <th scope="col" className="whitespace-nowrap px-6 py-3 text-right font-semibold">Charges</th>
                 </tr>
               </thead>
               <tbody>
                 {data.stays.map((stay) => (
-                  <tr key={stay.id} className="border-t border-slate-100">
-                    <td className="whitespace-nowrap px-6 py-3 font-medium">{stay.confirmationCode}</td>
-                    <td className="whitespace-nowrap px-6 py-3 capitalize">{stay.status.replace(/_/g, " ")}</td>
-                    <td className="whitespace-nowrap px-6 py-3">{stay.roomCode ?? "—"}</td>
+                  <tr key={stay.id} className="border-t border-slate-100 text-slate-700">
+                    <td className="whitespace-nowrap px-6 py-3 font-medium text-slate-900">{stay.confirmationCode}</td>
+                    <td className="whitespace-nowrap px-6 py-3">
+                      <HmsPill tone={STAY_TONE[stay.status] ?? "slate"}>{words(stay.status)}</HmsPill>
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-3">{stay.roomCode ?? <Nothing />}</td>
                     <td className="whitespace-nowrap px-6 py-3">{formatBoardDateTime(stay.arrivalAt)}</td>
                     <td className="whitespace-nowrap px-6 py-3">{formatBoardDateTime(stay.departureAt)}</td>
-                    <td className="whitespace-nowrap px-6 py-3 text-right tabular-nums">
+                    <td className="whitespace-nowrap px-6 py-3 text-right tabular-nums text-slate-900">
                       {formatGuestProfileRevenue(stay.totalCharges, data.currency)}
                     </td>
                   </tr>
@@ -120,54 +159,53 @@ export function GuestProfileView({
             </table>
           </div>
         )}
-      </section>
+      </HmsCard>
 
       {data.serviceRequests.length > 0 ? (
-        <section className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
-          <div className="border-b border-slate-100 px-6 py-4">
-            <h2 className="text-sm font-semibold text-slate-900">Guest service requests</h2>
-            <p className="mt-1 text-xs text-slate-500">
-              Recent requests across linked reservations.{" "}
-              <Link
-                href={`/hms/${slug}/frontdesk/guest-services`}
-                className="text-blue-600 hover:underline"
-              >
-                Open workbench
-              </Link>
-            </p>
-          </div>
+        <HmsCard
+          id="guest-requests"
+          icon={ConciergeBell}
+          meaning="guests"
+          title="Requests from this guest"
+          description="Recent requests across their bookings."
+          actions={
+            <Link href={`/hms/${slug}/frontdesk/guest-services`} className={`rounded text-sm font-medium text-blue-700 hover:underline ${focusRing}`}>
+              Open guest services
+            </Link>
+          }
+          flush
+        >
           <div className="thin-scrollbar overflow-x-auto [-webkit-overflow-scrolling:touch]">
             <table className="min-w-[640px] w-full border-collapse text-sm">
-              <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+              <caption className="sr-only">Requests from {data.guest.displayName}</caption>
+              <thead className="bg-slate-50 text-left text-sm text-slate-700">
                 <tr>
-                  <th className="whitespace-nowrap px-6 py-3">Created</th>
-                  <th className="whitespace-nowrap px-6 py-3">Type</th>
-                  <th className="whitespace-nowrap px-6 py-3">Category</th>
-                  <th className="whitespace-nowrap px-6 py-3">Status</th>
-                  <th className="whitespace-nowrap px-6 py-3">Ref</th>
-                  <th className="whitespace-nowrap px-6 py-3 text-right">Open</th>
+                  <th scope="col" className="whitespace-nowrap px-6 py-3 font-semibold">Made</th>
+                  <th scope="col" className="whitespace-nowrap px-6 py-3 font-semibold">Request</th>
+                  <th scope="col" className="whitespace-nowrap px-6 py-3 font-semibold">Category</th>
+                  <th scope="col" className="whitespace-nowrap px-6 py-3 font-semibold">Status</th>
+                  <th scope="col" className="whitespace-nowrap px-6 py-3 font-semibold">Booking</th>
+                  <th scope="col" className="whitespace-nowrap px-6 py-3 text-right font-semibold">
+                    <span className="sr-only">Open</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {data.serviceRequests.map((svc) => (
-                  <tr key={svc.id} className="border-t border-slate-100">
-                    <td className="whitespace-nowrap px-6 py-3 text-slate-600">
-                      {formatBoardDateTime(svc.createdAt)}
+                  <tr key={svc.id} className="border-t border-slate-100 text-slate-700">
+                    <td className="whitespace-nowrap px-6 py-3">{formatBoardDateTime(svc.createdAt)}</td>
+                    <td className="px-6 py-3 font-medium text-slate-900">{svc.requestType}</td>
+                    <td className="px-6 py-3">{words(svc.serviceCategory)}</td>
+                    <td className="px-6 py-3">
+                      <HmsPill tone={REQUEST_TONE[svc.status] ?? "slate"}>{words(svc.status)}</HmsPill>
                     </td>
-                    <td className="px-6 py-3 font-medium">{svc.requestType}</td>
-                    <td className="px-6 py-3 capitalize text-slate-600">
-                      {svc.serviceCategory.replace(/_/g, " ")}
-                    </td>
-                    <td className="px-6 py-3 capitalize">{svc.status.replace(/_/g, " ")}</td>
-                    <td className="whitespace-nowrap px-6 py-3 text-slate-600">
-                      {svc.confirmationCode ?? "—"}
-                    </td>
+                    <td className="whitespace-nowrap px-6 py-3">{svc.confirmationCode ?? <Nothing />}</td>
                     <td className="whitespace-nowrap px-6 py-3 text-right">
                       <Link
                         href={`/hms/${slug}/frontdesk/guest-services?q=${encodeURIComponent(svc.id)}`}
-                        className="text-blue-600 hover:underline"
+                        className={`rounded font-medium text-blue-700 hover:underline ${focusRing}`}
                       >
-                        View
+                        View<span className="sr-only"> request: {svc.requestType}</span>
                       </Link>
                     </td>
                   </tr>
@@ -175,8 +213,8 @@ export function GuestProfileView({
               </tbody>
             </table>
           </div>
-        </section>
+        </HmsCard>
       ) : null}
-    </div>
+    </HmsPage>
   );
 }

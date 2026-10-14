@@ -29,7 +29,7 @@ export default async function KitchenHistoryPage({ params }: { params: Promise<{
           />
         </KitchenShell>
       ) : (
-        <p className="p-8 text-sm text-slate-500">Property not found.</p>
+        <p className="p-8 text-base text-slate-600">Property not found.</p>
       )}
     </HMSLayout>
   );

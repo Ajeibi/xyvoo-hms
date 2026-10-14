@@ -97,6 +97,7 @@ export async function sendBrandedEmail({
   layout,
   replyTo,
   attachments,
+  headers,
 }: {
   to: string;
   subject: string;
@@ -104,6 +105,8 @@ export async function sendBrandedEmail({
   layout: EmailLayout;
   replyTo?: string | null;
   attachments?: EmailAttachment[];
+  /** Extra headers, e.g. List-Unsubscribe on reminder emails. */
+  headers?: Record<string, string>;
 }) {
   await transporter.sendMail({
     from: mailEnv.from,
@@ -113,6 +116,7 @@ export async function sendBrandedEmail({
     html: renderEmail(layout),
     attachments: [logoAttachment(), ...(attachments ?? []).map((a) => ({ filename: a.filename, content: Buffer.from(a.content), contentType: a.contentType }))],
     ...(replyTo ? { replyTo } : {}),
+    ...(headers ? { headers } : {}),
   });
 }
 

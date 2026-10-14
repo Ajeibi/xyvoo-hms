@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Check, CircleAlert, KeyRound, Loader2 } from "lucide-react";
+import { HmsAlert, hmsButton } from "@/components/hms/hms-ui";
 import { roomTypeGridAbbrev } from "@/lib/hms/room-pricing";
 import {
   buildUpdatesFromRange,
@@ -225,41 +226,51 @@ export function RoomInventoryTypeAssignment({ slug, inventoryRoomCount, roomType
 
   if (inventoryRoomCount <= 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 px-4 py-4 text-sm text-slate-600">
-        <p className="font-medium text-slate-800">Physical keys &amp; room types</p>
-        <p className="mt-1 text-xs leading-5 text-slate-500">
+      <div className="flex items-start gap-3 rounded-2xl bg-sky-50 px-4 py-4 text-sm text-slate-700">
+        <span aria-hidden className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-sky-700 ring-1 ring-sky-200">
+          <KeyRound className="h-[18px] w-[18px]" />
+        </span>
+        <div>
+        <p className="font-semibold text-slate-900">Physical keys &amp; room types</p>
+        <p className="mt-1 text-sm leading-6 text-slate-700">
           When your property has room keys in inventory, you can map each key to a room type here (by range or
           multi-select). Save room types above first so type ids stay in sync.
         </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h3 className="text-sm font-semibold text-slate-900">Physical keys → room types</h3>
-          <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500">
+        <div className="flex min-w-0 items-start gap-3">
+          <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-700 ring-1 ring-slate-200/60">
+            <KeyRound className="h-5 w-5" />
+          </span>
+          <div className="min-w-0">
+          <h3 className="font-heading text-base font-semibold text-slate-900">Physical keys → room types</h3>
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">
             Assign each room number to a configured type. Each type is limited to the{" "}
             <span className="font-medium text-slate-700">Number of rooms</span> set above (e.g. Super
             Standard 18/18). Use <span className="font-medium text-slate-700">number ranges</span> or{" "}
             <span className="font-medium text-slate-700">click multiple cells</span> then assign in one
             action.
           </p>
+          </div>
         </div>
         <button
           type="button"
           onClick={() => void loadUnits()}
           disabled={loading || saving}
-          className="shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          className={hmsButton.secondary}
         >
           Refresh
         </button>
       </div>
 
       {overCapTypes.length > 0 ? (
-        <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50/80 px-3 py-2 text-xs text-rose-900">
+        <div role="alert" className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-900">
           <span className="font-semibold">Over assigned: </span>
           {overCapTypes.map((t) => (
             <span key={t.name} className="ml-1">
@@ -280,7 +291,7 @@ export function RoomInventoryTypeAssignment({ slug, inventoryRoomCount, roomType
               <span
                 key={t.id}
                 className={cn(
-                  "rounded-full border px-2.5 py-1 text-[11px] font-medium tabular-nums",
+                  "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium tabular-nums",
                   over
                     ? "border-rose-300 bg-rose-50 text-rose-900"
                     : complete
@@ -288,7 +299,9 @@ export function RoomInventoryTypeAssignment({ slug, inventoryRoomCount, roomType
                       : "border-slate-200 bg-slate-50 text-slate-700",
                 )}
               >
+                {complete ? <Check className="h-3.5 w-3.5" aria-hidden /> : over ? <CircleAlert className="h-3.5 w-3.5" aria-hidden /> : null}
                 {t.name}: {assigned}/{t.rooms}
+                {complete ? <span className="sr-only"> (all assigned)</span> : over ? <span className="sr-only"> (too many assigned)</span> : null}
               </span>
             );
           })}
@@ -296,7 +309,7 @@ export function RoomInventoryTypeAssignment({ slug, inventoryRoomCount, roomType
       ) : null}
 
       {duplicateAbbrevs.length > 0 ? (
-        <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2 text-xs text-amber-900">
+        <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
           <span className="font-semibold">Duplicate grid labels: </span>
           {duplicateAbbrevs.map(([abbr, names]) => (
             <span key={abbr} className="ml-1">
@@ -307,45 +320,49 @@ export function RoomInventoryTypeAssignment({ slug, inventoryRoomCount, roomType
       ) : null}
 
       {loadError ? (
-        <p className="mt-3 text-sm text-rose-600">{loadError}</p>
+        <div className="mt-3">
+          <HmsAlert message={loadError} />
+        </div>
       ) : loading && units.length === 0 ? (
-        <p className="mt-3 text-sm text-slate-500">Loading room keys…</p>
+        <p role="status" className="mt-3 text-sm text-slate-600">
+          Loading room keys…
+        </p>
       ) : null}
 
       {units.length > 0 ? (
         <>
           <div
-            className="mt-4 flex flex-col gap-3 rounded-xl border border-slate-100 bg-slate-50/60 p-3 sm:flex-row sm:flex-wrap sm:items-end"
+            className="mt-4 flex flex-col gap-3 rounded-xl bg-sky-50/70 p-3 sm:flex-row sm:flex-wrap sm:items-end"
             aria-busy={saving}
           >
             <div className="flex flex-wrap items-end gap-2">
-              <label className="flex flex-col gap-0.5 text-xs font-medium text-slate-600">
+              <label className="flex flex-col gap-1 text-sm font-medium text-slate-800">
                 From #
                 <input
                   value={rangeFrom}
                   onChange={(e) => setRangeFrom(e.target.value.replace(/\D/g, ""))}
                   disabled={saving}
-                  className="w-24 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                  className="w-24 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                   placeholder="100"
                 />
               </label>
-              <label className="flex flex-col gap-0.5 text-xs font-medium text-slate-600">
+              <label className="flex flex-col gap-1 text-sm font-medium text-slate-800">
                 To #
                 <input
                   value={rangeTo}
                   onChange={(e) => setRangeTo(e.target.value.replace(/\D/g, ""))}
                   disabled={saving}
-                  className="w-24 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                  className="w-24 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                   placeholder="110"
                 />
               </label>
-              <label className="flex min-w-[10rem] flex-col gap-0.5 text-xs font-medium text-slate-600">
+              <label className="flex min-w-[10rem] flex-col gap-1 text-sm font-medium text-slate-800">
                 Type
                 <select
                   value={rangeTypeId}
                   onChange={(e) => setRangeTypeId(e.target.value)}
                   disabled={saving}
-                  className="rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <option value="">Select…</option>
                   {roomTypeOptions.map((t) => (
@@ -373,14 +390,15 @@ export function RoomInventoryTypeAssignment({ slug, inventoryRoomCount, roomType
             </div>
             <div className="hidden h-8 w-px shrink-0 bg-slate-200 sm:block" aria-hidden />
             <div className="flex flex-1 flex-wrap items-end gap-2">
-              <p className="text-[11px] text-slate-500 sm:mr-2">
+              <p className="text-sm text-slate-700 sm:mr-2">
                 Selected: <span className="font-semibold text-slate-800">{selected.size}</span>
               </p>
               <select
+                aria-label="Room type for the selected rooms"
                 value={bulkTypeId}
                 onChange={(e) => setBulkTypeId(e.target.value)}
                 disabled={saving}
-                className="min-w-[10rem] rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+                className="min-w-[10rem] rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <option value="">Assign selection to…</option>
                 {roomTypeOptions.map((t) => (
@@ -418,7 +436,11 @@ export function RoomInventoryTypeAssignment({ slug, inventoryRoomCount, roomType
             </div>
           ) : null}
 
-          {actionError ? <p className="mt-2 text-sm text-rose-600">{actionError}</p> : null}
+          {actionError ? (
+            <div className="mt-2">
+              <HmsAlert message={actionError} />
+            </div>
+          ) : null}
 
           <div className="mt-4 space-y-5">
             {Object.entries(byFloor)
@@ -429,14 +451,14 @@ export function RoomInventoryTypeAssignment({ slug, inventoryRoomCount, roomType
                 return (
                   <div key={floor}>
                     <div className="mb-2 flex items-center justify-between gap-2">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      <p className="text-sm font-semibold text-slate-800">
                         Floor {floor} · {list.length} keys
                       </p>
                       <button
                         type="button"
                         disabled={saving}
                         onClick={() => selectFloor(floor)}
-                        className="text-xs font-medium text-blue-600 hover:underline disabled:cursor-not-allowed disabled:opacity-50 disabled:no-underline"
+                        className="rounded-md text-sm font-medium text-blue-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50 disabled:no-underline"
                       >
                         {allOn ? "Clear floor" : "Select whole floor"}
                       </button>
@@ -451,15 +473,18 @@ export function RoomInventoryTypeAssignment({ slug, inventoryRoomCount, roomType
                             type="button"
                             onClick={() => toggle(u.id)}
                             disabled={saving}
+                            aria-pressed={isSel}
+                            aria-label={`Room ${u.room_code}, ${ab}`}
                             className={cn(
-                              "flex min-w-[4.5rem] flex-col rounded-lg border px-2 py-1.5 text-left text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+                              "relative flex min-w-[4.5rem] flex-col rounded-lg border px-2 py-1.5 text-left text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50",
                               isSel
                                 ? "border-blue-500 bg-blue-50 ring-2 ring-blue-200"
                                 : "border-slate-200 bg-white hover:border-slate-300",
                             )}
                           >
+                            {isSel ? <Check className="absolute right-1 top-1 h-3.5 w-3.5 text-blue-700" aria-hidden /> : null}
                             <span className="font-bold tabular-nums text-slate-900">{u.room_code}</span>
-                            <span className="text-[10px] font-semibold uppercase tracking-tight text-slate-500">
+                            <span className="text-xs font-semibold text-slate-600">
                               {ab}
                             </span>
                           </button>

@@ -34,11 +34,11 @@ export default async function RestaurantBarHistoryPage({
             showTimingFilter={false}
             timeMode="service"
             overdueMinutes={model.kitchenOverdueMinutes}
-            description="Completed, voided, and payment-pending tickets (read-only)."
+            description="Completed, cancelled and unpaid tickets, for looking back. Nothing here can be changed."
           />
         </FbRestaurantBarShell>
       ) : (
-        <p className="p-8 text-sm text-slate-500">Property not found.</p>
+        <p className="p-8 text-base text-slate-600">Property not found.</p>
       )}
     </HMSLayout>
   );

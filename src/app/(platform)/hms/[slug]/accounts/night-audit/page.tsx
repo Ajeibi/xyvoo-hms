@@ -5,6 +5,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getAccountsCapabilities } from "@/lib/hms/accounts-rbac";
 import { listNightAuditRuns } from "@/lib/hms/night-audit";
 import { AccountsNightAuditClient } from "@/components/hms/accounts/AccountsNightAuditClient";
+import { HmsPage, HmsPageHeader } from "@/components/hms/hms-ui";
 
 export default async function AccountsNightAuditPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -13,10 +14,9 @@ export default async function AccountsNightAuditPage({ params }: { params: Promi
   if (!tenant) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-night-audit">
-        <div className="px-8 py-8">
-          <h1 className="text-xl font-semibold text-slate-900">Night audit</h1>
-          <p className="mt-0.5 text-sm text-slate-500">Hotel not found.</p>
-        </div>
+        <HmsPage>
+          <HmsPageHeader eyebrow="Accounts" meaning="money" title="Night audit" description="Hotel not found." />
+        </HmsPage>
       </HMSLayout>
     );
   }

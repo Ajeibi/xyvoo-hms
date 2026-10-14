@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { resolveStoreRequest, storeOwnsProducts } from "@/lib/store/api-helpers";
 import { bulkRequestSchema, describeBulkResult, groupByNewPrice } from "@/lib/store/product-catalogue";
 import { logActivity } from "@/lib/store/activity";
+import { sendStockAlertsForProducts } from "@/lib/store/stock-alerts";
 
 const SAVE_FAILED = "We couldn't make that change just now. Please try again.";
 
@@ -122,5 +123,7 @@ export async function POST(req: Request) {
   }
 
   await logEach(activity);
+  // A stock or status change may have brought products back: tell anyone who asked.
+  after(() => sendStockAlertsForProducts(resolved.access.tenantId, ids));
   return NextResponse.json({ updated: ids.length, message: describeBulkResult(action, ids.length) });
 }

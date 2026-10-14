@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { ClipboardList } from "lucide-react";
+import { HmsCard, HmsEmptyState, hmsButton } from "@/components/hms/hms-ui";
+import { HmsSectionIntro } from "@/components/hms/hms-ui-client";
 import type { SourceableRequisitionLine } from "@/lib/hms/procurement-types";
 
 function groupByRequisition(lines: SourceableRequisitionLine[]) {
@@ -37,47 +39,77 @@ export function ProcurementRequisitionsInboxClient({ slug, lines }: { slug: stri
   };
 
   return (
-    <div className="mt-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-slate-500">{lines.length} line item(s) awaiting sourcing.</p>
-        <Button type="button" disabled={selected.size === 0} onClick={createPoFromSelection} className="rounded-lg">
+    <div className="space-y-6">
+      <HmsSectionIntro
+        id="procurement-requisitions"
+        title="Turn approved requests into orders"
+        meaning="team"
+        art="page"
+        points={[
+          "Approved requisitions from Inventory and Admin/GM wait here.",
+          "Tick the lines you want to buy, then create one purchase order for them.",
+        ]}
+      />
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-slate-700" role="status">
+          <span className="font-semibold tabular-nums text-slate-900">{lines.length}</span> {lines.length === 1 ? "line item" : "line items"} awaiting sourcing
+          {selected.size ? (
+            <>
+              {" "}
+              · <span className="font-semibold tabular-nums text-slate-900">{selected.size}</span> selected
+            </>
+          ) : null}
+        </p>
+        <button type="button" disabled={selected.size === 0} onClick={createPoFromSelection} className={hmsButton.primary}>
           Create PO from {selected.size || ""} selected
-        </Button>
+        </button>
       </div>
 
       {grouped.length === 0 ? (
-        <div className="rounded-xl border border-slate-200 bg-white px-6 py-8 text-center text-sm text-slate-500">
-          Nothing waiting on Procurement. New requisitions raised by Inventory or Admin/GM will appear here once approved.
-        </div>
+        <HmsEmptyState
+          art="page"
+          meaning="team"
+          title="Nothing waiting on Procurement"
+          description="New requisitions raised by Inventory or Admin/GM will appear here once approved."
+        />
       ) : (
         <div className="space-y-4">
           {grouped.map(([requisitionId, group]) => (
-            <div key={requisitionId} className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-              <div className="border-b border-slate-100 px-6 py-3">
-                <p className="text-sm font-semibold text-slate-900">{group[0].requisitionNumber}</p>
-                <p className="text-xs text-slate-500">{group[0].requestingDepartment}</p>
-              </div>
+            <HmsCard
+              key={requisitionId}
+              id={`requisition-${requisitionId}`}
+              title={group[0].requisitionNumber}
+              description={group[0].requestingDepartment}
+              icon={ClipboardList}
+              meaning="team"
+              flush
+            >
               <ul className="divide-y divide-slate-100">
                 {group.map((l) => (
-                  <li key={l.requisitionLineId} className="flex items-center gap-3 px-6 py-3">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 rounded border-slate-300"
-                      checked={selected.has(l.requisitionLineId)}
-                      onChange={() => toggle(l.requisitionLineId)}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-slate-800">
-                        {l.itemName} <span className="text-xs text-slate-400">({l.itemSku})</span>
-                      </p>
-                    </div>
-                    <span className="shrink-0 text-xs tabular-nums text-slate-500">
-                      {l.qtyRemaining} {l.unitOfMeasure} remaining
-                    </span>
+                  <li key={l.requisitionLineId}>
+                    <label
+                      htmlFor={`req-line-${l.requisitionLineId}`}
+                      className="flex cursor-pointer items-center gap-3 px-5 py-3 hover:bg-slate-50 sm:px-6"
+                    >
+                      <input
+                        id={`req-line-${l.requisitionLineId}`}
+                        type="checkbox"
+                        className="h-5 w-5 shrink-0 rounded border-slate-300 text-indigo-700 focus-visible:ring-2 focus-visible:ring-blue-500"
+                        checked={selected.has(l.requisitionLineId)}
+                        onChange={() => toggle(l.requisitionLineId)}
+                      />
+                      <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-900">
+                        {l.itemName} <span className="font-normal text-slate-600">({l.itemSku})</span>
+                      </span>
+                      <span className="shrink-0 text-sm tabular-nums text-slate-700">
+                        {l.qtyRemaining} {l.unitOfMeasure} remaining
+                      </span>
+                    </label>
                   </li>
                 ))}
               </ul>
-            </div>
+            </HmsCard>
           ))}
         </div>
       )}

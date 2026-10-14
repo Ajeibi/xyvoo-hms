@@ -10,6 +10,8 @@ import { STORE_PATHS } from "@/lib/store/site/links";
 import { announce, useStorefront } from "./StorefrontProvider";
 import { Icon, Price, Rating, StoreImage } from "./primitives";
 import SaleEnds from "./SaleEnds";
+import StockAlertForm from "./StockAlertForm";
+import TradePrice from "./TradePrice";
 
 function findMatchingVariant(variants: ShopProductVariant[], selected: Record<string, string>) {
   return variants.find((v) => Object.entries(selected).every(([key, value]) => v.options[key] === value)) || null;
@@ -20,6 +22,12 @@ function optionAvailable(product: ShopProduct, selected: Record<string, string>,
   if (product.allowBackorder) return true;
   const wanted = { ...selected, [name]: value };
   return product.variants.some((v) => v.stock > 0 && Object.entries(wanted).every(([k, val]) => v.options[k] === val));
+}
+
+/** Whether this option value exists at all with the other choices so far (sold out or not). */
+function optionExists(product: ShopProduct, selected: Record<string, string>, name: string, value: string) {
+  const wanted = { ...selected, [name]: value };
+  return product.variants.some((v) => Object.entries(wanted).every(([k, val]) => v.options[k] === val));
 }
 
 /** Gallery and buy box for the product page, in the templates' .pdp layout. */
@@ -133,6 +141,7 @@ export default function ProductDetail({ product, details }: { product: ShopProdu
             <Price amount={price} compareAt={compareAt} fixedPrices={variant?.priceOverride != null ? undefined : product.fixedPrices} />
             {saleEndsAt ? <SaleEnds endsAt={saleEndsAt} /> : null}
           </p>
+          <TradePrice productId={product.id} />
         </div>
         {product.shortDescription ? <p className="body-copy">{product.shortDescription}</p> : null}
 
@@ -146,14 +155,16 @@ export default function ProductDetail({ product, details }: { product: ShopProdu
                   <div className="pills">
                     {option.values.map((value) => {
                       const available = optionAvailable(product, selected, option.name, value);
+                      // Sold-out sizes can still be chosen, so the shopper can ask to hear when they're back.
+                      const exists = available || optionExists(product, selected, option.name, value);
                       return (
-                        <label className="pill" key={value}>
+                        <label className={`pill${available ? "" : " is-sold-out"}`} key={value}>
                           <input
                             type="radio"
                             name={option.name}
                             value={value}
                             checked={selected[option.name] === value}
-                            disabled={!available}
+                            disabled={!exists}
                             onChange={() => {
                               setSelected((prev) => ({ ...prev, [option.name]: value }));
                               setStatus("");
@@ -161,7 +172,7 @@ export default function ProductDetail({ product, details }: { product: ShopProdu
                           />
                           <span>
                             {value}
-                            {!available ? <span className="visually-hidden"> (out of stock)</span> : null}
+                            {!available ? <span className="visually-hidden"> (sold out)</span> : null}
                           </span>
                         </label>
                       );
@@ -171,7 +182,7 @@ export default function ProductDetail({ product, details }: { product: ShopProdu
               ))
             : null}
 
-          <p className="stock">{stockText}</p>
+          <p className={`stock${inStock ? "" : " stock--out"}`}>{stockText}</p>
 
           <div className="buy-row">
             <div className="qty">
@@ -212,6 +223,15 @@ export default function ProductDetail({ product, details }: { product: ShopProdu
             ) : null}
           </p>
         </form>
+
+        {/* Sold out: offer an email when it's back (for the chosen size or colour, if there is one). */}
+        {!inStock && !product.preorder ? (
+          <StockAlertForm
+            productId={product.id}
+            variantId={variant?.id ?? null}
+            label={variant ? `${product.name} (${Object.values(variant.options).join(" · ")})` : product.name}
+          />
+        ) : null}
 
         {details}
       </div>

@@ -4,13 +4,13 @@ import { History } from "lucide-react";
 
 export function FrontDeskActivityFeed({ slug, items }: { slug: string; items: FrontDeskAuditItem[] }) {
   return (
-    <section className="overflow-hidden rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/25 sm:p-7">
+    <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
       <div className="flex items-start gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600">
           <History className="h-5 w-5" aria-hidden />
         </div>
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Audit</p>
+          <p className="text-sm font-medium text-slate-600">Audit</p>
           <h2 className="text-lg font-semibold text-slate-900">Recent activity</h2>
         </div>
       </div>

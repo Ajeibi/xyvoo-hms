@@ -1,6 +1,7 @@
 import HMSLayout from "@/components/hms/HMSLayout";
 import { InventorySubNav } from "@/components/hms/inventory/InventorySubNav";
 import { InventoryRequisitionsClient } from "@/components/hms/inventory/InventoryRequisitionsClient";
+import { HmsPage, HmsPageHeader } from "@/components/hms/hms-ui";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { getHmsAccessContext } from "@/lib/hms/access";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -26,7 +27,13 @@ export default async function InventoryRequisitionsPage({ params }: { params: Pr
 
   return (
     <HMSLayout slug={slug} requiredSection="inventory-requisitions">
-      <div className="px-8 py-8">
+      <HmsPage>
+        <HmsPageHeader
+          eyebrow="Inventory"
+          meaning="stock"
+          title="Requisitions"
+          description="Department requests for stock: approve them, then issue the stock from the store."
+        />
         <InventorySubNav slug={slug} canAccessAllDepartments={access.canAccessAllDepartments} />
         <InventoryRequisitionsClient
           slug={slug}
@@ -35,7 +42,7 @@ export default async function InventoryRequisitionsPage({ params }: { params: Pr
           items={items}
           canCreateItem={access.canAccessAllDepartments}
         />
-      </div>
+      </HmsPage>
     </HMSLayout>
   );
 }

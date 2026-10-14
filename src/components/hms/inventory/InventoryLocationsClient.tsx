@@ -2,9 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Plus, Warehouse } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { SettingsSectionInfo } from "@/components/hms/settings/SettingsSectionInfo";
+import { HmsCard, HmsEmptyState, HmsField, HmsPill, hmsButton, hmsInput } from "@/components/hms/hms-ui";
 import type { InventoryLocationRow, InventoryLocationTypeRow } from "@/lib/hms/inventory-types";
 
 function formatDate(iso: string) {
@@ -98,67 +97,67 @@ export function InventoryLocationsClient({
   };
 
   return (
-    <div className="mt-6 space-y-4">
-      <div className="flex justify-end">
-        <Button type="button" className="rounded-lg" onClick={() => setOpen(true)}>
-          <Plus className="h-4 w-4" />
-          New store
-        </Button>
-      </div>
-
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <div className="border-b border-slate-100 px-6 py-4">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <h2 className="text-sm font-semibold text-slate-900">Stores</h2>
+    <div className="space-y-4">
+      <HmsCard
+        id="inventory-stores"
+        title="Stores"
+        description="The places you hold stock in, such as a main store or kitchen store."
+        icon={Warehouse}
+        meaning="stock"
+        flush
+        actions={
+          <>
             <SettingsSectionInfo
               title="Stores"
               text="The physical or logical stock locations you hold inventory in (Main Store, Kitchen Store, Housekeeping Store, etc.). Structural setup — create these once when onboarding a property; day-to-day stock counts and issues happen on the Inventory page, not here."
             />
-          </div>
-        </div>
+            <button type="button" className={hmsButton.primary} onClick={() => setOpen(true)}>
+              <Plus className="h-4 w-4" aria-hidden />
+              New store
+            </button>
+          </>
+        }
+      >
         {locations.length === 0 ? (
-          <p className="px-6 py-8 text-sm text-slate-500">
-            No store locations yet. Create your first store to start tracking stock.
-          </p>
+          <HmsEmptyState
+            bare
+            art="box"
+            meaning="stock"
+            title="No stores yet"
+            description="Create your first store to start tracking stock."
+            action={
+              <button type="button" className={hmsButton.primary} onClick={() => setOpen(true)}>
+                <Plus className="h-4 w-4" aria-hidden />
+                New store
+              </button>
+            }
+          />
         ) : (
           <ul className="divide-y divide-slate-100">
             {locations.map((location) => (
-              <li key={location.id} className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 text-sm">
+              <li key={location.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 text-sm sm:px-6">
                 <div>
                   <p className="font-semibold text-slate-900">{location.name}</p>
-                  <p className="mt-0.5 text-xs text-slate-500">
-                    Created {formatDate(location.created_at)}
-                  </p>
+                  <p className="mt-0.5 text-sm text-slate-600">Created {formatDate(location.created_at)}</p>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600">
-                    {location.location_type_name}
-                  </span>
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                      location.is_active
-                        ? "bg-emerald-50 text-emerald-700"
-                        : "bg-slate-100 text-slate-500"
-                    }`}
-                  >
-                    {location.is_active ? "Active" : "Inactive"}
-                  </span>
-                  <Button
+                <div className="flex flex-wrap items-center gap-2">
+                  <HmsPill tone="blue">{location.location_type_name}</HmsPill>
+                  <HmsPill tone={location.is_active ? "green" : "slate"}>{location.is_active ? "Active" : "Inactive"}</HmsPill>
+                  <button
                     type="button"
-                    variant="outline"
-                    size="sm"
-                    className="rounded-lg"
+                    className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-800 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
                     disabled={togglingId === location.id}
                     onClick={() => void toggleActive(location)}
                   >
                     {location.is_active ? "Deactivate" : "Activate"}
-                  </Button>
+                    <span className="sr-only"> {location.name}</span>
+                  </button>
                 </div>
               </li>
             ))}
           </ul>
         )}
-      </div>
+      </HmsCard>
 
       <Dialog
         open={open}
@@ -173,15 +172,19 @@ export function InventoryLocationsClient({
             <DialogDescription>Add a store location to hold and issue inventory from.</DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3">
-            <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">Store name</label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Main Store" />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-slate-600">Store type</label>
+          <div className="space-y-4">
+            <HmsField id="inventory-store-name" label="Store name">
+              <input
+                id="inventory-store-name"
+                className={hmsInput}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Main Store"
+              />
+            </HmsField>
+            <HmsField id="inventory-store-type" label="Store type">
               <Select value={locationTypeId} onValueChange={setLocationTypeId}>
-                <SelectTrigger>
+                <SelectTrigger id="inventory-store-type" className="h-[42px] rounded-xl border-slate-300">
                   <SelectValue placeholder={locationTypes.length ? "Select a type" : "Add a type in Settings first"} />
                 </SelectTrigger>
                 <SelectContent>
@@ -192,16 +195,16 @@ export function InventoryLocationsClient({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </HmsField>
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={submitting}>
+            <button type="button" className={hmsButton.secondary} onClick={() => setOpen(false)} disabled={submitting}>
               Cancel
-            </Button>
-            <Button type="button" disabled={!canSubmit || submitting} onClick={() => void submit()}>
+            </button>
+            <button type="button" className={hmsButton.primary} disabled={!canSubmit || submitting} onClick={() => void submit()}>
               {submitting ? "Creating…" : "Create store"}
-            </Button>
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { resolveStoreRequest } from "@/lib/store/api-helpers";
 import { deliveryZoneSchema, mapDeliveryZone, toDeliveryZoneRow, type DeliveryZoneRow } from "@/lib/store/delivery";
 
-const COLUMNS = "id, name, regions, fee, free_over, eta_text, is_pickup, is_active, sort_order";
+const COLUMNS = "id, name, regions, fee, weight_bands, free_over, eta_text, is_pickup, is_active, sort_order";
 
 async function authorise(body: unknown) {
   const slug = typeof (body as { slug?: unknown })?.slug === "string" ? (body as { slug: string }).slug : "";

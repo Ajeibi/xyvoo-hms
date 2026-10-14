@@ -2,8 +2,34 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import {
+  ArrowUpRight,
+  BellRing,
+  CircleAlert,
+  CircleCheck,
+  Clock,
+  ConciergeBell,
+  Hourglass,
+  ListOrdered,
+  MessageSquareWarning,
+  Plus,
+  RefreshCw,
+  Search,
+  SearchX,
+  Siren,
+} from "lucide-react";
+import {
+  HmsCard,
+  HmsEmptyState,
+  HmsField,
+  HmsPage,
+  HmsPageHeader,
+  HmsStatStrip,
+  HmsStatTile,
+  hmsButton,
+  hmsInput,
+} from "@/components/hms/hms-ui";
+import { HmsFilterChips, HmsSectionIntro } from "@/components/hms/hms-ui-client";
 import {
   Dialog,
   DialogContent,
@@ -126,7 +152,7 @@ function severityBadgeClass(severity: GuestIncidentSeverity) {
 }
 
 function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
+  return new Date(iso).toLocaleString("en-GB",{ dateStyle: "medium", timeStyle: "short" });
 }
 
 export function FrontDeskRequestsClient({
@@ -141,43 +167,47 @@ export function FrontDeskRequestsClient({
   const [tab, setTab] = useState<Tab>("complaints");
 
   return (
-    <div className="px-8 py-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Front desk</p>
-          <h1 className="text-2xl font-bold text-slate-900">Requests & incidents</h1>
-          <p className="mt-1 text-sm text-slate-600">
-            Complaints, incidents, escalations, and the guest waitlist.
-          </p>
-        </div>
+    <HmsPage wide>
+      <HmsPageHeader
+        eyebrow="Front desk"
+        meaning="guests"
+        title="Complaints and incidents"
+        description="Log problems guests raise, pass them to the right team, and keep a waitlist for full nights."
+      />
+
+      <HmsSectionIntro
+        id="requests"
+        meaning="guests"
+        art="people"
+        title="Look after every guest who has a problem"
+        points={[
+          "Log a complaint or an incident as soon as you hear about it, so nothing is forgotten at shift change.",
+          "Escalated cases are passed to another team. You'll find them all under Escalations.",
+          "When you're full, add guests to the waitlist and let them know when a room comes free.",
+        ]}
+      />
+
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-slate-800">
+        <span className="flex items-center gap-2">
+          <ConciergeBell className="h-4 w-4 shrink-0 text-amber-700" aria-hidden />
+          Logging an everyday request, such as towels or room service? Use guest services instead.
+        </span>
+        <Link href={`/hms/${slug}/frontdesk/guest-services`} className={`${hmsButton.secondary} px-3 py-1.5 ${focusRing}`}>
+          Open guest services
+        </Link>
       </div>
 
-      <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-blue-100 bg-blue-50/60 px-4 py-3 text-sm text-blue-900">
-        <span>Logging a service request (towels, housekeeping, F&amp;B, etc.) or tracking its SLA?</span>
-        <Button asChild size="sm" variant="outline" className="border-blue-300 bg-white">
-          <Link href={`/hms/${slug}/frontdesk/guest-services`}>Open Guest services →</Link>
-        </Button>
-      </div>
-
-      <div className="mt-6 inline-flex gap-2">
-        {(
-          [
-            ["complaints", "Complaints & incidents"],
-            ["escalations", "Escalations"],
-            ["waitlist", "Waitlist"],
-          ] as const
-        ).map(([key, label]) => (
-          <Button
-            key={key}
-            type="button"
-            variant={tab === key ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setTab(key)}
-          >
-            {label}
-          </Button>
-        ))}
-      </div>
+      <HmsFilterChips
+        label="Show"
+        meaning="guests"
+        options={[
+          { value: "complaints", label: "Complaints and incidents" },
+          { value: "escalations", label: "Escalations" },
+          { value: "waitlist", label: "Waitlist" },
+        ]}
+        value={tab}
+        onChange={setTab}
+      />
 
       {tab === "complaints" ? (
         <ComplaintsIncidentsPanel slug={slug} capabilities={capabilities} />
@@ -186,23 +216,52 @@ export function FrontDeskRequestsClient({
       ) : (
         <WaitlistPanel slug={slug} capabilities={capabilities} roomTypes={roomTypes} />
       )}
-    </div>
+    </HmsPage>
   );
 }
 
-function SummaryCard({ label, value, active, onClick }: { label: string; value: number; active?: boolean; onClick?: () => void }) {
+const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2";
+
+function PageNav({
+  label,
+  currentPage,
+  totalPages,
+  total,
+  onPage,
+}: {
+  label: string;
+  currentPage: number;
+  totalPages: number;
+  total: number;
+  onPage: (page: number) => void;
+}) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "rounded-2xl border p-4 text-left transition-colors",
-        active ? "border-blue-500 bg-blue-50" : "border-slate-200 bg-white hover:bg-slate-50",
-      )}
-    >
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900">{value}</p>
-    </button>
+    <nav aria-label={label} className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-700">
+      <p>
+        Showing {(currentPage - 1) * PAGE_SIZE + 1} to {Math.min(currentPage * PAGE_SIZE, total)} of {total}
+      </p>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          className={`${hmsButton.secondary} px-3 py-1.5 ${focusRing}`}
+          disabled={currentPage <= 1}
+          onClick={() => onPage(Math.max(1, currentPage - 1))}
+        >
+          Previous
+        </button>
+        <span className="px-2 text-sm font-medium text-slate-700">
+          Page {currentPage} of {totalPages}
+        </span>
+        <button
+          type="button"
+          className={`${hmsButton.secondary} px-3 py-1.5 ${focusRing}`}
+          disabled={currentPage >= totalPages}
+          onClick={() => onPage(Math.min(totalPages, currentPage + 1))}
+        >
+          Next
+        </button>
+      </div>
+    </nav>
   );
 }
 
@@ -307,126 +366,128 @@ function ComplaintsIncidentsPanel({
   );
 
   return (
-    <div className="mt-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="grid flex-1 grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
-          {loading ? (
-            <SummaryCardsSkeleton count={6} />
-          ) : (
-            <>
-              <SummaryCard label="Total" value={data?.summary.total ?? 0} active={!statusFilter} onClick={() => setStatusFilter(null)} />
-              <SummaryCard
-                label="Open"
-                value={data?.summary.open ?? 0}
-                active={statusFilter === "open"}
-                onClick={() => setStatusFilter((s) => (s === "open" ? null : "open"))}
-              />
-              <SummaryCard
-                label="In progress"
-                value={data?.summary.inProgress ?? 0}
-                active={statusFilter === "in_progress"}
-                onClick={() => setStatusFilter((s) => (s === "in_progress" ? null : "in_progress"))}
-              />
-              <SummaryCard
-                label="Escalated"
-                value={data?.summary.escalated ?? 0}
-                active={statusFilter === "escalated"}
-                onClick={() => setStatusFilter((s) => (s === "escalated" ? null : "escalated"))}
-              />
-              <SummaryCard label="Resolved today" value={data?.summary.resolvedToday ?? 0} />
-              <SummaryCard label="Critical (open)" value={data?.summary.critical ?? 0} />
-            </>
-          )}
-        </div>
-        {capabilities.canCreate ? (
-          <Button type="button" onClick={() => setCreateOpen(true)}>
-            Log complaint / incident
-          </Button>
-        ) : null}
-      </div>
+    <div className="space-y-6">
+      <HmsStatStrip label="Complaints and incidents in figures">
+        {loading && !data ? (
+          <SummaryCardsSkeleton count={4} />
+        ) : (
+          <>
+            <HmsStatTile label="Open" value={data?.summary.open ?? 0} icon={MessageSquareWarning} meaning="guests" hint="Waiting for someone to pick up" />
+            <HmsStatTile label="In progress" value={data?.summary.inProgress ?? 0} icon={Clock} meaning="guests" hint="Being dealt with" />
+            <HmsStatTile
+              label="Critical and open"
+              value={data?.summary.critical ?? 0}
+              icon={Siren}
+              meaning="attention"
+              hint="Nothing critical right now"
+              status={(data?.summary.critical ?? 0) > 0 ? "critical" : undefined}
+              statusText="Needs someone now"
+            />
+            <HmsStatTile label="Sorted today" value={data?.summary.resolvedToday ?? 0} icon={CircleCheck} meaning="guests" hint="Resolved since midnight" />
+          </>
+        )}
+      </HmsStatStrip>
 
-      <div className="mt-4 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div>
-          <p className="mb-1 text-xs font-medium text-slate-600">Search</p>
-          <Input
-            className="max-w-xs"
-            placeholder="Category, description, guest, room…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="w-full max-w-md">
+            <label htmlFor="incidents-search" className="mb-1 block text-sm font-medium text-slate-800">
+              Search
+            </label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden />
+              <input
+                id="incidents-search"
+                type="search"
+                className={`${hmsInput} pl-10`}
+                placeholder="What happened, guest name or room"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className={`${hmsButton.secondary} ${focusRing}`} onClick={() => void refresh()} disabled={loading}>
+              <RefreshCw className="h-4 w-4" aria-hidden />
+              {loading ? "Refreshing…" : "Refresh"}
+            </button>
+            {capabilities.canCreate ? (
+              <button type="button" className={`${hmsButton.primary} ${focusRing}`} onClick={() => setCreateOpen(true)}>
+                <Plus className="h-4 w-4" aria-hidden />
+                Log a complaint or incident
+              </button>
+            ) : null}
+          </div>
         </div>
-        <div>
-          <p className="mb-1 text-xs font-medium text-slate-600">Type</p>
-          <select
-            className="h-10 rounded-lg border border-input bg-white px-3 text-sm"
-            value={caseTypeFilter ?? ""}
-            onChange={(e) => setCaseTypeFilter((e.target.value || null) as GuestIncidentCaseType | null)}
-          >
-            <option value="">All types</option>
-            {GUEST_INCIDENT_CASE_TYPES.map((c) => (
-              <option key={c} value={c}>
-                {CASE_TYPE_LABEL[c]}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <p className="mb-1 text-xs font-medium text-slate-600">Status</p>
-          <select
-            className="h-10 rounded-lg border border-input bg-white px-3 text-sm"
-            value={statusFilter ?? ""}
-            onChange={(e) => setStatusFilter((e.target.value || null) as GuestIncidentStatus | null)}
-          >
-            <option value="">All statuses</option>
-            {GUEST_INCIDENT_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {STATUS_LABEL[s]}
-              </option>
-            ))}
-          </select>
-        </div>
-        <Button type="button" variant="outline" size="sm" onClick={() => void refresh()} disabled={loading}>
-          Refresh
-        </Button>
+        <HmsFilterChips
+          label="Status"
+          meaning="guests"
+          options={[
+            { value: "all", label: "All", count: data?.summary.total ?? null },
+            { value: "open", label: STATUS_LABEL.open, count: data?.summary.open ?? null },
+            { value: "in_progress", label: STATUS_LABEL.in_progress, count: data?.summary.inProgress ?? null },
+            { value: "escalated", label: STATUS_LABEL.escalated, count: data?.summary.escalated ?? null },
+            { value: "resolved", label: STATUS_LABEL.resolved },
+            { value: "closed", label: STATUS_LABEL.closed },
+          ]}
+          value={statusFilter ?? "all"}
+          onChange={(v) => setStatusFilter(v === "all" ? null : (v as GuestIncidentStatus))}
+        />
+        <HmsFilterChips
+          label="Type"
+          meaning="guests"
+          options={[{ value: "all", label: "Both types" }, ...GUEST_INCIDENT_CASE_TYPES.map((c) => ({ value: c as string, label: CASE_TYPE_LABEL[c] }))]}
+          value={caseTypeFilter ?? "all"}
+          onChange={(v) => setCaseTypeFilter(v === "all" ? null : (v as GuestIncidentCaseType))}
+        />
       </div>
 
       {loading ? (
-        <div className="mt-4">
-          <TableRowsSkeleton cols={7} />
-        </div>
+        <TableRowsSkeleton cols={7} />
       ) : (
-      <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <HmsCard id="incidents-list" icon={MessageSquareWarning} meaning="guests" title="Complaints and incidents" flush>
         {pageRows.length === 0 ? (
-          <p className="p-16 text-center text-sm text-slate-500">
-            {rows.length === 0 ? "Nothing logged yet." : "Nothing matches your filters."}
-          </p>
+          rows.length === 0 && !search.trim() && !statusFilter && !caseTypeFilter ? (
+            <HmsEmptyState
+              bare
+              art="people"
+              meaning="guests"
+              title="Nothing logged yet"
+              description="When a guest raises a problem, log it here so the team can follow it through."
+            />
+          ) : (
+            <HmsEmptyState bare icon={SearchX} meaning="guests" title="Nothing matches" description="Try a different search, or choose All." />
+          )
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1100px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <caption className="sr-only">Complaints and incidents</caption>
+              <thead className="bg-slate-50 text-sm text-slate-700">
                 <tr>
-                  <th className="px-4 py-3">Type</th>
-                  <th className="min-w-[220px] px-4 py-3">Description</th>
-                  <th className="px-4 py-3">Guest / room</th>
-                  <th className="px-4 py-3">Severity</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="min-w-[140px] px-4 py-3">Logged</th>
-                  <th className="px-4 py-3">Actions</th>
+                  <th scope="col" className="px-4 py-3 font-semibold">Type</th>
+                  <th scope="col" className="min-w-[220px] px-4 py-3 font-semibold">What happened</th>
+                  <th scope="col" className="px-4 py-3 font-semibold">Guest and room</th>
+                  <th scope="col" className="px-4 py-3 font-semibold">How serious</th>
+                  <th scope="col" className="px-4 py-3 font-semibold">Status</th>
+                  <th scope="col" className="min-w-[140px] px-4 py-3 font-semibold">Logged</th>
+                  <th scope="col" className="px-4 py-3">
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {pageRows.map((row) => (
-                  <tr key={row.id} className="border-t border-slate-100 hover:bg-slate-50/80">
+                  <tr key={row.id} className="border-t border-slate-100 hover:bg-amber-50/40">
                     <td className="px-4 py-3">
                       <span className="font-medium text-slate-900">{CASE_TYPE_LABEL[row.caseType]}</span>
-                      <p className="text-xs capitalize text-slate-500">{row.category.replace(/_/g, " ")}</p>
+                      <p className="text-xs capitalize text-slate-600">{row.category.replace(/_/g, " ")}</p>
                     </td>
-                    <td className="max-w-[280px] px-4 py-3 text-slate-700">
+                    <td className="max-w-[280px] px-4 py-3 text-slate-800">
                       <p className="line-clamp-2">{row.description}</p>
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-slate-600">
-                      {row.guestName ?? "—"}
-                      <p className="text-xs text-slate-400">{row.roomCode ? `Rm ${row.roomCode}` : "—"}</p>
+                    <td className="whitespace-nowrap px-4 py-3 text-slate-800">
+                      {row.guestName ?? "No guest linked"}
+                      <p className="text-xs text-slate-600">{row.roomCode ? `Room ${row.roomCode}` : "No room"}</p>
                     </td>
                     <td className="px-4 py-3">
                       <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold", severityBadgeClass(row.severity))}>
@@ -442,17 +503,16 @@ function ComplaintsIncidentsPanel({
                         {row.status === "resolved" && row.guestNotifiedAt ? " · notified" : ""}
                       </span>
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-xs text-slate-600">{formatDateTime(row.createdAt)}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-slate-700">{formatDateTime(row.createdAt)}</td>
                     <td className="px-4 py-3">
-                      <Button
+                      <button
                         type="button"
-                        size="sm"
-                        variant="outline"
+                        className={`${hmsButton.secondary} px-3 py-1.5 ${focusRing}`}
                         onClick={() => setManageRow(row)}
                         disabled={!capabilities.canUpdate}
                       >
-                        Manage
-                      </Button>
+                        Manage<span className="sr-only"> {CASE_TYPE_LABEL[row.caseType].toLowerCase()} logged {formatDateTime(row.createdAt)}</span>
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -460,32 +520,11 @@ function ComplaintsIncidentsPanel({
             </table>
           </div>
         )}
-      </div>
+      </HmsCard>
       )}
 
       {!loading && rows.length > 0 ? (
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
-          <p>
-            Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, rows.length)} of {rows.length}
-          </p>
-          <div className="flex items-center gap-2">
-            <Button type="button" variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => setPage(Math.max(1, currentPage - 1))}>
-              Previous
-            </Button>
-            <span className="px-2 text-xs font-medium text-slate-500">
-              Page {currentPage} of {totalPages}
-            </span>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={currentPage >= totalPages}
-              onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
+        <PageNav label="Pages of complaints and incidents" currentPage={currentPage} totalPages={totalPages} total={rows.length} onPage={setPage} />
       ) : null}
 
       <CreateIncidentDialog slug={slug} open={createOpen} onOpenChange={setCreateOpen} onCreated={() => void refresh()} />
@@ -571,44 +610,33 @@ function CreateIncidentDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Log complaint / incident</DialogTitle>
-          <DialogDescription>Formal record — visible to managers and escalatable.</DialogDescription>
+          <DialogTitle>Log a complaint or incident</DialogTitle>
+          <DialogDescription>This is kept on record. Managers can see it and pass it to another team.</DialogDescription>
         </DialogHeader>
-        <div className="space-y-3">
-          <div className="flex gap-2">
-            {GUEST_INCIDENT_CASE_TYPES.map((c) => (
-              <Button
-                key={c}
-                type="button"
-                size="sm"
-                variant={caseType === c ? "default" : "outline"}
-                onClick={() => {
-                  setCaseType(c);
-                  setCategory(c === "complaint" ? COMPLAINT_CATEGORIES[0] : INCIDENT_CATEGORIES[0]);
-                }}
-              >
-                {CASE_TYPE_LABEL[c]}
-              </Button>
-            ))}
-          </div>
-          <div>
-            <p className="mb-1 text-xs font-medium text-slate-600">Category</p>
-            <select
-              className="h-10 w-full rounded-lg border border-input px-3 text-sm"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-            >
+        <div className="space-y-4">
+          <HmsFilterChips
+            label="This is a"
+            meaning="guests"
+            options={GUEST_INCIDENT_CASE_TYPES.map((c) => ({ value: c as string, label: CASE_TYPE_LABEL[c] }))}
+            value={caseType}
+            onChange={(c) => {
+              setCaseType(c as GuestIncidentCaseType);
+              setCategory(c === "complaint" ? COMPLAINT_CATEGORIES[0] : INCIDENT_CATEGORIES[0]);
+            }}
+          />
+          <HmsField id="incident-category" label="Category">
+            <select id="incident-category" className={`${hmsInput} capitalize`} value={category} onChange={(e) => setCategory(e.target.value)}>
               {categoryOptions.map((c) => (
                 <option key={c} value={c}>
                   {c.replace(/_/g, " ")}
                 </option>
               ))}
             </select>
-          </div>
-          <div>
-            <p className="mb-1 text-xs font-medium text-slate-600">Severity</p>
+          </HmsField>
+          <HmsField id="incident-severity" label="How serious is it?">
             <select
-              className="h-10 w-full rounded-lg border border-input px-3 text-sm"
+              id="incident-severity"
+              className={hmsInput}
               value={severity}
               onChange={(e) => setSeverity(e.target.value as GuestIncidentSeverity)}
             >
@@ -618,34 +646,32 @@ function CreateIncidentDialog({
                 </option>
               ))}
             </select>
+          </HmsField>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <HmsField id="incident-code" label="Confirmation code" optional>
+              <input id="incident-code" className={hmsInput} value={confirmationCode} onChange={(e) => setConfirmationCode(e.target.value)} />
+            </HmsField>
+            <HmsField id="incident-room" label="Room" optional>
+              <input id="incident-room" className={hmsInput} value={roomCode} onChange={(e) => setRoomCode(e.target.value)} />
+            </HmsField>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <p className="mb-1 text-xs font-medium text-slate-600">Confirmation code (optional)</p>
-              <Input value={confirmationCode} onChange={(e) => setConfirmationCode(e.target.value)} placeholder="e.g. XYV-ABC" />
-            </div>
-            <div>
-              <p className="mb-1 text-xs font-medium text-slate-600">Room (optional)</p>
-              <Input value={roomCode} onChange={(e) => setRoomCode(e.target.value)} placeholder="e.g. 204" />
-            </div>
-          </div>
-          <div>
-            <p className="mb-1 text-xs font-medium text-slate-600">Description</p>
+          <HmsField id="incident-description" label="What happened?" hint="Use the guest's own words where you can.">
             <textarea
-              className="min-h-[96px] w-full rounded-lg border border-input px-3 py-2 text-sm"
+              id="incident-description"
+              aria-describedby="incident-description-hint"
+              className={`${hmsInput} min-h-[96px]`}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="What happened, in the guest's own account where possible…"
             />
-          </div>
+          </HmsField>
         </div>
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <button type="button" className={`${hmsButton.secondary} ${focusRing}`} onClick={() => onOpenChange(false)}>
             Cancel
-          </Button>
-          <Button type="button" onClick={() => void submit()} disabled={saving || !description.trim()}>
-            {saving ? "Logging…" : "Log"}
-          </Button>
+          </button>
+          <button type="button" className={`${hmsButton.primary} ${focusRing}`} onClick={() => void submit()} disabled={saving || !description.trim()}>
+            {saving ? "Saving…" : "Save to the record"}
+          </button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -761,13 +787,13 @@ function IncidentManageDialog({
           </DialogTitle>
           <DialogDescription>{row.guestName ?? "No guest linked"}{row.roomCode ? ` · Room ${row.roomCode}` : ""}</DialogDescription>
         </DialogHeader>
-        <div className="space-y-3 text-sm">
-          <p className="rounded-lg bg-slate-50 p-3 text-slate-700">{row.description}</p>
+        <div className="space-y-4 text-sm">
+          <p className="rounded-xl bg-amber-50 p-3 text-slate-800">{row.description}</p>
 
-          <div>
-            <p className="mb-1 text-xs font-medium text-slate-600">Status</p>
+          <HmsField id="manage-status" label="Status">
             <select
-              className="h-10 w-full rounded-lg border border-input px-3 text-sm"
+              id="manage-status"
+              className={hmsInput}
               value={status}
               onChange={(e) => setStatus(e.target.value as GuestIncidentStatus)}
             >
@@ -780,57 +806,62 @@ function IncidentManageDialog({
                   </option>
                 ))}
             </select>
-          </div>
+          </HmsField>
 
           {status === "escalated" ? (
-            <div>
-              <p className="mb-1 text-xs font-medium text-slate-600">Escalate to department</p>
+            <HmsField id="manage-department" label="Pass it to">
               <select
-                className="h-10 w-full rounded-lg border border-input px-3 text-sm"
+                id="manage-department"
+                className={hmsInput}
                 value={escalateToDepartment}
                 onChange={(e) => setEscalateToDepartment(e.target.value)}
               >
-                <option value="">Select department…</option>
+                <option value="">Choose a team…</option>
                 {departmentOptions.map((d) => (
                   <option key={d.value} value={d.value}>
                     {d.label}
                   </option>
                 ))}
               </select>
-            </div>
+            </HmsField>
           ) : null}
 
-          <div>
-            <p className="mb-1 text-xs font-medium text-slate-600">Resolution notes</p>
+          <HmsField id="manage-resolution" label="How it was sorted" optional>
             <textarea
-              className="min-h-[72px] w-full rounded-lg border border-input px-3 py-2 text-sm"
+              id="manage-resolution"
+              className={`${hmsInput} min-h-[72px]`}
               value={resolutionNotes}
               onChange={(e) => setResolutionNotes(e.target.value)}
             />
-          </div>
-          <div>
-            <p className="mb-1 text-xs font-medium text-slate-600">Compensation offered (optional)</p>
-            <Input value={compensationOffered} onChange={(e) => setCompensationOffered(e.target.value)} placeholder="e.g. Complimentary breakfast" />
-          </div>
+          </HmsField>
+          <HmsField id="manage-compensation" label="Anything offered to the guest" optional hint="For example: a free breakfast.">
+            <input
+              id="manage-compensation"
+              aria-describedby="manage-compensation-hint"
+              className={hmsInput}
+              value={compensationOffered}
+              onChange={(e) => setCompensationOffered(e.target.value)}
+            />
+          </HmsField>
 
           {row.status === "resolved" || status === "resolved" ? (
-            <div className="rounded-lg border border-slate-200 p-3">
+            <div className="rounded-xl border border-slate-200 p-3">
               {row.guestNotifiedAt ? (
-                <p className="text-xs text-emerald-700">Guest already notified {formatDateTime(row.guestNotifiedAt)}.</p>
+                <p className="text-sm text-emerald-800">The guest was told on {formatDateTime(row.guestNotifiedAt)}.</p>
               ) : (
                 <>
-                  <label className="flex items-center gap-2 text-xs font-medium text-slate-700">
-                    <input type="checkbox" checked={notifyGuest} onChange={(e) => setNotifyGuest(e.target.checked)} />
-                    Mark guest notified
+                  <label className="flex items-center gap-2 text-sm font-medium text-slate-800">
+                    <input type="checkbox" className="h-4 w-4 accent-amber-700" checked={notifyGuest} onChange={(e) => setNotifyGuest(e.target.checked)} />
+                    I&apos;ve told the guest
                   </label>
                   {canNotify ? (
                     <div className="mt-2 space-y-1">
-                      <p className="text-xs text-slate-500">Suggested message (no messaging integration yet — send manually):</p>
-                      <div className="flex items-start gap-2 rounded-md bg-slate-50 p-2 text-xs text-slate-700">
+                      <p className="text-sm text-slate-600">A message you could send them (copy it into your usual app):</p>
+                      <div className="flex items-start gap-2 rounded-lg bg-slate-50 p-2 text-sm text-slate-800">
                         <span className="flex-1">{guestMessage}</span>
                         <button
                           type="button"
-                          className="shrink-0 text-blue-600 hover:underline"
+                          className={`shrink-0 rounded font-medium text-blue-700 hover:underline ${focusRing}`}
                           onClick={() => {
                             void navigator.clipboard.writeText(guestMessage);
                             toastSuccess("Message copied");
@@ -847,12 +878,12 @@ function IncidentManageDialog({
           ) : null}
         </div>
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <button type="button" className={`${hmsButton.secondary} ${focusRing}`} onClick={() => onOpenChange(false)}>
             Close
-          </Button>
-          <Button type="button" onClick={() => void save()} disabled={saving}>
-            {saving ? "Saving…" : "Save"}
-          </Button>
+          </button>
+          <button type="button" className={`${hmsButton.primary} ${focusRing}`} onClick={() => void save()} disabled={saving}>
+            {saving ? "Saving…" : "Save changes"}
+          </button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -921,48 +952,59 @@ function EscalationsPanel({ slug }: { slug: string }) {
   const [manageRow, setManageRow] = useState<GuestIncidentRow | null>(null);
 
   return (
-    <div className="mt-6">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-slate-600">Everything currently escalated to a manager, across service requests, complaints, and incidents.</p>
-        <Button type="button" variant="outline" size="sm" onClick={() => void refresh()} disabled={loading}>
-          Refresh
-        </Button>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-slate-700">Everything that has been passed on for someone else to deal with: requests, complaints and incidents.</p>
+        <button type="button" className={`${hmsButton.secondary} ${focusRing}`} onClick={() => void refresh()} disabled={loading}>
+          <RefreshCw className="h-4 w-4" aria-hidden />
+          {loading ? "Refreshing…" : "Refresh"}
+        </button>
       </div>
 
       {loading ? (
-        <div className="mt-4">
-          <ListRowsSkeleton />
-        </div>
+        <ListRowsSkeleton />
       ) : (
-        <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <HmsCard
+          id="escalations-list"
+          icon={ArrowUpRight}
+          meaning={rows.length > 0 ? "attention" : "guests"}
+          title={rows.length > 0 ? `${rows.length} passed to another team` : "Escalations"}
+          flush
+        >
           {rows.length === 0 ? (
-            <p className="p-16 text-center text-sm text-slate-500">Nothing is escalated right now.</p>
+            <HmsEmptyState
+              bare
+              art="people"
+              meaning="guests"
+              title="Nothing is escalated right now"
+              description="When a request, complaint or incident is passed to another team, it will appear here."
+            />
           ) : (
-            <div className="divide-y divide-slate-100">
+            <ul className="divide-y divide-slate-100">
               {rows.map((row) => (
-                <div key={row.key} className="flex items-center justify-between gap-4 px-4 py-3 text-sm">
-                  <div>
+                <li key={row.key} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm sm:px-6">
+                  <div className="min-w-0">
                     <p className="font-medium text-slate-900">{row.title}</p>
-                    <p className="text-xs text-slate-500">
-                      {row.guestName ?? "—"}
-                      {row.roomCode ? ` · Rm ${row.roomCode}` : ""}
+                    <p className="text-sm text-slate-600">
+                      {row.guestName ?? "No guest linked"}
+                      {row.roomCode ? ` · Room ${row.roomCode}` : ""}
                       {row.escalatedAt ? ` · ${formatDateTime(row.escalatedAt)}` : ""}
                     </p>
                   </div>
                   {row.href ? (
-                    <Button asChild size="sm" variant="outline">
-                      <Link href={row.href}>Open</Link>
-                    </Button>
+                    <Link href={row.href} className={`${hmsButton.secondary} px-3 py-1.5 ${focusRing}`}>
+                      Open<span className="sr-only"> {row.title}</span>
+                    </Link>
                   ) : (
-                    <Button type="button" size="sm" variant="outline" onClick={() => setManageRow(row.incidentRow)}>
-                      Manage
-                    </Button>
+                    <button type="button" className={`${hmsButton.secondary} px-3 py-1.5 ${focusRing}`} onClick={() => setManageRow(row.incidentRow)}>
+                      Manage<span className="sr-only"> {row.title}</span>
+                    </button>
                   )}
-                </div>
+                </li>
               ))}
-            </div>
+            </ul>
           )}
-        </div>
+        </HmsCard>
       )}
 
       <IncidentManageDialog
@@ -1071,101 +1113,107 @@ function WaitlistPanel({
   }
 
   return (
-    <div className="mt-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="grid flex-1 grid-cols-2 gap-3 sm:grid-cols-4">
-          {loading ? (
-            <SummaryCardsSkeleton count={4} />
-          ) : (
-            <>
-              <SummaryCard label="Total" value={data?.summary.total ?? 0} active={!statusFilter} onClick={() => setStatusFilter(null)} />
-              <SummaryCard
-                label="Waiting"
-                value={data?.summary.waiting ?? 0}
-                active={statusFilter === "waiting"}
-                onClick={() => setStatusFilter((s) => (s === "waiting" ? null : "waiting"))}
-              />
-              <SummaryCard
-                label="Notified"
-                value={data?.summary.notified ?? 0}
-                active={statusFilter === "notified"}
-                onClick={() => setStatusFilter((s) => (s === "notified" ? null : "notified"))}
-              />
-              <SummaryCard label="Converted" value={data?.summary.converted ?? 0} />
-            </>
-          )}
-        </div>
-        {capabilities.canManageWaitlist ? (
-          <Button type="button" onClick={() => setCreateOpen(true)}>
-            Add to waitlist
-          </Button>
-        ) : null}
-      </div>
+    <div className="space-y-6">
+      <HmsStatStrip label="Waitlist in figures">
+        {loading && !data ? (
+          <SummaryCardsSkeleton count={4} />
+        ) : (
+          <>
+            <HmsStatTile label="On the waitlist" value={data?.summary.total ?? 0} icon={ListOrdered} meaning="guests" hint="Everyone added" />
+            <HmsStatTile label="Waiting" value={data?.summary.waiting ?? 0} icon={Hourglass} meaning="guests" hint="Not contacted yet" />
+            <HmsStatTile label="Told a room is free" value={data?.summary.notified ?? 0} icon={BellRing} meaning="guests" hint="Contacted" />
+            <HmsStatTile label="Booked" value={data?.summary.converted ?? 0} icon={CircleCheck} meaning="rooms" hint="Turned into a booking" />
+          </>
+        )}
+      </HmsStatStrip>
 
-      <div className="mt-4 flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div>
-          <p className="mb-1 text-xs font-medium text-slate-600">Search</p>
-          <Input
-            className="max-w-xs"
-            placeholder="Guest, phone, room type…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="w-full max-w-md">
+            <label htmlFor="waitlist-search" className="mb-1 block text-sm font-medium text-slate-800">
+              Search the waitlist
+            </label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden />
+              <input
+                id="waitlist-search"
+                type="search"
+                className={`${hmsInput} pl-10`}
+                placeholder="Guest name, phone or room type"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+          </div>
+          {capabilities.canManageWaitlist ? (
+            <button type="button" className={`${hmsButton.primary} ${focusRing}`} onClick={() => setCreateOpen(true)}>
+              <Plus className="h-4 w-4" aria-hidden />
+              Add to the waitlist
+            </button>
+          ) : null}
         </div>
-        <div>
-          <p className="mb-1 text-xs font-medium text-slate-600">Status</p>
-          <select
-            className="h-10 rounded-lg border border-input bg-white px-3 text-sm"
-            value={statusFilter ?? ""}
-            onChange={(e) => setStatusFilter((e.target.value || null) as WaitlistStatus | null)}
-          >
-            <option value="">All statuses</option>
-            {WAITLIST_STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {WAITLIST_STATUS_LABEL[s]}
-              </option>
-            ))}
-          </select>
-        </div>
+        <HmsFilterChips
+          label="Status"
+          meaning="guests"
+          options={[
+            { value: "all", label: "All", count: data?.summary.total ?? null },
+            ...WAITLIST_STATUSES.map((s) => ({
+              value: s as string,
+              label: WAITLIST_STATUS_LABEL[s],
+              count: s === "waiting" ? (data?.summary.waiting ?? null) : s === "notified" ? (data?.summary.notified ?? null) : s === "converted" ? (data?.summary.converted ?? null) : null,
+            })),
+          ]}
+          value={statusFilter ?? "all"}
+          onChange={(v) => setStatusFilter(v === "all" ? null : (v as WaitlistStatus))}
+        />
       </div>
 
       {loading ? (
-        <div className="mt-4">
-          <TableRowsSkeleton cols={6} />
-        </div>
+        <TableRowsSkeleton cols={6} />
       ) : (
-      <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <HmsCard id="waitlist-list" icon={ListOrdered} meaning="guests" title="Waitlist" flush>
         {pageRows.length === 0 ? (
-          <p className="p-16 text-center text-sm text-slate-500">
-            {rows.length === 0 ? "No one on the waitlist." : "Nothing matches your filters."}
-          </p>
+          rows.length === 0 && !search.trim() && !statusFilter ? (
+            <HmsEmptyState
+              bare
+              art="people"
+              meaning="guests"
+              title="No one on the waitlist"
+              description="When you're full, add guests here and let them know when a room comes free."
+            />
+          ) : (
+            <HmsEmptyState bare icon={SearchX} meaning="guests" title="Nothing matches" description="Try a different search, or choose All." />
+          )
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-left text-sm">
-              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <caption className="sr-only">Waitlist</caption>
+              <thead className="bg-slate-50 text-sm text-slate-700">
                 <tr>
-                  <th className="px-4 py-3">Guest</th>
-                  <th className="px-4 py-3">Room type</th>
-                  <th className="px-4 py-3">Desired dates</th>
-                  <th className="px-4 py-3 text-center">Party</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Actions</th>
+                  <th scope="col" className="px-4 py-3 font-semibold">Guest</th>
+                  <th scope="col" className="px-4 py-3 font-semibold">Room type</th>
+                  <th scope="col" className="px-4 py-3 font-semibold">Dates wanted</th>
+                  <th scope="col" className="px-4 py-3 text-center font-semibold">Guests</th>
+                  <th scope="col" className="px-4 py-3 font-semibold">Status</th>
+                  <th scope="col" className="px-4 py-3">
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {pageRows.map((row) => (
-                  <tr key={row.id} className="border-t border-slate-100 hover:bg-slate-50/80">
+                  <tr key={row.id} className="border-t border-slate-100 hover:bg-amber-50/40">
                     <td className="whitespace-nowrap px-4 py-3">
                       <p className="font-medium text-slate-900">{row.guestName}</p>
-                      <p className="text-xs text-slate-500">{row.phone ?? row.email ?? "—"}</p>
+                      <p className="text-xs text-slate-600">{row.phone ?? row.email ?? "No contact details"}</p>
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-slate-600">{row.desiredRoomTypeName ?? "Any"}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-slate-600">
-                      {row.desiredArrivalDate} → {row.desiredDepartureDate}
+                    <td className="whitespace-nowrap px-4 py-3 text-slate-700">{row.desiredRoomTypeName ?? "Any"}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-slate-700">
+                      {row.desiredArrivalDate} to {row.desiredDepartureDate}
                     </td>
                     <td className="px-4 py-3 text-center tabular-nums text-slate-700">{row.partySize}</td>
                     <td className="px-4 py-3">
-                      <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold", waitlistBadgeClass(row.status))}>
+                      <span className={cn("inline-flex rounded-full px-2 py-0.5 text-xs font-medium", waitlistBadgeClass(row.status))}>
                         {WAITLIST_STATUS_LABEL[row.status]}
                       </span>
                     </td>
@@ -1173,36 +1221,41 @@ function WaitlistPanel({
                       {capabilities.canManageWaitlist ? (
                         <div className="flex gap-2">
                           {canTransitionWaitlistStatus(row.status, "notified") && row.status !== "notified" ? (
-                            <Button type="button" size="sm" disabled={busyId === row.id} onClick={() => void transition(row, "notified")}>
-                              Notify
-                            </Button>
+                            <button
+                              type="button"
+                              className={`${hmsButton.primary} px-3 py-1.5 ${focusRing}`}
+                              disabled={busyId === row.id}
+                              onClick={() => void transition(row, "notified")}
+                            >
+                              Mark as told<span className="sr-only">: {row.guestName}</span>
+                            </button>
                           ) : null}
                           {canTransitionWaitlistStatus(row.status, "converted") ? (
-                            <Button
+                            <button
                               type="button"
-                              size="sm"
-                              variant="outline"
+                              className={`${hmsButton.secondary} px-3 py-1.5 ${focusRing}`}
                               disabled={busyId === row.id}
                               onClick={() => void transition(row, "converted")}
                             >
-                              Converted
-                            </Button>
+                              Mark as booked<span className="sr-only">: {row.guestName}</span>
+                            </button>
                           ) : null}
                           {canTransitionWaitlistStatus(row.status, "cancelled") ? (
-                            <Button
+                            <button
                               type="button"
-                              size="sm"
-                              variant="outline"
-                              className="text-red-700 hover:bg-red-50"
+                              className={`${hmsButton.danger} ${focusRing}`}
                               disabled={busyId === row.id}
                               onClick={() => setCancelTarget(row)}
                             >
-                              Cancel
-                            </Button>
+                              Remove<span className="sr-only">: {row.guestName}</span>
+                            </button>
                           ) : null}
                         </div>
                       ) : (
-                        <span className="text-slate-400">—</span>
+                        <span className="text-slate-600">
+                          <span aria-hidden>—</span>
+                          <span className="sr-only">No actions</span>
+                        </span>
                       )}
                     </td>
                   </tr>
@@ -1211,32 +1264,11 @@ function WaitlistPanel({
             </table>
           </div>
         )}
-      </div>
+      </HmsCard>
       )}
 
       {!loading && rows.length > 0 ? (
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
-          <p>
-            Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, rows.length)} of {rows.length}
-          </p>
-          <div className="flex items-center gap-2">
-            <Button type="button" variant="outline" size="sm" disabled={currentPage <= 1} onClick={() => setPage(Math.max(1, currentPage - 1))}>
-              Previous
-            </Button>
-            <span className="px-2 text-xs font-medium text-slate-500">
-              Page {currentPage} of {totalPages}
-            </span>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={currentPage >= totalPages}
-              onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
+        <PageNav label="Pages of the waitlist" currentPage={currentPage} totalPages={totalPages} total={rows.length} onPage={setPage} />
       ) : null}
 
       <CreateWaitlistDialog slug={slug} roomTypes={roomTypes} open={createOpen} onOpenChange={setCreateOpen} onCreated={() => void refresh()} />
@@ -1266,6 +1298,15 @@ function WaitlistPanel({
   );
 }
 
+function FieldError({ id, children }: { id: string; children: React.ReactNode }) {
+  return (
+    <p id={id} role="alert" className="mt-1 flex items-center gap-1 text-sm text-red-700">
+      <CircleAlert className="h-3.5 w-3.5 shrink-0" aria-hidden />
+      {children}
+    </p>
+  );
+}
+
 function CreateWaitlistDialog({
   slug,
   roomTypes,
@@ -1288,9 +1329,12 @@ function CreateWaitlistDialog({
   const [partySize, setPartySize] = useState("1");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  // Field messages only appear after the first attempt to save.
+  const [tried, setTried] = useState(false);
 
   useEffect(() => {
     if (!open) return;
+    setTried(false);
     setGuestName("");
     setPhone("");
     setEmail("");
@@ -1343,52 +1387,92 @@ function CreateWaitlistDialog({
           <DialogTitle>Add to waitlist</DialogTitle>
           <DialogDescription>For guests interested in a stay that isn&apos;t available yet.</DialogDescription>
         </DialogHeader>
-        <div className="space-y-3">
-          <Input placeholder="Guest name" value={guestName} onChange={(e) => setGuestName(e.target.value)} />
-          <div className="grid grid-cols-2 gap-3">
-            <Input placeholder="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
-            <Input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <div className="space-y-4">
+          <HmsField id="waitlist-name" label="Guest name">
+            <input
+              id="waitlist-name"
+              className={hmsInput}
+              value={guestName}
+              onChange={(e) => setGuestName(e.target.value)}
+              aria-invalid={tried && !guestName.trim()}
+              aria-describedby={tried && !guestName.trim() ? "waitlist-name-error" : undefined}
+            />
+            {tried && !guestName.trim() ? <FieldError id="waitlist-name-error">Enter the guest&apos;s name.</FieldError> : null}
+          </HmsField>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <HmsField id="waitlist-phone" label="Phone" optional>
+              <input id="waitlist-phone" type="tel" className={hmsInput} value={phone} onChange={(e) => setPhone(e.target.value)} />
+            </HmsField>
+            <HmsField id="waitlist-email" label="Email" optional>
+              <input id="waitlist-email" type="email" className={hmsInput} value={email} onChange={(e) => setEmail(e.target.value)} />
+            </HmsField>
           </div>
-          <select
-            className="h-10 w-full rounded-lg border border-input px-3 text-sm"
-            value={roomTypeCode}
-            onChange={(e) => setRoomTypeCode(e.target.value)}
-          >
-            <option value="">Any room type</option>
-            {roomTypes.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <p className="mb-1 text-xs font-medium text-slate-600">Desired arrival</p>
-              <Input type="date" value={arrivalDate} onChange={(e) => setArrivalDate(e.target.value)} />
-            </div>
-            <div>
-              <p className="mb-1 text-xs font-medium text-slate-600">Desired departure</p>
-              <Input type="date" value={departureDate} onChange={(e) => setDepartureDate(e.target.value)} />
-            </div>
+          <HmsField id="waitlist-room-type" label="Room type">
+            <select id="waitlist-room-type" className={hmsInput} value={roomTypeCode} onChange={(e) => setRoomTypeCode(e.target.value)}>
+              <option value="">Any room type</option>
+              {roomTypes.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </HmsField>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <HmsField id="waitlist-arrival" label="Arriving">
+              <input
+                id="waitlist-arrival"
+                type="date"
+                className={hmsInput}
+                value={arrivalDate}
+                onChange={(e) => setArrivalDate(e.target.value)}
+                aria-invalid={tried && !arrivalDate}
+                aria-describedby={tried && !arrivalDate ? "waitlist-arrival-error" : undefined}
+              />
+              {tried && !arrivalDate ? <FieldError id="waitlist-arrival-error">Choose an arrival date.</FieldError> : null}
+            </HmsField>
+            <HmsField id="waitlist-departure" label="Leaving">
+              <input
+                id="waitlist-departure"
+                type="date"
+                className={hmsInput}
+                value={departureDate}
+                onChange={(e) => setDepartureDate(e.target.value)}
+                aria-invalid={tried && !departureDate}
+                aria-describedby={tried && !departureDate ? "waitlist-departure-error" : undefined}
+              />
+              {tried && !departureDate ? <FieldError id="waitlist-departure-error">Choose a departure date.</FieldError> : null}
+            </HmsField>
           </div>
-          <div>
-            <p className="mb-1 text-xs font-medium text-slate-600">Party size</p>
-            <Input type="number" min={1} max={20} value={partySize} onChange={(e) => setPartySize(e.target.value)} className="max-w-[120px]" />
-          </div>
-          <textarea
-            className="min-h-[72px] w-full rounded-lg border border-input px-3 py-2 text-sm"
-            placeholder="Notes (optional)"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-          />
+          <HmsField id="waitlist-party" label="Number of guests">
+            <input
+              id="waitlist-party"
+              type="number"
+              min={1}
+              max={20}
+              value={partySize}
+              onChange={(e) => setPartySize(e.target.value)}
+              className={`${hmsInput} max-w-[120px]`}
+            />
+          </HmsField>
+          <HmsField id="waitlist-notes" label="Notes" optional>
+            <textarea id="waitlist-notes" className={`${hmsInput} min-h-[72px]`} value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </HmsField>
         </div>
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <button type="button" className={`${hmsButton.secondary} ${focusRing}`} onClick={() => onOpenChange(false)}>
             Cancel
-          </Button>
-          <Button type="button" onClick={() => void submit()} disabled={saving}>
-            {saving ? "Adding…" : "Add to waitlist"}
-          </Button>
+          </button>
+          <button
+            type="button"
+            className={`${hmsButton.primary} ${focusRing}`}
+            onClick={() => {
+              setTried(true);
+              void submit();
+            }}
+            disabled={saving}
+          >
+            {saving ? "Adding…" : "Add to the waitlist"}
+          </button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

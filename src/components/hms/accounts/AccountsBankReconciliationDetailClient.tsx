@@ -3,24 +3,12 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Upload } from "lucide-react";
+import { ArrowLeft, BookOpen, CircleAlert, CircleCheck, ClipboardList, FileSpreadsheet, Landmark, Scale, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import type { BankReconciliationDetail, SuggestedMatch } from "@/lib/hms/bank-reconciliation";
-
-function StatBox({ label, value, tone }: { label: string; value: string; tone?: "danger" | "success" }) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3">
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
-      <p className={cn("mt-1 text-lg font-semibold tabular-nums", tone === "danger" ? "text-red-600" : tone === "success" ? "text-emerald-700" : "text-slate-900")}>
-        {value}
-      </p>
-    </div>
-  );
-}
+import { HmsCard, HmsEmptyState, HmsField, HmsPage, HmsPageHeader, HmsPill, HmsStatStrip, HmsStatTile, hmsButton, hmsInput } from "@/components/hms/hms-ui";
 
 export function AccountsBankReconciliationDetailClient({
   slug,
@@ -244,41 +232,51 @@ export function AccountsBankReconciliationDetailClient({
   const isCompleted = detail.reconciliation.status === "completed";
 
   return (
-    <div className="w-full px-6 py-8 sm:px-8">
-      <Link href={`/hms/${slug}/accounts/bank-reconciliation`} className="text-sm text-blue-600 hover:underline">
-        ← Bank reconciliation
+    <HmsPage wide>
+      <Link
+        href={`/hms/${slug}/accounts/bank-reconciliation`}
+        className="inline-flex items-center gap-1.5 rounded text-sm font-medium text-blue-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 print:hidden"
+      >
+        <ArrowLeft className="h-4 w-4" aria-hidden />
+        Bank reconciliation
       </Link>
-      <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900">{accountLabel}</h1>
-          <p className="mt-0.5 text-sm text-slate-500">
-            Statement period ending {new Date(detail.reconciliation.periodEndDate).toLocaleDateString()}
-            {currency ? ` (${currency})` : ""}
-          </p>
-        </div>
-        <span
-          className={cn(
-            "rounded-full px-3 py-1 text-xs font-semibold",
-            isCompleted ? "bg-emerald-100 text-emerald-900" : "bg-amber-100 text-amber-900",
-          )}
-        >
-          {isCompleted ? "Completed" : "In progress"}
-        </span>
-      </div>
+      <HmsPageHeader
+        eyebrow="Accounts"
+        meaning="money"
+        title={accountLabel}
+        description={`Statement period ending ${new Date(detail.reconciliation.periodEndDate).toLocaleDateString()}${currency ? ` (${currency})` : ""}`}
+        actions={<HmsPill tone={isCompleted ? "green" : "amber"}>{isCompleted ? "Completed" : "In progress"}</HmsPill>}
+      />
 
-      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatBox label="Book balance" value={detail.bookBalance.toFixed(2)} />
-        <StatBox label="Cleared book balance" value={detail.clearedBookBalance.toFixed(2)} />
-        <StatBox label="Statement balance" value={detail.reconciliation.statementEndingBalance.toFixed(2)} />
-        <StatBox
+      <HmsStatStrip label="Reconciliation totals">
+        <HmsStatTile icon={BookOpen} meaning="money" label="Book balance" value={detail.bookBalance.toFixed(2)} hint="Everything in the ledger" />
+        <HmsStatTile
+          icon={CircleCheck}
+          meaning="money"
+          label="Cleared book balance"
+          value={detail.clearedBookBalance.toFixed(2)}
+          hint="Ledger items matched to the statement"
+        />
+        <HmsStatTile
+          icon={Landmark}
+          meaning="money"
+          label="Statement balance"
+          value={detail.reconciliation.statementEndingBalance.toFixed(2)}
+          hint="From the bank statement"
+        />
+        <HmsStatTile
+          icon={Scale}
+          meaning={detail.balanced ? "money" : "attention"}
           label={detail.balanced ? "Balanced" : "Difference"}
           value={detail.balanced ? "0.00" : detail.difference.toFixed(2)}
-          tone={detail.balanced ? "success" : "danger"}
+          hint={detail.balanced ? "Statement and cleared balance agree" : undefined}
+          status={detail.balanced ? undefined : "critical"}
+          statusText="Not balanced: statement and cleared balance differ"
         />
-      </div>
+      </HmsStatStrip>
 
       {canReconcile && !isCompleted ? (
-        <div className="mt-6 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm print:hidden">
           <input
             ref={fileInputRef}
             type="file"
@@ -289,130 +287,161 @@ export function AccountsBankReconciliationDetailClient({
               if (file) void uploadFile(file);
             }}
           />
-          <Button type="button" variant="outline" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
-            <Upload className="h-3.5 w-3.5" /> {uploading ? "Importing…" : "Import statement CSV"}
-          </Button>
-          <Button type="button" variant="outline" onClick={() => setAddLineOpen(true)}>
+          <button type="button" className={hmsButton.secondary} disabled={uploading} onClick={() => fileInputRef.current?.click()}>
+            <Upload className="h-4 w-4" aria-hidden /> {uploading ? "Importing…" : "Import statement CSV"}
+          </button>
+          <button type="button" className={hmsButton.secondary} onClick={() => setAddLineOpen(true)}>
             Add line manually
-          </Button>
-          <Button type="button" className="ml-auto" disabled={busy} onClick={() => void complete()}>
+          </button>
+          <button type="button" className={`${hmsButton.primary} sm:ml-auto`} disabled={busy} onClick={() => void complete()}>
             Complete reconciliation
-          </Button>
+          </button>
         </div>
       ) : isCompleted && canReconcile ? (
-        <div className="mt-6 flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-sm text-slate-600">
-            Completed {detail.reconciliation.completedAt ? new Date(detail.reconciliation.completedAt).toLocaleString() : ""} — final
-            difference {detail.reconciliation.finalDifference?.toFixed(2) ?? "0.00"}.
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm print:border-0 print:p-0 print:shadow-none">
+          <p className="text-sm text-slate-700">
+            Completed {detail.reconciliation.completedAt ? new Date(detail.reconciliation.completedAt).toLocaleString() : ""}. Final
+            difference <span className="font-semibold tabular-nums">{detail.reconciliation.finalDifference?.toFixed(2) ?? "0.00"}</span>.
           </p>
-          <Button type="button" variant="outline" disabled={busy} onClick={() => void reopen()}>
+          <button type="button" className={`${hmsButton.secondary} print:hidden`} disabled={busy} onClick={() => void reopen()}>
             Reopen
-          </Button>
+          </button>
         </div>
       ) : null}
 
-      <div className="mt-6 overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full min-w-[720px] text-left text-sm">
-          <thead className="border-b bg-slate-50 text-xs font-semibold uppercase text-slate-500">
-            <tr>
-              <th className="px-4 py-3">Date</th>
-              <th className="px-4 py-3">Description</th>
-              <th className="px-4 py-3 text-right">Amount</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3" />
-            </tr>
-          </thead>
-          <tbody>
-            {detail.lines.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-sm text-slate-400">
-                  No statement lines yet — import a CSV or add one manually.
-                </td>
-              </tr>
-            ) : (
-              detail.lines.map((l) => {
-                const matched = l.matchedJournalEntryLineIds.length > 0;
-                return (
-                  <tr key={l.id} className="border-b border-slate-100 last:border-0">
-                    <td className="px-4 py-2 text-slate-600">{new Date(l.lineDate).toLocaleDateString()}</td>
-                    <td className="px-4 py-2">
-                      {l.description}
-                      {l.reference ? <span className="text-slate-400"> · {l.reference}</span> : null}
-                    </td>
-                    <td className="px-4 py-2 text-right tabular-nums text-slate-900">{l.amount.toFixed(2)}</td>
-                    <td className="px-4 py-2">
-                      <span
-                        className={cn(
-                          "rounded-full px-2 py-0.5 text-xs font-medium",
-                          matched ? "bg-emerald-100 text-emerald-900" : "bg-slate-100 text-slate-500",
-                        )}
-                      >
-                        {matched ? `Matched (${l.matchedJournalEntryLineIds.length})` : "Unmatched"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2 text-right">
-                      {!canReconcile || isCompleted ? null : matched ? (
-                        <button type="button" className="text-xs text-red-600 hover:underline" onClick={() => void unmatch(l.id)}>
-                          Unmatch
-                        </button>
-                      ) : (
-                        <button type="button" className="text-xs text-blue-600 hover:underline" onClick={() => void openMatchDialog(l.id)}>
-                          Match
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="text-sm font-semibold text-slate-900">Outstanding book items</h2>
-        <p className="mt-1 text-xs text-slate-500">
-          Ledger transactions on this account not yet matched to a statement line — normal for checks written but not yet
-          cashed, or deposits not yet processed by the bank.
-        </p>
-        {detail.unmatchedJournalLines.length === 0 ? (
-          <p className="mt-3 text-sm text-slate-400">Nothing outstanding.</p>
+      <HmsCard
+        id="bank-rec-statement-lines"
+        title="Statement lines"
+        description="Each line from the bank statement, and whether it's matched to the ledger."
+        icon={FileSpreadsheet}
+        meaning="money"
+        flush
+        className="print:border-0 print:shadow-none"
+      >
+        {detail.lines.length === 0 ? (
+          <HmsEmptyState
+            bare
+            icon={FileSpreadsheet}
+            meaning="money"
+            title="No statement lines yet"
+            description="Import the bank's CSV statement or add lines one at a time."
+          />
         ) : (
-          <ul className="mt-3 space-y-1 text-sm text-slate-600">
-            {detail.unmatchedJournalLines.map((jl) => (
-              <li key={jl.id} className="flex items-center justify-between border-b border-slate-100 py-1.5 last:border-0">
-                <span>
-                  {new Date(jl.entryDate).toLocaleDateString()} — {jl.memo}
-                </span>
-                <span className="tabular-nums">{(jl.debit || jl.credit).toFixed(2)}</span>
-              </li>
-            ))}
-          </ul>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] text-left text-sm">
+              <thead className="border-b border-slate-200 bg-slate-50 text-sm font-medium text-slate-600">
+                <tr>
+                  <th scope="col" className="px-5 py-3">Date</th>
+                  <th scope="col" className="px-5 py-3">Description</th>
+                  <th scope="col" className="px-5 py-3 text-right">Amount</th>
+                  <th scope="col" className="px-5 py-3">Status</th>
+                  <th scope="col" className="px-5 py-3 print:hidden">
+                    <span className="sr-only">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {detail.lines.map((l) => {
+                  const matched = l.matchedJournalEntryLineIds.length > 0;
+                  return (
+                    <tr key={l.id} className="border-b border-slate-100 last:border-0">
+                      <td className="whitespace-nowrap px-5 py-3 text-slate-700">{new Date(l.lineDate).toLocaleDateString()}</td>
+                      <td className="px-5 py-3 text-slate-900">
+                        {l.description}
+                        {l.reference ? <span className="text-slate-600"> · {l.reference}</span> : null}
+                      </td>
+                      <td className="whitespace-nowrap px-5 py-3 text-right tabular-nums text-slate-900">{l.amount.toFixed(2)}</td>
+                      <td className="px-5 py-3">
+                        <HmsPill tone={matched ? "green" : "slate"}>
+                          {matched ? `Matched (${l.matchedJournalEntryLineIds.length})` : "Unmatched"}
+                        </HmsPill>
+                      </td>
+                      <td className="px-5 py-3 text-right print:hidden">
+                        {!canReconcile || isCompleted ? null : matched ? (
+                          <button type="button" className={hmsButton.danger} onClick={() => void unmatch(l.id)}>
+                            Unmatch<span className="sr-only"> {l.description}</span>
+                          </button>
+                        ) : (
+                          <button type="button" className={hmsButton.quiet} onClick={() => void openMatchDialog(l.id)}>
+                            Match<span className="sr-only"> {l.description}</span>
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
-      </div>
+      </HmsCard>
+
+      <HmsCard
+        id="bank-rec-outstanding"
+        title="Outstanding book items"
+        description="Ledger transactions on this account not yet matched to a statement line. That's normal for cheques written but not yet cashed, or deposits the bank hasn't processed."
+        icon={ClipboardList}
+        meaning="money"
+        flush
+        className="print:border-0 print:shadow-none"
+      >
+        {detail.unmatchedJournalLines.length === 0 ? (
+          <p className="px-5 py-4 text-sm text-slate-600 sm:px-6">Nothing outstanding.</p>
+        ) : (
+          <table className="w-full text-left text-sm">
+            <thead className="border-b border-slate-200 bg-slate-50 text-sm font-medium text-slate-600">
+              <tr>
+                <th scope="col" className="px-5 py-3">Date</th>
+                <th scope="col" className="px-5 py-3">Memo</th>
+                <th scope="col" className="px-5 py-3 text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {detail.unmatchedJournalLines.map((jl) => (
+                <tr key={jl.id} className="border-b border-slate-100 last:border-0">
+                  <td className="whitespace-nowrap px-5 py-3 text-slate-700">{new Date(jl.entryDate).toLocaleDateString()}</td>
+                  <td className="px-5 py-3 text-slate-900">{jl.memo}</td>
+                  <td className="whitespace-nowrap px-5 py-3 text-right tabular-nums text-slate-900">{(jl.debit || jl.credit).toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </HmsCard>
 
       <Dialog open={addLineOpen} onOpenChange={setAddLineOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Add statement line</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <p className="mb-1 text-xs font-medium text-slate-600">Date</p>
-              <Input type="date" value={manualDate} onChange={(e) => setManualDate(e.target.value)} />
-            </div>
-            <div>
-              <p className="mb-1 text-xs font-medium text-slate-600">Description</p>
-              <Input value={manualDescription} onChange={(e) => setManualDescription(e.target.value)} placeholder="e.g. Bank fee" />
-            </div>
-            <div>
-              <p className="mb-1 text-xs font-medium text-slate-600">Amount (positive = in, negative = out)</p>
-              <Input type="number" step="0.01" value={manualAmount} onChange={(e) => setManualAmount(e.target.value)} placeholder="-25.00" />
-            </div>
-            <div>
-              <p className="mb-1 text-xs font-medium text-slate-600">Reference (optional)</p>
-              <Input value={manualReference} onChange={(e) => setManualReference(e.target.value)} />
-            </div>
+          <div className="space-y-4">
+            <HmsField id="rec-line-date" label="Date">
+              <input id="rec-line-date" type="date" className={hmsInput} value={manualDate} onChange={(e) => setManualDate(e.target.value)} />
+            </HmsField>
+            <HmsField id="rec-line-description" label="Description">
+              <input
+                id="rec-line-description"
+                className={hmsInput}
+                value={manualDescription}
+                onChange={(e) => setManualDescription(e.target.value)}
+                placeholder="e.g. Bank fee"
+              />
+            </HmsField>
+            <HmsField id="rec-line-amount" label="Amount" hint="Positive for money in, negative for money out.">
+              <input
+                id="rec-line-amount"
+                type="number"
+                step="0.01"
+                aria-describedby="rec-line-amount-hint"
+                className={`${hmsInput} tabular-nums`}
+                value={manualAmount}
+                onChange={(e) => setManualAmount(e.target.value)}
+                placeholder="-25.00"
+              />
+            </HmsField>
+            <HmsField id="rec-line-reference" label="Reference" optional>
+              <input id="rec-line-reference" className={hmsInput} value={manualReference} onChange={(e) => setManualReference(e.target.value)} />
+            </HmsField>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setAddLineOpen(false)}>
@@ -432,39 +461,53 @@ export function AccountsBankReconciliationDetailClient({
           </DialogHeader>
           <div className="space-y-3">
             {matchingLine ? (
-              <p className="text-sm text-slate-600">
-                {matchingLine.description} — <span className="font-medium tabular-nums">{matchingLine.amount.toFixed(2)}</span>
+              <p className="text-sm text-slate-700">
+                {matchingLine.description}: <span className="font-semibold tabular-nums text-slate-900">{matchingLine.amount.toFixed(2)}</span>
               </p>
             ) : null}
             {loadingCandidates ? (
-              <p className="text-sm text-slate-400">Loading candidates…</p>
+              <p role="status" className="text-sm text-slate-600">
+                Loading possible matches…
+              </p>
             ) : candidates.length === 0 ? (
-              <p className="text-sm text-slate-400">No unmatched ledger transactions found nearby — check the date range or post the entry first.</p>
+              <p className="text-sm text-slate-600">
+                No unmatched ledger transactions found nearby. Check the date range, or post the entry first.
+              </p>
             ) : (
-              <div className="max-h-72 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2">
+              <fieldset className="max-h-72 divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-200">
+                <legend className="sr-only">Ledger transactions to match</legend>
                 {candidates.map((c) => (
                   <label
                     key={c.journalEntryLineId}
-                    className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-slate-50"
+                    className="flex cursor-pointer items-center justify-between gap-2 px-3 py-2.5 text-sm hover:bg-slate-50"
                   >
-                    <span className="flex items-center gap-2 min-w-0">
+                    <span className="flex min-w-0 items-center gap-2">
                       <input
                         type="checkbox"
+                        className="h-4 w-4 rounded border-slate-300 accent-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                         checked={selectedCandidates.has(c.journalEntryLineId)}
                         onChange={() => toggleCandidate(c.journalEntryLineId)}
                       />
-                      <span className="min-w-0 truncate">
-                        {new Date(c.entryDate).toLocaleDateString()} — {c.memo}
-                        {c.exact ? <span className="ml-1.5 text-xs text-emerald-700">(exact match)</span> : null}
+                      <span className="min-w-0 truncate text-slate-900">
+                        {new Date(c.entryDate).toLocaleDateString()}: {c.memo}
                       </span>
+                      {c.exact ? <HmsPill tone="green">Exact match</HmsPill> : null}
                     </span>
-                    <span className="shrink-0 tabular-nums text-slate-700">{(c.debit - c.credit).toFixed(2)}</span>
+                    <span className="shrink-0 tabular-nums text-slate-900">{(c.debit - c.credit).toFixed(2)}</span>
                   </label>
                 ))}
-              </div>
+              </fieldset>
             )}
-            <p className={cn("text-sm font-medium tabular-nums", selectedSumsMatch ? "text-emerald-700" : "text-slate-500")}>
-              Selected total: {selectedTotal.toFixed(2)} {matchingLine ? `(target ${matchingLine.amount.toFixed(2)})` : ""}
+            <p
+              aria-live="polite"
+              className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold tabular-nums ${
+                selectedSumsMatch ? "bg-emerald-50 text-emerald-800" : "bg-slate-50 text-slate-700"
+              }`}
+            >
+              {selectedSumsMatch ? <CircleCheck className="h-4 w-4 shrink-0" aria-hidden /> : <CircleAlert className="h-4 w-4 shrink-0" aria-hidden />}
+              Selected total {selectedTotal.toFixed(2)}
+              {matchingLine ? ` of ${matchingLine.amount.toFixed(2)}` : ""}
+              {selectedSumsMatch ? " · Amounts agree" : " · Amounts don't agree yet"}
             </p>
           </div>
           <DialogFooter>
@@ -477,6 +520,6 @@ export function AccountsBankReconciliationDetailClient({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </HmsPage>
   );
 }
