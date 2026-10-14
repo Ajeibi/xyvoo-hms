@@ -54,7 +54,11 @@ export async function listBanks(config: PlatformPaystack, currency: string): Pro
     config.secretKey,
     `/bank?currency=${encodeURIComponent(currency)}&perPage=200`,
   );
-  const banks = data.filter((b) => b.active && !b.is_deleted).map((b) => ({ name: b.name, code: b.code }));
+  // Paystack lists some banks more than once under the same code; the code is all a payout needs, so keep the first.
+  const seen = new Set<string>();
+  const banks = data
+    .filter((b) => b.active && !b.is_deleted && !seen.has(b.code) && seen.add(b.code))
+    .map((b) => ({ name: b.name, code: b.code }));
   bankCache.set(currency, { at: Date.now(), banks });
   return banks;
 }
