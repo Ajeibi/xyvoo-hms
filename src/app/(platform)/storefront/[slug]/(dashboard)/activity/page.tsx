@@ -6,6 +6,7 @@ import { DashSectionIntro } from "@/components/storefront/dashboard-ui";
 import { requireStoreSection } from "@/lib/store/access";
 import { getStorePlan, storeHasFeature } from "@/lib/store/features";
 
+
 export const metadata: Metadata = { title: "Activity" };
 
 export default async function StorefrontActivityPage({ params }: { params: Promise<{ slug: string }> }) {
