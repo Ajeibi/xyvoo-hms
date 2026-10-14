@@ -5,6 +5,7 @@ import { accountReferralSummary, ensureReferralCode, getReferralSettings } from 
 import { storefrontUrl } from "@/lib/store/subdomain";
 import { formatShopCurrency } from "@/lib/shop/format";
 import { friendOfferText, rewardText } from "@/lib/store/referrals";
+import { referralLink } from "@/lib/store/referral-link";
 import { storeCurrency } from "@/lib/store/payout-routes";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -30,7 +31,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
       {
         referral: {
           code,
-          link: `${storefrontUrl(slug)}/products`,
+          link: referralLink(storefrontUrl(slug), code),
           friendOffer: friendOfferText(settings, money),
           reward: rewardText(settings, money),
           friends: stats.friends,

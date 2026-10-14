@@ -8,6 +8,7 @@ import { redirect } from "next/navigation";
 import Script from "next/script";
 import AccountActivity from "@/components/storefront-theme/AccountActivity";
 import AccountPrompt from "@/components/storefront-theme/AccountPrompt";
+import ReferralCapture from "@/components/storefront-theme/ReferralCapture";
 import PromoBar from "@/components/storefront-theme/PromoBar";
 import StoreAnalytics from "@/components/storefront-theme/StoreAnalytics";
 import StoreApp, { type StoreAppConfig } from "@/components/storefront-theme/StoreApp";
@@ -266,6 +267,7 @@ export default async function StorefrontLayout({ children, params }: LayoutParam
             {appConfig ? <StoreAnalytics slug={slug} storeName={storeName} privacyHref={privacyPageHref(storefront)} /> : null}
             {appConfig ? <AccountPrompt storeName={storeName} privacyHref={privacyPageHref(storefront)} /> : null}
             {appConfig ? <AccountActivity /> : null}
+            {appConfig ? <ReferralCapture /> : null}
           </StorefrontProvider>
         ) : (
           <OpeningSoon storefront={storefront} />

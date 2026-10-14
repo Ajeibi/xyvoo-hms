@@ -11,6 +11,7 @@ import { deliveryWithRules, type CheckoutFreeRule } from "@/lib/store/free-deliv
 import { fitsWeight, orderWeightKg, zoneCovers, type WeightBand } from "@/lib/store/delivery";
 import { COUNTRY_REGIONS, regionLabel } from "@/lib/store/regions";
 import { allocateDiscount, computeTax, taxLabel, type TaxSettings } from "@/lib/store/tax";
+import { decodeStoredReferral, referralStorageKey } from "@/lib/store/referral-link";
 import { pointsValue, redeemablePoints, type LoyaltySettings } from "@/lib/store/loyalty";
 import { useMoney, useStorefront } from "./StorefrontProvider";
 import ChargeNote from "./ChargeNote";
@@ -191,8 +192,8 @@ export default function StoreCheckout({
     }
   };
 
-  const applyCode = async () => {
-    const typed = codeInput.trim();
+  const applyCode = async (code?: string) => {
+    const typed = (code ?? codeInput).trim();
     if (!typed) {
       setCodeMessage("Enter a discount code.");
       return;
@@ -208,6 +209,7 @@ export default function StoreCheckout({
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setDiscount(null);
+        if (code) forgetReferral();
         setCodeMessage(typeof data.error === "string" ? data.error : "We couldn't check that code. Please try again.");
         return;
       }
@@ -227,6 +229,32 @@ export default function StoreCheckout({
       setApplyingCode(false);
     }
   };
+  // A friend's link left its code in the browser: apply it once, so the friend doesn't have to type it.
+  const referralTried = useRef(false);
+  const forgetReferral = () => {
+    try {
+      localStorage.removeItem(referralStorageKey(slug));
+    } catch {
+      // Nothing stored, nothing to forget.
+    }
+  };
+  useEffect(() => {
+    if (!hasHydrated || lines.length === 0 || referralTried.current) return;
+    // Next tick, so a StrictMode re-run of this effect doesn't skip it.
+    const timer = window.setTimeout(() => {
+      if (referralTried.current) return;
+      referralTried.current = true;
+      let stored: string | null = null;
+      try {
+        stored = decodeStoredReferral(localStorage.getItem(referralStorageKey(slug)));
+      } catch {
+        return;
+      }
+      if (stored) void applyCode(stored);
+    }, 0);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasHydrated, lines.length]);
   const needsAddress = !zone?.isPickup;
   // The address comes before delivery, so the options can follow it; hidden when the only way is collection.
   const showAddress = deliveryOptions.length === 0 || deliveryOptions.some((o) => !o.isPickup);
@@ -674,7 +702,7 @@ export default function StoreCheckout({
               }}
               aria-describedby="co-discount-status"
             />
-            <button className="btn btn--outline" type="button" onClick={applyCode} disabled={applyingCode}>
+            <button className="btn btn--outline" type="button" onClick={() => applyCode()} disabled={applyingCode}>
               {applyingCode ? "Checking…" : "Apply"}
             </button>
           </div>
@@ -684,7 +712,7 @@ export default function StoreCheckout({
           {activeDiscount ? (
             <p className="discount-code__applied">
               <Icon name="check" size="sm" /> <strong>{activeDiscount.code}</strong> {activeDiscount.description}{" "}
-              <button type="button" className="link-button" onClick={() => { setDiscount(null); setCodeMessage("Discount code removed."); }}>
+              <button type="button" className="link-button" onClick={() => { setDiscount(null); forgetReferral(); setCodeMessage("Discount code removed."); }}>
                 Remove<span className="visually-hidden"> discount code {activeDiscount.code}</span>
               </button>
             </p>

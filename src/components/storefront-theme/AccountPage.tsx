@@ -76,7 +76,7 @@ function SignedIn({ account, storeName }: { account: ShopAccount; storeName: str
   const [orders, setOrders] = useState<Order[] | null>(null);
   const [points, setPoints] = useState<ShopLoyalty | null>(null);
   const [referral, setReferral] = useState<ShopReferral | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<"code" | "link" | null>(null);
   const [returns, setReturns] = useState<MyReturn[]>([]);
   const [confirming, setConfirming] = useState(false);
 
@@ -111,13 +111,13 @@ function SignedIn({ account, storeName }: { account: ShopAccount; storeName: str
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [account.confirmed, slug]);
 
-  const copyCode = async () => {
+  const copyShare = async (what: "code" | "link") => {
     if (!referral) return;
     try {
-      await navigator.clipboard.writeText(referral.code);
-      setCopied(true);
-      announce(`Code ${referral.code} copied`);
-      window.setTimeout(() => setCopied(false), 2500);
+      await navigator.clipboard.writeText(what === "code" ? referral.code : referral.link);
+      setCopied(what);
+      announce(what === "code" ? `Code ${referral.code} copied` : "Link copied");
+      window.setTimeout(() => setCopied(null), 2500);
     } catch {
       // Copying isn't available here; the code is on the page to copy by hand.
     }
@@ -233,13 +233,17 @@ function SignedIn({ account, storeName }: { account: ShopAccount; storeName: str
             Tell a friend
           </h2>
           <p className="body-copy">
-            Share your code with a friend. They get {referral.friendOffer} when they type it at checkout, and once their order has been delivered you get {referral.reward}.
+            Share your code with a friend. They get {referral.friendOffer} when they follow your link or type your code at checkout, and once their order has been delivered you get {referral.reward}.
           </p>
           <p className="body-copy">
             <strong>{referral.code}</strong>{" "}
-            <button type="button" className="btn btn--outline" onClick={copyCode}>
-              {copied ? "Copied" : "Copy code"}
+            <button type="button" className="btn btn--outline" onClick={() => copyShare("code")}>
+              {copied === "code" ? "Copied" : "Copy code"}
               <span className="visually-hidden"> {referral.code}</span>
+            </button>{" "}
+            <button type="button" className="btn btn--outline" onClick={() => copyShare("link")}>
+              {copied === "link" ? "Copied" : "Copy link"}
+              <span className="visually-hidden"> to share with a friend</span>
             </button>
           </p>
           {referral.friends > 0 ? (
