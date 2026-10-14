@@ -118,7 +118,7 @@ export default function CampaignsManager({ slug }: { slug: string }) {
         art="tag"
         title="Tell your customers what's new"
         points={[
-          "Only people who ticked “Send me news and offers” at checkout, or joined your newsletter, can receive a campaign. Everyone can unsubscribe in one click.",
+          "Only people who ticked “Send me news and offers” at checkout or when creating an account, or joined your newsletter, can receive a campaign. Everyone can unsubscribe in one click.",
           "Write your message, add a button or products from your shop, send yourself a test, then send it now or schedule it.",
           "See how many people opened it and clicked through.",
         ]}
@@ -166,7 +166,7 @@ export default function CampaignsManager({ slug }: { slug: string }) {
               art="tag"
               meaning="marketing"
               title="No campaigns yet"
-              description={data.subscribers ? `You have ${data.subscribers} ${data.subscribers === 1 ? "person" : "people"} who agreed to hear from you. Write your first campaign.` : "Customers can agree to hear from you at checkout. Once some have, you can write your first campaign here."}
+              description={data.subscribers ? `You have ${data.subscribers} ${data.subscribers === 1 ? "person" : "people"} who agreed to hear from you. Write your first campaign.` : "Customers can agree to hear from you at checkout, when they create an account, or through your newsletter. Once some have, you can write your first campaign here."}
             />
           ) : (
             <ul className="divide-y divide-slate-100">
