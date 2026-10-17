@@ -1,6 +1,7 @@
 import nodemailer from "nodemailer";
 import { getMailEnv } from "@/lib/env";
 import { badge, escapeHtml, logoAttachment, renderEmail } from "@/lib/mail/layout";
+import { CONTACT_INBOXES } from "@/lib/marketing/contact-request";
 
 const mailEnv = getMailEnv();
 
@@ -55,6 +56,19 @@ export async function sendContactRequestEmail({
     to,
     cc,
     replyTo,
+    subject,
+    text,
+    html,
+    attachments: [logoAttachment()],
+  });
+}
+
+/** The confirmation to someone who joined the waitlist (see src/lib/marketing/waitlist.ts). */
+export async function sendWaitlistConfirmationEmail({ to, subject, text, html }: { to: string; subject: string; text: string; html: string }) {
+  await transporter.sendMail({
+    from: mailEnv.from,
+    to,
+    replyTo: CONTACT_INBOXES.sales,
     subject,
     text,
     html,
