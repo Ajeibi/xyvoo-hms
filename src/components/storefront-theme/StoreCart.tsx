@@ -182,13 +182,13 @@ export default function StoreCart() {
             <aside className="summary" aria-labelledby="summary-title">
               <h2 id="summary-title">Order summary</h2>
               <dl>
-                <dt>
+                <dt className="total">
                   Subtotal ({itemCount} {itemCount === 1 ? "item" : "items"})
                 </dt>
-                <dd>{money.format(subtotal)}</dd>
-                <dt className="total">Total</dt>
                 <dd className="total">{money.format(subtotal)}</dd>
               </dl>
+              {/* Delivery, tax and codes depend on the shopper's address and choices, so they're added at checkout. */}
+              <p className="hint">Delivery and any tax are worked out at checkout, where you can also add a discount code or gift card.</p>
               <ChargeNote homeAmount={homeSubtotal} />
               <Link
                 className="btn btn--primary"

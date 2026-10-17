@@ -3,6 +3,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getPaystackKeyForReference } from "@/lib/store/payments";
 import { finalizeCardPayment } from "@/lib/store/card-payments";
 import { alertCardPaymentFailed } from "@/lib/store/merchant-alerts";
+import { orderReference } from "@/lib/store/order-emails";
 import { verifyTransaction } from "@/lib/shop/paystack";
 import { getShopTenantBySlug } from "@/lib/shop/tenants";
 import { toSubunitAmount } from "@/lib/shop/checkout";
@@ -81,13 +82,26 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
     .schema("store")
     .from("orders")
     .select(
-      "id, customer_name, customer_email, status, payment_status, total_amount, created_at, order_items(product_name, quantity, unit_price, line_total)",
+      "id, customer_name, customer_email, status, payment_status, total_amount, delivery_method, delivery_fee, discount_code, discount_amount, gift_card_amount, shipping_address, created_at, order_items(product_name, quantity, unit_price, line_total)",
     )
     .eq("id", intent.order_id)
     .single();
+  // Tax is read on its own, like the receipt does, so a database without the tax columns still answers.
+  const tax = order
+    ? await service.schema("store").from("orders").select("tax_amount, tax_inclusive").eq("id", intent.order_id).maybeSingle()
+    : null;
+  const taxRow = tax && !tax.error ? (tax.data as { tax_amount?: unknown; tax_inclusive?: unknown } | null) : null;
 
   return NextResponse.json({
     status: verification.status,
-    order,
+    order: order
+      ? {
+          ...order,
+          // The same short reference as the order emails and the shop's dashboard.
+          reference: orderReference(order.id as string),
+          tax_amount: Number(taxRow?.tax_amount) || 0,
+          tax_inclusive: Boolean(taxRow?.tax_inclusive),
+        }
+      : null,
   });
 }

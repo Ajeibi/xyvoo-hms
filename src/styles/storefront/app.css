@@ -156,6 +156,22 @@
 .delivery-note--warn { color: var(--ink); font-weight: 600; }
 .price-change { margin: 0 0 0.75rem; padding: 0.75rem; border-radius: 0.5rem; background: color-mix(in srgb, var(--accent) 8%, transparent); font-size: 0.875rem; color: var(--ink); }
 
+/* After paying: the order confirmation, and the wait while a payment is still processing */
+.order-confirmed { max-width: 40rem; }
+/* No photos here, so each line is just the item and its price. */
+.order-confirmed .mini-line { grid-template-columns: minmax(0, 1fr) auto; }
+.order-confirmed__method { display: flex; align-items: center; gap: 0.5rem; margin: 0; font-weight: 600; }
+.order-confirmed__address { display: flex; flex-direction: column; font-style: normal; line-height: 1.5; color: var(--ink-2); }
+.order-confirmed__actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.checking { display: inline-flex; align-items: center; gap: 0.5rem; margin: 0; font-size: 0.875rem; color: var(--muted); }
+.checking::before {
+  content: ""; width: 1rem; height: 1rem; border-radius: 50%;
+  border: 2px solid currentColor; border-right-color: transparent;
+  animation: store-spin 0.8s linear infinite;
+}
+@keyframes store-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .checking::before { animation-duration: 2.4s; } }
+
 /* Content pages: story sections with one picture, pictures on the right, or words only */
 .split__media--single { grid-template-columns: 1fr; aspect-ratio: 4 / 3; }
 .split--text { grid-template-columns: minmax(0, 46rem); }

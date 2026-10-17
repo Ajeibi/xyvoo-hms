@@ -32,6 +32,9 @@ export default function PhoneField({
   return (
     <PhoneInput
       international
+      // The +234 (or other code) stays put: it changes only with the country picker, so clearing
+      // the field and typing a local number still gives a full international number.
+      countryCallingCodeEditable={false}
       defaultCountry={countryCode as Country}
       value={value || undefined}
       onChange={(v) => onChange(v || "")}
