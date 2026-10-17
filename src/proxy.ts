@@ -4,11 +4,12 @@ import {
   AUTH_LOCKED,
   AUTH_PREVIEW_COOKIE,
   AUTH_PREVIEW_PARAM,
-  COMING_SOON_PATH,
   LOCKED_API_PREFIXES,
   LOCKED_PAGE_PREFIXES,
   matchesPrefix,
   previewToken,
+  WAITLIST_PATH,
+  waitlistProductFor,
 } from "@/lib/auth-lock";
 import {
   getStoreSlugFromHost,
@@ -57,7 +58,10 @@ async function applyAuthLock(request: NextRequest): Promise<NextResponse | null>
   }
 
   if (matchesPrefix(pathname, LOCKED_PAGE_PREFIXES) || matchesPrefix(pathname, PROTECTED_PREFIXES)) {
-    return NextResponse.redirect(new URL(COMING_SOON_PATH, request.url));
+    const waitlist = new URL(WAITLIST_PATH, request.url);
+    const product = waitlistProductFor(pathname);
+    if (product) waitlist.searchParams.set("product", product);
+    return NextResponse.redirect(waitlist);
   }
 
   return null;

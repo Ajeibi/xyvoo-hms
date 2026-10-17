@@ -9,9 +9,17 @@ export const AUTH_LOCKED = process.env.NEXT_PUBLIC_AUTH_LOCKED !== "false";
 
 export const AUTH_PREVIEW_COOKIE = "xyvoo_preview";
 export const AUTH_PREVIEW_PARAM = "preview";
-export const COMING_SOON_PATH = "/coming-soon";
+/** Where locked pages send people: the alpha-test message and waitlist sign-up. */
+export const WAITLIST_PATH = "/waitlist";
 
-/** Pages that redirect to the coming-soon page while locked. */
+/** The product a locked page belongs to, so the waitlist can say which one they were after. */
+export function waitlistProductFor(pathname: string): "hms" | "storefront" | null {
+  if (matchesPrefix(pathname, ["/auth/login/storefront", "/register/storefront", "/storefront"])) return "storefront";
+  if (matchesPrefix(pathname, ["/auth/login", "/register", "/hms"])) return "hms";
+  return null;
+}
+
+/** Pages that redirect to the waitlist page while locked. */
 // /join creates accounts for invited team members, so it is locked with sign-up.
 export const LOCKED_PAGE_PREFIXES = ["/auth/login", "/auth/forgot-password", "/register", "/join"];
 
