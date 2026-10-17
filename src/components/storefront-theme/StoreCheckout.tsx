@@ -18,6 +18,8 @@ import ChargeNote from "./ChargeNote";
 import { useBasketPrices } from "./useBasketPrices";
 import { useShopAccount } from "./useShopAccount";
 import { Icon, StoreImage } from "./primitives";
+import PhoneField, { toInternational } from "@/components/storefront/onboarding/PhoneField";
+import { isValidPhoneNumber } from "react-phone-number-input";
 
 type FieldName = "name" | "email" | "phone" | "line1" | "line2" | "city" | "state" | "terms";
 type Errors = Partial<Record<FieldName, string>>;
@@ -45,7 +47,7 @@ function validate(form: FormData, needsTerms: boolean, needsAddress: boolean, st
   const errors: Errors = {};
   if (!value("email")) errors.email = "Enter your email address.";
   else if (!EMAIL_PATTERN.test(value("email"))) errors.email = "Enter an email address in the format name@example.com.";
-  if (value("phone").replace(/\D/g, "").length < 7) errors.phone = "Enter a phone number so the shop can reach you about your order.";
+  if (!isValidPhoneNumber(value("phone"))) errors.phone = "Enter a phone number with its country code, so the shop can reach you about your order.";
   if (!value("name")) errors.name = "Enter your full name.";
   if (needsAddress) {
     if (!value("line1")) errors.line1 = "Enter the first line of your address.";
@@ -267,6 +269,10 @@ export default function StoreCheckout({
   const { account, address: savedAddress } = useShopAccount();
   const formRef = useRef<HTMLFormElement>(null);
   const prefilled = useRef(false);
+  // The phone number in E.164 form (e.g. +234…), kept in a hidden field so the form reads it like the others.
+  // A signed-in shopper's number fills it until they type their own.
+  const [typedPhone, setTypedPhone] = useState<string | null>(null);
+  const phoneNumber = typedPhone ?? (account?.phone ? toInternational(account.phone, countryCode) : "");
   useEffect(() => {
     const form = formRef.current;
     if (!account || !form || prefilled.current) return;
@@ -281,7 +287,6 @@ export default function StoreCheckout({
     };
     fill("name", account.name);
     fill("email", account.email);
-    fill("phone", account.phone);
     if (savedAddress) {
       fill("line1", savedAddress.line1);
       fill("line2", savedAddress.line2);
@@ -444,8 +449,8 @@ export default function StoreCheckout({
         aria-label="Checkout"
         // Leaving the email, phone or name field saves the checkout for abandoned-cart follow-up.
         onBlur={(e) => {
-          const target = e.target as EventTarget & { name?: string };
-          if (target.name === "email" || target.name === "phone" || target.name === "name") saveCheckout(e.currentTarget);
+          const target = e.target as EventTarget & { name?: string; id?: string };
+          if (target.name === "email" || target.name === "name" || target.id === "co-phone") saveCheckout(e.currentTarget);
         }}
       >
         <p className="body-copy">All fields are required unless marked optional.</p>
@@ -485,7 +490,19 @@ export default function StoreCheckout({
           </div>
           <div className="field">
             <label htmlFor="co-phone">Phone number</label>
-            <input className="input" type="tel" autoComplete="tel" inputMode="tel" {...field("phone")} />
+            <PhoneField
+              id="co-phone"
+              value={phoneNumber}
+              onChange={(value) => {
+                setTypedPhone(value);
+                // The picker has no blur re-check like the other fields, so clear the error once the number is valid.
+                if (errors.phone && isValidPhoneNumber(value)) setErrors((prev) => ({ ...prev, phone: undefined }));
+              }}
+              countryCode={countryCode}
+              invalid={Boolean(errors.phone)}
+              describedBy={errors.phone ? "co-phone-error" : undefined}
+            />
+            <input type="hidden" name="phone" value={phoneNumber} />
             <p className="hint">Only used for your order.</p>
             {errorFor("phone")}
           </div>

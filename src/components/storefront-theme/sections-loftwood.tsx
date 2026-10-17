@@ -2,7 +2,7 @@ import Link from "next/link";
 import { CarouselControls, CarouselRoot, CarouselTrack } from "./Carousel";
 import Countdown from "./Countdown";
 import { ProductGridList } from "./ProductCard";
-import { Icon, SectionHead, StoreImage, toIconName } from "./primitives";
+import { Icon, MediaLink, SectionHead, StoreImage, toIconName } from "./primitives";
 import { buildTiles, itemCountLabel, loadSectionProducts, sectionHref, type SectionProps } from "./sections-shared";
 import { STORE_PATHS } from "@/lib/store/site/links";
 
@@ -80,9 +80,9 @@ export function LoftwoodHero({ section, storefront, isFirst }: SectionProps<"her
               </CarouselRoot>
             </div>
           ) : section.image ? (
-            <div className="media tone-4 hero-lw__media">
+            <MediaLink className="media tone-4 hero-lw__media" href={section.primaryCta ? sectionHref(storefront, section.primaryCta.href) : undefined}>
               <StoreImage src={section.image.url} alt={section.image.alt} sizes="(min-width: 1024px) 45vw, 100vw" priority={isFirst} />
-            </div>
+            </MediaLink>
           ) : null}
         </div>
       </div>
@@ -134,9 +134,9 @@ export function LoftwoodCategoryTiles({ section, storefront }: SectionProps<"cat
                   {tile.label}
                 </Link>
               </h3>
-              <span className={`media tone-${[3, 2, 4][i]} bento__media`} aria-hidden="true">
+              <MediaLink className={`media tone-${[3, 2, 4][i]} bento__media`} href={sectionHref(storefront, tile.path)}>
                 {tile.imageUrl ? <StoreImage src={tile.imageUrl} alt="" sizes="(min-width: 900px) 20vw, 100vw" /> : null}
-              </span>
+              </MediaLink>
             </article>
           ))}
         </div>
@@ -190,9 +190,9 @@ export function LoftwoodPromo({ section, storefront }: SectionProps<"promo">) {
           ) : null}
         </div>
         {section.image ? (
-          <div className="media tone-2 flash__media">
+          <MediaLink className="media tone-2 flash__media" href={section.cta ? sectionHref(storefront, section.cta.href) : undefined}>
             <StoreImage src={section.image.url} alt={section.image.alt} sizes="(min-width: 900px) 50vw, 100vw" />
-          </div>
+          </MediaLink>
         ) : null}
       </div>
     </section>

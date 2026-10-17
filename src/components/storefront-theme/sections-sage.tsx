@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ProductGridList } from "./ProductCard";
-import { Icon, StoreImage, toIconName } from "./primitives";
+import { Icon, MediaLink, StoreImage, toIconName } from "./primitives";
 import { buildTiles, loadSectionProducts, sectionHref, type SectionProps } from "./sections-shared";
 
 /*
@@ -13,9 +13,9 @@ export function SageHero({ section, storefront, isFirst }: SectionProps<"hero">)
   const Heading = isFirst ? "h1" : "h2";
   return (
     <section className="hero-sage" aria-labelledby={`${section.id}-title`}>
-      <div className="media tone-5 hero-sage__media">
+      <MediaLink className="media tone-5 hero-sage__media" href={section.primaryCta ? sectionHref(storefront, section.primaryCta.href) : undefined}>
         {section.image ? <StoreImage src={section.image.url} alt={section.image.alt} sizes="100vw" priority={isFirst} /> : null}
-      </div>
+      </MediaLink>
       <div className="container hero-sage__inner">
         <div className="hero-sage__card">
           {section.eyebrow ? <p className="eyebrow">{section.eyebrow}</p> : null}
@@ -111,9 +111,9 @@ export function SagePromo({ section, storefront }: SectionProps<"promo">) {
   return (
     <section className="section section--tight-top" aria-labelledby={titleId}>
       <div className="container split-fave">
-        <div className="media tone-4 split-fave__media" aria-hidden={section.image ? undefined : true}>
+        <MediaLink className="media tone-4 split-fave__media" href={section.cta ? sectionHref(storefront, section.cta.href) : undefined}>
           {section.image ? <StoreImage src={section.image.url} alt={section.image.alt} sizes="(min-width: 900px) 66vw, 100vw" /> : null}
-        </div>
+        </MediaLink>
         <div className="split-fave__panel">
           {section.eyebrow ? <p>{section.eyebrow}</p> : null}
           <h2 className="h-section" id={titleId}>

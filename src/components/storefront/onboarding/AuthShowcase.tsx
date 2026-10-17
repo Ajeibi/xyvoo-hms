@@ -64,7 +64,7 @@ export default function AuthShowcase({ start = 0 }: { start?: number }) {
             fill
             preload={i === start % SLIDES.length}
             sizes="(min-width: 1024px) 50vw, 1px"
-            className="-z-10 object-cover object-[center_20%]"
+            className="-z-10 object-cover object-top"
           />
           {/* Dark at the bottom so the white words stay readable on any photo. */}
           <div className="absolute inset-0 -z-10 bg-gradient-to-t from-black/85 via-black/35 to-transparent" aria-hidden />

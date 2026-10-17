@@ -8,7 +8,7 @@ import type { StorefrontTemplateSlug } from "@/lib/store/site/templates";
 import { ProductGridList } from "./ProductCard";
 import NewsletterForm from "./NewsletterForm";
 import ReviewsCarousel from "./ReviewsCarousel";
-import { Icon, SectionHead, StoreImage, toIconName } from "./primitives";
+import { Icon, MediaLink, SectionHead, StoreImage, toIconName } from "./primitives";
 import { LoftwoodCategoryTiles, LoftwoodHero, LoftwoodProductList, LoftwoodPromo, LoftwoodValueStrip } from "./sections-loftwood";
 import { SageCategoryTiles, SageHero, SagePromo, SageProductList, SageValueStrip } from "./sections-sage";
 import { buildTiles, loadHomeReviews, loadSectionProducts, sectionHref, type SectionProps } from "./sections-shared";
@@ -42,11 +42,11 @@ function Hero({ section, storefront, isFirst }: SectionProps<"hero">) {
             </Link>
           ) : null}
         </div>
-        <div className="hero__media media tone-4">
+        <MediaLink className="hero__media media tone-4" href={section.primaryCta ? sectionHref(storefront, section.primaryCta.href) : undefined}>
           {section.image ? (
             <StoreImage src={section.image.url} alt={section.image.alt} sizes="(min-width: 900px) 58vw, 100vw" priority={isFirst} />
           ) : null}
-        </div>
+        </MediaLink>
       </div>
     </section>
   );
@@ -120,9 +120,9 @@ function FeaturedCollections({ section, storefront }: SectionProps<"featured-col
                 Shop {c.name} <Icon name="arrow-right" size="sm" />
               </Link>
             </div>
-            <div className={`media tone-${i % 2 ? 4 : 2}`} aria-hidden={c.imageUrl ? undefined : true}>
+            <MediaLink className={`media tone-${i % 2 ? 4 : 2}`} href={sectionHref(storefront, STORE_PATHS.collection(c.slug))}>
               {c.imageUrl ? <StoreImage src={c.imageUrl} alt={c.imageAlt || ""} sizes="(min-width: 900px) 25vw, 100vw" /> : null}
-            </div>
+            </MediaLink>
           </article>
         ))}
       </div>
@@ -163,9 +163,9 @@ function Promo({ section, storefront }: SectionProps<"promo">) {
               </Link>
             ) : null}
           </div>
-          <div className="media tone-2" aria-hidden={section.image ? undefined : true}>
+          <MediaLink className="media tone-2" href={section.cta ? sectionHref(storefront, section.cta.href) : undefined}>
             {section.image ? <StoreImage src={section.image.url} alt={section.image.alt} sizes="(min-width: 900px) 50vw, 100vw" /> : null}
-          </div>
+          </MediaLink>
         </article>
       </div>
     </section>

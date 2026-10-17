@@ -62,6 +62,21 @@ export function StoreImage({
   );
 }
 
+/**
+ * A `.media` block that takes the shopper to `href` when there is one. The link
+ * is laid over the image, hidden from assistive tech and out of the tab order,
+ * because the section's own text link already names the destination. The image
+ * stays outside the link, so its alt text is still read out.
+ */
+export function MediaLink({ href, className, children }: { href?: string; className: string; children: React.ReactNode }) {
+  return (
+    <div className={className}>
+      {children}
+      {href ? <Link href={href} className="media__link" tabIndex={-1} aria-hidden="true" /> : null}
+    </div>
+  );
+}
+
 /** In the shopper's chosen currency, so it lives in a client component. */
 export { default as Price } from "./Price";
 
