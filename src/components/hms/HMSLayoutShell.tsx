@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { FrontDeskCheckoutDialog } from "@/components/hms/frontdesk/checkout/FrontDeskCheckoutDialog";
@@ -34,6 +34,7 @@ import {
   UserPlus,
   Users,
   Wallet,
+  X,
 } from "lucide-react";
 import type { HmsNavIconKey, HmsNavItem } from "@/lib/hms/department-access";
 import { getFrontDeskNavItems } from "@/lib/hms/department-access";
@@ -62,6 +63,15 @@ type HMSLayoutShellProps = {
   canAccessAllDepartments: boolean;
   navItems: HmsNavItem[];
 };
+
+/** Matches Tailwind's `md` breakpoint: below it the sidebar becomes a drawer. */
+const DESKTOP_QUERY = "(min-width: 48rem)";
+
+function subscribeToDesktopQuery(onChange: () => void) {
+  const query = window.matchMedia(DESKTOP_QUERY);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
 
 const ICON_MAP: Record<HmsNavIconKey, React.ComponentType<{ className?: string }>> = {
   dashboard: LayoutDashboard,
@@ -115,12 +125,83 @@ export default function HMSLayoutShell({
     navItems
       .filter((item) => pathname === item.path || pathname.startsWith(`${item.path}/`))
       .sort((left, right) => right.path.length - left.path.length)[0]?.key ?? null;
+  // Desktop: whether the sidebar is wide (labels) or narrow (icons only).
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  // Phones: whether the sidebar drawer is showing over the page.
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [lastPathname, setLastPathname] = useState(pathname);
+  const isDesktop = useSyncExternalStore(
+    subscribeToDesktopQuery,
+    () => window.matchMedia(DESKTOP_QUERY).matches,
+    () => true,
+  );
+  const menuButtonRef = useRef<HTMLButtonElement | null>(null);
+  const sidebarRef = useRef<HTMLElement | null>(null);
+  const sidebarId = `hms-sidebar-${slug}`;
   const [frontDeskNavOpen, setFrontDeskNavOpen] = useState(false);
   const logoutFormId = `hms-account-logout-${slug}`;
   const mainRef = useRef<HTMLElement | null>(null);
   const showFrontDeskNavShortcut = canAccessAllDepartments && showFrontDeskCta;
   const frontDeskNavItems = showFrontDeskNavShortcut ? getFrontDeskNavItems(slug) : [];
+
+  // Close the drawer whenever the page changes.
+  if (lastPathname !== pathname) {
+    setLastPathname(pathname);
+    setMobileNavOpen(false);
+  }
+
+  const closeMobileNav = useCallback(() => {
+    setMobileNavOpen(false);
+    menuButtonRef.current?.focus();
+  }, []);
+
+  const toggleSidebar = () => {
+    if (isDesktop) {
+      setSidebarOpen((open) => !open);
+    } else {
+      setMobileNavOpen((open) => !open);
+    }
+  };
+
+  // Leave the drawer closed if the window grows to desktop width.
+  if (isDesktop && mobileNavOpen) {
+    setMobileNavOpen(false);
+  }
+
+  // While the drawer is open: focus moves into it, Escape closes it and Tab stays inside it.
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const drawer = sidebarRef.current;
+    const focusable = () =>
+      Array.from(drawer?.querySelectorAll<HTMLElement>("a[href], button:not([disabled])") ?? []);
+    focusable()[0]?.focus();
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeMobileNav();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const items = focusable();
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (!drawer?.contains(document.activeElement)) {
+        event.preventDefault();
+        first.focus();
+      } else if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [mobileNavOpen, closeMobileNav]);
 
   useEffect(() => {
     const onOpenCheckout = (e: Event) => {
@@ -226,18 +307,33 @@ export default function HMSLayoutShell({
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
+      {mobileNavOpen ? (
+        <div
+          aria-hidden
+          onClick={closeMobileNav}
+          className="fixed inset-0 z-40 bg-slate-900/40 md:hidden"
+        />
+      ) : null}
+
       <aside
+        ref={sidebarRef}
+        id={sidebarId}
         data-tour="sidebar"
-        className={`flex shrink-0 flex-col overflow-hidden bg-white transition-[width,border-color] duration-300 ${
-          sidebarOpen ? "w-56 border-r border-slate-200" : "w-20 border-r border-slate-200"
-        }`}
+        role={mobileNavOpen ? "dialog" : undefined}
+        aria-modal={mobileNavOpen ? true : undefined}
+        aria-label="Main menu"
+        // A closed drawer is off screen: keep it out of the Tab order and screen readers.
+        inert={!isDesktop && !mobileNavOpen}
+        className={`fixed inset-y-0 left-0 z-50 flex w-64 max-w-[85vw] shrink-0 flex-col overflow-hidden border-r border-slate-200 bg-white shadow-xl transition-[translate] duration-300 md:static md:z-auto md:max-w-none md:translate-x-0 md:shadow-none md:transition-[width] ${
+          mobileNavOpen ? "translate-x-0" : "-translate-x-full"
+        } ${sidebarOpen ? "md:w-56" : "md:w-20"}`}
       >
         <div
-          className={`flex h-18 shrink-0 items-center border-b border-slate-200 ${
-            sidebarOpen ? "px-5" : "px-3"
+          className={`flex h-18 shrink-0 items-center border-b border-slate-200 px-5 ${
+            sidebarOpen ? "" : "md:px-3"
           }`}
         >
-          <div className={`flex w-full items-center ${sidebarOpen ? "gap-2" : "justify-center"}`}>
+          <div className={`flex w-full items-center gap-2 ${sidebarOpen ? "" : "md:justify-center"}`}>
             {logoUrl ? (
               <img
                 src={logoUrl}
@@ -249,20 +345,28 @@ export default function HMSLayoutShell({
                 {(hotelDisplayName || slug).charAt(0).toUpperCase() || "H"}
               </div>
             )}
-            {sidebarOpen && (
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-xs font-semibold text-slate-800">
-                  {hotelDisplayName || "Hotel"}
-                </p>
-                <p className="text-[10px] uppercase tracking-wider text-slate-400">
-                  {roleLabel}
-                </p>
-              </div>
-            )}
+            <div className={`min-w-0 flex-1 ${sidebarOpen ? "" : "md:hidden"}`}>
+              <p className="truncate text-xs font-semibold text-slate-800">
+                {hotelDisplayName || "Hotel"}
+              </p>
+              <p className="text-[10px] uppercase tracking-wider text-slate-400">
+                {roleLabel}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={closeMobileNav}
+              className="size-9 shrink-0 rounded-xl text-slate-500 md:hidden"
+              aria-label="Close menu"
+            >
+              <X className="h-5 w-5" />
+            </Button>
           </div>
         </div>
 
-        <nav className={`min-h-0 flex-1 space-y-0.5 overflow-y-auto py-3 ${sidebarOpen ? "px-3" : "px-2"}`}>
+        <nav className={`min-h-0 flex-1 space-y-0.5 overflow-y-auto px-3 py-3 ${sidebarOpen ? "" : "md:px-2"}`}>
           {navItems.map(({ key, icon, label, path, tourTarget }) => {
             const Icon = ICON_MAP[icon];
             const active = activeNavKey === key;
@@ -274,8 +378,8 @@ export default function HMSLayoutShell({
                 aria-label={label}
                 data-tour={tourTarget}
                 aria-current={active ? "page" : undefined}
-                className={`flex rounded-xl text-sm font-medium transition-colors ${
-                  sidebarOpen ? "items-center gap-3 px-2.5 py-1.5" : "justify-center px-0 py-1.5"
+                className={`flex items-center gap-3 rounded-xl px-2.5 py-2 text-sm font-medium transition-colors md:py-1.5 ${
+                  sidebarOpen ? "" : "md:justify-center md:gap-0 md:px-0"
                 } ${
                   active
                     ? "bg-blue-50 text-blue-900"
@@ -283,24 +387,24 @@ export default function HMSLayoutShell({
                 }`}
               >
                 <NavIconChip Icon={Icon} iconKey={icon} active={active} />
-                {sidebarOpen && <span>{label}</span>}
+                <span className={sidebarOpen ? "" : "md:hidden"}>{label}</span>
               </Link>
             );
           })}
         </nav>
 
-        <div className={`border-t border-slate-100 pb-4 pt-3 ${sidebarOpen ? "px-3" : "px-2"}`}>
+        <div className={`border-t border-slate-100 px-3 pb-4 pt-3 ${sidebarOpen ? "" : "md:px-2"}`}>
           {!isOnHome && (
             <Link
               href={homePath}
               title="Back to Dashboard"
               aria-label="Back to Dashboard"
-              className={`flex text-xs text-slate-400 transition-colors hover:text-slate-600 ${
-                sidebarOpen ? "items-center gap-2 px-3 py-2" : "justify-center px-0 py-3"
+              className={`flex items-center gap-2 px-3 py-2 text-xs text-slate-400 transition-colors hover:text-slate-600 ${
+                sidebarOpen ? "" : "md:justify-center md:gap-0 md:px-0 md:py-3"
               }`}
             >
               <ArrowLeft className="h-3 w-3" />
-              {sidebarOpen && <span>Back to Dashboard</span>}
+              <span className={sidebarOpen ? "" : "md:hidden"}>Back to Dashboard</span>
             </Link>
           )}
         </div>
@@ -308,15 +412,22 @@ export default function HMSLayoutShell({
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <header className="flex h-18 shrink-0 items-center border-b border-slate-200 bg-white/95 backdrop-blur">
-          <div className="flex w-full items-center justify-between gap-6 px-6">
-            <div className="flex min-w-0 flex-1 items-center gap-4">
+          <div className="flex w-full min-w-0 items-center justify-between gap-2 px-3 sm:gap-6 sm:px-6">
+            <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-4">
               <Button
+                ref={menuButtonRef}
                 type="button"
                 variant="ghost"
                 size="icon"
-                onClick={() => setSidebarOpen((open) => !open)}
+                onClick={toggleSidebar}
                 className="size-10 shrink-0 rounded-xl text-slate-600"
-                aria-label={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
+                aria-controls={sidebarId}
+                aria-expanded={isDesktop ? undefined : mobileNavOpen}
+                aria-label={
+                  isDesktop
+                    ? sidebarOpen ? "Hide sidebar" : "Show sidebar"
+                    : mobileNavOpen ? "Close menu" : "Open menu"
+                }
               >
                 <Menu className="h-5 w-5" />
               </Button>
@@ -448,8 +559,8 @@ export default function HMSLayoutShell({
 
       {showFrontDeskNavShortcut ? (
         <aside
-          className={`flex shrink-0 flex-col overflow-hidden bg-white transition-[width,border-color] duration-300 ${
-            frontDeskNavOpen ? "w-56 border-l border-slate-200" : "w-0 border-l-0"
+          className={`flex shrink-0 flex-col overflow-hidden bg-white transition-[width,border-color] duration-300 max-md:fixed max-md:inset-y-0 max-md:right-0 max-md:z-50 ${
+            frontDeskNavOpen ? "w-56 border-l border-slate-200 max-md:shadow-xl" : "w-0 border-l-0"
           }`}
         >
           <div className="flex h-18 w-56 shrink-0 items-center border-b border-slate-200 px-5">
