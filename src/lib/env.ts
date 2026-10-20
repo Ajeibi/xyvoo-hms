@@ -40,7 +40,9 @@ export function getMailEnv() {
   const pass = process.env.MAILTRAP_PASS;
   const from = process.env.MAILTRAP_FROM;
 
-  if (!host || !port || !user || !pass || !from) {
+  // User and password may both be left out for a local inbox such as Mailpit,
+  // which takes mail without signing in.
+  if (!host || !port || !from || Boolean(user) !== Boolean(pass)) {
     throw new Error("Missing required Mailtrap environment variables.");
   }
 

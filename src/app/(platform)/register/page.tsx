@@ -14,6 +14,7 @@ import StepAccountSetup from "@/features/hotel-register/components/steps/StepAcc
 import StepChoosePlan from "@/features/hotel-register/components/steps/StepChoosePlan";
 import StepVerifyingPayment from "@/features/hotel-register/components/steps/StepVerifyingPayment";
 import StepDone from "@/features/hotel-register/components/steps/StepDone";
+import RegisterHighlights from "@/features/hotel-register/components/RegisterHighlights";
 import MissingFieldsModal from "@/features/hotel-register/components/MissingFieldsModal";
 
 const STEP_LABELS = ["Hotel details", "Verify email", "Account setup", "Choose plan"];
@@ -64,7 +65,7 @@ export default function RegisterPage() {
   const showProgress = step <= 3;
 
   return (
-    <HotelAuthLayout imageAlt="A receptionist welcoming guests at a hotel front desk">
+    <HotelAuthLayout imageAlt="A receptionist welcoming guests at a hotel front desk" aside={<RegisterHighlights step={step} />}>
       {showProgress ? (
         <motion.div
           key={step}

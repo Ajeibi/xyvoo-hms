@@ -105,6 +105,9 @@ function isStorefrontAuthPath(pathname: string | null): boolean {
   return STOREFRONT_AUTH_PATH_PREFIXES.some((prefix) => pathname?.startsWith(prefix)) ?? false;
 }
 
+/** Hotel register/login pages, which pin a side panel just below the header. */
+const HOTEL_AUTH_PATHS = ["/register", "/auth/login"];
+
 /** Pages whose hero runs up behind the header, so the header sits on the hero
  * (transparent) rather than as a separate white bar above it. Dark heroes also
  * switch the header to its light-on-dark styling. */
@@ -705,7 +708,7 @@ function WebsiteHeader({ pathname }: { pathname: string }) {
   const isStorefrontHero = isStorefront && !isStorefrontAuth;
   // The auth pages pin their image below the header (top-[76px]), so hiding
   // the header on scroll would leave an empty strip above it.
-  const shown = visible || isStorefrontAuth;
+  const shown = visible || isStorefrontAuth || HOTEL_AUTH_PATHS.includes(pathname);
   const isSolutionHmsPath = isHmsPath(pathname);
 
   const isDarkHero = isDarkHeroPath(pathname);
