@@ -81,15 +81,13 @@ export function CardBlockSkeleton({ lines = 3, className = "" }: { lines?: numbe
 export function DepartmentDashboardSkeleton() {
   return (
     <div className="mx-auto w-full max-w-6xl px-8 py-8">
-      <PageHeaderSkeleton withAction />
-      <StatTilesSkeleton count={3} />
-      <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6">
-        <Skeleton className={`h-4 w-40 ${sk}`} />
-        <div className="mt-3 space-y-2">
-          <Skeleton className={`h-4 w-full ${sk}`} />
-          <Skeleton className={`h-4 w-full ${sk}`} />
-          <Skeleton className={`h-4 w-2/3 ${sk}`} />
-        </div>
+      <PageHeaderSkeleton />
+      <div className="mt-6 flex flex-col items-center rounded-2xl border border-slate-200 bg-white px-6 py-10">
+        <Skeleton className={`h-16 w-16 rounded-2xl ${sk}`} />
+        <Skeleton className={`mt-4 h-5 w-32 ${sk}`} />
+        <Skeleton className={`mt-3 h-4 w-full max-w-md ${sk}`} />
+        <Skeleton className={`mt-2 h-4 w-2/3 max-w-sm ${sk}`} />
+        <Skeleton className={`mt-5 h-10 w-40 rounded-xl ${sk}`} />
       </div>
     </div>
   );

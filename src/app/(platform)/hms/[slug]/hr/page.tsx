@@ -11,11 +11,7 @@ export default async function HRPage({ params }: { params: Promise<{ slug: strin
         meaning="team"
         subtitle="Keep staffing, schedules, and HR follow-ups in one department-specific workspace."
         settingsHref={`/hms/${slug}/hr/settings`}
-        highlights={[
-          { label: "Open shifts", value: "7", detail: "Shifts still requiring assignment or confirmation." },
-          { label: "Team notices", value: "3", detail: "Items waiting for acknowledgement by staff members." },
-          { label: "Pending actions", value: "4", detail: "Leave, attendance, or profile updates needing review." },
-        ]}
+        comingSoon="HR isn't ready yet. Rotas, clocking in and out, and leave requests are on the way. You can already add staff and set what they can see in Settings."
       />
     </HMSLayout>
   );
