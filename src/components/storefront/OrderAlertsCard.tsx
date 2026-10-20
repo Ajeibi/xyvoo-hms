@@ -2,10 +2,19 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { BellRing, Smartphone } from "lucide-react";
-import { ALERT_KINDS, ALERT_LABELS, type AlertPrefs } from "@/lib/store/merchant-alert-prefs";
-import { DashAlert, dashButton, DashCard, DashStatus, sendJson } from "./dashboard-ui";
+import { ALERT_KINDS, ALERT_LABELS, whatsappAlertKind, type AlertPrefs } from "@/lib/store/merchant-alert-prefs";
+import { DashAlert, dashButton, DashCard, DashField, DashStatus, sendJson } from "./dashboard-ui";
+import PhoneField from "./onboarding/PhoneField";
 
-type Loaded = { prefs: AlertPrefs; canManage: boolean; pushPublicKey: string | null; yourDevices: number; teamDevices: number; alertEmail: string | null };
+type Loaded = {
+  prefs: AlertPrefs;
+  canManage: boolean;
+  pushPublicKey: string | null;
+  yourDevices: number;
+  teamDevices: number;
+  alertEmail: string | null;
+  whatsapp: { number: string | null; available: boolean; testMode: boolean; countryCode: string };
+};
 type DeviceState = "checking" | "unsupported" | "blocked" | "off" | "on";
 
 const SW_URL = "/merchant-alerts-sw.js";
@@ -156,6 +165,7 @@ export function DeviceAlertsCard({ slug }: { slug: string }) {
 export function AlertPreferencesCard({ slug }: { slug: string }) {
   const [data, setData] = useState<Loaded | null>(null);
   const [prefs, setPrefs] = useState<AlertPrefs | null>(null);
+  const [number, setNumber] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
@@ -166,6 +176,7 @@ export function AlertPreferencesCard({ slug }: { slug: string }) {
       .then((d: Loaded) => {
         setData(d);
         setPrefs(d.prefs);
+        setNumber(d.whatsapp.number ?? "");
       })
       .catch(() => setError("We couldn't load your alert settings. Please refresh the page."));
   }, [slug]);
@@ -178,8 +189,9 @@ export function AlertPreferencesCard({ slug }: { slug: string }) {
     setError("");
     setStatus("");
     try {
-      const saved = await sendJson("/api/store/alerts", "PATCH", { slug, prefs });
+      const saved = await sendJson("/api/store/alerts", "PATCH", { slug, prefs, ...(data?.whatsapp.available ? { whatsappNumber: number } : {}) });
       setPrefs(saved.prefs);
+      if (saved.whatsappNumber !== undefined) setNumber(saved.whatsappNumber ?? "");
       setStatus("Saved. Your alerts are updated.");
     } catch (err) {
       setError((err as Error).message);
@@ -196,7 +208,11 @@ export function AlertPreferencesCard({ slug }: { slug: string }) {
     );
   }
 
-  const set = (kind: (typeof ALERT_KINDS)[number], channel: "email" | "push", value: boolean) => {
+  const showWhatsApp = data.whatsapp.available;
+  const channels = showWhatsApp ? (["email", "push", "whatsapp"] as const) : (["email", "push"] as const);
+  const channelName = { email: "email", push: "device notification", whatsapp: "WhatsApp" } as const;
+
+  const set = (kind: (typeof ALERT_KINDS)[number], channel: "email" | "push" | "whatsapp", value: boolean) => {
     setPrefs({ ...prefs, [kind]: { ...prefs[kind], [channel]: value } });
     setStatus("");
   };
@@ -215,9 +231,24 @@ export function AlertPreferencesCard({ slug }: { slug: string }) {
       }
     >
       <form onSubmit={save} className="space-y-4">
+        {showWhatsApp && data.canManage ? (
+          <DashField
+            id="alert-whatsapp"
+            label="WhatsApp number for alerts"
+            optional
+            hint="New orders and payment problems go here as WhatsApp messages from XYVOO. Leave it empty for no WhatsApp alerts."
+          >
+            <PhoneField id="alert-whatsapp" value={number} onChange={setNumber} countryCode={data.whatsapp.countryCode} describedBy="alert-whatsapp-hint" />
+          </DashField>
+        ) : null}
+        {showWhatsApp && data.whatsapp.testMode ? (
+          <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            WhatsApp messages are in test mode: they&rsquo;re listed under WhatsApp messages below, but not sent yet.
+          </p>
+        ) : null}
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <caption className="sr-only">Alerts by email and on devices</caption>
+            <caption className="sr-only">{showWhatsApp ? "Alerts by email, on devices and on WhatsApp" : "Alerts by email and on devices"}</caption>
             <thead>
               <tr className="border-b border-slate-200 text-slate-600">
                 <th scope="col" className="py-2 pr-4 font-medium">
@@ -229,6 +260,11 @@ export function AlertPreferencesCard({ slug }: { slug: string }) {
                 <th scope="col" className="px-3 py-2 text-center font-medium">
                   Devices
                 </th>
+                {showWhatsApp ? (
+                  <th scope="col" className="px-3 py-2 text-center font-medium">
+                    WhatsApp
+                  </th>
+                ) : null}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -238,16 +274,24 @@ export function AlertPreferencesCard({ slug }: { slug: string }) {
                     <span className="block font-medium text-slate-900">{ALERT_LABELS[kind].title}</span>
                     <span className="block text-slate-600">{ALERT_LABELS[kind].description}</span>
                   </th>
-                  {(["email", "push"] as const).map((channel) => (
+                  {channels.map((channel) => (
                     <td key={channel} className="px-3 py-3 text-center">
-                      <input
-                        type="checkbox"
-                        className="h-5 w-5 accent-xyvoo-blue"
-                        checked={prefs[kind][channel]}
-                        disabled={!data.canManage}
-                        onChange={(e) => set(kind, channel, e.target.checked)}
-                        aria-label={`${ALERT_LABELS[kind].title} by ${channel === "email" ? "email" : "device notification"}`}
-                      />
+                      {channel === "whatsapp" && !whatsappAlertKind(kind) ? (
+                        // Each WhatsApp message costs money, so only the alerts that need action go there.
+                        <span className="text-slate-400">
+                          <span aria-hidden>–</span>
+                          <span className="sr-only">Not available on WhatsApp</span>
+                        </span>
+                      ) : (
+                        <input
+                          type="checkbox"
+                          className="h-5 w-5 accent-xyvoo-blue"
+                          checked={prefs[kind][channel]}
+                          disabled={!data.canManage}
+                          onChange={(e) => set(kind, channel, e.target.checked)}
+                          aria-label={`${ALERT_LABELS[kind].title} by ${channelName[channel]}`}
+                        />
+                      )}
                     </td>
                   ))}
                 </tr>

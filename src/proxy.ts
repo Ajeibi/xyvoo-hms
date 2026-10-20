@@ -149,5 +149,7 @@ export const config = {
     // Each store subdomain serves its own robots.txt and sitemap.xml.
     "/robots.txt",
     "/sitemap.xml",
+    // And its product feed for Google and Meta.
+    "/feeds/products.xml",
   ],
 };

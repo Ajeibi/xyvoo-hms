@@ -6,15 +6,18 @@ const supabaseHost = process.env.NEXT_PUBLIC_SUPABASE_URL ? new URL(process.env.
 
 /**
  * Where pages may load things from: our own origin, Supabase (images, files,
- * auth), Paystack, Google sign-in and Google Fonts (a merchant's chosen font).
+ * auth), Paystack, Google sign-in and Google Fonts (a merchant's chosen font),
+ * plus a shop owner's own Meta Pixel and Google Analytics once a shopper accepts cookies.
  */
+const PIXEL_SCRIPTS = "https://connect.facebook.net https://www.googletagmanager.com";
+const PIXEL_CONNECT = "https://www.facebook.com https://connect.facebook.net https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com";
 const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' https://accounts.google.com https://js.paystack.co",
+  `script-src 'self' 'unsafe-inline' https://accounts.google.com https://js.paystack.co ${PIXEL_SCRIPTS}`,
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com",
   `img-src 'self' data: blob: https:`,
   "font-src 'self' data: https://fonts.gstatic.com" + (supabaseHost ? ` https://${supabaseHost}` : ""),
-  `connect-src 'self' https://api.paystack.co https://accounts.google.com${supabaseHost ? ` https://${supabaseHost} wss://${supabaseHost}` : ""}`,
+  `connect-src 'self' https://api.paystack.co https://accounts.google.com ${PIXEL_CONNECT}${supabaseHost ? ` https://${supabaseHost} wss://${supabaseHost}` : ""}`,
   "frame-src 'self' https://accounts.google.com https://checkout.paystack.com",
   "frame-ancestors 'self'",
   "form-action 'self' https://checkout.paystack.com",

@@ -5,6 +5,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { claimOrderEmail, releaseOrderEmail } from "./order-events";
 import { orderRef } from "./orders";
 import { storefrontUrl } from "./subdomain";
+import { whatsappOrderUpdate } from "./whatsapp-messages";
 
 /*
  * Shopper emails when an order moves on: shipped, delivered, cancelled,
@@ -104,6 +105,8 @@ function build(kind: OrderStatusEmail, ctx: NonNullable<Awaited<ReturnType<typeo
 }
 
 export async function sendOrderStatusEmail(tenantId: string, orderId: string, kind: OrderStatusEmail) {
+  // The same update on WhatsApp, for shoppers who asked for it (never throws; it has its own once-only claim).
+  await whatsappOrderUpdate(tenantId, orderId, kind);
   try {
     const ctx = await loadContext(tenantId, orderId);
     const to = ctx?.order.customer_email as string | null | undefined;

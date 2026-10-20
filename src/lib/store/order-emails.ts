@@ -2,10 +2,11 @@ import { badge, detailsPanel, EMAIL_SITE_URL, escapeHtml } from "@/lib/mail/layo
 import { sendBrandedEmail } from "@/lib/mail/mailtrap";
 import { formatShopCurrency } from "@/lib/shop/format";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { parseOfflinePayments } from "./offline-payments";
+import { offlineNextStep, parseOfflinePayments } from "./offline-payments";
 import { invoiceUrlFor, receiptForEmail } from "./receipts";
 import { alertNewOrder, alertPaidCancelled, shopAlertEmailWanted } from "./merchant-alerts";
 import { storefrontUrl } from "./subdomain";
+import { whatsappNewOrder, whatsappPaidCancelled } from "./whatsapp-messages";
 
 /** Short order reference shown to customers and shops, e.g. "3F9A12BC". */
 export const orderReference = (orderId: string) => orderId.slice(0, 8).toUpperCase();
@@ -16,8 +17,9 @@ export const orderReference = (orderId: string) => orderId.slice(0, 8).toUpperCa
  * Never throws; a failed email mustn't affect the order.
  */
 export async function sendOrderReceivedEmails(tenantId: string, orderId: string) {
-  // Push to the shop's devices first, so they hear within seconds (never throws).
+  // Push to the shop's devices first, so they hear within seconds, then WhatsApp (neither throws).
   await alertNewOrder(tenantId, orderId);
+  await whatsappNewOrder(tenantId, orderId);
   try {
     const db = createServerSupabaseClient();
     const [{ data: order }, { data: profile }, { data: tenant }] = await Promise.all([
@@ -48,13 +50,7 @@ export async function sendOrderReceivedEmails(tenantId: string, orderId: string)
 
     // ---- Customer
     if (order.customer_email) {
-      const bank = offline.bankTransfer;
-      const nextStep =
-        order.payment_method === "Bank Transfer" && bank.enabled
-          ? `Please pay ${total} by bank transfer to ${bank.accountName}, ${bank.bankName}, account number ${bank.accountNumber}. Use ${reference} as the payment reference.${bank.note ? ` ${bank.note}` : ""} ${storeName} will confirm your order when the payment arrives.`
-          : order.payment_method === "Pay on Delivery"
-            ? `You'll pay ${total} when your order arrives.${offline.payOnDelivery.note ? ` ${offline.payOnDelivery.note}` : ""}`
-            : `${storeName} will contact you on WhatsApp to arrange payment and delivery.`;
+      const nextStep = offlineNextStep({ paymentMethod: order.payment_method, offline, storeName, total, reference });
       // Bank transfer orders get an invoice with the shop's bank details (see receipts.ts).
       const invoiceUrl = order.payment_method === "Bank Transfer" ? await invoiceUrlFor(tenantId, orderId) : null;
       await sendBrandedEmail({
@@ -174,8 +170,9 @@ async function loadOrderEmailContext(tenantId: string, orderId: string): Promise
  * new-order alert. Called once per order (see card-payments.ts). Never throws.
  */
 export async function sendOrderPaidEmails(tenantId: string, orderId: string) {
-  // Push to the shop's devices first, so they hear within seconds (never throws).
+  // Push to the shop's devices first, so they hear within seconds, then WhatsApp (neither throws).
   await alertNewOrder(tenantId, orderId);
+  await whatsappNewOrder(tenantId, orderId);
   try {
     const ctx = await loadOrderEmailContext(tenantId, orderId);
     if (!ctx) return;
@@ -257,6 +254,7 @@ export async function sendOrderPaidEmails(tenantId: string, orderId: string) {
 /** A payment cleared on an order that had already been cancelled: the shop must fulfil it or return the money. */
 export async function sendPaidCancelledAlert(tenantId: string, orderId: string) {
   await alertPaidCancelled(tenantId, orderId);
+  await whatsappPaidCancelled(tenantId, orderId);
   try {
     const ctx = await loadOrderEmailContext(tenantId, orderId);
     if (!ctx?.shopContact || !(await shopAlertEmailWanted(tenantId, "paid_cancelled"))) return;

@@ -3,9 +3,11 @@
 import { TrackProductView } from "./StoreAnalytics";
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { FaWhatsapp } from "react-icons/fa6";
 import { useCartStore } from "@/components/shop/CartProvider";
 import type { ShopProduct, ShopProductVariant } from "@/lib/shop/products";
-import { fixedLinePrices } from "@/lib/shop/cart";
+import { cartLineKey, fixedLinePrices } from "@/lib/shop/cart";
 import { STORE_PATHS } from "@/lib/store/site/links";
 import { announce, useStorefront } from "./StorefrontProvider";
 import { Icon, Price, Rating, StoreImage } from "./primitives";
@@ -31,14 +33,20 @@ function optionExists(product: ShopProduct, selected: Record<string, string>, na
 }
 
 /** Gallery and buy box for the product page, in the templates' .pdp layout. */
-export default function ProductDetail({ product, details }: { product: ShopProduct; details: React.ReactNode }) {
-  const { href } = useStorefront();
+/**
+ * `initialVariantId` chooses an option to start with, for links that name one
+ * (the product feed links each size or colour to its own page).
+ */
+export default function ProductDetail({ product, details, initialVariantId }: { product: ShopProduct; details: React.ReactNode; initialVariantId?: string }) {
+  const { href, whatsappOrdering } = useStorefront();
+  const router = useRouter();
   const addLine = useCartStore((s) => s.addLine);
+  const basketLines = useCartStore((s) => s.lines);
 
   const images = product.imageUrls.length > 0 ? product.imageUrls : product.imageUrl ? [product.imageUrl] : [];
   const altFor = (i: number) => product.imageAltTexts[i] || `${product.name}, image ${i + 1} of ${images.length}`;
   const [activeImage, setActiveImage] = useState(0);
-  const [selected, setSelected] = useState<Record<string, string>>({});
+  const [selected, setSelected] = useState<Record<string, string>>(() => ({ ...product.variants.find((v) => v.id === initialVariantId)?.options }));
   const minQty = Math.max(1, product.minimumOrderQty || 1);
   const [quantity, setQuantity] = useState(minQty);
   const [status, setStatus] = useState("");
@@ -64,16 +72,20 @@ export default function ProductDetail({ product, details }: { product: ShopProdu
         ? `Only ${stock} left in stock`
         : "In stock";
 
-  const add = (e: React.FormEvent) => {
-    e.preventDefault();
+  /**
+   * Puts the chosen product in the basket. False (with a message saying why) when an option still needs choosing.
+   * `onlyIfMissing` leaves a line already in the basket alone, so it isn't added twice on the way to checkout.
+   */
+  const addToBasket = (onlyIfMissing = false) => {
     if (hasVariants && !allChosen) {
       setStatus("Please choose " + product.productOptions.filter((o) => !selected[o.name]).map((o) => o.name.toLowerCase()).join(" and ") + ".");
-      return;
+      return false;
     }
     if (hasVariants && !variant) {
       setStatus("That combination isn't available. Please choose another.");
-      return;
+      return false;
     }
+    if (onlyIfMissing && basketLines.some((l) => cartLineKey(l.productId, l.variantId) === cartLineKey(product.id, variant?.id || null))) return true;
     addLine({
       productId: product.id,
       variantId: variant?.id || null,
@@ -88,14 +100,33 @@ export default function ProductDetail({ product, details }: { product: ShopProdu
       quantity,
       maxQuantity: maxQty,
     });
+    return true;
+  };
+
+  const add = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!addToBasket()) return;
     const message = `${product.name} added to your basket.`;
     setStatus(message);
     announce(message);
   };
 
+  // A short checkout with WhatsApp chosen: the order is recorded (and its stock held) before the chat opens.
+  const orderOnWhatsApp = () => {
+    if (!addToBasket(true)) return;
+    announce(`${product.name} is in your basket. Taking you to checkout to send your order on WhatsApp.`);
+    router.push(`${href(STORE_PATHS.checkout)}?pay=whatsapp`);
+  };
+
   return (
     <div className="pdp">
-      <TrackProductView productId={product.id} />
+      <TrackProductView
+        productId={product.id}
+        // The ids the product feed uses: one per option, or the product's own.
+        itemIds={hasVariants ? product.variants.map((v) => v.id) : [product.id]}
+        name={product.name}
+        value={product.price}
+      />
       <div className="pdp__gallery">
         <div className="media gallery-main tone-4">
           {shownImage ? (
@@ -212,7 +243,18 @@ export default function ProductDetail({ product, details }: { product: ShopProdu
             <button className="btn btn--primary" type="submit" disabled={!inStock}>
               {inStock ? "Add to basket" : "Out of stock"}
             </button>
+            {whatsappOrdering && inStock ? (
+              <button className="btn btn--whatsapp" type="button" onClick={orderOnWhatsApp} aria-describedby="pdp-whatsapp-hint">
+                <FaWhatsapp aria-hidden />
+                Order on WhatsApp
+              </button>
+            ) : null}
           </div>
+          {whatsappOrdering && inStock ? (
+            <p className="whatsapp-hint" id="pdp-whatsapp-hint">
+              Add your details, then send the order to the shop on WhatsApp to agree payment and delivery.
+            </p>
+          ) : null}
           <p className="form-status" role="status">
             {status}
             {status.endsWith("basket.") ? (

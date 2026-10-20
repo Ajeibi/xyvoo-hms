@@ -8,10 +8,11 @@
  */
 
 import type { StoreEventType } from "./analytics";
+import { pixelEvent, type PixelDetails } from "./ad-pixels";
 
 export type ConsentChoice = "accepted" | "rejected";
 
-type TrackedEvent = { type: StoreEventType; path?: string; productId?: string; quantity?: number; value?: number; searchTerm?: string };
+type TrackedEvent = { type: StoreEventType; path?: string; productId?: string; quantity?: number; value?: number; searchTerm?: string } & PixelDetails;
 
 let slug: string | null = null;
 let queue: TrackedEvent[] = [];
@@ -143,7 +144,12 @@ export function track(event: TrackedEvent) {
     return;
   }
   if (getConsent(slug) !== "accepted") return;
-  queue.push(withPath);
+  // The shop owner's Meta Pixel and Google tag hear about it too; the ids meant for them stay out of XYVOO's own analytics.
+  pixelEvent(withPath);
+  const stored = { ...withPath };
+  delete stored.itemIds;
+  delete stored.itemName;
+  queue.push(stored);
   if (queue.length >= 10) flush();
   else if (timer === null) timer = window.setTimeout(flush, 4000);
 }

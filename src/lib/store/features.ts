@@ -29,6 +29,8 @@ export const STORE_FEATURES = {
   /** Inviting staff and choosing their roles. */
   staff: PAID,
   activityLog: PAID,
+  /** Automatic WhatsApp order messages to the shop and its customers (each one costs XYVOO a Meta fee). */
+  whatsappMessages: PAID,
 } as const satisfies Record<string, readonly StorePlan[]>;
 
 export type StoreFeature = keyof typeof STORE_FEATURES;

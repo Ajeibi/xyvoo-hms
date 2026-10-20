@@ -13,7 +13,7 @@ import { getShopProductBySlug, listShopProducts, type ShopProduct } from "@/lib/
 import { STORE_PATHS, storeHref } from "@/lib/store/site/links";
 import { getStorefront } from "@/lib/store/site/storefront";
 
-type Props = { params: Promise<{ slug: string; productSlug: string }> };
+type Props = { params: Promise<{ slug: string; productSlug: string }>; searchParams: Promise<{ variant?: string | string[] }> };
 
 async function load(params: Props["params"]) {
   const { slug, productSlug } = await params;
@@ -127,10 +127,11 @@ function Details({ product }: { product: ShopProduct }) {
   );
 }
 
-export default async function StorefrontProductPage({ params }: Props) {
+export default async function StorefrontProductPage({ params, searchParams }: Props) {
   const found = await load(params);
   if (!found) notFound();
   const { storefront, product } = found;
+  const { variant } = await searchParams;
   const { basePath, site, siteUrl } = storefront;
 
   const reviewsQuery = (withExtras: boolean) => {
@@ -223,6 +224,7 @@ export default async function StorefrontProductPage({ params }: Props) {
         ) : (
           <ProductDetail
             product={product}
+            initialVariantId={typeof variant === "string" ? variant : undefined}
             details={
               <>
                 {bundleItems.length ? <BundleContents items={bundleItems} price={product.price} currency={product.currency} /> : null}

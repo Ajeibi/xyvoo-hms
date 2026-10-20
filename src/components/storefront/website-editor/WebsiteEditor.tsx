@@ -36,7 +36,7 @@ const TABS = [
   { key: "pages", label: "Pages", icon: FileText, meaning: "marketing", help: "About, Contact, FAQs and any other pages for your brand." },
   { key: "navigation", label: "Menus", icon: Menu, meaning: "orders", help: "What shows in your shop's top menu and footer." },
   { key: "media", label: "Images", icon: ImageIcon, meaning: "money", help: "Every picture you've uploaded, in one place." },
-  { key: "seo", label: "Search and sharing", icon: Search, meaning: "customers", help: "How your shop looks on Google and when its link is shared." },
+  { key: "seo", label: "Search and sharing", icon: Search, meaning: "customers", help: "How your shop looks on Google and when its link is shared, your advert tracking, and your product feed for Google, Facebook and Instagram." },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];

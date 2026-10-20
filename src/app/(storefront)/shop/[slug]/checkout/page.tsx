@@ -8,10 +8,12 @@ import { STORE_PATHS, storeHref } from "@/lib/store/site/links";
 import { getStorefront } from "@/lib/store/site/storefront";
 import { getCheckoutFreeRules } from "@/lib/store/free-delivery-server";
 import { getTaxSettings } from "@/lib/store/tax-server";
+import { getStorePlan, storeHasFeature } from "@/lib/store/features";
 
 export const metadata: Metadata = { title: "Checkout", robots: { index: false, follow: false } };
 
-export default async function StorefrontCheckoutPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function StorefrontCheckoutPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ pay?: string | string[] }> }) {
+  const { pay } = await searchParams;
   const storefront = await getStorefront((await params).slug);
   if (!storefront) notFound();
   const { basePath, pages } = storefront;
@@ -62,6 +64,8 @@ export default async function StorefrontCheckoutPage({ params }: { params: Promi
           freeRules={freeRules}
           tax={{ enabled: tax.enabled, name: tax.name, rate: tax.rate, inclusive: tax.inclusive, onDelivery: tax.onDelivery }}
           paymentMethods={storefront.paymentMethods}
+          initialPaymentMethod={storefront.paymentMethods.find((m) => m === pay)}
+          offerWhatsAppUpdates={storeHasFeature(await getStorePlan(storefront.tenant.id), "whatsappMessages")}
         />
       ) : (
         <div className="cart-empty">

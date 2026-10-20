@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { FaWhatsapp } from "react-icons/fa6";
 import { notFound } from "next/navigation";
 import ClearBasket from "@/components/storefront-theme/ClearBasket";
+import { TrackPurchase } from "@/components/storefront-theme/StoreAnalytics";
 import { formatShopCurrency } from "@/lib/shop/format";
 import { parseOfflinePayments } from "@/lib/store/offline-payments";
+import { purchaseLines } from "@/lib/store/product-feed";
 import { orderReference } from "@/lib/store/order-emails";
 import { STORE_PATHS, storeHref } from "@/lib/store/site/links";
 import { getStorefront } from "@/lib/store/site/storefront";
-import { whatsappLink } from "@/lib/store/whatsapp";
+import { whatsappLink, whatsappOrderMessage } from "@/lib/store/whatsapp";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Order received", robots: { index: false, follow: false } };
@@ -19,7 +22,9 @@ async function loadOfflineOrder(tenantId: string, orderId: string) {
   const [{ data: order }, { data: profile }] = await Promise.all([
     db
       .from("orders")
-      .select("id, customer_name, payment_method, total_amount, delivery_method, created_at, order_items(product_name, quantity, line_total)")
+      .select(
+        "id, customer_name, customer_email, customer_phone, shipping_address, payment_method, total_amount, delivery_fee, delivery_method, discount_code, discount_amount, gift_card_amount, created_at, order_items(product_id, variant_id, product_name, quantity, unit_price, line_total)",
+      )
       .eq("tenant_id", tenantId)
       .eq("id", orderId)
       .neq("payment_method", "Card")
@@ -27,8 +32,15 @@ async function loadOfflineOrder(tenantId: string, orderId: string) {
       .maybeSingle(),
     db.from("business_profile").select("offline_payments").eq("tenant_id", tenantId).maybeSingle(),
   ]);
-  return { order, profile };
+  // Each item's page address and size or colour, so the WhatsApp message can link to it.
+  const productIds = [...new Set(((order?.order_items as { product_id: string | null }[] | undefined) || []).map((i) => i.product_id).filter((id): id is string => !!id))];
+  const { data: products } = productIds.length
+    ? await db.from("products").select("id, slug, product_variants(id, options)").eq("tenant_id", tenantId).in("id", productIds)
+    : { data: [] };
+  return { order, profile, products: (products || []) as unknown as ProductRef[] };
 }
+
+type ProductRef = { id: string; slug: string | null; product_variants: { id: string; options: Record<string, string> | null }[] | null };
 
 /**
  * After an offline order: what to do next (bank details, pay on delivery, or
@@ -41,27 +53,55 @@ export default async function OrderReceivedPage({ params, searchParams }: { para
   const orderId = (await searchParams).order ?? "";
   if (!/^[0-9a-f-]{36}$/i.test(orderId)) notFound();
 
-  const { order, profile } = await loadOfflineOrder(storefront.tenant.id, orderId);
+  const { order, profile, products } = await loadOfflineOrder(storefront.tenant.id, orderId);
   if (!order) notFound();
 
   const { basePath, storeName, profile: shop } = storefront;
   const money = (v: number) => formatShopCurrency(v, shop.currencyCode);
   const reference = orderReference(order.id);
-  const items = (order.order_items as { product_name: string; quantity: number; line_total: number }[]) || [];
+  const items = (order.order_items as { product_id: string | null; variant_id: string | null; product_name: string; quantity: number; unit_price: number; line_total: number }[]) || [];
   const total = money(Number(order.total_amount) || 0);
   const offline = parseOfflinePayments(profile?.offline_payments);
   const bank = offline.bankTransfer;
-  const whatsappMessage = [
-    `Hello ${storeName}, I've just placed order ${reference}:`,
-    ...items.map((i) => `${i.quantity} × ${i.product_name}`),
-    `Total: ${total}`,
-    `Name: ${order.customer_name}`,
-  ].join("\n");
+  const lineDetails = items.map((i) => {
+    const product = products.find((p) => p.id === i.product_id);
+    const variant = i.variant_id ? product?.product_variants?.find((v) => v.id === i.variant_id) : null;
+    const path = product?.slug ? storeHref(storefront.siteUrl, `${STORE_PATHS.product(product.slug)}${i.variant_id ? `?variant=${i.variant_id}` : ""}`) : null;
+    return {
+      quantity: i.quantity,
+      name: i.product_name,
+      variantLabel: variant?.options ? Object.values(variant.options).join(" · ") : null,
+      unitPrice: money(Number(i.unit_price) || 0),
+      lineTotal: money(Number(i.line_total) || 0),
+      url: path,
+    };
+  });
+  const address = order.shipping_address as { line1?: string; line2?: string; city?: string; state?: string; postalCode?: string } | null;
+  const addressText = [address?.line1, address?.line2, address?.city, address?.state, address?.postalCode].filter(Boolean).join(", ");
+  const subtotal = items.reduce((n, i) => n + (Number(i.line_total) || 0), 0);
+  const deliveryFee = Number(order.delivery_fee) || 0;
+  const discount = Number(order.discount_amount) || 0;
+  const giftCard = Number(order.gift_card_amount) || 0;
+  const whatsappMessage = whatsappOrderMessage({
+    storeName,
+    reference,
+    items: lineDetails,
+    extras: [
+      { label: "Subtotal", value: money(subtotal) },
+      ...(deliveryFee > 0 ? [{ label: "Delivery", value: money(deliveryFee) }] : []),
+      ...(discount > 0 ? [{ label: `Discount${order.discount_code ? ` (${order.discount_code})` : ""}`, value: `−${money(discount)}` }] : []),
+      ...(giftCard > 0 ? [{ label: "Paid with gift card", value: `−${money(giftCard)}` }] : []),
+    ],
+    total,
+    deliveryMethod: order.delivery_method,
+    customer: { name: order.customer_name, phone: order.customer_phone, email: order.customer_email, address: addressText || null },
+  });
   const whatsapp = whatsappLink(shop.whatsapp, whatsappMessage, shop.countryCode);
 
   return (
     <div className="container section">
       <ClearBasket />
+      <TrackPurchase orderId={order.id} total={Number(order.total_amount) || 0} lines={purchaseLines(items)} />
       <h1 className="h-page">Thank you, we&rsquo;ve got your order</h1>
       <p className="body-copy">
         Your order reference is <strong>{reference}</strong>. Please keep it in case you need to contact {storeName}.
@@ -104,7 +144,8 @@ export default async function OrderReceivedPage({ params, searchParams }: { para
             <h2 className="h-section">Send your order on WhatsApp</h2>
             <p>Tap the button to send your order to {storeName} on WhatsApp. They&rsquo;ll reply to arrange payment and delivery.</p>
             {whatsapp ? (
-              <a className="btn btn--primary" href={whatsapp} target="_blank" rel="noreferrer">
+              <a className="btn btn--whatsapp" href={whatsapp} target="_blank" rel="noreferrer">
+                <FaWhatsapp aria-hidden />
                 Send order on WhatsApp <span className="visually-hidden">(opens WhatsApp)</span>
               </a>
             ) : (

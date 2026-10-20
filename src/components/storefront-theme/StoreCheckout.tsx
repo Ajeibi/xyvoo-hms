@@ -76,6 +76,8 @@ export default function StoreCheckout({
   freeRules,
   tax,
   paymentMethods,
+  offerWhatsAppUpdates,
+  initialPaymentMethod,
 }: {
   countryCode: string;
   storeName: string;
@@ -86,6 +88,10 @@ export default function StoreCheckout({
   freeRules: CheckoutFreeRule[];
   tax: CheckoutTax;
   paymentMethods: CheckoutPaymentMethod[];
+  /** The shop sends order updates on WhatsApp, so the shopper can ask for them. */
+  offerWhatsAppUpdates: boolean;
+  /** Chosen to start with: "Order on WhatsApp" on a product or the basket opens checkout with ?pay=whatsapp. */
+  initialPaymentMethod?: CheckoutPaymentMethod;
 }) {
   const { slug, href } = useStorefront();
   const lines = useCartStore((s) => s.lines);
@@ -94,7 +100,9 @@ export default function StoreCheckout({
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState("");
   const [zoneId, setZoneId] = useState(deliveryOptions[0]?.id ?? null);
-  const [method, setMethod] = useState<CheckoutPaymentMethod>(paymentMethods[0] ?? "card");
+  const [method, setMethod] = useState<CheckoutPaymentMethod>(
+    initialPaymentMethod && paymentMethods.includes(initialPaymentMethod) ? initialPaymentMethod : (paymentMethods[0] ?? "card"),
+  );
   const money = useMoney();
   // A discount code the shopper applied, checked by the shop's server. Cleared if the basket changes.
   const [discount, setDiscount] = useState<{ code: string; amount: number; freeDelivery: boolean; appliesTo: string[] | null; description: string; basket: string } | null>(
@@ -395,6 +403,7 @@ export default function StoreCheckout({
           giftCardCode: giftCard?.code,
           loyaltyPoints: pointsToUse || undefined,
           marketingConsent: form.get("marketing") === "yes",
+          whatsappUpdates: form.get("whatsappUpdates") === "yes",
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -505,6 +514,12 @@ export default function StoreCheckout({
             <input type="hidden" name="phone" value={phoneNumber} />
             <p className="hint">Only used for your order.</p>
             {errorFor("phone")}
+            {offerWhatsAppUpdates ? (
+              <label className="check check--top">
+                <input type="checkbox" name="whatsappUpdates" value="yes" defaultChecked />
+                <span>Send my order updates to this number on WhatsApp: when it&rsquo;s confirmed, sent and delivered. Reply STOP at any time to stop them.</span>
+              </label>
+            ) : null}
           </div>
         </section>
 

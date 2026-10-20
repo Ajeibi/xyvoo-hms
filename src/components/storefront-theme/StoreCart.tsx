@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 import Link from "next/link";
+import { FaWhatsapp } from "react-icons/fa6";
 import { useCartStore } from "@/components/shop/CartProvider";
 import { calculateCartTotals, cartLineKey } from "@/lib/shop/cart";
 import { STORE_PATHS } from "@/lib/store/site/links";
@@ -11,7 +12,7 @@ import { useBasketPrices } from "./useBasketPrices";
 import { Breadcrumb, Icon, StoreImage } from "./primitives";
 
 export default function StoreCart() {
-  const { slug, href } = useStorefront();
+  const { slug, href, whatsappOrdering } = useStorefront();
   // Today's prices: a sale may have started or ended since things were added.
   const { pricesChanged } = useBasketPrices(slug);
   const lines = useCartStore((s) => s.lines);
@@ -197,6 +198,18 @@ export default function StoreCart() {
                 <Icon name="lock" size="sm" />
                 Checkout securely
               </Link>
+              {whatsappOrdering ? (
+                <>
+                  {/* The same checkout with WhatsApp chosen, so the order is recorded before the chat opens. */}
+                  <Link className="btn btn--whatsapp" href={`${href(STORE_PATHS.checkout)}?pay=whatsapp`} aria-describedby="cart-whatsapp-hint">
+                    <FaWhatsapp aria-hidden />
+                    Order on WhatsApp
+                  </Link>
+                  <p className="whatsapp-hint" id="cart-whatsapp-hint">
+                    Send your order to the shop on WhatsApp and agree payment and delivery there.
+                  </p>
+                </>
+              ) : null}
             </aside>
           </div>
         </>

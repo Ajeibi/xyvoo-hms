@@ -16,6 +16,8 @@ type StorefrontClientContext = {
   currencies: DisplayCurrency[];
   /** The currency to show prices in when the page first loads. */
   displayCurrency: string;
+  /** The shop takes orders over WhatsApp, so products and the basket offer "Order on WhatsApp". */
+  whatsappOrdering?: boolean;
 };
 
 type MoneyContext = { selected: DisplayCurrency; setCurrency: (code: string) => void };

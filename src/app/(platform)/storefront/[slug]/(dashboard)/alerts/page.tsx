@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { AlertPreferencesCard, DeviceAlertsCard } from "@/components/storefront/OrderAlertsCard";
+import WhatsAppMessagesCard from "@/components/storefront/WhatsAppMessagesCard";
 import { DashPageHeader } from "@/components/storefront/dashboard-blocks";
 import { DashSectionIntro } from "@/components/storefront/dashboard-ui";
 import { requireStoreSection } from "@/lib/store/access";
@@ -11,7 +12,7 @@ export default async function StorefrontAlertsPage({ params }: { params: Promise
   await requireStoreSection(slug, "alerts");
   return (
     <div className="space-y-6">
-      <DashPageHeader title="Order alerts" description="Hear about new orders, low stock and payment problems straight away, by email and on your phone." />
+      <DashPageHeader title="Order alerts" description="Hear about new orders, low stock and payment problems straight away, by email, on your phone and on WhatsApp." />
 
       <DashSectionIntro
         id="alerts"
@@ -29,6 +30,7 @@ export default async function StorefrontAlertsPage({ params }: { params: Promise
         <DeviceAlertsCard slug={slug} />
         <AlertPreferencesCard slug={slug} />
       </div>
+      <WhatsAppMessagesCard slug={slug} />
     </div>
   );
 }

@@ -244,7 +244,14 @@ export default async function StorefrontLayout({ children, params }: LayoutParam
 
         {visible ? (
           <StorefrontProvider
-            value={{ slug, basePath, currency: storefront.profile.currencyCode, currencies: storefront.currencies, displayCurrency: storefront.displayCurrency }}
+            value={{
+              slug,
+              basePath,
+              currency: storefront.profile.currencyCode,
+              currencies: storefront.currencies,
+              displayCurrency: storefront.displayCurrency,
+              whatsappOrdering: storefront.paymentMethods.includes("whatsapp"),
+            }}
           >
             {promo && promoLabel ? <PromoBar offer={promo.offer} code={promo.code} endsAt={promo.endsAt} initialLabel={promoLabel} /> : null}
             <StoreHeader
@@ -264,7 +271,14 @@ export default async function StorefrontLayout({ children, params }: LayoutParam
             </main>
             <StoreFooter storefront={storefront} showMark={showMark} appConfig={appConfig} />
             {appConfig ? <StoreApp config={appConfig} variant="prompt" /> : null}
-            {appConfig ? <StoreAnalytics slug={slug} storeName={storeName} privacyHref={privacyPageHref(storefront)} /> : null}
+            {appConfig ? (
+              <StoreAnalytics
+                slug={slug}
+                storeName={storeName}
+                privacyHref={privacyPageHref(storefront)}
+                pixels={{ metaPixelId: site.seo.metaPixelId, googleAnalyticsId: site.seo.googleAnalyticsId }}
+              />
+            ) : null}
             {appConfig ? <AccountPrompt storeName={storeName} privacyHref={privacyPageHref(storefront)} /> : null}
             {appConfig ? <AccountActivity /> : null}
             {appConfig ? <ReferralCapture /> : null}

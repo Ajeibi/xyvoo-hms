@@ -8,12 +8,14 @@ import { clearCheckoutToken } from "@/lib/store/analytics-client";
 import { STORE_PATHS } from "@/lib/store/site/links";
 import { useStorefront } from "./StorefrontProvider";
 import { Icon } from "./primitives";
+import { TrackPurchase } from "./StoreAnalytics";
+import { purchaseLines } from "@/lib/store/product-feed";
 
 type OrderSummary = {
   id: string;
   customer_name: string;
   total_amount: number;
-  order_items: Array<{ product_name: string; quantity: number; unit_price: number; line_total: number }>;
+  order_items: Array<{ product_id: string | null; variant_id: string | null; product_name: string; quantity: number; unit_price: number; line_total: number }>;
 };
 
 type VerifyResult = { status: string; order: OrderSummary | null };
@@ -106,6 +108,7 @@ export default function StoreOrderResult({ reference }: { reference: string }) {
       </h1>
       {order ? (
         <>
+          <TrackPurchase orderId={order.id} total={Number(order.total_amount)} lines={purchaseLines(order.order_items)} />
           <p className="body-copy">
             Your order reference is <strong>{order.id.slice(0, 8).toUpperCase()}</strong>. Please keep it in case you need to contact the shop.
           </p>
