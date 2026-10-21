@@ -1,3 +1,4 @@
+import { shopChanged } from "@/lib/store/site/shop-changed";
 import { after, NextResponse } from "next/server";
 import { resolveStoreRequest, storeOwnsProducts } from "@/lib/store/api-helpers";
 import { bulkRequestSchema, describeBulkResult, groupByNewPrice } from "@/lib/store/product-catalogue";
@@ -125,5 +126,6 @@ export async function POST(req: Request) {
   await logEach(activity);
   // A stock or status change may have brought products back: tell anyone who asked.
   after(() => sendStockAlertsForProducts(resolved.access.tenantId, ids));
+  shopChanged(resolved.access.tenantId);
   return NextResponse.json({ updated: ids.length, message: describeBulkResult(action, ids.length) });
 }

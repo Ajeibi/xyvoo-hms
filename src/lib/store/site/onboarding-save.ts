@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { shopChanged } from "./shop-changed";
 import { checkSlugAvailable } from "@/lib/store/slugs";
 import { contactRequestSchema, teamEmail } from "@/lib/marketing/contact-request";
 import { sendContactRequestEmail } from "@/lib/mail/mailtrap";
@@ -60,6 +61,7 @@ export async function saveBasics(ctx: Ctx, v: StepValues<"basics">): Promise<str
     })
     .eq("tenant_id", ctx.tenantId);
   if (error) throw new Error(error.message);
+  shopChanged(ctx.tenantId);
   return slug;
 }
 
@@ -114,6 +116,7 @@ export async function saveEssentials(ctx: Ctx, v: StepValues<"essentials">) {
     })
     .eq("tenant_id", ctx.tenantId);
   if (profileError) throw new Error(profileError.message);
+  shopChanged(ctx.tenantId);
 
   // The wizard manages two simple zones by name; the dashboard's delivery screen can add more later.
   const { data: zones } = await store.from("delivery_zones").select("id, name").eq("tenant_id", ctx.tenantId).in("name", [DELIVERY_ZONE, PICKUP_ZONE]);

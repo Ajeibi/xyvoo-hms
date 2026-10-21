@@ -29,11 +29,11 @@ function discountPercent(product: ShopProduct) {
   return Math.round((1 - product.price / product.compareAtPrice) * 100);
 }
 
-function CardMedia({ product }: { product: ShopProduct }) {
+function CardMedia({ product, eager }: { product: ShopProduct; eager?: boolean }) {
   return (
     <div className="media card__media" aria-hidden={product.imageUrl ? undefined : true}>
       {product.imageUrl ? (
-        <StoreImage src={product.imageUrl} alt={product.imageAltTexts[0] || ""} sizes={CARD_SIZES} />
+        <StoreImage src={product.imageUrl} alt={product.imageAltTexts[0] || ""} sizes={CARD_SIZES} eager={eager} />
       ) : (
         <span className="media__label">No photo yet</span>
       )}
@@ -51,11 +51,14 @@ export default function ProductCard({
   basePath,
   variant,
   headingLevel = 3,
+  eager = false,
 }: {
   product: ShopProduct;
   basePath: string;
   variant: SiteTheme["cardVariant"];
   headingLevel?: 2 | 3;
+  /** Near the top of the page, so its photo shouldn't wait to be scrolled to. */
+  eager?: boolean;
 }) {
   const href = storeHref(basePath, STORE_PATHS.product(product.slug || product.id));
   const Heading = headingLevel === 2 ? "h2" : "h3";
@@ -83,7 +86,7 @@ export default function ProductCard({
     return (
       <article className="card card--view">
         <div className="card__frame">
-          <CardMedia product={product} />
+          <CardMedia product={product} eager={eager} />
           {product.newArrival ? <span className="card__badge">New</span> : null}
         </div>
         <div className="card__body">
@@ -99,7 +102,7 @@ export default function ProductCard({
     return (
       <article className="card card--icons">
         <div className="card__frame">
-          <CardMedia product={product} />
+          <CardMedia product={product} eager={eager} />
           {discount ? <span className="tag">-{discount}%</span> : null}
           {!needsOptions ? (
             <div className="card__tools">
@@ -128,7 +131,7 @@ export default function ProductCard({
 
   return (
     <article className="card">
-      <CardMedia product={product} />
+      <CardMedia product={product} eager={eager} />
       {discount ? <span className="tag">-{discount}%</span> : null}
       <div className="card__body">
         {title}
@@ -145,17 +148,20 @@ export function ProductGridList({
   basePath,
   variant,
   className = "products",
+  eagerCount = 0,
 }: {
   products: ShopProduct[];
   basePath: string;
   variant: SiteTheme["cardVariant"];
   className?: string;
+  /** How many cards from the start load their photo straight away: the first row when the grid opens the page. */
+  eagerCount?: number;
 }) {
   return (
     <ul className={className}>
-      {products.map((product) => (
+      {products.map((product, i) => (
         <li key={product.id}>
-          <ProductCard product={product} basePath={basePath} variant={variant} />
+          <ProductCard product={product} basePath={basePath} variant={variant} eager={i < eagerCount} />
         </li>
       ))}
     </ul>

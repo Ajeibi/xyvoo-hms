@@ -1,3 +1,4 @@
+import { shopChanged } from "@/lib/store/site/shop-changed";
 import { NextResponse } from "next/server";
 import { resolveStoreRequest } from "@/lib/store/api-helpers";
 import { logActivity } from "@/lib/store/activity";
@@ -39,5 +40,6 @@ export async function PATCH(req: Request) {
     .eq("tenant_id", resolved.access.tenantId);
   if (error) return NextResponse.json({ error: "We couldn't save that. Please try again." }, { status: 500 });
   await logActivity({ tenantId: resolved.access.tenantId, actor: resolved.access, area: "payments", action: "updated" });
+  shopChanged(resolved.access.tenantId);
   return NextResponse.json({ settings: parsed.data });
 }

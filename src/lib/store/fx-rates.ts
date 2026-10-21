@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { revalidateTag, unstable_cache } from "next/cache";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { SHOP_CURRENCIES, type FxRates } from "./currencies";
 
@@ -36,13 +37,25 @@ export async function refreshFxRates(): Promise<number> {
 
   const { error } = await db().from("fx_rates").upsert(rows, { onConflict: "currency" });
   if (error) throw new Error(error.message);
+  // Shops pick the new rates up on their next page view.
+  try {
+    revalidateTag(FX_TAG, { expire: 0 });
+  } catch {
+    /* outside a request (a script): the cached rates run out within the hour anyway */
+  }
   return rows.length;
 }
 
 export type FxRatesSnapshot = { rates: FxRates; fetchedAt: string | null };
 
+/** Rates change once a day, so they're kept between page views for this long (and cleared when new ones are saved). */
+const CACHE_SECONDS = 3600;
+const FX_TAG = "fx-rates";
+
 /** The saved rates, refreshed first if they're missing or stale. A failed refresh falls back to what's saved. */
-export const getFxRates = cache(async (): Promise<FxRatesSnapshot> => {
+export const getFxRates = cache((): Promise<FxRatesSnapshot> => unstable_cache(loadFxRates, ["fx-rates-v1"], { tags: [FX_TAG], revalidate: CACHE_SECONDS })());
+
+async function loadFxRates(): Promise<FxRatesSnapshot> {
   const read = async () => {
     const { data } = await db().from("fx_rates").select("currency, per_usd, fetched_at");
     const rows = data || [];
@@ -62,4 +75,4 @@ export const getFxRates = cache(async (): Promise<FxRatesSnapshot> => {
   } catch {
     return snapshot;
   }
-});
+}

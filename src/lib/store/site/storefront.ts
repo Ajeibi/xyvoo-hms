@@ -4,7 +4,6 @@ import { cookies, headers } from "next/headers";
 import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getShopTenantBySlug, type ShopTenant } from "@/lib/shop/tenants";
-import { listShopCategories } from "@/lib/shop/products";
 import { getStorePaymentRoute } from "@/lib/store/payments";
 import { currencyForVisitorCountry, parseCurrencySettings, resolveDisplayCurrencies, shopCurrencyCookie, type DisplayCurrency } from "@/lib/store/currencies";
 import { getFxRates } from "@/lib/store/fx-rates";
@@ -14,6 +13,9 @@ import type { StoreSocials } from "@/lib/store/socials";
 import { availablePaymentMethods, parseOfflinePayments, type CheckoutPaymentMethod } from "@/lib/store/offline-payments";
 import { STOREFRONT_HOST_HEADER, STOREFRONT_PREVIEW_COOKIE, storefrontUrl } from "@/lib/store/subdomain";
 import { getStoreSite } from "./data";
+import { getShopSnapshot, type ShopSnapshot } from "./shop-cache";
+
+type StoreSnapshotPage = ShopSnapshot["pages"][number];
 import { menuItemPath } from "./links";
 import { resolveSite, type ResolvedSite } from "./resolve";
 import type { SiteNavigation } from "./schema";
@@ -119,39 +121,26 @@ export const getStorefront = cache(async (slug: string): Promise<Storefront | nu
   // Puts back stock held by abandoned or failed card payments before the shop is shown.
   releaseExpiredOrdersSoon(tenant.id);
 
-  const db = createServerSupabaseClient().schema("store");
-  const [siteRecord, profileResult, collectionsResult, pagesResult, categoriesResult, requestHeaders, paymentRoute, offlineResult, currenciesResult] = await Promise.all([
-    getStoreSite(tenant.id),
-    db
-      .from("business_profile")
-      .select("business_email, phone, whatsapp, address_line1, address_line2, city, state, country_code, currency_code, socials")
-      .eq("tenant_id", tenant.id)
-      .maybeSingle(),
-    db
-      .from("collections")
-      .select("id, slug, name, description, image_url, image_alt")
-      .eq("tenant_id", tenant.id)
-      .eq("is_visible", true)
-      .order("sort_order"),
-    db.from("pages").select("slug, title, system_key, status").eq("tenant_id", tenant.id).order("sort_order"),
-    listShopCategories(tenant.id),
-    headers(),
-    getStorePaymentRoute(tenant.id),
-    // Separate query: if the offline payments column isn't there yet, only these options are missing.
-    db.from("business_profile").select("offline_payments").eq("tenant_id", tenant.id).maybeSingle(),
-    // Likewise for extra currencies.
-    db.from("business_profile").select("currencies").eq("tenant_id", tenant.id).maybeSingle(),
-  ]);
+  // The shop's shared data comes from the cache; the payment route (it holds keys) is read each time.
+  const [snapshot, requestHeaders, paymentRoute] = await Promise.all([getShopSnapshot(tenant.id), headers(), getStorePaymentRoute(tenant.id)]);
 
-  const isLive = siteRecord?.status === "live" && siteRecord.published !== null;
+  const isLive = snapshot.site?.status === "live" && snapshot.site.published !== null;
   // Members see the draft on an unpublished shop, or on a live one when they've
   // opened the editor's preview (which sets the preview cookie).
   const wantsDraft = (await cookies()).get(STOREFRONT_PREVIEW_COOKIE)?.value === "1";
   const isPreview = (!isLive || wantsDraft) && (await isStoreMember(tenant.id));
+  // A merchant previewing sees their draft as it is this moment, never a cached copy.
+  const [siteRecord, pageRows] = isPreview
+    ? await Promise.all([
+        getStoreSite(tenant.id),
+        createServerSupabaseClient().schema("store").from("pages").select("slug, title, system_key, status").eq("tenant_id", tenant.id).order("sort_order").then((r) => r.data || []),
+      ])
+    : [snapshot.site, snapshot.pages];
   const overrides = isPreview ? siteRecord?.draft ?? {} : siteRecord?.published ?? {};
   const storeName = tenant.displayName?.trim() || tenant.name?.trim() || slug;
+  const categoriesResult = snapshot.categories;
 
-  const collections: StoreCollectionSummary[] = (collectionsResult.data || []).map((c) => ({
+  const collections: StoreCollectionSummary[] = snapshot.collections.map((c) => ({
     id: c.id,
     slug: c.slug,
     name: c.name,
@@ -160,7 +149,7 @@ export const getStorefront = cache(async (slug: string): Promise<Storefront | nu
     imageAlt: c.image_alt,
   }));
   // Draft pages only exist for members previewing the shop.
-  const pages: StorePageSummary[] = (pagesResult.data || [])
+  const pages: StorePageSummary[] = (pageRows as StoreSnapshotPage[])
     .filter((p) => p.status === "published" || isPreview)
     .map((p) => ({ slug: p.slug, title: p.title, systemKey: p.system_key }));
   const categories = categoriesResult.map((c) => c.name);
@@ -174,7 +163,7 @@ export const getStorefront = cache(async (slug: string): Promise<Storefront | nu
     sections: resolved.sections.filter((s) => !(s.type === "promo" && s.endsAt && new Date(s.endsAt).getTime() < now)),
   };
 
-  const p = profileResult.data;
+  const p = snapshot.profile;
   const profile: StoreBusinessProfile = {
     businessEmail: p?.business_email ?? null,
     phone: p?.phone ?? null,
@@ -193,7 +182,7 @@ export const getStorefront = cache(async (slug: string): Promise<Storefront | nu
 
   // Other currencies are a Standard feature: on Free the shop shows only its own (the saved list is kept).
   const multiCurrency = storeHasFeature(await getStorePlan(tenant.id), "multiCurrency");
-  const currencySettings = multiCurrency ? parseCurrencySettings(currenciesResult.data?.currencies, profile.currencyCode) : { extra: [] };
+  const currencySettings = multiCurrency ? parseCurrencySettings(p?.currencies, profile.currencyCode) : { extra: [] };
   // Only shops showing other currencies need the exchange rates.
   const rates = currencySettings.extra.length ? (await getFxRates()).rates : {};
   const currencies = resolveDisplayCurrencies(profile.currencyCode, currencySettings, rates);
@@ -214,7 +203,7 @@ export const getStorefront = cache(async (slug: string): Promise<Storefront | nu
     isLive,
     isPreview,
     acceptsPayments: paymentRoute !== null,
-    paymentMethods: availablePaymentMethods({ acceptsCard: paymentRoute !== null || simulatedPaymentsEnabled(), offline: parseOfflinePayments(offlineResult.data?.offline_payments), whatsappNumber: p?.whatsapp ?? null }),
+    paymentMethods: availablePaymentMethods({ acceptsCard: paymentRoute !== null || simulatedPaymentsEnabled(), offline: parseOfflinePayments(p?.offline_payments), whatsappNumber: p?.whatsapp ?? null }),
     profile,
     currencies,
     displayCurrency,

@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { NextResponse } from "next/server";
 import type { StorePlan } from "@/lib/store/site/onboarding";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -54,7 +55,8 @@ export function storeHasFeature(plan: StorePlan | null | undefined, feature: Sto
  * row are on Free, and so is a Standard store that hasn't paid (chosen but
  * unpaid, or lapsed after the grace period), the same rule as the fee.
  */
-export async function getStorePlan(tenantId: string): Promise<StorePlan> {
+// Read once per request: a shop page asks in several places (layout, listing, prices).
+export const getStorePlan = cache(async (tenantId: string): Promise<StorePlan> => {
   const { data } = await createServerSupabaseClient()
     .schema("store")
     .from("subscriptions")
@@ -62,7 +64,7 @@ export async function getStorePlan(tenantId: string): Promise<StorePlan> {
     .eq("tenant_id", tenantId)
     .maybeSingle();
   return planForFeatures(data as SubscriptionState | null);
-}
+});
 
 export function planForFeatures(sub: SubscriptionState | null, now = Date.now()): StorePlan {
   if (sub?.plan === "enterprise") return "enterprise";

@@ -47,18 +47,24 @@ export function StoreImage({
   alt,
   sizes,
   priority = false,
+  eager = false,
 }: {
   src: string;
   alt: string;
   sizes: string;
+  /** The page's main image (a hero, a product photo): preloaded from the <head>. One per page. */
   priority?: boolean;
+  /** One of several images that could be the main one (a grid's first row): fetched early, not lazily. */
+  eager?: boolean;
 }) {
   if (SUPABASE_STORAGE_PREFIX && src.startsWith(SUPABASE_STORAGE_PREFIX)) {
-    return <Image src={src} alt={alt} fill sizes={sizes} priority={priority} />;
+    if (priority) return <Image src={src} alt={alt} fill sizes={sizes} preload />;
+    return <Image src={src} alt={alt} fill sizes={sizes} loading={eager ? "eager" : "lazy"} fetchPriority={eager ? "high" : undefined} />;
   }
+  const early = priority || eager;
   return (
     // eslint-disable-next-line @next/next/no-img-element -- external hosts aren't in next/image's allow-list
-    <img src={src} alt={alt} loading={priority ? "eager" : "lazy"} decoding="async" fetchPriority={priority ? "high" : "auto"} />
+    <img src={src} alt={alt} loading={early ? "eager" : "lazy"} decoding="async" fetchPriority={early ? "high" : "auto"} />
   );
 }
 

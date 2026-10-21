@@ -1,3 +1,4 @@
+import { shopChanged } from "@/lib/store/site/shop-changed";
 import { NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getStoreAccessContext } from "@/lib/store/access";
@@ -92,5 +93,6 @@ export async function POST(req: Request) {
   await logActivity({ tenantId: access.tenantId, actor: access, area: "products", action: "created", targetId: product.id, targetLabel: product.name });
 
   const row = { ...product, product_variants: insertedVariants } as StoreProductRow;
+  shopChanged(access.tenantId);
   return NextResponse.json({ product: mapProductRowToDashboard(row) }, { status: 201 });
 }

@@ -133,8 +133,9 @@ export default async function ProductListing({
               ) : null}
             </div>
 
+            {/* The first row (four across on wide screens) is what a shopper sees first, so its photos load straight away. */}
             {products.length ? (
-              <ProductGridList products={products} basePath={basePath} variant={site.theme.cardVariant} />
+              <ProductGridList products={products} basePath={basePath} variant={site.theme.cardVariant} eagerCount={4} />
             ) : (
               <div className="empty-state">
                 <Icon name="search" />

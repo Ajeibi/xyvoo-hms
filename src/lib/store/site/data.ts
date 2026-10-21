@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { shopChanged } from "./shop-changed";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { isOnboardingStep, PLAN_FEE_RATES, type OnboardingProgress, type StorePlan } from "./onboarding";
 import { parseSiteOverrides, siteOverridesSchema, type SiteOverrides } from "./schema";
@@ -85,6 +86,8 @@ export async function saveSiteDraft(tenantId: string, patch: SiteOverrides): Pro
 export async function setSiteTemplate(tenantId: string, templateSlug: StorefrontTemplateSlug) {
   const { error } = await storeDb().from("sites").update({ template_slug: templateSlug }).eq("tenant_id", tenantId);
   if (error) throw new Error(error.message);
+  // A live shop shows its template straight away.
+  shopChanged(tenantId);
 }
 
 export async function getOnboardingProgress(tenantId: string): Promise<OnboardingProgress | null> {
@@ -142,6 +145,7 @@ export async function provisionStoreDefaults(
 
   const failed = results.find((r) => r.error);
   if (failed?.error) throw new Error(failed.error.message);
+  shopChanged(tenantId);
 }
 
 /** Throws away unpublished edits: the draft goes back to what's live (or to the template defaults if nothing is). */
@@ -180,5 +184,7 @@ export async function restoreSiteVersion(tenantId: string, version: number) {
     .update({ draft: parseSiteOverrides(data.snapshot), template_slug: isStorefrontTemplateSlug(data.template_slug) ? data.template_slug : DEFAULT_TEMPLATE_SLUG })
     .eq("tenant_id", tenantId);
   if (updateError) throw new Error(updateError.message);
+  // The template comes back too, and a live shop shows it straight away.
+  shopChanged(tenantId);
   return true;
 }

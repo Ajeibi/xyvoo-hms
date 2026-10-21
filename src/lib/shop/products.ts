@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { DEFAULT_SHOP_CURRENCY } from "@/lib/shop/tenants";
 import type { FixedPrices } from "@/lib/store/currencies";
@@ -373,7 +374,8 @@ export async function listShopCategories(tenantId: string): Promise<Array<{ name
   return Array.from(counts, ([name, count]) => ({ name, count })).sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export async function getShopProductBySlug(tenantId: string, slug: string): Promise<ShopProduct | null> {
+// Once per request: a product page reads it for its metadata and again for the page.
+export const getShopProductBySlug = cache(async (tenantId: string, slug: string): Promise<ShopProduct | null> => {
   const supabase = createServerSupabaseClient();
 
   let columns = SHOP_PRODUCT_COLUMNS;
@@ -401,7 +403,7 @@ export async function getShopProductBySlug(tenantId: string, slug: string): Prom
   if (!data) return null;
 
   return (await mapRows(tenantId, [data as unknown as ShopProductRow]))[0];
-}
+});
 
 /** Products on sale in the shop, by id (e.g. to put a saved basket back). Ones no longer on sale are left out. */
 export async function getShopProductsByIds(tenantId: string, ids: string[]): Promise<ShopProduct[]> {

@@ -1,3 +1,4 @@
+import { shopChanged } from "@/lib/store/site/shop-changed";
 import { after, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getStoreAccessContext, getStoreCapabilities } from "@/lib/store/access";
@@ -88,6 +89,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   // Back in stock? Tell anyone who asked (never holds up the save).
   const tenantId = access.tenantId;
   after(() => sendStockAlertsForProducts(tenantId, [id]));
+  shopChanged(access.tenantId);
   return NextResponse.json({ product: mapProductRowToDashboard(row) });
 }
 
@@ -117,5 +119,6 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   if (deleted?.length) {
     await logActivity({ tenantId: access.tenantId, actor: access, area: "products", action: "deleted", targetId: id, targetLabel: deleted[0].name });
   }
+  shopChanged(access.tenantId);
   return NextResponse.json({ success: true });
 }
