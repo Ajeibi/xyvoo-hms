@@ -82,6 +82,8 @@ const CheckoutSchema = z.object({
   whatsappUpdates: z.boolean().optional(),
   /** Loyalty points the signed-in shopper wants to use; checked and worked out again here. */
   loyaltyPoints: z.number().int().min(0).max(1_000_000).optional(),
+  /** The shopper's note for the shop: delivery instructions, a gift message. */
+  note: text(500).optional(),
 });
 
 const DISCOUNT_CLAIM_ERRORS: Record<string, string> = {
@@ -115,7 +117,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     return NextResponse.json({ error: parsed.error.issues[0]?.message || "Invalid checkout details." }, { status: 400 });
   }
 
-  const { customer, shippingAddress, items, deliveryZoneId, checkoutToken, paymentMethod, discountCode, giftCardCode, giftCard, marketingConsent, whatsappUpdates, loyaltyPoints } = parsed.data;
+  const { customer, shippingAddress, items, deliveryZoneId, checkoutToken, paymentMethod, discountCode, giftCardCode, giftCard, marketingConsent, whatsappUpdates, loyaltyPoints, note } = parsed.data;
   const service = createServerSupabaseClient();
   const onStoreSubdomain = getStoreSlugFromHost(req.headers.get("host")) === slug;
   const receivedUrl = (orderId: string) => `${onStoreSubdomain ? "" : `/shop/${slug}`}/checkout/received?order=${orderId}`;
@@ -474,6 +476,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
   // Separate write: if the column isn't there yet, the order still goes through.
   // (The token links the order to its saved checkout; the key above stops repeats.)
   if (checkoutToken) await service.schema("store").from("orders").update({ checkout_token: checkoutToken }).eq("id", order.id);
+  // Likewise for the shopper's note (the column may not be there yet), before the order emails go out.
+  if (note) {
+    const { error: noteError } = await service.schema("store").from("orders").update({ customer_note: note }).eq("id", order.id);
+    if (noteError) console.error("[checkout] note not recorded", { orderId: order.id, error: noteError.message });
+  }
   // Likewise for WhatsApp updates; set before any order message goes out below.
   if (whatsappUpdates && customer.phone) await service.schema("store").from("orders").update({ whatsapp_updates: true }).eq("id", order.id);
 

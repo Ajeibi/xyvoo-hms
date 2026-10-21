@@ -251,6 +251,7 @@ export default function OrderDetailView({ slug, detail, countryCode, canRefund }
         <DashCard id={`${ids}-payment`} title="Payment" icon={CreditCard}>
           <dl className="space-y-1 text-sm">
             <Row label="Method" value={order.paymentMethod} />
+            {order.customerNote ? <Row label="Customer's note" value={order.customerNote} /> : null}
             {order.shopNote ? <Row label="Team note" value={order.shopNote} /> : null}
             <Row label="Status" value={paymentStatusLabel(order)} />
             {detail.paidAt ? <Row label="Paid" value={dateTime(detail.paidAt)} /> : null}

@@ -60,6 +60,7 @@ export default async function StorefrontCheckoutPage({ params, searchParams }: {
           storeName={storefront.storeName}
           termsHref={pageHref("terms")}
           privacyHref={pageHref("privacy")}
+          deliveryReturnsHref={pageHref("delivery-returns")}
           deliveryOptions={deliveryOptions}
           freeRules={freeRules}
           tax={{ enabled: tax.enabled, name: tax.name, rate: tax.rate, inclusive: tax.inclusive, onDelivery: tax.onDelivery }}

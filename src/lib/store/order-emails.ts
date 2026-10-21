@@ -97,6 +97,7 @@ export async function sendOrderReceivedEmails(tenantId: string, orderId: string)
             ...items.map((i) => ({ label: `${i.quantity} ×`, value: i.product_name })),
             ...discount,
             { label: "Total", value: total },
+            ...noteRow(order),
           ]),
           buttons: [{ label: "Open orders", href: dashboard }],
           footerNote: `You're receiving this because ${storeName} takes orders on XYVOO.`,
@@ -107,6 +108,9 @@ export async function sendOrderReceivedEmails(tenantId: string, orderId: string)
     console.error("[order emails] not sent", { orderId, error });
   }
 }
+
+/** The shopper's note from checkout, for the shop's new-order emails. */
+const noteRow = (order: { customer_note?: unknown }) => (typeof order.customer_note === "string" && order.customer_note.trim() ? [{ label: "Customer's note", value: order.customer_note.trim() }] : []);
 
 /** The discount line for an order's emails, if it had one. */
 /** The discount and any gift card on an order, as lines above the total. */
@@ -130,6 +134,7 @@ type OrderEmailContext = {
     customer_phone: string | null;
     total_amount: number;
     delivery_method: string | null;
+    customer_note?: string | null;
   };
   items: { product_name: string; quantity: number; line_total: number }[];
   storeName: string;
@@ -240,6 +245,7 @@ export async function sendOrderPaidEmails(tenantId: string, orderId: string) {
             ...discount,
             { label: "Total paid", value: total },
             ...(order.delivery_method ? [{ label: "Delivery", value: String(order.delivery_method) }] : []),
+            ...noteRow(order),
           ]),
           buttons: [{ label: "Open orders", href: dashboard }],
           footerNote: `You're receiving this because ${storeName} takes orders on XYVOO.`,

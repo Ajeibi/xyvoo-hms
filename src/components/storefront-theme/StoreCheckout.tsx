@@ -28,6 +28,15 @@ type Errors = Partial<Record<FieldName, string>>;
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/** "Nigeria" for "NG". */
+function countryNameFor(code: string) {
+  try {
+    return new Intl.DisplayNames(["en-GB"], { type: "region" }).of(code) ?? code;
+  } catch {
+    return code;
+  }
+}
+
 /** The basket for the shop's ad pixels, with the product feed's ids (each option's own, or the product's). */
 const pixelLines = (lines: CartLine[]): PurchaseLine[] =>
   lines.map((l) => ({ itemId: l.variantId ?? l.productId, name: l.name, quantity: l.quantity, unitPrice: l.unitPrice }));
@@ -78,6 +87,7 @@ export default function StoreCheckout({
   storeName,
   termsHref,
   privacyHref,
+  deliveryReturnsHref,
   deliveryOptions,
   freeRules,
   tax,
@@ -89,6 +99,8 @@ export default function StoreCheckout({
   storeName: string;
   termsHref: string | null;
   privacyHref: string | null;
+  /** The shop's delivery and returns page, linked beside the pay button. */
+  deliveryReturnsHref?: string | null;
   deliveryOptions: CheckoutDeliveryOption[];
   /** The shop's free delivery rules; checked again on the server. */
   freeRules: CheckoutFreeRule[];
@@ -103,6 +115,9 @@ export default function StoreCheckout({
   const lines = useCartStore((s) => s.lines);
   const hasHydrated = useCartStore((s) => s.hasHydrated);
   const [errors, setErrors] = useState<Errors>({});
+  // After a submit with problems: a list of them at the top, each linked to its field.
+  const [showSummary, setShowSummary] = useState(false);
+  const errorSummary = useRef<HTMLDivElement>(null);
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState("");
   const [zoneId, setZoneId] = useState(deliveryOptions[0]?.id ?? null);
@@ -181,6 +196,9 @@ export default function StoreCheckout({
   const shownToPay = Math.max(shownTotal - shownGift - shownPointsOff, 0);
   const stateRegions = COUNTRY_REGIONS[countryCode]?.regions ?? null;
   const stateLabel = regionLabel(countryCode);
+  const countryName = countryNameFor(countryCode);
+  // A line taken off sale or sold out since it was added (see useBasketPrices): checkout waits until it's removed.
+  const blocked = lines.some((l) => l.problem);
 
   const applyGiftCard = async () => {
     const typed = giftInput.trim();
@@ -380,7 +398,14 @@ export default function StoreCheckout({
     const firstInvalid = FIELD_ORDER.find((f) => found[f]);
     if (firstInvalid) {
       setStatus("Please correct the highlighted fields.");
-      document.getElementById(`co-${firstInvalid}`)?.focus();
+      setShowSummary(true);
+      // The summary is drawn on this render; focus it on the next frame.
+      window.requestAnimationFrame(() => errorSummary.current?.focus());
+      return;
+    }
+    setShowSummary(false);
+    if (blocked) {
+      setStatus("Some items in your basket can't be bought any more. Remove them from your basket, then try again.");
       return;
     }
     if (tooHeavy) {
@@ -403,7 +428,7 @@ export default function StoreCheckout({
         body: JSON.stringify({
           customer: { name: get("name"), email: get("email"), phone: get("phone") },
           shippingAddress: needsAddress
-            ? { line1: get("line1"), line2: get("line2"), city: get("city"), state: get("state"), country: countryCode }
+            ? { line1: get("line1"), line2: get("line2"), city: get("city"), state: get("state"), postalCode: String(form.get("postcode") ?? "").trim() || undefined, country: countryCode }
             : { country: countryCode },
           items: lines.map((l) => ({ productId: l.productId, variantId: l.variantId, quantity: l.quantity })),
           deliveryZoneId: zone?.id ?? null,
@@ -414,6 +439,7 @@ export default function StoreCheckout({
           loyaltyPoints: pointsToUse || undefined,
           marketingConsent: form.get("marketing") === "yes",
           whatsappUpdates: form.get("whatsappUpdates") === "yes",
+          note: String(form.get("note") ?? "").trim() || undefined,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -472,6 +498,28 @@ export default function StoreCheckout({
           if (target.name === "email" || target.name === "name" || target.id === "co-phone") saveCheckout(e.currentTarget);
         }}
       >
+        {showSummary && FIELD_ORDER.some((f) => errors[f]) ? (
+          <div className="error-summary" ref={errorSummary} tabIndex={-1} role="alert" aria-labelledby="co-error-summary-title">
+            <h2 className="error-summary__title" id="co-error-summary-title">
+              There&rsquo;s a problem
+            </h2>
+            <ul>
+              {FIELD_ORDER.filter((f) => errors[f]).map((f) => (
+                <li key={f}>
+                  <a
+                    href={`#co-${f}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      document.getElementById(`co-${f}`)?.focus();
+                    }}
+                  >
+                    {errors[f]}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         <p className="body-copy">All fields are required unless marked optional.</p>
 
         <section className="checkout-step" aria-labelledby="step-contact">
@@ -526,7 +574,7 @@ export default function StoreCheckout({
             {errorFor("phone")}
             {offerWhatsAppUpdates ? (
               <label className="check check--top">
-                <input type="checkbox" name="whatsappUpdates" value="yes" defaultChecked />
+                <input type="checkbox" name="whatsappUpdates" value="yes" />
                 <span>Send my order updates to this number on WhatsApp: when it&rsquo;s confirmed, sent and delivered. Reply STOP at any time to stop them.</span>
               </label>
             ) : null}
@@ -541,6 +589,13 @@ export default function StoreCheckout({
               </span>
               Delivery address
             </h2>
+            {/* Said before the address is typed, so nobody abroad fills it in for nothing. */}
+            <p className="hint checkout-country">
+              <Icon name="pin" size="sm" />
+              <span>
+                {storeName} delivers within <strong>{countryName}</strong>. For delivery anywhere else, please contact the shop.
+              </span>
+            </p>
             {!needsAddress ? <p className="hint">You&rsquo;re collecting your order, so you don&rsquo;t need to enter an address.</p> : null}
             <div className="field">
               <label htmlFor="co-line1">Address line 1{!needsAddress ? <span className="optional"> (optional)</span> : null}</label>
@@ -591,6 +646,12 @@ export default function StoreCheckout({
                 )}
                 {errorFor("state")}
               </div>
+            </div>
+            <div className="field field--short">
+              <label htmlFor="co-postcode">
+                Postcode <span className="optional">(optional)</span>
+              </label>
+              <input className="input" type="text" autoComplete="postal-code" maxLength={20} id="co-postcode" name="postcode" />
             </div>
           </section>
         ) : null}
@@ -663,6 +724,15 @@ export default function StoreCheckout({
               <p>{PAYMENT_COPY[method].text}</p>
             </div>
           )}
+          <div className="field">
+            <label htmlFor="co-note">
+              Note for {storeName} <span className="optional">(optional)</span>
+            </label>
+            <textarea className="input" id="co-note" name="note" rows={2} maxLength={500} aria-describedby="co-note-hint" />
+            <p className="hint" id="co-note-hint">
+              For example, delivery instructions or a gift message.
+            </p>
+          </div>
           <label className="check check--top">
             <input type="checkbox" name="marketing" value="yes" />
             <span>Send me news and offers from {storeName} by email. You can unsubscribe at any time.</span>
@@ -685,12 +755,26 @@ export default function StoreCheckout({
               {errorFor("terms")}
             </>
           ) : null}
-          <button className="btn btn--primary" type="submit" disabled={submitting}>
+          {blocked ? (
+            <p className="cart-line__problem" role="status">
+              Some items in your basket can&rsquo;t be bought any more. <Link href={href(STORE_PATHS.cart)}>Remove them from your basket</Link>, then come back.
+            </p>
+          ) : null}
+          <button className="btn btn--primary" type="submit" disabled={submitting || blocked}>
             <Icon name="lock" size="sm" />
             {submitting ? "Please wait…" : method === "card" ? `Pay ${money.formatHome(Math.max(total - giftUsed - pointsOff, 0))}` : `Place order (${money.formatHome(Math.max(total - giftUsed - pointsOff, 0))})`}
           </button>
           <p className="form-status" role="status">
             {status}
+          </p>
+          <p className="checkout-trust">
+            <Icon name="lock" size="sm" /> {method === "card" ? "Payments are handled securely by Paystack." : "Your details are only shared with this shop."}
+            {deliveryReturnsHref ? (
+              <>
+                {" "}
+                <Link href={deliveryReturnsHref}>Delivery and returns</Link>
+              </>
+            ) : null}
           </p>
         </section>
       </form>

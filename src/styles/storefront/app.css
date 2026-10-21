@@ -373,3 +373,15 @@
 .basket-suggestion__text { display: grid; gap: 0.125rem; min-width: 0; }
 .basket-suggestion__name { font-weight: 600; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .basket-suggestion__price { font-size: 0.875rem; color: var(--muted); }
+
+
+/* Checkout (StoreCheckout.tsx): the list of problems after a submit, where the shop delivers, and the line under the pay button. */
+.error-summary { display: grid; gap: 0.5rem; margin-bottom: 1.5rem; padding: 1rem 1.25rem; border: 3px solid #A3261B; border-radius: var(--field-radius, 0.5rem); background: var(--bg); }
+.error-summary:focus { outline: 3px solid var(--accent-text, var(--accent)); outline-offset: 3px; }
+.error-summary__title { margin: 0; font-size: 1.0625rem; }
+.error-summary ul { margin: 0; padding-left: 1.25rem; }
+.error-summary a { color: #A3261B; font-weight: 600; text-decoration: underline; text-underline-offset: 0.2em; }
+.checkout-country { display: flex; align-items: flex-start; gap: 0.375rem; }
+.checkout-trust { display: flex; flex-wrap: wrap; align-items: center; gap: 0.375rem; margin: 0.5rem 0 0; font-size: 0.875rem; color: var(--muted); }
+.checkout-trust a { color: inherit; text-decoration: underline; text-underline-offset: 0.2em; }
+.field--short { max-width: 14rem; }
