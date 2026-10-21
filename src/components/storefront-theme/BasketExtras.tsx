@@ -14,7 +14,7 @@ type DeliverySummary = { deliveryFrom: number | null; eta: string | null; pickup
 
 /** Read once per page load and shared by the basket page and the drawer. */
 const summaries = new Map<string, Promise<DeliverySummary | null>>();
-function deliverySummary(slug: string) {
+export function deliverySummary(slug: string) {
   if (!summaries.has(slug)) {
     summaries.set(
       slug,

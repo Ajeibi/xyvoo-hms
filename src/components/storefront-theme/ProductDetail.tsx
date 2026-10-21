@@ -1,5 +1,7 @@
 "use client";
 
+import { ProductDelivery, ShareButton, StickyBuyBar } from "./ProductExtras";
+import ProductGallery from "./ProductGallery";
 import { TrackProductView } from "./StoreAnalytics";
 import { useState } from "react";
 import Link from "next/link";
@@ -11,7 +13,7 @@ import { cartLineKey, fixedLinePrices } from "@/lib/shop/cart";
 import { STORE_PATHS } from "@/lib/store/site/links";
 import { openBasketDrawer } from "@/lib/shop/basket-code";
 import { announce, useStorefront } from "./StorefrontProvider";
-import { Icon, Price, Rating, StoreImage } from "./primitives";
+import { Icon, Price, Rating } from "./primitives";
 import { GuidePriceNote } from "./ChargeNote";
 import SaleEnds from "./SaleEnds";
 import StockAlertForm from "./StockAlertForm";
@@ -126,13 +128,21 @@ export default function ProductDetail({ product, details, initialVariantId }: { 
     return true;
   };
 
-  const add = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!addToBasket()) return;
+  /** Adds and opens the basket panel; if an option still needs choosing, takes the shopper back to it. */
+  const addAndShow = () => {
+    if (!addToBasket()) {
+      document.getElementById("pdp-buy-form")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
     const message = `${product.name} added to your basket.`;
     setStatus(message);
     announce(message);
     openBasketDrawer(product.name);
+  };
+
+  const add = (e: React.FormEvent) => {
+    e.preventDefault();
+    addAndShow();
   };
 
   // A short checkout with WhatsApp chosen: the order is recorded (and its stock held) before the chat opens.
@@ -151,40 +161,16 @@ export default function ProductDetail({ product, details, initialVariantId }: { 
         name={product.name}
         value={product.price}
       />
-      <div className="pdp__gallery">
-        <div className="media gallery-main tone-4">
-          {shownImage ? (
-            <StoreImage src={shownImage} alt={shownAlt} sizes="(min-width: 900px) 50vw, 100vw" priority />
-          ) : (
-            <span className="media__label" aria-hidden="true">
-              <Icon name="image" />
-              No photo yet
-            </span>
-          )}
-        </div>
-        {images.length > 1 ? (
-          <ul className="thumbs" aria-label="Product images">
-            {images.map((src, i) => (
-              <li key={src + i}>
-                <button
-                  className="thumb"
-                  type="button"
-                  aria-pressed={variantImage ? i === variantImageIndex : i === activeImage}
-                  aria-label={`Show image ${i + 1} of ${images.length}`}
-                  onClick={() => {
-                    setActiveImage(i);
-                    setShowVariantImage(false);
-                  }}
-                >
-                  <span className="media" aria-hidden="true">
-                    <StoreImage src={src} alt="" sizes="96px" />
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </div>
+      <ProductGallery
+        images={images}
+        shown={{ src: shownImage, alt: shownAlt, index: variantImage ? variantImageIndex : activeImage }}
+        altFor={altFor}
+        productName={product.name}
+        onSelect={(i) => {
+          setActiveImage(i);
+          setShowVariantImage(false);
+        }}
+      />
 
       <div className="pdp__info">
         <div className="pdp__head">
@@ -201,10 +187,11 @@ export default function ProductDetail({ product, details, initialVariantId }: { 
           </p>
           <GuidePriceNote />
           <TradePrice productId={product.id} />
+          <ShareButton title={product.name} />
         </div>
         {product.shortDescription ? <p className="body-copy">{product.shortDescription}</p> : null}
 
-        <form className="stack" onSubmit={add} noValidate>
+        <form className="stack" id="pdp-buy-form" onSubmit={add} noValidate>
           {hasVariants
             ? product.productOptions.map((option) => (
                 <fieldset className="option-group" key={option.name}>
@@ -244,7 +231,7 @@ export default function ProductDetail({ product, details, initialVariantId }: { 
 
           <p className={`stock${inStock ? "" : " stock--out"}`}>{stockText}</p>
 
-          <div className="buy-row">
+          <div className="buy-row" id="pdp-buy">
             <div className="qty">
               <button type="button" aria-label="Decrease quantity" disabled={qty <= minQty} onClick={() => setQuantity(Math.max(minQty, qty - 1))}>
                 <Icon name="minus" />
@@ -304,8 +291,18 @@ export default function ProductDetail({ product, details, initialVariantId }: { 
           />
         ) : null}
 
+        <ProductDelivery />
+
         {details}
       </div>
+      <StickyBuyBar
+        watch="pdp-buy"
+        name={product.name}
+        price={<Price amount={price} compareAt={compareAt} fixedPrices={variant?.priceOverride != null ? undefined : product.fixedPrices} />}
+        label={!inStock ? "Out of stock" : belowMinimum ? "Not enough in stock" : hasVariants && !allChosen ? "Choose options" : "Add to basket"}
+        disabled={!buyable}
+        onAdd={addAndShow}
+      />
     </div>
   );
 }
