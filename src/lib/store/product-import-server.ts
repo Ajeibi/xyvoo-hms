@@ -1,5 +1,6 @@
+import { copyProductImages } from "@/lib/store/external-images";
 import { shopChanged } from "@/lib/store/site/shop-changed";
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import type { createServerSupabaseClient } from "@/lib/supabase/server";
 import { syncProductVariants, type VariantInput } from "./variants";
 import {
@@ -204,6 +205,8 @@ export async function respondToImport({
 
   const result = await applyImportPlan(service, tenantId, userId, plan, source);
   shopChanged(tenantId);
+  // Photo addresses in the file are copied into the shop's storage after the reply (it can take a while for a big file).
+  after(() => copyProductImages(tenantId));
   return NextResponse.json({
     created: result.created,
     updated: result.updated,

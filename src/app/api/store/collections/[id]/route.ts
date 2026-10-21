@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { copyCollectionImages } from "@/lib/store/external-images";
+import { after, NextResponse } from "next/server";
 import { resolveStoreRequest } from "@/lib/store/api-helpers";
 import { collectionSchema, setCollectionProducts, toCollectionRow } from "@/lib/store/collections";
 import { shopChanged } from "@/lib/store/site/shop-changed";
@@ -40,6 +41,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
   shopChanged(resolved.access.tenantId);
+  // A banner added by address is copied into the shop's storage after the reply.
+  const tenantId = resolved.access.tenantId;
+  after(() => copyCollectionImages(tenantId));
   return NextResponse.json({ ok: true });
 }
 

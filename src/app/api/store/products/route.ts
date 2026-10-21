@@ -1,5 +1,6 @@
+import { copyProductImages, hasExternalImages } from "@/lib/store/external-images";
 import { shopChanged } from "@/lib/store/site/shop-changed";
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getStoreAccessContext } from "@/lib/store/access";
 import { logActivity } from "@/lib/store/activity";
@@ -93,6 +94,11 @@ export async function POST(req: Request) {
   await logActivity({ tenantId: access.tenantId, actor: access, area: "products", action: "created", targetId: product.id, targetLabel: product.name });
 
   const row = { ...product, product_variants: insertedVariants } as StoreProductRow;
+  // Photos added by address are copied into the shop's storage after the reply, so they can be resized for shoppers.
+  if (hasExternalImages(row)) {
+    const tenantId = access.tenantId;
+    after(() => copyProductImages(tenantId, [row.id]));
+  }
   shopChanged(access.tenantId);
   return NextResponse.json({ product: mapProductRowToDashboard(row) }, { status: 201 });
 }

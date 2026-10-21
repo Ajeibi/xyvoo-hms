@@ -1,3 +1,4 @@
+import { copyProductImages, hasExternalImages } from "@/lib/store/external-images";
 import { shopChanged } from "@/lib/store/site/shop-changed";
 import { after, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -89,6 +90,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   // Back in stock? Tell anyone who asked (never holds up the save).
   const tenantId = access.tenantId;
   after(() => sendStockAlertsForProducts(tenantId, [id]));
+  // Photos added by address are copied into the shop's storage, so they can be resized for shoppers.
+  if (hasExternalImages(row)) after(() => copyProductImages(tenantId, [id]));
   shopChanged(access.tenantId);
   return NextResponse.json({ product: mapProductRowToDashboard(row) });
 }

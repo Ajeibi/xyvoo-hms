@@ -1,5 +1,4 @@
-import { lookup } from "node:dns/promises";
-import { isIP } from "node:net";
+import { isPublicHost } from "@/lib/net/public-host";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { brandIconFor } from "./social-brand-icons";
 import { detectPlatform, type StoreSocials } from "./socials";
@@ -13,23 +12,6 @@ import { detectPlatform, type StoreSocials } from "./socials";
 const BUCKET = "store-products";
 const MAX_BYTES = 100 * 1024;
 const TIMEOUT_MS = 4000;
-
-/** Refuse anything that could reach our own network rather than the public internet. */
-function isPrivateAddress(ip: string): boolean {
-  if (ip.includes(":")) return ip === "::1" || /^f[cd]/i.test(ip) || /^fe80/i.test(ip) || (ip.startsWith("::ffff:") && isPrivateAddress(ip.slice(7)));
-  const [a, b] = ip.split(".").map(Number);
-  return a === 10 || a === 127 || a === 0 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) || a >= 224;
-}
-
-async function isPublicHost(host: string) {
-  if (isIP(host) || host === "localhost" || /\.(local|internal|localhost)$/i.test(host)) return false;
-  try {
-    const addresses = await lookup(host, { all: true });
-    return addresses.length > 0 && addresses.every((a) => !isPrivateAddress(a.address));
-  } catch {
-    return false;
-  }
-}
 
 const IMAGE_TYPES: Record<string, string> = {
   "image/x-icon": "ico",

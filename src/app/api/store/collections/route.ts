@@ -1,5 +1,6 @@
+import { copyCollectionImages } from "@/lib/store/external-images";
 import { shopChanged } from "@/lib/store/site/shop-changed";
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { resolveStoreRequest } from "@/lib/store/api-helpers";
 import { collectionSchema, setCollectionProducts, toCollectionRow, type CollectionSummary } from "@/lib/store/collections";
 
@@ -60,5 +61,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
   shopChanged(resolved.access.tenantId);
+  // A banner added by address is copied into the shop's storage after the reply.
+  const tenantId = resolved.access.tenantId;
+  after(() => copyCollectionImages(tenantId));
   return NextResponse.json({ id: data.id }, { status: 201 });
 }
