@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCartStore } from "@/components/shop/CartProvider";
 import CurrencySwitcher from "./CurrencySwitcher";
+import SearchBox from "./SearchBox";
 import type { StoreSocialLink } from "./socials";
 import { Icon } from "./primitives";
 import { useStorefront } from "./StorefrontProvider";
@@ -294,7 +295,7 @@ export default function StoreHeader({
               <label className="visually-hidden" htmlFor="q">
                 Search products
               </label>
-              <input ref={searchInput} className="input" id="q" name="search" type="search" placeholder="Search products" autoComplete="off" />
+              <SearchBox inputRef={searchInput} />
               <button className="btn btn--primary" type="submit">
                 Search
               </button>

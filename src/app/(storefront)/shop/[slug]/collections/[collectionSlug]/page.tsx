@@ -16,7 +16,7 @@ async function load(params: Props["params"]) {
 export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const found = await load(params);
   if (!found) return {};
-  const query = parseListingQuery(await searchParams);
+  const query = parseListingQuery(await searchParams, "featured");
   return {
     title: query.page > 1 ? `${found.collection.name}, page ${query.page}` : found.collection.name,
     description: found.collection.description || undefined,
@@ -28,7 +28,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
 export default async function StorefrontCollectionPage({ params, searchParams }: Props) {
   const found = await load(params);
   if (!found) notFound();
-  const query = parseListingQuery(await searchParams);
+  const query = parseListingQuery(await searchParams, "featured");
 
   return (
     <ProductListing

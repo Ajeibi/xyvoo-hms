@@ -8,7 +8,7 @@ import { effectivePrice, saleFromRow, saleIsLive } from "@/lib/store/sale-price"
 /** Columns a shopper is allowed to see -- excludes cost_price, supplier/warehouse
  * info, metadata, import/audit fields, and anything else that's merchant-internal.
  * The legacy list is used until the sale price columns have been added. */
-const LEGACY_PRODUCT_COLUMNS = `
+export const LEGACY_PRODUCT_COLUMNS = `
   id, name, slug, sku, brand, category, subcategory, tags, product_type,
   description, short_description, image_url, image_urls, image_alt_texts,
   product_options, price, compare_at_price, currency, delivery_extra, minimum_order_qty,
@@ -19,13 +19,13 @@ const LEGACY_PRODUCT_COLUMNS = `
   product_prices (currency, price, compare_at_price)
 `;
 
-const SHOP_PRODUCT_COLUMNS = LEGACY_PRODUCT_COLUMNS.replace("compare_at_price, currency,", "compare_at_price, sale_price, sale_starts_at, sale_ends_at, currency,").replace(
+export const SHOP_PRODUCT_COLUMNS = LEGACY_PRODUCT_COLUMNS.replace("compare_at_price, currency,", "compare_at_price, sale_price, sale_starts_at, sale_ends_at, currency,").replace(
   "price_override, stock,",
   "price_override, sale_price, sale_starts_at, sale_ends_at, stock,",
 );
 
 /** Whether a query failed only because the sale columns haven't been added yet. */
-const missingSaleColumns = (error: { code?: string; message?: string } | null) =>
+export const missingSaleColumns = (error: { code?: string; message?: string } | null) =>
   Boolean(error && (error.code === "42703" || /sale_(price|starts_at|ends_at)/.test(error.message || "")));
 
 export type ShopProductVariant = {
@@ -90,7 +90,7 @@ export type ShopProduct = {
   variants: ShopProductVariant[];
 };
 
-type ShopProductRow = {
+export type ShopProductRow = {
   id: string;
   name: string;
   slug: string | null;
@@ -428,7 +428,7 @@ export async function getShopProductsByIds(tenantId: string, ids: string[]): Pro
 }
 
 /** Maps rows for the shop, with sale prices applied when the shop's plan includes flash sales. */
-async function mapRows(tenantId: string, rows: ShopProductRow[]) {
+export async function mapRows(tenantId: string, rows: ShopProductRow[]) {
   const hasSale = rows.some((r) => r.sale_price != null || (r.product_variants || []).some((v) => v.sale_price != null));
   const salesEnabled = hasSale ? await hasShopFeature(tenantId, "flashSales") : false;
   const now = new Date();
