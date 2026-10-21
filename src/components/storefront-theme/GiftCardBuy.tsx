@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import type { ShopProduct } from "@/lib/shop/products";
+import { CURRENCY_NAMES, type ShopCurrencyCode } from "@/lib/store/currencies";
 import type { CheckoutPaymentMethod } from "@/lib/store/offline-payments";
 import { useMoney } from "./StorefrontProvider";
 import { useStorefront } from "./StorefrontProvider";
@@ -39,6 +40,9 @@ export default function GiftCardBuy({ product, storeName, paymentMethods }: { pr
   const [status, setStatus] = useState("");
   const [token] = useState(() => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID().replace(/-/g, "") : String(Date.now())));
   const chosen = amounts.find((a) => a.id === variantId) ?? null;
+  // A gift card holds its value in the shop's own currency, so amounts are always shown in it.
+  const amountText = (amount: number) => money.formatHome(amount);
+  const homeName = CURRENCY_NAMES[money.homeCurrency as ShopCurrencyCode] ?? money.homeCurrency;
 
   // A signed-in shopper's own details are filled in as the buyer.
   useEffect(() => {
@@ -108,7 +112,7 @@ export default function GiftCardBuy({ product, storeName, paymentMethods }: { pr
     <div className="giftcard">
       <div className="giftcard__preview" aria-hidden="true">
         <span className="giftcard__shop">{storeName}</span>
-        <span className="giftcard__amount">{chosen ? money.format(money.convert(chosen.amount)) : "Gift card"}</span>
+        <span className="giftcard__amount">{chosen ? amountText(chosen.amount) : "Gift card"}</span>
         <span className="giftcard__label">Gift card</span>
       </div>
 
@@ -120,16 +124,22 @@ export default function GiftCardBuy({ product, storeName, paymentMethods }: { pr
 
         <fieldset className="option-group">
           <legend>
-            Amount: <span>{chosen ? money.format(money.convert(chosen.amount)) : "choose one"}</span>
+            Amount: <span>{chosen ? amountText(chosen.amount) : "choose one"}</span>
           </legend>
           <div className="pills">
             {amounts.map((a) => (
               <label className="pill" key={a.id}>
                 <input type="radio" name="amount" value={a.id} checked={variantId === a.id} onChange={() => setVariantId(a.id)} />
-                <span>{money.format(money.convert(a.amount))}</span>
+                <span>{amountText(a.amount)}</span>
               </label>
             ))}
           </div>
+          {!money.isHome && chosen ? (
+            <p className="hint charge-note">
+              About {money.format(money.convert(chosen.amount))}. The gift card and your payment are both in {homeName}, so the amount on your statement may be
+              slightly different.
+            </p>
+          ) : null}
         </fieldset>
 
         <fieldset className="giftcard__group">
@@ -178,7 +188,7 @@ export default function GiftCardBuy({ product, storeName, paymentMethods }: { pr
         ) : null}
 
         <button className="btn btn--primary" type="submit" disabled={sending || !methods.length}>
-          {sending ? "Please wait…" : chosen ? `Buy a ${money.format(money.convert(chosen.amount))} gift card` : "Buy a gift card"}
+          {sending ? "Please wait…" : chosen ? `Buy a ${amountText(chosen.amount)} gift card` : "Buy a gift card"}
         </button>
         {!methods.length ? <p className="hint">This shop isn&rsquo;t taking payments online at the moment.</p> : null}
         <p className="form-status" role="status">

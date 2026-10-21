@@ -11,6 +11,7 @@ import { cartLineKey, fixedLinePrices } from "@/lib/shop/cart";
 import { STORE_PATHS } from "@/lib/store/site/links";
 import { announce, useStorefront } from "./StorefrontProvider";
 import { Icon, Price, Rating, StoreImage } from "./primitives";
+import { GuidePriceNote } from "./ChargeNote";
 import SaleEnds from "./SaleEnds";
 import StockAlertForm from "./StockAlertForm";
 import TradePrice from "./TradePrice";
@@ -172,6 +173,7 @@ export default function ProductDetail({ product, details, initialVariantId }: { 
             <Price amount={price} compareAt={compareAt} fixedPrices={variant?.priceOverride != null ? undefined : product.fixedPrices} />
             {saleEndsAt ? <SaleEnds endsAt={saleEndsAt} /> : null}
           </p>
+          <GuidePriceNote />
           <TradePrice productId={product.id} />
         </div>
         {product.shortDescription ? <p className="body-copy">{product.shortDescription}</p> : null}

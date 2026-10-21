@@ -144,6 +144,22 @@ type ShopProductRow = {
   product_prices: Array<{ currency: string; price: number; compare_at_price: number | null }> | null;
 };
 
+/**
+ * The merchant's own prices in other currencies. They're set for the normal
+ * price, so while a sale is on each one is cut by the same share as the home
+ * price and shown against its normal price, rather than switching to conversion.
+ */
+function fixedPricesFor(rows: ShopProductRow["product_prices"], productPrice: { price: number; regular: number; onSale: boolean }): FixedPrices {
+  const share = productPrice.onSale && productPrice.regular > 0 ? productPrice.price / productPrice.regular : null;
+  return Object.fromEntries(
+    (rows || []).map((p) => {
+      const price = Number(p.price);
+      if (share == null) return [p.currency, { price, compareAt: p.compare_at_price != null ? Number(p.compare_at_price) : null }];
+      return [p.currency, { price: Math.round(price * share * 100) / 100, compareAt: price }];
+    }),
+  );
+}
+
 function mapRow(row: ShopProductRow, salesEnabled: boolean, now: Date): ShopProduct {
   const base = { price: Number(row.price) || 0, ...saleFromRow(row) };
   const productPrice = effectivePrice(base, null, now, salesEnabled);
@@ -194,12 +210,7 @@ function mapRow(row: ShopProductRow, salesEnabled: boolean, now: Date): ShopProd
     onSale: productPrice.onSale,
     saleEndsAt: productPrice.saleEndsAt,
     currency: row.currency || DEFAULT_SHOP_CURRENCY,
-    // The merchant's own prices in other currencies are for the normal price, so a sale price is converted instead.
-    fixedPrices: productPrice.onSale
-      ? {}
-      : Object.fromEntries(
-          (row.product_prices || []).map((p) => [p.currency, { price: Number(p.price), compareAt: p.compare_at_price != null ? Number(p.compare_at_price) : null }]),
-        ),
+    fixedPrices: fixedPricesFor(row.product_prices, productPrice),
     deliveryExtra: Number(row.delivery_extra) || 0,
     minimumOrderQty: row.minimum_order_qty,
     stock: row.stock,

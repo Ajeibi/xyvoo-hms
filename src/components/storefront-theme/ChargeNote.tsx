@@ -14,8 +14,19 @@ export default function ChargeNote({ homeAmount }: { homeAmount: number }) {
   if (money.isHome) return null;
   return (
     <p className="hint charge-note">
-      Prices in {nameOf(money.code)} are a guide. You&rsquo;ll pay {money.formatHome(homeAmount)} in {nameOf(money.homeCurrency)}, and your bank
+      Prices in {money.code} are a guide. You&rsquo;ll pay {money.formatHome(homeAmount)} in {nameOf(money.homeCurrency)}, and your bank
       converts it, so the amount on your statement may be slightly different.
+    </p>
+  );
+}
+
+/** The short version, under a product's price, so shoppers know before they reach the basket. */
+export function GuidePriceNote() {
+  const money = useMoney();
+  if (money.isHome) return null;
+  return (
+    <p className="hint charge-note">
+      Guide price in {money.code}. You&rsquo;ll pay in {nameOf(money.homeCurrency)}.
     </p>
   );
 }
