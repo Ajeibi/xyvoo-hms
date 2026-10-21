@@ -20,7 +20,7 @@ async function load(params: Props["params"]) {
   const { data } = await createServerSupabaseClient()
     .schema("store")
     .from("pages")
-    .select("title, body, seo_title, seo_description")
+    .select("slug, title, body, seo_title, seo_description")
     .eq("tenant_id", storefront.tenant.id)
     .eq("slug", pageSlug)
     .in("status", storefront.isPreview ? ["draft", "published"] : ["published"])
@@ -35,7 +35,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: found.page.seo_title || found.page.title,
     description: found.page.seo_description || undefined,
-    alternates: { canonical: STORE_PATHS.page((await params).pageSlug) },
+    // The page's saved address, never what was typed in the URL.
+    alternates: { canonical: STORE_PATHS.page(found.page.slug as string) },
   };
 }
 

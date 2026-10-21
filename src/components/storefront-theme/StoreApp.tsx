@@ -198,7 +198,9 @@ export default function StoreApp({ config, variant }: { config: StoreAppConfig; 
   ) : null;
 
   if (variant === "footer") {
-    if (!canInstall && !env.canPush) return null;
+    // Only with something to do here: install the app, or turn this shop's notifications on or off
+    // (a browser that can take notifications isn't enough when the shop can't send them).
+    if (!canInstall && !(env.canPush && config.pushPublicKey)) return null;
     return (
       <div className="store-app store-app--footer">
         <h2 className="store-app__title">Get the {config.storeName} app</h2>

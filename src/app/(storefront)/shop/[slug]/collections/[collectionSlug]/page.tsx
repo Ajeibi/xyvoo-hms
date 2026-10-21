@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import ProductListing, { parseListingQuery, type ListingQuery } from "@/components/storefront-theme/ProductListing";
+import ProductListing, { listingCanonical, listingRobots, parseListingQuery, type ListingQuery } from "@/components/storefront-theme/ProductListing";
 import { STORE_PATHS } from "@/lib/store/site/links";
 import { getStorefront } from "@/lib/store/site/storefront";
 
@@ -13,13 +13,15 @@ async function load(params: Props["params"]) {
   return storefront && collection ? { storefront, collection } : null;
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const found = await load(params);
   if (!found) return {};
+  const query = parseListingQuery(await searchParams);
   return {
-    title: found.collection.name,
+    title: query.page > 1 ? `${found.collection.name}, page ${query.page}` : found.collection.name,
     description: found.collection.description || undefined,
-    alternates: { canonical: STORE_PATHS.collection(found.collection.slug) },
+    alternates: { canonical: listingCanonical(STORE_PATHS.collection(found.collection.slug), query.page) },
+    robots: listingRobots(query),
   };
 }
 

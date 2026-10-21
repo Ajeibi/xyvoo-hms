@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useCartStore } from "@/components/shop/CartProvider";
 import { analyticsSessionId, checkoutToken, track } from "@/lib/store/analytics-client";
 import type { CheckoutPaymentMethod } from "@/lib/store/offline-payments";
-import { calculateCartTotals, cartLineKey } from "@/lib/shop/cart";
+import { calculateCartTotals, cartLineKey, type CartLine } from "@/lib/shop/cart";
+import type { PurchaseLine } from "@/lib/store/ad-pixels";
 import { STORE_PATHS } from "@/lib/store/site/links";
 import { deliveryWithRules, type CheckoutFreeRule } from "@/lib/store/free-delivery";
 import { fitsWeight, orderWeightKg, zoneCovers, type WeightBand } from "@/lib/store/delivery";
@@ -25,6 +26,10 @@ type FieldName = "name" | "email" | "phone" | "line1" | "line2" | "city" | "stat
 type Errors = Partial<Record<FieldName, string>>;
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** The basket for the shop's ad pixels, with the product feed's ids (each option's own, or the product's). */
+const pixelLines = (lines: CartLine[]): PurchaseLine[] =>
+  lines.map((l) => ({ itemId: l.variantId ?? l.productId, name: l.name, quantity: l.quantity, unitPrice: l.unitPrice }));
 
 export type CheckoutDeliveryOption = {
   id: string;
@@ -310,8 +315,8 @@ export default function StoreCheckout({
   useEffect(() => {
     if (!hasHydrated || lines.length === 0 || started.current) return;
     started.current = true;
-    track({ type: "checkout_started", value: subtotal });
-  }, [hasHydrated, lines.length, subtotal]);
+    track({ type: "checkout_started", value: subtotal, lines: pixelLines(lines) });
+  }, [hasHydrated, lines, subtotal]);
 
   /** Saves the basket and contact details once there's a valid email or phone, so the shop can follow up if the shopper doesn't finish. */
   const saveCheckout = (form: HTMLFormElement) => {
@@ -413,7 +418,7 @@ export default function StoreCheckout({
         setSubmitting(false);
         return;
       }
-      track({ type: "payment_started", value: total });
+      track({ type: "payment_started", value: total, lines: pixelLines(lines) });
       if (!data.authorizationUrl) {
         // Offline orders: on to the "order received" page, with payment details or WhatsApp.
         window.location.assign(next);

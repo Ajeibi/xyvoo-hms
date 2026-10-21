@@ -13,6 +13,9 @@ function serviceWorker(storeName: string) {
   return `/* ${storeName.replace(/\*\//g, "")} app service worker */
 const STORE_NAME = ${name};
 const scopeUrl = () => self.registration.scope.replace(/\\/$/, "");
+// On the platform domain the scope is "/shop/<store>" with no trailing slash (where the shop's pages live),
+// which the browser also matches to "/shop/<store>-two/...". Pages of another shop are left alone.
+const ownsUrl = (url) => { const base = scopeUrl(); return url === base || ["/", "?", "#"].some((c) => url.startsWith(base + c)); };
 const inStore = (path) => scopeUrl() + (typeof path === "string" && /^\\/(?![\\/\\\\])/.test(path) ? path : "/");
 // Tag the link so the store can see how many people opened each notification (counted only with their analytics consent).
 const tagged = (url, tag) => url + (url.includes("?") ? "&" : "?") + "utm_source=notification&utm_medium=push"
@@ -41,7 +44,7 @@ self.addEventListener("notificationclick", (event) => {
   event.waitUntil((async () => {
     const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
     for (const client of windows) {
-      if (client.url.startsWith(scopeUrl()) && "focus" in client) {
+      if (ownsUrl(client.url) && "focus" in client) {
         await client.focus();
         if ("navigate" in client) await client.navigate(url);
         return;
@@ -56,7 +59,7 @@ const OFFLINE_PAGE = '<!doctype html><html lang="en"><head><meta charset="utf-8"
   + '<body><main><h1>You\\'re offline</h1><p>' + STORE_NAME.replace(/[<>&]/g, "") + ' will be here when you\\'re back online.</p><button onclick="location.reload()">Try again</button></main></body></html>';
 
 self.addEventListener("fetch", (event) => {
-  if (event.request.mode !== "navigate") return;
+  if (event.request.mode !== "navigate" || !ownsUrl(event.request.url)) return;
   event.respondWith(fetch(event.request).catch(() => new Response(OFFLINE_PAGE, { headers: { "Content-Type": "text/html; charset=utf-8" } })));
 });
 `;

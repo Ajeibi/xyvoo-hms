@@ -17,6 +17,9 @@ async function post(url: string, body: object) {
   return data;
 }
 
+/** Marks a field the shopper needs to fix, and points it at the message saying how. */
+const invalidProps = (invalid: boolean, id: string) => ({ "aria-invalid": invalid || undefined, "aria-describedby": invalid ? `${id}-status` : undefined });
+
 const failed = (e: unknown) => (e instanceof TypeError ? "We couldn't connect. Check your internet connection and try again." : (e as Error).message);
 
 /** "Enter the code we emailed you." */
@@ -26,10 +29,16 @@ export function CodeForm({ email, intro, onDone }: { email: string; intro: strin
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
+  const [invalid, setInvalid] = useState(false);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!/^\d{6}$/.test(code.trim())) return setStatus("Enter the 6-digit code from the email.");
+    if (!/^\d{6}$/.test(code.trim())) {
+      setInvalid(true);
+      document.getElementById(`${id}-code`)?.focus();
+      return setStatus("Enter the 6-digit code from the email.");
+    }
+    setInvalid(false);
     setBusy(true);
     setStatus("");
     try {
@@ -65,6 +74,8 @@ export function CodeForm({ email, intro, onDone }: { email: string; intro: strin
           inputMode="numeric"
           autoComplete="one-time-code"
           maxLength={6}
+          aria-invalid={invalid || undefined}
+          aria-describedby={invalid ? `${id}-status` : undefined}
           value={code}
           onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
         />
@@ -77,7 +88,7 @@ export function CodeForm({ email, intro, onDone }: { email: string; intro: strin
           Send a new code
         </button>
       </div>
-      <p className="form-status" role="status">
+      <p className="form-status" role="status" id={`${id}-status`}>
         {status}
       </p>
     </form>
@@ -105,6 +116,7 @@ export function CreateAccountForm({
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
   const [codeFor, setCodeFor] = useState<string | null>(null);
+  const [invalid, setInvalid] = useState<"name" | "email" | null>(null);
 
   if (codeFor) {
     return (
@@ -120,8 +132,16 @@ export function CreateAccountForm({
     e.preventDefault();
     const form = new FormData(e.currentTarget);
     const get = (name: string) => String(form.get(name) ?? "").trim();
-    if (!get("name")) return setStatus("Enter your name.");
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(get("email"))) return setStatus("Enter an email address in the format name@example.com.");
+    const problem: ["name" | "email", string] | null = !get("name")
+      ? ["name", "Enter your name."]
+      : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(get("email"))
+        ? ["email", "Enter an email address in the format name@example.com."]
+        : null;
+    setInvalid(problem?.[0] ?? null);
+    if (problem) {
+      document.getElementById(`${id}-${problem[0]}`)?.focus();
+      return setStatus(problem[1]);
+    }
     setBusy(true);
     setStatus("");
     try {
@@ -151,11 +171,11 @@ export function CreateAccountForm({
     <form className="account-form" onSubmit={submit} noValidate>
       <div className="field">
         <label htmlFor={`${id}-name`}>Your name</label>
-        <input className="input" id={`${id}-name`} name="name" autoComplete="name" maxLength={120} />
+        <input className="input" id={`${id}-name`} name="name" autoComplete="name" maxLength={120} {...invalidProps(invalid === "name", id)} />
       </div>
       <div className="field">
         <label htmlFor={`${id}-email`}>Email address</label>
-        <input className="input" id={`${id}-email`} name="email" type="email" inputMode="email" autoComplete="email" maxLength={200} />
+        <input className="input" id={`${id}-email`} name="email" type="email" inputMode="email" autoComplete="email" maxLength={200} {...invalidProps(invalid === "email", id)} />
       </div>
       <div className="field">
         <label htmlFor={`${id}-phone`}>
@@ -186,7 +206,7 @@ export function CreateAccountForm({
         </button>
         {extraActions}
       </div>
-      <p className="form-status" role="status">
+      <p className="form-status" role="status" id={`${id}-status`}>
         {status}
       </p>
     </form>
@@ -201,6 +221,7 @@ export function SignInForm({ storeName, onDone }: { storeName: string; onDone: (
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
+  const [invalid, setInvalid] = useState(false);
 
   if (sentTo) {
     return (
@@ -215,7 +236,12 @@ export function SignInForm({ storeName, onDone }: { storeName: string; onDone: (
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const value = email.trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return setStatus("Enter an email address in the format name@example.com.");
+    const bad = !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+    setInvalid(bad);
+    if (bad) {
+      document.getElementById(`${id}-email`)?.focus();
+      return setStatus("Enter an email address in the format name@example.com.");
+    }
     setBusy(true);
     setStatus("");
     try {
@@ -232,7 +258,7 @@ export function SignInForm({ storeName, onDone }: { storeName: string; onDone: (
     <form className="account-form" onSubmit={submit} noValidate>
       <div className="field">
         <label htmlFor={`${id}-email`}>Email address</label>
-        <input className="input" id={`${id}-email`} type="email" inputMode="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <input className="input" id={`${id}-email`} type="email" inputMode="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} {...invalidProps(invalid, id)} />
         <p className="hint">We&rsquo;ll email you a code to sign in. No password needed.</p>
       </div>
       <div className="account-form__actions">
@@ -240,7 +266,7 @@ export function SignInForm({ storeName, onDone }: { storeName: string; onDone: (
           {busy ? "Sending…" : "Email me a code"}
         </button>
       </div>
-      <p className="form-status" role="status">
+      <p className="form-status" role="status" id={`${id}-status`}>
         {status}
       </p>
     </form>

@@ -123,12 +123,14 @@ button, input, select, textarea { font: inherit; color: inherit; }
   top: -10rem;
   z-index: 100;
   padding: 0.75rem 1.25rem;
-  background: var(--ink);
-  color: #fff;
+  /* The shop's own text on its own background: a pair the theme's contrast check already guarantees, light or dark. */
+  background: var(--bg);
+  color: var(--ink);
+  border: 2px solid var(--ink);
   font-weight: 700;
   text-decoration: none;
 }
-.skip-link:focus { top: 1rem; color: #fff; }
+.skip-link:focus { top: 1rem; color: var(--ink); }
 
 .section { padding-block: var(--section); }
 .section--tight-top { padding-top: 0; }

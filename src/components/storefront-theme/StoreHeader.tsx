@@ -116,8 +116,11 @@ export default function StoreHeader({
     const onChange = (e: MediaQueryListEvent) => e.matches && setMenuOpen(false);
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
-      if (openSubmenu !== null) setOpenSubmenu(null);
-      else if (searchOpen) {
+      if (openSubmenu !== null) {
+        // Back to the button that opened it, so keyboard users don't lose their place.
+        headerRef.current?.querySelector<HTMLButtonElement>(`[aria-controls="sub-${openSubmenu}"]`)?.focus();
+        setOpenSubmenu(null);
+      } else if (searchOpen) {
         setSearchOpen(false);
         searchButton.current?.focus();
       } else if (menuOpen) {
@@ -137,6 +140,52 @@ export default function StoreHeader({
       document.removeEventListener("click", onClick);
     };
   }, [menuOpen, searchOpen, openSubmenu]);
+
+  // The mobile menu acts as a dialog while open: focus moves into it, Tab stays
+  // between the close button and the menu, the page behind can't be reached or
+  // scrolled, and focus goes back to the menu button when it closes.
+  useEffect(() => {
+    if (!menuOpen || window.matchMedia("(min-width: 1024px)").matches) return;
+    const nav = document.getElementById("site-nav");
+    const button = menuButton.current;
+    if (!nav || !button) return;
+    const focusables = () => [button, ...nav.querySelectorAll<HTMLElement>("a[href], button:not([disabled])")].filter((el) => el.offsetParent !== null);
+    focusables()[1]?.focus();
+
+    const onTab = (e: KeyboardEvent) => {
+      if (e.key !== "Tab") return;
+      const items = focusables();
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    // Everything but the menu and its button: each level's siblings on the way up to <body>.
+    const behind: HTMLElement[] = [];
+    for (let el: HTMLElement | null = button.closest<HTMLElement>(".nav-wrap"); el && el !== document.body; el = el.parentElement) {
+      for (const sibling of el.parentElement?.children ?? []) {
+        if (sibling === el || !(sibling instanceof HTMLElement) || sibling.hasAttribute("inert")) continue;
+        // The page's live region keeps announcing.
+        if (sibling.id === "announcer" || sibling.querySelector("#announcer") || sibling.tagName === "SCRIPT") continue;
+        behind.push(sibling);
+      }
+    }
+    behind.forEach((el) => el.setAttribute("inert", ""));
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", onTab);
+    return () => {
+      document.removeEventListener("keydown", onTab);
+      behind.forEach((el) => el.removeAttribute("inert"));
+      document.body.style.overflow = overflow;
+      if (nav.contains(document.activeElement) || document.activeElement === document.body) button.focus();
+    };
+  }, [menuOpen]);
 
   const isCurrent = (href: string) => href === pathname;
 

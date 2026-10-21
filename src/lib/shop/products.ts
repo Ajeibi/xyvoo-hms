@@ -285,7 +285,8 @@ export async function listShopProducts(
   const fetchAll = byPrice || filters.flag === "on-sale";
   const PRICE_SORT_LIMIT = 2000;
 
-  const run = (withSales: boolean) => {
+  // `countOnly` asks for one row, just for the count (used when the page asked for is past the end).
+  const run = (withSales: boolean, countOnly = false) => {
     let query = supabase
       .schema("store")
       .from("products")
@@ -297,7 +298,8 @@ export async function listShopProducts(
 
     if (productIds) query = query.in("id", productIds);
     if (filters.category) query = query.eq("category", filters.category);
-    if (filters.search) query = query.ilike("name", `%${filters.search}%`);
+    // % and _ are wildcards to the database; a shopper typing them means the characters themselves.
+    if (filters.search) query = query.ilike("name", `%${filters.search.replace(/[\\%_]/g, (c) => `\\${c}`)}%`);
     if (filters.flag === "featured") query = query.eq("featured", true);
     if (filters.flag === "new-arrival") query = query.eq("new_arrival", true);
     if (filters.flag === "best-seller") query = query.eq("best_seller", true);
@@ -308,11 +310,22 @@ export async function listShopProducts(
     const sort = SORTS[filters.sort ?? "newest"];
     query = query.order(sort.column, { ascending: sort.ascending });
     if (sort.column !== "created_at") query = query.order("created_at", { ascending: false });
+    if (countOnly) return query.range(0, 0);
     return fetchAll ? query.range(0, PRICE_SORT_LIMIT - 1) : query.range(from, to);
   };
 
+  let withSales = true;
   let result = await run(true);
-  if (missingSaleColumns(result.error)) result = await run(false);
+  if (missingSaleColumns(result.error)) {
+    withSales = false;
+    result = await run(false);
+  }
+  // A page past the last one (an old link, or a typed ?page=): an empty page, with the real count for the page links.
+  if (result.error?.code === "PGRST103") {
+    const counted = await run(withSales, true);
+    if (counted.error) throw new Error(counted.error.message);
+    return { products: [], total: counted.count || 0, page, pageSize };
+  }
   const { data, error, count } = result;
   if (error) throw new Error(error.message);
 

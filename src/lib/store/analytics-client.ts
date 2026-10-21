@@ -149,6 +149,7 @@ export function track(event: TrackedEvent) {
   const stored = { ...withPath };
   delete stored.itemIds;
   delete stored.itemName;
+  delete stored.lines;
   queue.push(stored);
   if (queue.length >= 10) flush();
   else if (timer === null) timer = window.setTimeout(flush, 4000);

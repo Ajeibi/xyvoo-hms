@@ -10,9 +10,18 @@ export default function NewsletterForm({ note }: { note: string }) {
   const [sending, setSending] = useState(false);
   const [status, setStatus] = useState("");
   const [done, setDone] = useState(false);
+  const [invalid, setInvalid] = useState(false);
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
+    // Checked here so the shopper hears what to fix, and the field is marked, before anything is sent.
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setInvalid(true);
+      setStatus("Enter an email address in the format name@example.com.");
+      document.getElementById("newsletter-email")?.focus();
+      return;
+    }
+    setInvalid(false);
     setSending(true);
     setStatus("");
     try {
@@ -48,12 +57,23 @@ export default function NewsletterForm({ note }: { note: string }) {
       <label className="visually-hidden" htmlFor="newsletter-email">
         Email address
       </label>
-      <input id="newsletter-email" className="input" type="email" autoComplete="email" placeholder="Your email address" value={email} onChange={(e) => setEmail(e.target.value)} required />
+      <input
+        id="newsletter-email"
+        className="input"
+        type="email"
+        autoComplete="email"
+        placeholder="Your email address"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        required
+        aria-invalid={invalid || undefined}
+        aria-describedby={invalid ? "newsletter-status" : undefined}
+      />
       <button className="btn btn--primary" type="submit" disabled={sending}>
         {sending ? "Joining…" : "Join"}
       </button>
       {note ? <p className="newsletter__note">{note}</p> : null}
-      <p className="form-status" role="status">
+      <p className="form-status" role="status" id="newsletter-status">
         {status}
       </p>
     </form>

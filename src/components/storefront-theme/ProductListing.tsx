@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { listShopProducts, SHOP_PRODUCT_SORTS, type ShopProductSort } from "@/lib/shop/products";
 import { STORE_PATHS, storeHref } from "@/lib/store/site/links";
 import type { Storefront } from "@/lib/store/site/storefront";
@@ -19,6 +20,19 @@ export function parseListingQuery(query: ListingQuery) {
     sort,
     page,
   };
+}
+
+/**
+ * Canonical address of a listing page: page 2 onwards points at itself, so
+ * search engines keep the products found only on deeper pages.
+ */
+export function listingCanonical(path: string, page: number) {
+  return page > 1 ? `${path}${path.includes("?") ? "&" : "?"}page=${page}` : path;
+}
+
+/** Search results and sorted copies of a listing shouldn't compete with it in search engines. */
+export function listingRobots(query: ReturnType<typeof parseListingQuery>, extraNoindex = false) {
+  return query.search || query.sort !== "newest" || extraNoindex ? { index: false, follow: true } : undefined;
 }
 
 /** Product grid page with category chips, sort and pagination, used by "all products" and collection pages. */
@@ -52,6 +66,8 @@ export default async function ProductListing({
 
   const action = storeHref(basePath, listingPath);
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  // A page past the last one (an old link, or a typed ?page=) doesn't exist.
+  if (query.page > pageCount) notFound();
   const linkFor = (params: Record<string, string | undefined>) => {
     const search = new URLSearchParams(Object.entries(params).filter((e): e is [string, string] => Boolean(e[1])));
     const qs = search.toString();

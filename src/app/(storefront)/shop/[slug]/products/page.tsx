@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import ProductListing, { parseListingQuery, type ListingQuery } from "@/components/storefront-theme/ProductListing";
+import ProductListing, { listingCanonical, listingRobots, parseListingQuery, type ListingQuery } from "@/components/storefront-theme/ProductListing";
 import { STORE_PATHS } from "@/lib/store/site/links";
 import { getStorefront } from "@/lib/store/site/storefront";
 
@@ -11,12 +11,14 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const query = parseListingQuery(await searchParams);
   if (!storefront) return {};
   const title = storefront.site.content.shop.title || "Shop";
+  // Any ?category= can be typed in; only the shop's real categories are pages worth indexing.
+  const unknownCategory = Boolean(query.category && !storefront.categories.includes(query.category));
+  const pageTitle = query.category ? `${query.category} | ${title}` : title;
   return {
-    title: query.category ? `${query.category} | ${title}` : title,
+    title: query.page > 1 ? `${pageTitle}, page ${query.page}` : pageTitle,
     description: storefront.site.content.shop.description || undefined,
-    alternates: { canonical: query.category ? STORE_PATHS.category(query.category) : STORE_PATHS.products },
-    // Search results and sorted copies of the listing shouldn't compete with it in search engines.
-    robots: query.search || query.sort !== "newest" ? { index: false, follow: true } : undefined,
+    alternates: { canonical: listingCanonical(query.category ? STORE_PATHS.category(query.category) : STORE_PATHS.products, query.page) },
+    robots: listingRobots(query, unknownCategory),
   };
 }
 

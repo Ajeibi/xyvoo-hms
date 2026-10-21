@@ -12,7 +12,7 @@
 export type PixelConfig = { metaPixelId: string | null; googleAnalyticsId: string | null; currency: string };
 
 /** Pixel-only details an analytics event can carry. Never sent to XYVOO. */
-export type PixelDetails = { itemIds?: string[]; itemName?: string };
+export type PixelDetails = { itemIds?: string[]; itemName?: string; lines?: PurchaseLine[] };
 
 type PixelEvent = PixelDetails & { type: string; quantity?: number; value?: number; searchTerm?: string };
 
@@ -56,6 +56,7 @@ export function loadPixels() {
   const w = window as PixelWindow;
   // Accepted again after turning cookies down on this page.
   if (config.googleAnalyticsId) setGoogleDisabled(config.googleAnalyticsId, false);
+  if (w.fbq) w.fbq("consent", "grant");
 
   if (config.metaPixelId && !w.fbq) {
     // Meta's standard loader: queue calls until fbevents.js arrives.
@@ -96,6 +97,8 @@ export function stopPixels() {
   loaded = false;
   pendingPurchases = [];
   if (config?.googleAnalyticsId) setGoogleDisabled(config.googleAnalyticsId, true);
+  // Meta's script stays on the page once loaded; this stops it sending anything, its own automatic events included.
+  (window as PixelWindow).fbq?.("consent", "revoke");
   const host = window.location.hostname;
   const domains = ["", host, `.${host}`, `.${host.split(".").slice(-2).join(".")}`];
   for (const name of document.cookie.split(";").map((c) => c.split("=")[0].trim())) {
@@ -141,12 +144,27 @@ export function pixelEvent(event: PixelEvent) {
       break;
     }
     case "checkout_started":
-      send(["InitiateCheckout", { value, currency }], ["begin_checkout", { value, currency }]);
+      send(["InitiateCheckout", { ...metaContents(event.lines), value, currency }], ["begin_checkout", { value, currency, items: googleItems(event.lines) }]);
       break;
     case "payment_started":
-      send(["AddPaymentInfo", { value, currency }], ["add_payment_info", { value, currency }]);
+      send(["AddPaymentInfo", { ...metaContents(event.lines), value, currency }], ["add_payment_info", { value, currency, items: googleItems(event.lines) }]);
       break;
   }
+}
+
+/** What's in the basket, as Meta wants it (catalogue ads match on the ids). */
+function metaContents(lines: PurchaseLine[] = []) {
+  return {
+    content_ids: lines.map((l) => l.itemId),
+    content_type: "product",
+    contents: lines.map((l) => ({ id: l.itemId, quantity: l.quantity, item_price: round(l.unitPrice) })),
+    num_items: lines.reduce((n, l) => n + l.quantity, 0),
+  };
+}
+
+/** What's in the basket, as GA4's ecommerce reports want it. */
+function googleItems(lines: PurchaseLine[] = []) {
+  return lines.map((l) => ({ item_id: l.itemId, item_name: l.name, quantity: l.quantity, price: round(l.unitPrice) }));
 }
 
 export type PurchaseLine = { itemId: string; name: string; quantity: number; unitPrice: number };
@@ -171,22 +189,5 @@ export function pixelPurchase(order: PurchaseOrder) {
   }
   const currency = config.currency;
   const value = round(order.total);
-  send(
-    [
-      "Purchase",
-      {
-        content_ids: order.lines.map((l) => l.itemId),
-        content_type: "product",
-        contents: order.lines.map((l) => ({ id: l.itemId, quantity: l.quantity, item_price: round(l.unitPrice) })),
-        num_items: order.lines.reduce((n, l) => n + l.quantity, 0),
-        value,
-        currency,
-      },
-    ],
-    [
-      "purchase",
-      { transaction_id: order.id, value, currency, items: order.lines.map((l) => ({ item_id: l.itemId, item_name: l.name, quantity: l.quantity, price: round(l.unitPrice) })) },
-    ],
-    order.id,
-  );
+  send(["Purchase", { ...metaContents(order.lines), value, currency }], ["purchase", { transaction_id: order.id, value, currency, items: googleItems(order.lines) }], order.id);
 }
