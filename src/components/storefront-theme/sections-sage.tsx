@@ -59,7 +59,7 @@ export function SageValueStrip({ section }: SectionProps<"value-strip">) {
 }
 
 /** Three image tiles with a pill label; the middle one is oval. */
-export function SageCategoryTiles({ section, storefront }: SectionProps<"category-tiles">) {
+export function SageCategoryTiles({ section, storefront, nearTop }: SectionProps<"category-tiles">) {
   const tiles = buildTiles(storefront, section.collectionIds, 3);
   if (tiles.length === 0) return null;
   const titleId = `${section.id}-title`;
@@ -76,7 +76,7 @@ export function SageCategoryTiles({ section, storefront }: SectionProps<"categor
           {tiles.map((tile, i) => (
             <Link className={`tile${i === 1 ? " tile--oval" : ""}`} href={sectionHref(storefront, tile.path)} key={tile.key}>
               <span className={`media tone-${[2, 5, 3][i]} tile__media`} aria-hidden="true">
-                {tile.imageUrl ? <StoreImage src={tile.imageUrl} alt="" sizes="(min-width: 768px) 33vw, 100vw" /> : null}
+                {tile.imageUrl ? <StoreImage src={tile.imageUrl} alt="" sizes="(min-width: 768px) 33vw, 100vw" eager={nearTop && i < 3} /> : null}
               </span>
               <span className="tile__label">Shop {tile.label}</span>
             </Link>
@@ -88,7 +88,7 @@ export function SageCategoryTiles({ section, storefront }: SectionProps<"categor
 }
 
 /** Centred title over the arch-card grid. */
-export async function SageProductList({ section, storefront }: SectionProps<"product-list">) {
+export async function SageProductList({ section, storefront, nearTop }: SectionProps<"product-list">) {
   const products = await loadSectionProducts(section, storefront);
   if (products.length === 0) return null;
   const titleId = `${section.id}-title`;
@@ -99,7 +99,7 @@ export async function SageProductList({ section, storefront }: SectionProps<"pro
         <h2 className="h-section center-title" id={titleId}>
           {section.heading}
         </h2>
-        <ProductGridList products={products} basePath={storefront.basePath} variant={storefront.site.theme.cardVariant} className="products featured-grid" />
+        <ProductGridList products={products} basePath={storefront.basePath} variant={storefront.site.theme.cardVariant} className="products featured-grid" eagerCount={nearTop ? 4 : 0} />
       </div>
     </section>
   );

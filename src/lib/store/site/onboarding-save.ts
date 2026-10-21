@@ -1,5 +1,5 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { shopChanged } from "./shop-changed";
+import { shopChanged, shopTenantChanged } from "./shop-changed";
 import { checkSlugAvailable } from "@/lib/store/slugs";
 import { contactRequestSchema, teamEmail } from "@/lib/marketing/contact-request";
 import { sendContactRequestEmail } from "@/lib/mail/mailtrap";
@@ -61,7 +61,7 @@ export async function saveBasics(ctx: Ctx, v: StepValues<"basics">): Promise<str
     })
     .eq("tenant_id", ctx.tenantId);
   if (error) throw new Error(error.message);
-  shopChanged(ctx.tenantId);
+  shopTenantChanged(ctx.tenantId);
   return slug;
 }
 
@@ -93,6 +93,7 @@ export async function saveBrand(ctx: Ctx, v: StepValues<"brand">, storeName: str
 
   const { error } = await db().from("tenants").update({ logo_url: v.logoUrl }).eq("id", ctx.tenantId);
   if (error) throw new Error(error.message);
+  shopTenantChanged(ctx.tenantId);
 }
 
 const DELIVERY_ZONE = "Standard delivery";

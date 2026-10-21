@@ -16,7 +16,10 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   const pageTitle = query.category ? `${query.category} | ${title}` : title;
   return {
     title: query.page > 1 ? `${pageTitle}, page ${query.page}` : pageTitle,
-    description: storefront.site.content.shop.description || undefined,
+    // Search results show a description for every page, so there's always one, even before the merchant writes their own.
+    description:
+      storefront.site.content.shop.description ||
+      (query.category ? `${query.category} from ${storefront.storeName}. Browse and order online.` : `Shop everything from ${storefront.storeName}. Browse and order online.`),
     alternates: { canonical: listingCanonical(query.category ? STORE_PATHS.category(query.category) : STORE_PATHS.products, query.page) },
     robots: listingRobots(query, unknownCategory),
   };

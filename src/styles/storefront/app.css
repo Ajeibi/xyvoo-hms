@@ -101,6 +101,8 @@
   background: var(--surface); color: var(--ink); border-radius: var(--card-radius, 0.75rem);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2); font-size: 0.9375rem; line-height: 1.55;
 }
+/* Already chosen (set before the first paint by the layout's head script), or no scripts to act on a choice: hidden, unless reopened from "Cookie settings". */
+.sf-consent-chosen .cookie-banner:not(.is-reopened), .no-js .cookie-banner { display: none; }
 .cookie-banner__title { margin: 0; font-family: var(--font-display); font-weight: var(--display-weight); font-size: 1.0625rem; }
 .cookie-banner p { margin: 0; }
 .cookie-banner a { color: inherit; text-decoration: underline; text-underline-offset: 0.2em; }
@@ -143,11 +145,11 @@
 .discount-code label { font-weight: 600; color: var(--ink); }
 .discount-code .hint:empty { display: none; }
 .discount-code__applied { display: flex; flex-wrap: wrap; align-items: center; gap: 0.375rem; margin: 0; font-size: 0.875rem; color: var(--ink); }
-.link-button { padding: 0; border: 0; background: none; color: var(--accent); font: inherit; text-decoration: underline; cursor: pointer; }
+.link-button { padding: 0; border: 0; background: none; color: var(--accent-text, var(--accent)); font: inherit; text-decoration: underline; cursor: pointer; }
 .link-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* Sale prices: when the sale ends, under the price */
-.sale-ends { display: block; margin-top: 0.125rem; font-size: 0.8125rem; font-weight: 600; color: var(--accent); }
+.sale-ends { display: block; margin-top: 0.125rem; font-size: 0.8125rem; font-weight: 600; color: var(--accent-text, var(--accent)); }
 .pdp__price .sale-ends { font-size: 0.875rem; }
 
 /* Checkout: tax and delivery areas */
@@ -175,7 +177,7 @@
 .star-rating legend { margin-bottom: 0.5rem; font-weight: 600; color: var(--ink); }
 .star-rating__stars { display: flex; gap: 0.25rem; }
 .star-rating__stars label { position: relative; display: grid; place-items: center; width: 2.75rem; height: 2.75rem; color: var(--muted); cursor: pointer; }
-.star-rating__stars label.is-on { color: var(--accent); }
+.star-rating__stars label.is-on { color: var(--accent-text, var(--accent)); }
 .star-rating__stars input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
 .star-rating__stars .icon { width: 1.75rem; height: 1.75rem; }
 .star-rating__stars label:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -186,7 +188,7 @@
 .review-photos__add { position: relative; display: inline-flex; width: auto; cursor: pointer; }
 .review-photos__add:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
 .review-thanks { display: grid; gap: 1rem; justify-items: start; max-width: 40rem; margin-top: 2rem; }
-.review-thanks > .icon { width: 2.5rem; height: 2.5rem; color: var(--accent); }
+.review-thanks > .icon { width: 2.5rem; height: 2.5rem; color: var(--accent-text, var(--accent)); }
 /* On product pages */
 .review-item .review-photos { margin-top: 0.25rem; }
 .review-item .review-photos a { display: block; }
@@ -215,7 +217,7 @@
 .account-prompt__title:focus { outline: none; }
 .account-prompt__optional { padding: 0.625rem 0.75rem; border-radius: 0.5rem; background: color-mix(in srgb, var(--accent) 8%, var(--surface)); font-size: 0.875rem; }
 .account-prompt__signin { font-size: 0.875rem; }
-.account-prompt__signin a { color: var(--accent); text-decoration: underline; text-underline-offset: 0.2em; }
+.account-prompt__signin a { color: var(--accent-text, var(--accent)); text-decoration: underline; text-underline-offset: 0.2em; }
 .account-prompt__close {
   position: absolute; top: 0.5rem; right: 0.5rem; width: 2.75rem; height: 2.75rem;
   display: inline-flex; align-items: center; justify-content: center;
@@ -235,7 +237,7 @@
 .account-orders__top { display: flex; justify-content: space-between; gap: 1rem; }
 .account-orders__meta, .account-orders__items { margin: 0.25rem 0 0; font-size: 0.875rem; color: var(--muted); }
 .account-card .h-section { font-size: 1.375rem; }
-.checkout-account { margin: 0; font-size: 0.9375rem; } .checkout-account a { color: var(--accent); text-decoration: underline; text-underline-offset: 0.2em; }
+.checkout-account { margin: 0; font-size: 0.9375rem; } .checkout-account a { color: var(--accent-text, var(--accent)); text-decoration: underline; text-underline-offset: 0.2em; }
 
 /* "Email me when it's back" on sold-out products (StockAlertForm.tsx). */
 .stock-alert { display: grid; gap: 0.75rem; margin-top: 1.25rem; padding: 1.125rem 1.25rem; border: 1px solid var(--line); border-radius: var(--card-radius, 0.75rem); background: color-mix(in srgb, var(--accent) 6%, var(--surface)); }

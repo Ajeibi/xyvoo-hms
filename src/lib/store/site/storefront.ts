@@ -3,17 +3,16 @@ import { simulatedPaymentsEnabled } from "@/lib/payments/simulated";
 import { cookies, headers } from "next/headers";
 import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { getShopTenantBySlug, type ShopTenant } from "@/lib/shop/tenants";
-import { getStorePaymentRoute } from "@/lib/store/payments";
+import type { ShopTenant } from "@/lib/shop/tenants";
 import { currencyForVisitorCountry, parseCurrencySettings, resolveDisplayCurrencies, shopCurrencyCookie, type DisplayCurrency } from "@/lib/store/currencies";
 import { getFxRates } from "@/lib/store/fx-rates";
-import { getStorePlan, storeHasFeature } from "@/lib/store/features";
+import { hasShopFeature } from "@/lib/store/features";
 import { releaseExpiredOrdersSoon } from "@/lib/store/release-orders";
 import type { StoreSocials } from "@/lib/store/socials";
 import { availablePaymentMethods, parseOfflinePayments, type CheckoutPaymentMethod } from "@/lib/store/offline-payments";
 import { STOREFRONT_HOST_HEADER, STOREFRONT_PREVIEW_COOKIE, storefrontUrl } from "@/lib/store/subdomain";
 import { getStoreSite } from "./data";
-import { getShopSnapshot, type ShopSnapshot } from "./shop-cache";
+import { getCachedShopTenant, getShopSnapshot, type ShopSnapshot } from "./shop-cache";
 
 type StoreSnapshotPage = ShopSnapshot["pages"][number];
 import { menuItemPath } from "./links";
@@ -116,13 +115,13 @@ function pruneNavigation(nav: SiteNavigation, pages: StorePageSummary[], collect
 export const getStorefront = cache(async (slug: string): Promise<Storefront | null> => {
   // The slug ends up inside a PostgREST .or() filter, so refuse anything that isn't a plain label.
   if (!/^[a-z0-9-]{1,63}$/i.test(slug)) return null;
-  const tenant = await getShopTenantBySlug(slug);
+  const tenant = await getCachedShopTenant(slug);
   if (!tenant) return null;
   // Puts back stock held by abandoned or failed card payments before the shop is shown.
   releaseExpiredOrdersSoon(tenant.id);
 
-  // The shop's shared data comes from the cache; the payment route (it holds keys) is read each time.
-  const [snapshot, requestHeaders, paymentRoute] = await Promise.all([getShopSnapshot(tenant.id), headers(), getStorePaymentRoute(tenant.id)]);
+  // The shop's shared data comes from the cache (only whether it takes cards, never its payment keys).
+  const [snapshot, requestHeaders] = await Promise.all([getShopSnapshot(tenant.id), headers()]);
 
   const isLive = snapshot.site?.status === "live" && snapshot.site.published !== null;
   // Members see the draft on an unpublished shop, or on a live one when they've
@@ -181,7 +180,7 @@ export const getStorefront = cache(async (slug: string): Promise<Storefront | nu
   const basePath = onSubdomain ? "" : `/shop/${slug}`;
 
   // Other currencies are a Standard feature: on Free the shop shows only its own (the saved list is kept).
-  const multiCurrency = storeHasFeature(await getStorePlan(tenant.id), "multiCurrency");
+  const multiCurrency = await hasShopFeature(tenant.id, "multiCurrency");
   const currencySettings = multiCurrency ? parseCurrencySettings(p?.currencies, profile.currencyCode) : { extra: [] };
   // Only shops showing other currencies need the exchange rates.
   const rates = currencySettings.extra.length ? (await getFxRates()).rates : {};
@@ -202,8 +201,8 @@ export const getStorefront = cache(async (slug: string): Promise<Storefront | nu
     siteUrl: storefrontUrl(slug),
     isLive,
     isPreview,
-    acceptsPayments: paymentRoute !== null,
-    paymentMethods: availablePaymentMethods({ acceptsCard: paymentRoute !== null || simulatedPaymentsEnabled(), offline: parseOfflinePayments(p?.offline_payments), whatsappNumber: p?.whatsapp ?? null }),
+    acceptsPayments: snapshot.acceptsCard,
+    paymentMethods: availablePaymentMethods({ acceptsCard: snapshot.acceptsCard || simulatedPaymentsEnabled(), offline: parseOfflinePayments(p?.offline_payments), whatsappNumber: p?.whatsapp ?? null }),
     profile,
     currencies,
     displayCurrency,

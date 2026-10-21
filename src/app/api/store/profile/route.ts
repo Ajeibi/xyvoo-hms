@@ -1,4 +1,4 @@
-import { shopChanged } from "@/lib/store/site/shop-changed";
+import { shopTenantChanged } from "@/lib/store/site/shop-changed";
 import { NextResponse } from "next/server";
 import { resolveStoreRequest } from "@/lib/store/api-helpers";
 import { diffFields, logActivity } from "@/lib/store/activity";
@@ -95,6 +95,6 @@ export async function PATCH(req: Request) {
       },
     ),
   });
-  shopChanged(resolved.access.tenantId);
+  shopTenantChanged(resolved.access.tenantId);
   return NextResponse.json({ ok: true });
 }

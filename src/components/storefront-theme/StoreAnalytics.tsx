@@ -86,8 +86,10 @@ export default function StoreAnalytics({ slug, storeName, privacyHref, pixels }:
     }
   }, [lines, hasHydrated]);
 
-  const showBanner = consent === null || reopened;
-  if (consent === "unknown" || !showBanner) return null;
+  // Before the choice is read ("unknown", which is also how the server renders it) the banner is in the
+  // page, and the layout's head script hides it before the first paint for visitors who have already chosen.
+  const showBanner = consent === "unknown" || consent === null || reopened;
+  if (!showBanner) return null;
 
   const choose = (choice: ConsentChoice) => {
     setConsent(slug, choice);
@@ -95,7 +97,7 @@ export default function StoreAnalytics({ slug, storeName, privacyHref, pixels }:
   };
 
   return (
-    <section className="cookie-banner" aria-labelledby="cookie-banner-title" role="region">
+    <section className={`cookie-banner${reopened ? " is-reopened" : ""}`} aria-labelledby="cookie-banner-title" role="region">
       <h2 id="cookie-banner-title" className="cookie-banner__title">
         Cookies on {storeName}
       </h2>

@@ -1,3 +1,4 @@
+import { shopChanged } from "@/lib/store/site/shop-changed";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { resolveStoreRequest } from "@/lib/store/api-helpers";
@@ -102,6 +103,8 @@ export async function POST(req: Request) {
         { business_name: v.businessName, bank_name: v.bankName, account_name: accountName, account_number_last4: v.accountNumber.slice(-4) },
       ),
     });
+    // A shop with a payout account takes cards.
+    shopChanged(access.tenantId);
     return NextResponse.json({ ok: true, accountName, accountNumberLast4: v.accountNumber.slice(-4) });
   } catch (error) {
     return paystackFailure(error, "We couldn't save your payout account just now. Please try again.");

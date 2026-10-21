@@ -73,7 +73,7 @@ function ValueStrip({ section }: SectionProps<"value-strip">) {
   );
 }
 
-function CategoryTiles({ section, storefront }: SectionProps<"category-tiles">) {
+function CategoryTiles({ section, storefront, nearTop }: SectionProps<"category-tiles">) {
   const tiles = buildTiles(storefront, section.collectionIds, 8);
   if (tiles.length === 0) return null;
   const titleId = `${section.id}-title`;
@@ -89,7 +89,7 @@ function CategoryTiles({ section, storefront }: SectionProps<"category-tiles">) 
             <li key={tile.key}>
               <Link className="category" href={sectionHref(storefront, tile.path)}>
                 <span className={`media tone-${(i % 5) + 1}`} aria-hidden="true">
-                  {tile.imageUrl ? <StoreImage src={tile.imageUrl} alt="" sizes="140px" /> : null}
+                  {tile.imageUrl ? <StoreImage src={tile.imageUrl} alt="" sizes="140px" eager={nearTop && i < 4} /> : null}
                 </span>
                 {tile.label}
               </Link>
@@ -101,7 +101,7 @@ function CategoryTiles({ section, storefront }: SectionProps<"category-tiles">) 
   );
 }
 
-function FeaturedCollections({ section, storefront }: SectionProps<"featured-collections">) {
+function FeaturedCollections({ section, storefront, nearTop }: SectionProps<"featured-collections">) {
   const collections = section.collectionIds.length
     ? storefront.collections.filter((c) => section.collectionIds.includes(c.id))
     : storefront.collections.slice(0, 2);
@@ -121,7 +121,7 @@ function FeaturedCollections({ section, storefront }: SectionProps<"featured-col
               </Link>
             </div>
             <MediaLink className={`media tone-${i % 2 ? 4 : 2}`} href={sectionHref(storefront, STORE_PATHS.collection(c.slug))}>
-              {c.imageUrl ? <StoreImage src={c.imageUrl} alt={c.imageAlt || ""} sizes="(min-width: 900px) 25vw, 100vw" /> : null}
+              {c.imageUrl ? <StoreImage src={c.imageUrl} alt={c.imageAlt || ""} sizes="(min-width: 900px) 25vw, 100vw" eager={nearTop} /> : null}
             </MediaLink>
           </article>
         ))}
@@ -130,7 +130,7 @@ function FeaturedCollections({ section, storefront }: SectionProps<"featured-col
   );
 }
 
-async function ProductList({ section, storefront }: SectionProps<"product-list">) {
+async function ProductList({ section, storefront, nearTop }: SectionProps<"product-list">) {
   const products = await loadSectionProducts(section, storefront);
   if (products.length === 0) return null;
 
@@ -139,7 +139,7 @@ async function ProductList({ section, storefront }: SectionProps<"product-list">
     <section className="section section--tight-top" aria-labelledby={titleId}>
       <div className="container">
         <SectionHead id={titleId} heading={section.heading} link={{ label: "View all", href: sectionHref(storefront, STORE_PATHS.products) }} />
-        <ProductGridList products={products} basePath={storefront.basePath} variant={storefront.site.theme.cardVariant} />
+        <ProductGridList products={products} basePath={storefront.basePath} variant={storefront.site.theme.cardVariant} eagerCount={nearTop ? 4 : 0} />
       </div>
     </section>
   );
@@ -305,10 +305,10 @@ const TEMPLATE_SECTIONS: Record<StorefrontTemplateSlug, SectionSet> = {
 
 type RenderableSection = Extract<SiteSection, { type: RenderableType }>;
 
-function renderSection(set: SectionSet, section: RenderableSection, storefront: Storefront, isFirst: boolean) {
+function renderSection(set: SectionSet, section: RenderableSection, storefront: Storefront, index: number) {
   // SectionSet pairs each type with its own component, so this lookup is always the matching one.
-  const Component = set[section.type] as unknown as (props: { section: RenderableSection; storefront: Storefront; isFirst: boolean }) => React.ReactNode;
-  return <Component key={section.id} section={section} storefront={storefront} isFirst={isFirst} />;
+  const Component = set[section.type] as unknown as (props: { section: RenderableSection; storefront: Storefront; isFirst: boolean; nearTop: boolean }) => React.ReactNode;
+  return <Component key={section.id} section={section} storefront={storefront} isFirst={index === 0} nearTop={index === 0} />;
 }
 
 /**
@@ -326,7 +326,7 @@ export default function HomeSections({ storefront }: { storefront: Storefront })
   return (
     <>
       {!firstIsHero ? <h1 className="visually-hidden">{storefront.storeName}</h1> : null}
-      {visible.map((section, i) => renderSection(set, section, storefront, i === 0))}
+      {visible.map((section, i) => renderSection(set, section, storefront, i))}
     </>
   );
 }

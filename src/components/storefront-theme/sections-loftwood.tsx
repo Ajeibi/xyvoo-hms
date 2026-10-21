@@ -61,7 +61,7 @@ export function LoftwoodHero({ section, storefront, isFirst }: SectionProps<"her
                     <li key={tile.key}>
                       <Link className="room-card" href={sectionHref(storefront, tile.path)}>
                         <span className={`media tone-${(i % 4) + 2} room-card__media`} aria-hidden="true">
-                          {tile.imageUrl ? <StoreImage src={tile.imageUrl} alt="" sizes="288px" /> : null}
+                          {tile.imageUrl ? <StoreImage src={tile.imageUrl} alt="" sizes="288px" eager={isFirst && i < 4} /> : null}
                         </span>
                         <span className="room-card__text">
                           <strong>{tile.label}</strong>
@@ -114,7 +114,7 @@ export function LoftwoodValueStrip({ section }: SectionProps<"value-strip">) {
 }
 
 /** Bento grid of up to three categories; the first card is tall. */
-export function LoftwoodCategoryTiles({ section, storefront }: SectionProps<"category-tiles">) {
+export function LoftwoodCategoryTiles({ section, storefront, nearTop }: SectionProps<"category-tiles">) {
   const tiles = buildTiles(storefront, section.collectionIds, 3);
   if (tiles.length === 0) return null;
   const titleId = `${section.id}-title`;
@@ -135,7 +135,7 @@ export function LoftwoodCategoryTiles({ section, storefront }: SectionProps<"cat
                 </Link>
               </h3>
               <MediaLink className={`media tone-${[3, 2, 4][i]} bento__media`} href={sectionHref(storefront, tile.path)}>
-                {tile.imageUrl ? <StoreImage src={tile.imageUrl} alt="" sizes="(min-width: 900px) 20vw, 100vw" /> : null}
+                {tile.imageUrl ? <StoreImage src={tile.imageUrl} alt="" sizes="(min-width: 900px) 20vw, 100vw" eager={nearTop && i < 4} /> : null}
               </MediaLink>
             </article>
           ))}
@@ -146,7 +146,7 @@ export function LoftwoodCategoryTiles({ section, storefront }: SectionProps<"cat
 }
 
 /** Product rows; "on sale" rows use the template's three-column deals grid. */
-export async function LoftwoodProductList({ section, storefront }: SectionProps<"product-list">) {
+export async function LoftwoodProductList({ section, storefront, nearTop }: SectionProps<"product-list">) {
   const products = await loadSectionProducts(section, storefront);
   if (products.length === 0) return null;
   const titleId = `${section.id}-title`;
@@ -160,6 +160,7 @@ export async function LoftwoodProductList({ section, storefront }: SectionProps<
           basePath={storefront.basePath}
           variant={storefront.site.theme.cardVariant}
           className={section.source === "on-sale" ? "products products--3" : "products"}
+          eagerCount={nearTop ? 4 : 0}
         />
       </div>
     </section>

@@ -1,3 +1,4 @@
+import { shopTenantChanged } from "@/lib/store/site/shop-changed";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { resolveStoreRequest } from "@/lib/store/api-helpers";
@@ -69,5 +70,7 @@ export async function PATCH(req: Request) {
     action: "paystack_keys_updated",
     changes: diffFields({ enabled: stored.enabled, mode: stored.mode }, { enabled: next.enabled, mode: next.mode }),
   });
+  // Whether the shop takes cards may have changed.
+  shopTenantChanged(resolved.access.tenantId);
   return NextResponse.json({ success: true });
 }

@@ -171,7 +171,7 @@
 :where([data-template="sage-and-stem"]) .values-sage { padding-block: 2.5rem; background: var(--surface); }
 :where([data-template="sage-and-stem"]) .values-sage__list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2rem 1rem; margin: 0; padding: 0; list-style: none; }
 :where([data-template="sage-and-stem"]) .values-sage__list li { display: flex; flex-direction: column; align-items: center; gap: 0.375rem; text-align: center; }
-:where([data-template="sage-and-stem"]) .values-sage__list .icon { width: 1.875rem; height: 1.875rem; color: var(--accent); stroke-width: 1.4; }
+:where([data-template="sage-and-stem"]) .values-sage__list .icon { width: 1.875rem; height: 1.875rem; color: var(--accent-text, var(--accent)); stroke-width: 1.4; }
 :where([data-template="sage-and-stem"]) .values-sage__list span { font-size: 0.875rem; color: var(--muted); }
 @media (min-width: 900px) {
 :where([data-template="sage-and-stem"]) .values-sage__list { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -240,7 +240,7 @@
   --display-weight: 700;
   --display-track: -0.02em;
 }
-:where([data-template="loftwood"]) .hl { color: var(--accent); }
+:where([data-template="loftwood"]) .hl { color: var(--accent-text, var(--accent)); }
 :where([data-template="loftwood"]) .btn--highlight { background: var(--highlight); color: var(--on-highlight); }
 :where([data-template="loftwood"]) .btn--highlight:hover { background: #E6A200; color: var(--on-highlight); }
 :where([data-template="loftwood"]) .round-btn--dark { background: var(--accent); border-color: var(--accent); color: #fff; }
@@ -281,7 +281,7 @@
 }
 @media (min-width: 1024px) {
 :where([data-template="loftwood"]) .nav-list { gap: 2rem; }
-:where([data-template="loftwood"]) .nav-list > li > a[aria-current="page"] { box-shadow: none; color: var(--accent); font-weight: 700; }
+:where([data-template="loftwood"]) .nav-list > li > a[aria-current="page"] { box-shadow: none; color: var(--accent-text, var(--accent)); font-weight: 700; }
 
 }
 :where([data-template="loftwood"]) .hero-lw { padding-top: 1.5rem; }
@@ -327,7 +327,7 @@
 :where([data-template="loftwood"]) .count-pill { padding: 0.25rem 0.875rem; border-radius: 999px; background: #fff; font-size: 0.875rem; font-weight: 700; }
 :where([data-template="loftwood"]) .bento__links { margin: 0; padding: 0; list-style: none; }
 :where([data-template="loftwood"]) .bento__links a { display: inline-flex; align-items: center; min-height: 2.25rem; font-size: 0.9375rem; color: var(--ink-2); text-decoration: none; }
-:where([data-template="loftwood"]) .bento__links a:hover { color: var(--accent); text-decoration: underline; }
+:where([data-template="loftwood"]) .bento__links a:hover { color: var(--accent-text, var(--accent)); text-decoration: underline; }
 :where([data-template="loftwood"]) .bento__media { width: 100%; aspect-ratio: 16 / 10; margin-top: 0.5rem; }
 @media (min-width: 900px) {
 :where([data-template="loftwood"]) .bento { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(16rem, auto)); }

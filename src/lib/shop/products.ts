@@ -2,7 +2,7 @@ import { cache } from "react";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { DEFAULT_SHOP_CURRENCY } from "@/lib/shop/tenants";
 import type { FixedPrices } from "@/lib/store/currencies";
-import { getStorePlan, storeHasFeature } from "@/lib/store/features";
+import { hasShopFeature } from "@/lib/store/features";
 import { effectivePrice, saleFromRow, saleIsLive } from "@/lib/store/sale-price";
 
 /** Columns a shopper is allowed to see -- excludes cost_price, supplier/warehouse
@@ -430,7 +430,7 @@ export async function getShopProductsByIds(tenantId: string, ids: string[]): Pro
 /** Maps rows for the shop, with sale prices applied when the shop's plan includes flash sales. */
 async function mapRows(tenantId: string, rows: ShopProductRow[]) {
   const hasSale = rows.some((r) => r.sale_price != null || (r.product_variants || []).some((v) => v.sale_price != null));
-  const salesEnabled = hasSale ? storeHasFeature(await getStorePlan(tenantId), "flashSales") : false;
+  const salesEnabled = hasSale ? await hasShopFeature(tenantId, "flashSales") : false;
   const now = new Date();
   return rows.map((row) => mapRow(row, salesEnabled, now));
 }

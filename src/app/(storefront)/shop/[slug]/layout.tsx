@@ -22,7 +22,7 @@ import { fontVariableClasses } from "@/lib/store/site/next-fonts";
 import { getStorefront, type Storefront } from "@/lib/store/site/storefront";
 import { storeAppPath, storeAppScope } from "@/lib/store/app";
 import { getPushPublicKey } from "@/lib/store/push";
-import { getStorePlan, storeHasFeature } from "@/lib/store/features";
+import { hasShopFeature } from "@/lib/store/features";
 import { countdownLabel } from "@/lib/store/discounts";
 import { getPromoBanner } from "@/lib/store/discounts-server";
 import { formatShopCurrency } from "@/lib/shop/format";
@@ -43,6 +43,14 @@ type LayoutParams = { params: Promise<{ slug: string }> };
 // framework bundle has loaded, which painted the taller no-js header first and
 // then shifted the whole page.
 const ENHANCE_SCRIPT = `document.documentElement.classList.replace("no-js","js");if(window.self!==window.top)document.documentElement.classList.add("is-framed");`;
+
+/**
+ * Runs before the first paint. The cookie banner is in the page's HTML so it
+ * shows at once (not after the scripts load); a visitor who has already chosen
+ * gets this class, and the banner stays hidden for them without a flash.
+ */
+const consentScript = (slug: string) =>
+  `try{var c=localStorage.getItem(${JSON.stringify(`sf-consent:${slug}`)});if(c==="accepted"||c==="rejected")document.documentElement.classList.add("sf-consent-chosen")}catch(e){}`;
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "";
 
@@ -171,6 +179,11 @@ export default async function StorefrontLayout({ children, params }: LayoutParam
   const visible = storefront.isLive || storefront.isPreview;
   const fontPairing = getFontPairing(site.theme.fontPairing);
   const customFont = site.theme.customFont ?? null;
+  // The feature check and the promotion banner don't depend on each other, so they're read together.
+  const [canPush, promo] = await Promise.all([
+    hasShopFeature(storefront.tenant.id, "pushNotifications"),
+    visible ? getPromoBanner(storefront.tenant.id, (n) => formatShopCurrency(n, storefront.profile.currencyCode)).catch(() => null) : null,
+  ]);
   // Published shops are installable apps. Drafts aren't. Only Standard shops offer notifications.
   const appConfig: StoreAppConfig | null =
     storefront.isLive && !storefront.isPreview
@@ -179,11 +192,10 @@ export default async function StorefrontLayout({ children, params }: LayoutParam
           storeName,
           swUrl: storeAppPath(basePath, "sw.js"),
           scope: storeAppScope(basePath),
-          pushPublicKey: storeHasFeature(await getStorePlan(storefront.tenant.id), "pushNotifications") ? getPushPublicKey() : null,
+          pushPublicKey: canPush ? getPushPublicKey() : null,
         }
       : null;
 
-  const promo = visible ? await getPromoBanner(storefront.tenant.id, (n) => formatShopCurrency(n, storefront.profile.currencyCode)).catch(() => null) : null;
   const promoLabel = promo ? countdownLabel(promo.endsAt, new Date()) : null;
 
   return (
@@ -195,7 +207,7 @@ export default async function StorefrontLayout({ children, params }: LayoutParam
       suppressHydrationWarning
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: ENHANCE_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: ENHANCE_SCRIPT + consentScript(slug) }} />
         {customFont?.source === "google" ? (
           <>
             {/* The merchant chose a Google Font, so this is the one font a shop loads from outside XYVOO. */}

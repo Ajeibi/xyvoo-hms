@@ -8,7 +8,7 @@ import { STORE_PATHS, storeHref } from "@/lib/store/site/links";
 import { getStorefront } from "@/lib/store/site/storefront";
 import { getCheckoutFreeRules } from "@/lib/store/free-delivery-server";
 import { getTaxSettings } from "@/lib/store/tax-server";
-import { getStorePlan, storeHasFeature } from "@/lib/store/features";
+import { hasShopFeature } from "@/lib/store/features";
 
 export const metadata: Metadata = { title: "Checkout", robots: { index: false, follow: false } };
 
@@ -65,7 +65,7 @@ export default async function StorefrontCheckoutPage({ params, searchParams }: {
           tax={{ enabled: tax.enabled, name: tax.name, rate: tax.rate, inclusive: tax.inclusive, onDelivery: tax.onDelivery }}
           paymentMethods={storefront.paymentMethods}
           initialPaymentMethod={storefront.paymentMethods.find((m) => m === pay)}
-          offerWhatsAppUpdates={storeHasFeature(await getStorePlan(storefront.tenant.id), "whatsappMessages")}
+          offerWhatsAppUpdates={await hasShopFeature(storefront.tenant.id, "whatsappMessages")}
         />
       ) : (
         <div className="cart-empty">

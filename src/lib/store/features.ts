@@ -66,6 +66,15 @@ export const getStorePlan = cache(async (tenantId: string): Promise<StorePlan> =
   return planForFeatures(data as SubscriptionState | null);
 });
 
+/**
+ * For pages shoppers see: whether the shop has a feature. While plan gating is
+ * off every shop has every feature, so the plan isn't even read.
+ */
+export async function hasShopFeature(tenantId: string, feature: StoreFeature) {
+  if (!planGatingOn()) return true;
+  return storeHasFeature(await getStorePlan(tenantId), feature);
+}
+
 export function planForFeatures(sub: SubscriptionState | null, now = Date.now()): StorePlan {
   if (sub?.plan === "enterprise") return "enterprise";
   return isStandardPaidUp(sub, now) ? "standard" : "free";
