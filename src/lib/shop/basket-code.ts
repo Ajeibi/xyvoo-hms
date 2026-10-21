@@ -25,6 +25,39 @@ export function setBasketCode(slug: string, code: string | null) {
   }
 }
 
+/*
+ * What the shopper typed at checkout, kept for this browser tab only (it's
+ * gone when the tab closes), so "Try again" after a card payment that didn't
+ * go through brings the form back filled in. Cleared once an order is placed.
+ */
+export type CheckoutDetails = Partial<Record<"name" | "email" | "phone" | "line1" | "line2" | "city" | "state" | "postcode" | "note", string>>;
+const detailsKey = (slug: string) => `sf-checkout-details:${slug}`;
+
+export function saveCheckoutDetails(slug: string, details: CheckoutDetails) {
+  try {
+    window.sessionStorage.setItem(detailsKey(slug), JSON.stringify(details));
+  } catch {
+    // Private browsing: the form starts empty again.
+  }
+}
+
+export function readCheckoutDetails(slug: string): CheckoutDetails | null {
+  try {
+    const raw = typeof window === "undefined" ? null : window.sessionStorage.getItem(detailsKey(slug));
+    return raw ? (JSON.parse(raw) as CheckoutDetails) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearCheckoutDetails(slug: string) {
+  try {
+    window.sessionStorage.removeItem(detailsKey(slug));
+  } catch {
+    // Nothing kept.
+  }
+}
+
 /** Opens the basket drawer (BasketDrawer.tsx), e.g. after something is added. */
 export function openBasketDrawer(added?: string) {
   window.dispatchEvent(new CustomEvent("sf:basket-open", { detail: { added } }));

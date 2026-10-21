@@ -385,3 +385,9 @@
 .checkout-trust { display: flex; flex-wrap: wrap; align-items: center; gap: 0.375rem; margin: 0.5rem 0 0; font-size: 0.875rem; color: var(--muted); }
 .checkout-trust a { color: inherit; text-decoration: underline; text-underline-offset: 0.2em; }
 .field--short { max-width: 14rem; }
+
+
+/* Proof of payment on the "order received" page (PaymentProofUpload.tsx). */
+.proof-upload { display: grid; gap: 0.75rem; margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--line); }
+.proof-upload .btn { justify-self: start; }
+.proof-upload__done { display: flex; align-items: center; gap: 0.5rem; margin-top: 1.25rem; font-weight: 600; }

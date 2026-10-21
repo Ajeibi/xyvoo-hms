@@ -260,6 +260,20 @@ export default function OrderDetailView({ slug, detail, countryCode, canRefund }
             {order.platformFee > 0 ? <Row label="XYVOO fee" value={money(order.platformFee)} /> : null}
             {order.refundedAmount > 0 ? <Row label="Refunded" value={money(order.refundedAmount)} /> : null}
           </dl>
+          {order.paymentProofAt ? (
+            <p className="mt-3 text-sm text-slate-700">
+              The customer sent proof of payment on {dateTime(order.paymentProofAt)}.{" "}
+              <a
+                href={`/api/store/orders/${order.id}/payment-proof?slug=${encodeURIComponent(slug)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-blue-700 underline hover:no-underline"
+              >
+                View proof of payment<span className="sr-only"> (opens in a new tab)</span>
+              </a>
+              . Check the money is in your account before marking it as paid.
+            </p>
+          ) : null}
 
           {order.paymentStatus === "paid" || order.paymentStatus === "refunded" ? (
             <div className="mt-3">

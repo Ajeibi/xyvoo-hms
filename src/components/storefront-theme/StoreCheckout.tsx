@@ -13,7 +13,7 @@ import { fitsWeight, orderWeightKg, zoneCovers, type WeightBand } from "@/lib/st
 import { COUNTRY_REGIONS, regionLabel } from "@/lib/store/regions";
 import { allocateDiscount, computeTax, taxLabel, type TaxSettings } from "@/lib/store/tax";
 import { decodeStoredReferral, referralStorageKey } from "@/lib/store/referral-link";
-import { getBasketCode, setBasketCode } from "@/lib/shop/basket-code";
+import { getBasketCode, readCheckoutDetails, saveCheckoutDetails, setBasketCode } from "@/lib/shop/basket-code";
 import { pointsValue, redeemablePoints, type LoyaltySettings } from "@/lib/store/loyalty";
 import { useMoney, useStorefront } from "./StorefrontProvider";
 import ChargeNote from "./ChargeNote";
@@ -307,7 +307,8 @@ export default function StoreCheckout({
   const prefilled = useRef(false);
   // The phone number in E.164 form (e.g. +234…), kept in a hidden field so the form reads it like the others.
   // A signed-in shopper's number fills it until they type their own.
-  const [typedPhone, setTypedPhone] = useState<string | null>(null);
+  // Back from a card payment that didn't go through: the number typed before (see saveCheckoutDetails).
+  const [typedPhone, setTypedPhone] = useState<string | null>(() => readCheckoutDetails(slug)?.phone ?? null);
   const phoneNumber = typedPhone ?? (account?.phone ? toInternational(account.phone, countryCode) : "");
   useEffect(() => {
     const form = formRef.current;
@@ -330,6 +331,24 @@ export default function StoreCheckout({
       fill("state", savedAddress.state);
     }
   }, [account, savedAddress, hasHydrated, lines.length]);
+
+  // Back from a card payment that didn't go through ("Try again"): the form as the shopper left it.
+  const restored = useRef(false);
+  useEffect(() => {
+    const form = formRef.current;
+    if (!form || restored.current || !hasHydrated || !lines.length) return;
+    restored.current = true;
+    const saved = readCheckoutDetails(slug);
+    if (!saved) return;
+    for (const name of ["name", "email", "line1", "line2", "city", "state", "postcode", "note"] as const) {
+      const input = form.elements.namedItem(name);
+      const value = saved[name];
+      if (!value || !(input instanceof HTMLInputElement || input instanceof HTMLSelectElement || input instanceof HTMLTextAreaElement) || input.value) continue;
+      const proto = input instanceof HTMLSelectElement ? HTMLSelectElement.prototype : input instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+      Object.getOwnPropertyDescriptor(proto, "value")?.set?.call(input, value);
+      input.dispatchEvent(new Event(input instanceof HTMLSelectElement ? "change" : "input", { bubbles: true }));
+    }
+  }, [hasHydrated, lines.length, slug]);
 
   // Analytics (only sent with the shopper's consent) and the abandoned-cart save.
   const started = useRef(false);
@@ -419,6 +438,9 @@ export default function StoreCheckout({
 
     setSubmitting(true);
     setStatus(method === "card" ? "Taking you to secure payment…" : "Placing your order…");
+    // Kept for this tab, so "Try again" after a card payment that didn't go through brings it back.
+    const typed = (name: string) => String(form.get(name) ?? "").trim() || undefined;
+    saveCheckoutDetails(slug, { name: typed("name"), email: typed("email"), phone: typed("phone"), line1: typed("line1"), line2: typed("line2"), city: typed("city"), state: typed("state"), postcode: typed("postcode"), note: typed("note") });
     const get = (name: FieldName) => String(form.get(name) ?? "").trim() || undefined;
 
     try {

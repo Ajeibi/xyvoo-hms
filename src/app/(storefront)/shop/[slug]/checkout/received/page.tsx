@@ -1,3 +1,4 @@
+import PaymentProofUpload from "@/components/storefront-theme/PaymentProofUpload";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { FaWhatsapp } from "react-icons/fa6";
@@ -39,10 +40,13 @@ async function loadOfflineOrder(tenantId: string, orderId: string) {
         db.from("orders").select("loyalty_amount").eq("tenant_id", tenantId).eq("id", orderId).maybeSingle(),
       ])
     : [null, null];
+  // Separate too: whether the shopper has already sent proof of a bank transfer.
+  const proof = order ? await db.from("orders").select("payment_proof_uploaded_at").eq("tenant_id", tenantId).eq("id", orderId).maybeSingle() : null;
   const extras = {
     taxAmount: Number((tax?.data as { tax_amount?: unknown } | null)?.tax_amount) || 0,
     taxInclusive: Boolean((tax?.data as { tax_inclusive?: unknown } | null)?.tax_inclusive),
     pointsAmount: Number((points?.data as { loyalty_amount?: unknown } | null)?.loyalty_amount) || 0,
+    proofSent: Boolean((proof?.data as { payment_proof_uploaded_at?: unknown } | null)?.payment_proof_uploaded_at),
   };
   // Each item's page address and size or colour, so the WhatsApp message can link to it.
   const productIds = [...new Set(((order?.order_items as { product_id: string | null }[] | undefined) || []).map((i) => i.product_id).filter((id): id is string => !!id))];
@@ -159,6 +163,7 @@ export default async function OrderReceivedPage({ params, searchParams }: { para
             </dl>
             {bank.note ? <p>{bank.note}</p> : null}
             <p>{storeName} will confirm your order once your payment arrives. We&rsquo;ve also emailed you these details.</p>
+            {order.payment_status === "unpaid" ? <PaymentProofUpload orderId={order.id} storeName={storeName} alreadySent={extras.proofSent} /> : null}
           </>
         ) : order.payment_method === "Pay on Delivery" ? (
           <>
