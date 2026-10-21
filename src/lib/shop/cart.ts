@@ -17,6 +17,8 @@ export type CartLine = {
   /** Snapshot at add-to-cart time, purely for UI hints (e.g. disabling "+" past
    * stock) -- the checkout API always re-validates against live stock. */
   maxQuantity: number;
+  /** The product's minimum order quantity, so the basket can't go below it (checkout would refuse). */
+  minQuantity?: number;
 };
 
 /** Just the unit prices, which is all a basket line needs. */

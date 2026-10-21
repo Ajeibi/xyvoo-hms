@@ -47,6 +47,8 @@ export default function ProductDetail({ product, details, initialVariantId }: { 
   const images = product.imageUrls.length > 0 ? product.imageUrls : product.imageUrl ? [product.imageUrl] : [];
   const altFor = (i: number) => product.imageAltTexts[i] || `${product.name}, image ${i + 1} of ${images.length}`;
   const [activeImage, setActiveImage] = useState(0);
+  // Choosing an option shows its own photo; clicking a thumbnail afterwards shows that one instead.
+  const [showVariantImage, setShowVariantImage] = useState(true);
   const [selected, setSelected] = useState<Record<string, string>>(() => ({ ...product.variants.find((v) => v.id === initialVariantId)?.options }));
   const minQty = Math.max(1, product.minimumOrderQty || 1);
   const [quantity, setQuantity] = useState(minQty);
@@ -63,15 +65,29 @@ export default function ProductDetail({ product, details, initialVariantId }: { 
   const stock = variant ? variant.stock : product.stock;
   const inStock = product.allowBackorder || (hasVariants && !allChosen ? product.inStock : stock > 0);
   const maxQty = product.allowBackorder ? 99 : Math.max(stock, 0);
-  const shownImage = variant?.imageUrl || images[activeImage] || null;
+  // Fewer left than the smallest order the shop takes, so it can't be bought.
+  const belowMinimum = !product.allowBackorder && (!hasVariants || allChosen) && stock > 0 && stock < minQty;
+  const buyable = inStock && !belowMinimum;
+  // The chosen amount, kept within what the chosen option has (switching to a size with fewer left lowers it).
+  const qty = Math.min(Math.max(minQty, quantity), Math.max(minQty, maxQty));
+  const variantImage = showVariantImage ? variant?.imageUrl : null;
+  const shownImage = variantImage || images[activeImage] || null;
+  const variantImageIndex = variantImage ? images.indexOf(variantImage) : -1;
+  const shownAlt = !variantImage
+    ? altFor(activeImage)
+    : variantImageIndex >= 0
+      ? altFor(variantImageIndex)
+      : `${product.name}, ${Object.values(variant?.options ?? {}).join(" · ")}`;
 
   const stockText = !inStock
     ? "Out of stock"
-    : product.preorder
-      ? "Available to pre-order"
-      : !product.allowBackorder && stock > 0 && stock <= 5 && (!hasVariants || allChosen)
-        ? `Only ${stock} left in stock`
-        : "In stock";
+    : belowMinimum
+      ? `Only ${stock} left, fewer than the minimum order of ${minQty}`
+      : product.preorder
+        ? "Available to pre-order"
+        : !product.allowBackorder && stock > 0 && stock <= 5 && (!hasVariants || allChosen)
+          ? `Only ${stock} left in stock`
+          : "In stock";
 
   /**
    * Puts the chosen product in the basket. False (with a message saying why) when an option still needs choosing.
@@ -86,6 +102,10 @@ export default function ProductDetail({ product, details, initialVariantId }: { 
       setStatus("That combination isn't available. Please choose another.");
       return false;
     }
+    if (belowMinimum) {
+      setStatus(`There aren't enough left to make the minimum order of ${minQty}.`);
+      return false;
+    }
     if (onlyIfMissing && basketLines.some((l) => cartLineKey(l.productId, l.variantId) === cartLineKey(product.id, variant?.id || null))) return true;
     addLine({
       productId: product.id,
@@ -98,8 +118,9 @@ export default function ProductDetail({ product, details, initialVariantId }: { 
       // A variant with its own price is converted; the product's fixed prices are for its base price.
       fixedPrices: variant?.priceOverride != null ? undefined : fixedLinePrices(product.fixedPrices),
       deliveryExtra: product.deliveryExtra || undefined,
-      quantity,
+      quantity: qty,
       maxQuantity: maxQty,
+      minQuantity: minQty,
     });
     return true;
   };
@@ -131,7 +152,7 @@ export default function ProductDetail({ product, details, initialVariantId }: { 
       <div className="pdp__gallery">
         <div className="media gallery-main tone-4">
           {shownImage ? (
-            <StoreImage src={shownImage} alt={altFor(activeImage)} sizes="(min-width: 900px) 50vw, 100vw" priority />
+            <StoreImage src={shownImage} alt={shownAlt} sizes="(min-width: 900px) 50vw, 100vw" priority />
           ) : (
             <span className="media__label" aria-hidden="true">
               <Icon name="image" />
@@ -146,9 +167,12 @@ export default function ProductDetail({ product, details, initialVariantId }: { 
                 <button
                   className="thumb"
                   type="button"
-                  aria-pressed={i === activeImage}
+                  aria-pressed={variantImage ? i === variantImageIndex : i === activeImage}
                   aria-label={`Show image ${i + 1} of ${images.length}`}
-                  onClick={() => setActiveImage(i)}
+                  onClick={() => {
+                    setActiveImage(i);
+                    setShowVariantImage(false);
+                  }}
                 >
                   <span className="media" aria-hidden="true">
                     <StoreImage src={src} alt="" sizes="96px" />
@@ -200,6 +224,7 @@ export default function ProductDetail({ product, details, initialVariantId }: { 
                             disabled={!exists}
                             onChange={() => {
                               setSelected((prev) => ({ ...prev, [option.name]: value }));
+                              setShowVariantImage(true);
                               setStatus("");
                             }}
                           />
@@ -219,7 +244,7 @@ export default function ProductDetail({ product, details, initialVariantId }: { 
 
           <div className="buy-row">
             <div className="qty">
-              <button type="button" aria-label="Decrease quantity" disabled={quantity <= minQty} onClick={() => setQuantity((q) => Math.max(minQty, q - 1))}>
+              <button type="button" aria-label="Decrease quantity" disabled={qty <= minQty} onClick={() => setQuantity(Math.max(minQty, qty - 1))}>
                 <Icon name="minus" />
               </button>
               <label className="visually-hidden" htmlFor="qty">
@@ -232,27 +257,27 @@ export default function ProductDetail({ product, details, initialVariantId }: { 
                 inputMode="numeric"
                 min={minQty}
                 max={Math.max(minQty, maxQty)}
-                value={quantity}
+                value={qty}
                 onChange={(e) => {
                   const n = Number.parseInt(e.target.value, 10);
                   if (Number.isFinite(n)) setQuantity(Math.min(Math.max(minQty, n), Math.max(minQty, maxQty)));
                 }}
               />
-              <button type="button" aria-label="Increase quantity" disabled={quantity >= maxQty} onClick={() => setQuantity((q) => Math.min(Math.max(minQty, maxQty), q + 1))}>
+              <button type="button" aria-label="Increase quantity" disabled={qty >= maxQty} onClick={() => setQuantity(Math.min(Math.max(minQty, maxQty), qty + 1))}>
                 <Icon name="plus" />
               </button>
             </div>
-            <button className="btn btn--primary" type="submit" disabled={!inStock}>
-              {inStock ? "Add to basket" : "Out of stock"}
+            <button className="btn btn--primary" type="submit" disabled={!buyable}>
+              {!inStock ? "Out of stock" : belowMinimum ? "Not enough in stock" : "Add to basket"}
             </button>
-            {whatsappOrdering && inStock ? (
+            {whatsappOrdering && buyable ? (
               <button className="btn btn--whatsapp" type="button" onClick={orderOnWhatsApp} aria-describedby="pdp-whatsapp-hint">
                 <FaWhatsapp aria-hidden />
                 Order on WhatsApp
               </button>
             ) : null}
           </div>
-          {whatsappOrdering && inStock ? (
+          {whatsappOrdering && buyable ? (
             <p className="whatsapp-hint" id="pdp-whatsapp-hint">
               Add your details, then send the order to the shop on WhatsApp to agree payment and delivery.
             </p>

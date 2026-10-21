@@ -47,17 +47,27 @@ export function createCartStore(slug: string) {
               const existing = state.lines.find((l) => cartLineKey(l.productId, l.variantId) === key);
 
               if (existing) {
+                // The new add has the latest stock limit, so it caps the total.
+                const maxQuantity = line.maxQuantity || existing.maxQuantity;
                 return {
                   lines: state.lines.map((l) =>
                     cartLineKey(l.productId, l.variantId) === key
                       ? // Take the latest prices too, in case they've changed since the first add.
-                        { ...l, unitPrice: line.unitPrice, fixedPrices: line.fixedPrices, deliveryExtra: line.deliveryExtra, quantity: Math.min(l.quantity + line.quantity, l.maxQuantity || Infinity) }
+                        {
+                          ...l,
+                          unitPrice: line.unitPrice,
+                          fixedPrices: line.fixedPrices,
+                          deliveryExtra: line.deliveryExtra,
+                          maxQuantity,
+                          minQuantity: line.minQuantity ?? l.minQuantity,
+                          quantity: Math.min(l.quantity + line.quantity, maxQuantity || Infinity),
+                        }
                       : l,
                   ),
                 };
               }
 
-              return { lines: [...state.lines, line] };
+              return { lines: [...state.lines, { ...line, quantity: Math.min(line.quantity, line.maxQuantity || Infinity) }] };
             }),
           updateQuantity: (productId, variantId, quantity) =>
             set((state) => {

@@ -295,7 +295,9 @@ export async function reminderBasket(tenantId: string, reminderKey: string): Pro
     if (item.variantId && !variant) continue;
     const stock = variant ? variant.stock : product.stock;
     const maxQuantity = product.allowBackorder ? 999 : Math.max(stock, 0);
-    if (maxQuantity <= 0) continue;
+    const minQuantity = Math.max(1, product.minimumOrderQty || 1);
+    // Sold out, or fewer left than the shop's minimum order: it can't be bought, so it isn't put back.
+    if (maxQuantity < minQuantity) continue;
     lines.push({
       productId: product.id,
       variantId: variant?.id ?? null,
@@ -306,8 +308,9 @@ export async function reminderBasket(tenantId: string, reminderKey: string): Pro
       currency: product.currency,
       fixedPrices: variant?.priceOverride != null ? undefined : fixedLinePrices(product.fixedPrices),
       deliveryExtra: product.deliveryExtra || undefined,
-      quantity: Math.min(item.quantity, maxQuantity),
+      quantity: Math.min(Math.max(item.quantity, minQuantity), maxQuantity),
       maxQuantity,
+      minQuantity,
     });
   }
   // Today's price for each line, sale and size included.

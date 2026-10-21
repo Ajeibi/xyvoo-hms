@@ -16,7 +16,8 @@ export type BasketProduct = Pick<
 export default function AddToBasketButton({ product, variant }: { product: BasketProduct; variant: "text" | "icon" }) {
   const addLine = useCartStore((s) => s.addLine);
   const [added, setAdded] = useState(false);
-  const inStock = product.allowBackorder || product.stock > 0;
+  // Enough left for the shop's minimum order (one, for most products).
+  const inStock = product.allowBackorder || product.stock >= Math.max(1, product.minimumOrderQty || 1);
 
   const add = () => {
     addLine({
@@ -31,6 +32,7 @@ export default function AddToBasketButton({ product, variant }: { product: Baske
       deliveryExtra: product.deliveryExtra || undefined,
       quantity: Math.max(1, product.minimumOrderQty || 1),
       maxQuantity: product.allowBackorder ? 999 : Math.max(product.stock, 0),
+      minQuantity: Math.max(1, product.minimumOrderQty || 1),
     });
     setAdded(true);
     announce(`${product.name} added to your basket.`);

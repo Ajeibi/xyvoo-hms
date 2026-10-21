@@ -23,7 +23,7 @@ async function loadOfflineOrder(tenantId: string, orderId: string) {
     db
       .from("orders")
       .select(
-        "id, customer_name, customer_email, customer_phone, shipping_address, payment_method, total_amount, delivery_fee, delivery_method, discount_code, discount_amount, gift_card_amount, created_at, order_items(product_id, variant_id, product_name, quantity, unit_price, line_total)",
+        "id, customer_name, customer_email, customer_phone, shipping_address, payment_method, payment_status, total_amount, delivery_fee, delivery_method, discount_code, discount_amount, gift_card_amount, created_at, order_items(product_id, variant_id, product_name, quantity, unit_price, line_total)",
       )
       .eq("tenant_id", tenantId)
       .eq("id", orderId)
@@ -32,12 +32,24 @@ async function loadOfflineOrder(tenantId: string, orderId: string) {
       .maybeSingle(),
     db.from("business_profile").select("offline_payments").eq("tenant_id", tenantId).maybeSingle(),
   ]);
+  // Tax and points are read on their own, so the page still works on a database without those columns.
+  const [tax, points] = order
+    ? await Promise.all([
+        db.from("orders").select("tax_amount, tax_inclusive").eq("tenant_id", tenantId).eq("id", orderId).maybeSingle(),
+        db.from("orders").select("loyalty_amount").eq("tenant_id", tenantId).eq("id", orderId).maybeSingle(),
+      ])
+    : [null, null];
+  const extras = {
+    taxAmount: Number((tax?.data as { tax_amount?: unknown } | null)?.tax_amount) || 0,
+    taxInclusive: Boolean((tax?.data as { tax_inclusive?: unknown } | null)?.tax_inclusive),
+    pointsAmount: Number((points?.data as { loyalty_amount?: unknown } | null)?.loyalty_amount) || 0,
+  };
   // Each item's page address and size or colour, so the WhatsApp message can link to it.
   const productIds = [...new Set(((order?.order_items as { product_id: string | null }[] | undefined) || []).map((i) => i.product_id).filter((id): id is string => !!id))];
   const { data: products } = productIds.length
     ? await db.from("products").select("id, slug, product_variants(id, options)").eq("tenant_id", tenantId).in("id", productIds)
     : { data: [] };
-  return { order, profile, products: (products || []) as unknown as ProductRef[] };
+  return { order, profile, extras, products: (products || []) as unknown as ProductRef[] };
 }
 
 type ProductRef = { id: string; slug: string | null; product_variants: { id: string; options: Record<string, string> | null }[] | null };
@@ -53,7 +65,7 @@ export default async function OrderReceivedPage({ params, searchParams }: { para
   const orderId = (await searchParams).order ?? "";
   if (!/^[0-9a-f-]{36}$/i.test(orderId)) notFound();
 
-  const { order, profile, products } = await loadOfflineOrder(storefront.tenant.id, orderId);
+  const { order, profile, extras, products } = await loadOfflineOrder(storefront.tenant.id, orderId);
   if (!order) notFound();
 
   const { basePath, storeName, profile: shop } = storefront;
@@ -82,16 +94,24 @@ export default async function OrderReceivedPage({ params, searchParams }: { para
   const deliveryFee = Number(order.delivery_fee) || 0;
   const discount = Number(order.discount_amount) || 0;
   const giftCard = Number(order.gift_card_amount) || 0;
+  const { taxAmount, taxInclusive, pointsAmount } = extras;
+  // Every line between the items and the total, so the summary adds up.
+  const summaryLines = [
+    { label: "Subtotal", value: money(subtotal) },
+    ...(discount > 0 ? [{ label: `Discount${order.discount_code ? ` (${order.discount_code})` : ""}`, value: `−${money(discount)}` }] : []),
+    ...(order.delivery_method ? [{ label: `Delivery: ${order.delivery_method}`, value: deliveryFee > 0 ? money(deliveryFee) : "Free" }] : []),
+    ...(taxAmount > 0 && !taxInclusive ? [{ label: "Tax", value: money(taxAmount) }] : []),
+    ...(giftCard > 0 ? [{ label: "Paid with gift card", value: `−${money(giftCard)}` }] : []),
+    ...(pointsAmount > 0 ? [{ label: "Paid with points", value: `−${money(pointsAmount)}` }] : []),
+  ];
+  // Nothing left to pay: a discount or gift card (and points) covered the whole order.
+  const fullyPaid = order.payment_status === "paid";
   const whatsappMessage = whatsappOrderMessage({
     storeName,
     reference,
     items: lineDetails,
-    extras: [
-      { label: "Subtotal", value: money(subtotal) },
-      ...(deliveryFee > 0 ? [{ label: "Delivery", value: money(deliveryFee) }] : []),
-      ...(discount > 0 ? [{ label: `Discount${order.discount_code ? ` (${order.discount_code})` : ""}`, value: `−${money(discount)}` }] : []),
-      ...(giftCard > 0 ? [{ label: "Paid with gift card", value: `−${money(giftCard)}` }] : []),
-    ],
+    // The delivery method has its own line in the message, so here it's just the charge.
+    extras: summaryLines.map((l) => (l.label.startsWith("Delivery:") ? { ...l, label: "Delivery" } : l)),
     total,
     deliveryMethod: order.delivery_method,
     customer: { name: order.customer_name, phone: order.customer_phone, email: order.customer_email, address: addressText || null },
@@ -101,14 +121,23 @@ export default async function OrderReceivedPage({ params, searchParams }: { para
   return (
     <div className="container section">
       <ClearBasket />
-      <TrackPurchase orderId={order.id} total={Number(order.total_amount) || 0} lines={purchaseLines(items)} />
+      {/* A sale for the ad pixels only once it's paid: bank transfer, pay on delivery and WhatsApp orders aren't yet. */}
+      {fullyPaid ? <TrackPurchase orderId={order.id} total={Number(order.total_amount) || 0} lines={purchaseLines(items)} /> : null}
       <h1 className="h-page">Thank you, we&rsquo;ve got your order</h1>
       <p className="body-copy">
         Your order reference is <strong>{reference}</strong>. Please keep it in case you need to contact {storeName}.
       </p>
 
       <div className="payment-box" style={{ marginTop: "1.5rem" }}>
-        {order.payment_method === "Bank Transfer" && bank.enabled ? (
+        {fullyPaid ? (
+          <>
+            <h2 className="h-section">Nothing more to pay</h2>
+            <p>
+              Your {giftCard > 0 ? "gift card" : pointsAmount > 0 ? "points" : "discount"} covered the whole order. We&rsquo;ve emailed you a confirmation, and {storeName} will
+              let you know when it&rsquo;s on its way.
+            </p>
+          </>
+        ) : order.payment_method === "Bank Transfer" && bank.enabled ? (
           <>
             <h2 className="h-section">Pay by bank transfer</h2>
             <p>
@@ -139,6 +168,11 @@ export default async function OrderReceivedPage({ params, searchParams }: { para
             </p>
             {offline.payOnDelivery.note ? <p>{offline.payOnDelivery.note}</p> : null}
           </>
+        ) : order.payment_method !== "WhatsApp" ? (
+          <>
+            <h2 className="h-section">What happens next</h2>
+            <p>{storeName} will be in touch to arrange payment. We&rsquo;ve emailed you the details of your order.</p>
+          </>
         ) : (
           <>
             <h2 className="h-section">Send your order on WhatsApp</h2>
@@ -168,17 +202,18 @@ export default async function OrderReceivedPage({ params, searchParams }: { para
               <span>{money(Number(i.line_total) || 0)}</span>
             </li>
           ))}
-          {order.delivery_method ? (
-            <li>
-              <span>Delivery: {order.delivery_method}</span>
-              <span />
+          {summaryLines.map((l) => (
+            <li key={l.label}>
+              <span>{l.label}</span>
+              <span>{l.value}</span>
             </li>
-          ) : null}
+          ))}
           <li className="order-received__total">
-            <span>Total</span>
+            <span>{fullyPaid ? "Paid" : "To pay"}</span>
             <span>{total}</span>
           </li>
         </ul>
+        {taxAmount > 0 && taxInclusive ? <p className="hint">Includes tax of {money(taxAmount)}</p> : null}
       </section>
 
       <p style={{ marginTop: "2rem" }}>

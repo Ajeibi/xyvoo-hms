@@ -109,7 +109,7 @@ export default function StoreCart() {
                             <button
                               type="button"
                               aria-label={`Decrease quantity of ${line.name}`}
-                              disabled={line.quantity <= 1}
+                              disabled={line.quantity <= (line.minQuantity ?? 1)}
                               onClick={() =>
                                 updateQuantity(
                                   line.productId,
@@ -127,16 +127,24 @@ export default function StoreCart() {
                               id={qtyId}
                               type="number"
                               inputMode="numeric"
-                              min={1}
+                              min={line.minQuantity ?? 1}
                               max={line.maxQuantity}
                               value={line.quantity}
+                              aria-describedby={
+                                (line.minQuantity ?? 1) > 1
+                                  ? `${qtyId}-min`
+                                  : undefined
+                              }
                               onChange={(e) => {
                                 const n = Number.parseInt(e.target.value, 10);
                                 if (Number.isFinite(n) && n >= 1)
                                   updateQuantity(
                                     line.productId,
                                     line.variantId,
-                                    Math.min(n, line.maxQuantity),
+                                    Math.min(
+                                      Math.max(n, line.minQuantity ?? 1),
+                                      line.maxQuantity,
+                                    ),
                                   );
                               }}
                             />
@@ -155,6 +163,11 @@ export default function StoreCart() {
                               <Icon name="plus" />
                             </button>
                           </div>
+                          {(line.minQuantity ?? 1) > 1 ? (
+                            <p className="hint" id={`${qtyId}-min`}>
+                              Minimum order {line.minQuantity}
+                            </p>
+                          ) : null}
                           <button
                             className="link-btn"
                             type="button"
@@ -183,13 +196,14 @@ export default function StoreCart() {
             <aside className="summary" aria-labelledby="summary-title">
               <h2 id="summary-title">Order summary</h2>
               <dl>
-                <dt>
+                <dt className="total">
                   Subtotal ({itemCount} {itemCount === 1 ? "item" : "items"})
                 </dt>
-                <dd>{money.format(subtotal)}</dd>
-                <dt className="total">Total</dt>
                 <dd className="total">{money.format(subtotal)}</dd>
               </dl>
+              <p className="hint">
+                Delivery, and any tax or discount, is added at checkout.
+              </p>
               <ChargeNote homeAmount={homeSubtotal} />
               <Link
                 className="btn btn--primary"

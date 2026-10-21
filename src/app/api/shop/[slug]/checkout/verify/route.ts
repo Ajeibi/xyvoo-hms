@@ -81,7 +81,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
     .schema("store")
     .from("orders")
     .select(
-      "id, customer_name, customer_email, status, payment_status, total_amount, created_at, order_items(product_id, variant_id, product_name, quantity, unit_price, line_total)",
+      "id, customer_name, customer_email, status, payment_status, total_amount, delivery_fee, delivery_method, discount_code, discount_amount, gift_card_amount, shipping_address, created_at, order_items(product_id, variant_id, product_name, quantity, unit_price, line_total)",
     )
     .eq("id", intent.order_id)
     .single();
