@@ -9,6 +9,7 @@ import { useCartStore } from "@/components/shop/CartProvider";
 import type { ShopProduct, ShopProductVariant } from "@/lib/shop/products";
 import { cartLineKey, fixedLinePrices } from "@/lib/shop/cart";
 import { STORE_PATHS } from "@/lib/store/site/links";
+import { openBasketDrawer } from "@/lib/shop/basket-code";
 import { announce, useStorefront } from "./StorefrontProvider";
 import { Icon, Price, Rating, StoreImage } from "./primitives";
 import { GuidePriceNote } from "./ChargeNote";
@@ -131,6 +132,7 @@ export default function ProductDetail({ product, details, initialVariantId }: { 
     const message = `${product.name} added to your basket.`;
     setStatus(message);
     announce(message);
+    openBasketDrawer(product.name);
   };
 
   // A short checkout with WhatsApp chosen: the order is recorded (and its stock held) before the chat opens.

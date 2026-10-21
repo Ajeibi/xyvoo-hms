@@ -1,5 +1,6 @@
 "use client";
 
+import { setBasketCode } from "@/lib/shop/basket-code";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useCartStore } from "@/components/shop/CartProvider";
@@ -56,6 +57,8 @@ export default function StoreOrderResult({ reference }: { reference: string }) {
             if (data.status === "success") {
               clearCart();
               clearCheckoutToken(slug);
+              // The discount code from the basket has been used.
+              setBasketCode(slug, null);
             }
             // Still processing: check again shortly, so the shopper needn't refresh.
             if (data.status === "pending" && attempt < RECHECK_TIMES) setAttempt(attempt + 1);

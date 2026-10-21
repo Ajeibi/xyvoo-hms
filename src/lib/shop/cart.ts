@@ -19,6 +19,17 @@ export type CartLine = {
   maxQuantity: number;
   /** The product's minimum order quantity, so the basket can't go below it (checkout would refuse). */
   minQuantity?: number;
+  /** Set when the shop says this line can't be bought as it is: taken off sale, or sold out. Checkout waits until it's removed. */
+  problem?: "unavailable" | "sold-out";
+};
+
+/** Today's stock and availability for a basket line, from the shop (see /api/shop/[slug]/basket). */
+export type LineAvailability = {
+  productId: string;
+  variantId: string | null;
+  maxQuantity: number;
+  minQuantity: number;
+  problem: CartLine["problem"] | null;
 };
 
 /** Just the unit prices, which is all a basket line needs. */

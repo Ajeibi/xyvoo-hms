@@ -282,7 +282,16 @@ async function checkoutByKey(tenantId: string, reminderKey: string) {
 export async function reminderBasket(tenantId: string, reminderKey: string): Promise<CartLine[] | null> {
   const checkout = await checkoutByKey(tenantId, reminderKey);
   if (!checkout) return null;
-  const saved = ((checkout.items as { productId?: string; variantId?: string | null; quantity?: number }[]) || []).filter(
+  return rebuildBasket(tenantId, checkout.items);
+}
+
+/**
+ * A saved basket (a reminder's, or one kept on a shopper's account) as basket
+ * lines rebuilt from today's products: today's names, photos, prices and stock.
+ * Items no longer on sale or out of stock are left out.
+ */
+export async function rebuildBasket(tenantId: string, items: unknown): Promise<CartLine[]> {
+  const saved = ((Array.isArray(items) ? items : []) as { productId?: string; variantId?: string | null; quantity?: number }[]).filter(
     (i): i is { productId: string; variantId: string | null; quantity: number } => typeof i.productId === "string" && Number(i.quantity) > 0,
   );
   const products = new Map((await getShopProductsByIds(tenantId, saved.map((i) => i.productId))).map((p) => [p.id, p]));

@@ -13,6 +13,7 @@ import { fitsWeight, orderWeightKg, zoneCovers, type WeightBand } from "@/lib/st
 import { COUNTRY_REGIONS, regionLabel } from "@/lib/store/regions";
 import { allocateDiscount, computeTax, taxLabel, type TaxSettings } from "@/lib/store/tax";
 import { decodeStoredReferral, referralStorageKey } from "@/lib/store/referral-link";
+import { getBasketCode, setBasketCode } from "@/lib/shop/basket-code";
 import { pointsValue, redeemablePoints, type LoyaltySettings } from "@/lib/store/loyalty";
 import { useMoney, useStorefront } from "./StorefrontProvider";
 import ChargeNote from "./ChargeNote";
@@ -207,7 +208,7 @@ export default function StoreCheckout({
     }
   };
 
-  const applyCode = async (code?: string) => {
+  const applyCode = async (code?: string, fromBasket = false) => {
     const typed = (code ?? codeInput).trim();
     if (!typed) {
       setCodeMessage("Enter a discount code.");
@@ -225,6 +226,7 @@ export default function StoreCheckout({
       if (!res.ok) {
         setDiscount(null);
         if (code) forgetReferral();
+        if (fromBasket) setBasketCode(slug, null);
         setCodeMessage(typeof data.error === "string" ? data.error : "We couldn't check that code. Please try again.");
         return;
       }
@@ -265,7 +267,10 @@ export default function StoreCheckout({
       } catch {
         return;
       }
+      // Else a code entered in the basket.
+      const fromBasket = getBasketCode(slug);
       if (stored) void applyCode(stored);
+      else if (fromBasket) void applyCode(fromBasket, true);
     }, 0);
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -749,7 +754,7 @@ export default function StoreCheckout({
           {activeDiscount ? (
             <p className="discount-code__applied">
               <Icon name="check" size="sm" /> <strong>{activeDiscount.code}</strong> {activeDiscount.description}{" "}
-              <button type="button" className="link-button" onClick={() => { setDiscount(null); forgetReferral(); setCodeMessage("Discount code removed."); }}>
+              <button type="button" className="link-button" onClick={() => { setDiscount(null); forgetReferral(); setBasketCode(slug, null); setCodeMessage("Discount code removed."); }}>
                 Remove<span className="visually-hidden"> discount code {activeDiscount.code}</span>
               </button>
             </p>

@@ -328,3 +328,48 @@
 .search-box__option--category .search-box__text { flex-direction: row; gap: 0.375rem; align-items: baseline; }
 .search-box__option--all { border-top: 1px solid var(--line); margin-top: 0.25rem; }
 .search-box__all { font-weight: 600; color: var(--accent-text, var(--accent)); }
+
+/* Basket panel (BasketDrawer.tsx): a native modal dialog, from the right on wide screens, full screen on phones. */
+.basket-drawer { position: fixed; inset: 0 0 0 auto; width: min(26rem, 100vw); max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; padding: 0; border: 0; background: var(--bg); color: var(--ink); box-shadow: -12px 0 40px rgba(0, 0, 0, 0.18); }
+.basket-drawer::backdrop { background: rgba(0, 0, 0, 0.45); }
+.basket-drawer[open] { animation: basket-in 0.22s ease-out; }
+@keyframes basket-in { from { transform: translateX(100%); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .basket-drawer[open] { animation: none; } }
+.basket-drawer__panel { display: flex; flex-direction: column; gap: 1rem; min-height: 100%; padding: 1.25rem; overflow-y: auto; }
+.basket-drawer__head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.basket-drawer__head .h-card { margin: 0; }
+.basket-drawer__added { display: flex; align-items: center; gap: 0.5rem; margin: 0; padding: 0.625rem 0.75rem; border-radius: 0.5rem; background: color-mix(in srgb, var(--accent) 10%, transparent); font-weight: 600; }
+.basket-drawer__empty { display: grid; gap: 1rem; justify-items: start; }
+.basket-drawer__lines { display: flex; flex-direction: column; gap: 1rem; margin: 0; padding: 0; list-style: none; }
+.basket-drawer__foot { display: grid; gap: 0.75rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.basket-drawer__foot .btn { width: 100%; justify-content: center; }
+.basket-drawer__total { display: flex; justify-content: space-between; margin: 0; font-size: 1.0625rem; font-weight: 700; }
+.basket-drawer__total dd { margin: 0; }
+.mini-cart-line { display: grid; grid-template-columns: 4rem minmax(0, 1fr) auto; gap: 0.875rem; align-items: start; }
+.mini-cart-line__media { position: relative; aspect-ratio: 1; overflow: hidden; border-radius: var(--media-radius, 0.5rem); background: var(--surface); }
+.mini-cart-line__body { display: grid; gap: 0.25rem; min-width: 0; }
+.mini-cart-line__name { margin: 0; font-weight: 600; }
+.mini-cart-line__meta { margin: 0; font-size: 0.875rem; color: var(--muted); }
+.mini-cart-line__price { margin: 0; font-weight: 600; white-space: nowrap; }
+.mini-cart-line__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin-top: 0.25rem; }
+.mini-cart-line.has-problem .mini-cart-line__media, .mini-cart-line.has-problem .mini-cart-line__price { opacity: 0.55; }
+.mini-cart-line__problem, .cart-line__problem { display: flex; align-items: center; gap: 0.375rem; margin: 0.25rem 0 0; font-size: 0.875rem; font-weight: 600; color: #B42318; }
+.qty__value { min-width: 2.25rem; text-align: center; font-weight: 600; }
+
+/* Delivery estimate and free delivery progress (BasketExtras.tsx). */
+.delivery-note { display: grid; gap: 0.375rem; }
+.delivery-note p { display: flex; align-items: center; gap: 0.375rem; margin: 0; }
+.delivery-note__bar { height: 0.375rem; border-radius: 1rem; background: var(--line); overflow: hidden; }
+.delivery-note__bar span { display: block; height: 100%; background: var(--accent-text, var(--accent)); }
+.discount-code__row { display: flex; gap: 0.5rem; }
+.discount-code__row .input { flex: 1 1 auto; min-width: 0; }
+
+/* "You might also like" in the basket. */
+.basket-suggestions { display: grid; gap: 0.75rem; margin-top: 1.5rem; }
+.basket-suggestions__title { margin: 0; font-size: 1.0625rem; }
+.basket-suggestions ul { display: grid; gap: 0.75rem; margin: 0; padding: 0; list-style: none; }
+.basket-suggestion { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr) auto; align-items: center; gap: 0.75rem; }
+.basket-suggestion__media { position: relative; aspect-ratio: 1; overflow: hidden; border-radius: var(--media-radius, 0.5rem); background: var(--surface); }
+.basket-suggestion__text { display: grid; gap: 0.125rem; min-width: 0; }
+.basket-suggestion__name { font-weight: 600; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.basket-suggestion__price { font-size: 0.875rem; color: var(--muted); }

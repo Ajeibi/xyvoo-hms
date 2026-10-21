@@ -1,5 +1,6 @@
 "use client";
 
+import { openBasketDrawer } from "@/lib/shop/basket-code";
 import { useState } from "react";
 import { useCartStore } from "@/components/shop/CartProvider";
 import type { ShopProduct } from "@/lib/shop/products";
@@ -36,6 +37,7 @@ export default function AddToBasketButton({ product, variant }: { product: Baske
     });
     setAdded(true);
     announce(`${product.name} added to your basket.`);
+    openBasketDrawer(product.name);
     window.setTimeout(() => setAdded(false), 2000);
   };
 

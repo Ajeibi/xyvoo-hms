@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { FaWhatsapp } from "react-icons/fa6";
 import { useCartStore } from "@/components/shop/CartProvider";
@@ -10,6 +10,8 @@ import { announce, useMoney, useStorefront } from "./StorefrontProvider";
 import ChargeNote from "./ChargeNote";
 import { useBasketPrices } from "./useBasketPrices";
 import { Breadcrumb, Icon, StoreImage } from "./primitives";
+import { BasketDiscount, BasketSuggestions, DeliveryNote } from "./BasketExtras";
+import { PROBLEM_TEXT } from "./BasketDrawer";
 
 export default function StoreCart() {
   const { slug, href, whatsappOrdering } = useStorefront();
@@ -23,6 +25,9 @@ export default function StoreCart() {
   const money = useMoney();
   const { subtotal: homeSubtotal, itemCount } = calculateCartTotals(lines);
   const subtotal = money.subtotal(lines);
+  // A code applied in the basket: shown as a saving here, applied again at checkout.
+  const [discount, setDiscount] = useState<{ code: string; amount: number } | null>(null);
+  const blocked = lines.some((l) => l.problem);
 
   const remove = (
     productId: string,
@@ -99,13 +104,18 @@ export default function StoreCart() {
                             <p className="cart-line__meta">
                               {money.format(money.lineUnit(line))} each
                             </p>
+                            {line.problem ? (
+                              <p className="cart-line__problem">
+                                <Icon name="close" size="sm" /> {PROBLEM_TEXT[line.problem]}
+                              </p>
+                            ) : null}
                           </div>
                           <p className="cart-line__price">
                             {money.format(money.lineUnit(line) * line.quantity)}
                           </p>
                         </div>
                         <div className="cart-line__actions">
-                          <div className="qty qty--sm">
+                          <div className="qty qty--sm" hidden={Boolean(line.problem)}>
                             <button
                               type="button"
                               aria-label={`Decrease quantity of ${line.name}`}
@@ -191,28 +201,45 @@ export default function StoreCart() {
                 <Icon name="chevron-left" size="sm" />
                 Continue shopping
               </Link>
+              <BasketSuggestions />
             </section>
 
             <aside className="summary" aria-labelledby="summary-title">
               <h2 id="summary-title">Order summary</h2>
               <dl>
-                <dt className="total">
+                <dt>
                   Subtotal ({itemCount} {itemCount === 1 ? "item" : "items"})
                 </dt>
-                <dd className="total">{money.format(subtotal)}</dd>
+                <dd>{money.format(subtotal)}</dd>
+                {discount && discount.amount > 0 ? (
+                  <>
+                    <dt>Discount ({discount.code})</dt>
+                    <dd>−{money.format(money.convert(discount.amount))}</dd>
+                  </>
+                ) : null}
+                <dt className="total">Estimated total</dt>
+                <dd className="total">
+                  {money.format(Math.max(subtotal - (discount ? money.convert(discount.amount) : 0), 0))}
+                </dd>
               </dl>
-              <p className="hint">
-                Delivery, and any tax or discount, is added at checkout.
-              </p>
+              <BasketDiscount onApplied={(a) => setDiscount(a ? { code: a.code, amount: a.amount } : null)} />
+              <DeliveryNote />
+              <p className="hint">Delivery and any tax are added at checkout.</p>
               <ChargeNote homeAmount={homeSubtotal} />
-              <Link
-                className="btn btn--primary"
-                href={href(STORE_PATHS.checkout)}
-              >
-                <Icon name="lock" size="sm" />
-                Checkout securely
-              </Link>
-              {whatsappOrdering ? (
+              {blocked ? (
+                <p className="cart-line__problem" role="status">
+                  Some items can&rsquo;t be bought any more. Remove them, then check out.
+                </p>
+              ) : (
+                <Link
+                  className="btn btn--primary"
+                  href={href(STORE_PATHS.checkout)}
+                >
+                  <Icon name="lock" size="sm" />
+                  Checkout securely
+                </Link>
+              )}
+              {whatsappOrdering && !blocked ? (
                 <>
                   {/* The same checkout with WhatsApp chosen, so the order is recorded before the chat opens. */}
                   <Link className="btn btn--whatsapp" href={`${href(STORE_PATHS.checkout)}?pay=whatsapp`} aria-describedby="cart-whatsapp-hint">

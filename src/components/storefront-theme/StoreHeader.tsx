@@ -6,6 +6,8 @@ import { usePathname } from "next/navigation";
 import { useCartStore } from "@/components/shop/CartProvider";
 import CurrencySwitcher from "./CurrencySwitcher";
 import SearchBox from "./SearchBox";
+import BasketDrawer from "./BasketDrawer";
+import { openBasketDrawer } from "@/lib/shop/basket-code";
 import type { StoreSocialLink } from "./socials";
 import { Icon } from "./primitives";
 import { useStorefront } from "./StorefrontProvider";
@@ -59,7 +61,18 @@ function AccountLink() {
 function BasketLink({ href }: { href: string }) {
   const count = useCartStore((s) => (s.hasHydrated ? s.lines.reduce((sum, l) => sum + l.quantity, 0) : 0));
   return (
-    <Link className="icon-btn" href={href} aria-label={count ? `Basket, ${count} ${count === 1 ? "item" : "items"}` : "Basket, empty"}>
+    <Link
+      className="icon-btn"
+      href={href}
+      aria-label={count ? `Basket, ${count} ${count === 1 ? "item" : "items"}` : "Basket, empty"}
+      aria-haspopup="dialog"
+      onClick={(e) => {
+        // Opens the basket panel; a new tab (or no JavaScript) still goes to the basket page.
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+        e.preventDefault();
+        openBasketDrawer();
+      }}
+    >
       <Icon name="bag" />
       {count > 0 ? (
         <span className="badge" aria-hidden="true">
@@ -303,6 +316,7 @@ export default function StoreHeader({
           </div>
         </div>
       </header>
+      <BasketDrawer />
     </>
   );
 }
