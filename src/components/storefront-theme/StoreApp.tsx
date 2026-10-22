@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { getConsent, track } from "@/lib/store/analytics-client";
+import { useT } from "./StorefrontProvider";
 
 /*
  * "Get the app" and "Turn on notifications" for a store, shown to shoppers.
@@ -62,6 +63,7 @@ type PushState = "unknown" | "off" | "on" | "blocked" | "working";
 
 export default function StoreApp({ config, variant }: { config: StoreAppConfig; variant: "prompt" | "footer" }) {
   const env = useClientEnv();
+  const t = useT();
   const [installEvent, setInstallEvent] = useState<InstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
   const [push, setPush] = useState<PushState>("unknown");
@@ -141,12 +143,12 @@ export default function StoreApp({ config, variant }: { config: StoreAppConfig; 
       });
       if (!res.ok) throw new Error("save failed");
       setPush("on");
-      setMessage(`Notifications are on. ${config.storeName} will let you know about offers and new stock.`);
+      setMessage(t("chrome.notificationsOn", { store: config.storeName }));
     } catch {
       setPush("off");
-      setMessage("We couldn't turn on notifications. Please try again.");
+      setMessage(t("chrome.notificationsFailed"));
     }
-  }, [config.pushPublicKey, config.slug, config.storeName]);
+  }, [config.pushPublicKey, config.slug, config.storeName, t]);
 
   const turnOffNotifications = useCallback(async () => {
     setPush("working");
@@ -162,11 +164,11 @@ export default function StoreApp({ config, variant }: { config: StoreAppConfig; 
         await sub.unsubscribe();
       }
       setPush("off");
-      setMessage("Notifications are off.");
+      setMessage(t("chrome.notificationsOff"));
     } catch {
       setPush("on");
     }
-  }, [config.slug]);
+  }, [config.slug, t]);
 
   if (!env.ready) return null;
 
@@ -175,25 +177,21 @@ export default function StoreApp({ config, variant }: { config: StoreAppConfig; 
 
   const iosHelp = showIosHelp ? (
     <ol className="store-app__steps" id={`ios-help-${variant}`}>
-      <li>
-        Tap the <strong>Share</strong> button at the bottom of Safari (a square with an arrow).
-      </li>
-      <li>
-        Choose <strong>Add to Home Screen</strong>, then <strong>Add</strong>.
-      </li>
-      <li>Open {config.storeName} from your home screen to turn on notifications.</li>
+      <li>{t.rich("chrome.iosStepShare", { share: <strong>{t("chrome.iosShare")}</strong> })}</li>
+      <li>{t.rich("chrome.iosStepAdd", { addToHome: <strong>{t("chrome.iosAddToHome")}</strong>, add: <strong>{t("chrome.iosAdd")}</strong> })}</li>
+      <li>{t("chrome.iosStepOpen", { store: config.storeName })}</li>
     </ol>
   ) : null;
 
   const installButton = canInstall ? (
     <button type="button" className="btn btn--primary btn--sm" onClick={install} aria-expanded={env.ios && !installEvent ? showIosHelp : undefined} aria-controls={env.ios && !installEvent ? `ios-help-${variant}` : undefined}>
-      Get the app
+      {t("chrome.getTheApp")}
     </button>
   ) : null;
 
   const pushButton = canAskPush ? (
     <button type="button" className="btn btn--outline btn--sm" onClick={turnOnNotifications} disabled={push === "working"}>
-      {push === "working" ? "Turning on…" : "Turn on notifications"}
+      {push === "working" ? t("chrome.turningOn") : t("chrome.turnOnNotifications")}
     </button>
   ) : null;
 
@@ -203,19 +201,19 @@ export default function StoreApp({ config, variant }: { config: StoreAppConfig; 
     if (!canInstall && !(env.canPush && config.pushPublicKey)) return null;
     return (
       <div className="store-app store-app--footer">
-        <h2 className="store-app__title">Get the {config.storeName} app</h2>
-        <p>Shop faster from your home screen and hear about offers first.</p>
+        <h2 className="store-app__title">{t("chrome.getStoreApp", { store: config.storeName })}</h2>
+        <p>{t("chrome.appPitch")}</p>
         <div className="store-app__actions">
           {installButton}
           {pushButton}
           {push === "on" ? (
             <button type="button" className="btn btn--outline btn--sm" onClick={turnOffNotifications}>
-              Turn off notifications
+              {t("chrome.turnOffNotifications")}
             </button>
           ) : null}
         </div>
-        {push === "blocked" ? <p className="store-app__note">Notifications are blocked for this shop in your browser settings.</p> : null}
-        {env.ios && !env.standalone ? <p className="store-app__note">On iPhone, add the app to your home screen first to get notifications.</p> : null}
+        {push === "blocked" ? <p className="store-app__note">{t("chrome.notificationsBlocked")}</p> : null}
+        {env.ios && !env.standalone ? <p className="store-app__note">{t("chrome.iosAddFirst")}</p> : null}
         {iosHelp}
         <p className="store-app__note" role="status">
           {message}
@@ -235,13 +233,13 @@ export default function StoreApp({ config, variant }: { config: StoreAppConfig; 
     setDismissed(true);
   };
   return (
-    <aside className="store-app store-app--prompt" aria-label={`Get the ${config.storeName} app`}>
-      <p className="store-app__title">{canInstall ? `Get the ${config.storeName} app` : `Hear from ${config.storeName} first`}</p>
-      <p>{canInstall ? "Add it to your home screen for quicker shopping." : "Get a notification about offers and new stock. You can turn it off any time."}</p>
+    <aside className="store-app store-app--prompt" aria-label={t("chrome.getStoreApp", { store: config.storeName })}>
+      <p className="store-app__title">{canInstall ? t("chrome.getStoreApp", { store: config.storeName }) : t("chrome.hearFirst", { store: config.storeName })}</p>
+      <p>{canInstall ? t("chrome.addToHomePitch") : t("chrome.notifyPitch")}</p>
       <div className="store-app__actions">
         {installButton ?? pushButton}
         <button type="button" className="store-app__dismiss" onClick={dismiss}>
-          Not now
+          {t("chrome.notNow")}
         </button>
       </div>
       {iosHelp}

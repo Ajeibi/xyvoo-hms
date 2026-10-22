@@ -1,5 +1,8 @@
+"use client";
+
 import { CarouselControls, CarouselRoot, CarouselTrack } from "./Carousel";
 import { Icon, Rating } from "./primitives";
+import { useT } from "./StorefrontProvider";
 
 export type CarouselReview = { id: string; name: string; rating: number; title: string | null; comment: string };
 
@@ -16,6 +19,7 @@ export default function ReviewsCarousel({
   /** Loftwood highlights the "next" button. */
   nextClassName?: string;
 }) {
+  const t = useT();
   const titleId = `${id}-title`;
   const trackId = `${id}-track`;
 
@@ -31,7 +35,7 @@ export default function ReviewsCarousel({
             </div>
             {reviews.length > 1 ? <CarouselControls trackId={trackId} noun="reviews" nextClassName={nextClassName} /> : null}
           </div>
-          <CarouselTrack id={trackId} label="Customer reviews, scrollable">
+          <CarouselTrack id={trackId} label={t("product.reviewsScrollable")}>
             {reviews.map((review) => (
               <li key={review.id}>
                 <figure className="review">
@@ -42,7 +46,7 @@ export default function ReviewsCarousel({
                     <blockquote>
                       <p>“{review.comment}”</p>
                     </blockquote>
-                    <Rating value={review.rating} />
+                    <Rating t={t} value={review.rating} />
                     <figcaption>
                       <strong>{review.name}</strong>
                     </figcaption>

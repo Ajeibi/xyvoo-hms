@@ -19,6 +19,8 @@ export type VariantInput = {
   sale_price?: number | null;
   sale_starts_at?: string | null;
   sale_ends_at?: string | null;
+  /** Its own prices in currencies the shop prices by hand, e.g. { USD: 25 }. Left out when not sent, so saves work before the column exists. */
+  currency_prices?: Record<string, number>;
   stock?: number;
   image_url?: string;
   barcode?: string;
@@ -71,7 +73,19 @@ const columns = (v: VariantInput) => ({
   barcode: v.barcode || null,
   weight_kg: v.weight_kg ?? null,
   ...saleColumns(v),
+  ...(v.currency_prices !== undefined ? { currency_prices: cleanCurrencyPrices(v.currency_prices) } : {}),
 });
+
+/** Only currency codes with a sensible price. */
+export function cleanCurrencyPrices(value: unknown): Record<string, number> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const out: Record<string, number> = {};
+  for (const [code, raw] of Object.entries(value as Record<string, unknown>)) {
+    const price = Number(raw);
+    if (/^[A-Z]{3}$/.test(code) && Number.isFinite(price) && price > 0 && price < 100_000_000) out[code] = Math.round(price * 100) / 100;
+  }
+  return out;
+}
 
 /** Only the sale fields that were sent (checked beforehand by checkSaleWrite). */
 export function saleColumns(v: Pick<VariantInput, "sale_price" | "sale_starts_at" | "sale_ends_at">) {

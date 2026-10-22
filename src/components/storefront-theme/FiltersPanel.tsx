@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { announce } from "./StorefrontProvider";
+import { announce, useT } from "./StorefrontProvider";
 import { Icon } from "./primitives";
 
 /**
@@ -22,6 +22,7 @@ export default function FiltersPanel({
   clearHref: string;
   children: React.ReactNode;
 }) {
+  const t = useT();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -43,8 +44,8 @@ export default function FiltersPanel({
     if (now === shown.current) return;
     shown.current = now;
     const count = document.querySelector(".toolbar__count")?.textContent;
-    if (count) announce(`Filters applied. ${count}.`);
-  }, [pathname, searchParams]);
+    if (count) announce(t("listing.filtersApplied", { results: count }));
+  }, [pathname, searchParams, t]);
 
   return (
     <div>
@@ -57,7 +58,7 @@ export default function FiltersPanel({
         onClick={() => setOpen((o) => !o)}
       >
         <Icon name="filter" size="sm" />
-        {open ? "Hide filters" : "Filter products"}
+        {open ? t("listing.hideFilters") : t("listing.filterProducts")}
       </button>
       <form
         ref={form}
@@ -85,16 +86,16 @@ export default function FiltersPanel({
         }}
       >
         <h2 className="visually-hidden" id="filters-title">
-          Filter products
+          {t("listing.filterProducts")}
         </h2>
         {Object.entries(hidden).map(([name, v]) => (v ? <input key={name} type="hidden" name={name} value={v} /> : null))}
         {children}
         <div className="filters__actions">
           <button className="btn btn--primary" type="submit">
-            Apply filters
+            {t("listing.applyFilters")}
           </button>
           <a className="btn btn--outline" href={clearHref}>
-            Clear all
+            {t("listing.clearAll")}
           </a>
         </div>
       </form>

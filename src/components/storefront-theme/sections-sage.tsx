@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getShopT } from "@/lib/store/i18n/server";
 import { ProductGridList } from "./ProductCard";
 import { Icon, MediaLink, StoreImage, toIconName } from "./primitives";
 import { buildTiles, loadSectionProducts, sectionHref, type SectionProps } from "./sections-shared";
@@ -39,10 +40,11 @@ export function SageHero({ section, storefront, isFirst }: SectionProps<"hero">)
   );
 }
 
-export function SageValueStrip({ section }: SectionProps<"value-strip">) {
+export function SageValueStrip({ section, storefront }: SectionProps<"value-strip">) {
   if (section.items.length === 0) return null;
+  const t = getShopT(storefront);
   return (
-    <section className="values-sage" aria-label="Our promises">
+    <section className="values-sage" aria-label={t("listing.ourPromises")}>
       <div className="container">
         <ul className="values-sage__list">
           {section.items.map((item, i) => (
@@ -63,9 +65,10 @@ export function SageCategoryTiles({ section, storefront, nearTop }: SectionProps
   const tiles = buildTiles(storefront, section.collectionIds, 3);
   if (tiles.length === 0) return null;
   const titleId = `${section.id}-title`;
+  const t = getShopT(storefront);
 
   return (
-    <section className="section" aria-labelledby={section.heading ? titleId : undefined} aria-label={section.heading ? undefined : "Shop by category"}>
+    <section className="section" aria-labelledby={section.heading ? titleId : undefined} aria-label={section.heading ? undefined : t("listing.shopByCategory")}>
       <div className="container">
         {section.heading ? (
           <h2 className="h-section center-title" id={titleId}>
@@ -78,7 +81,7 @@ export function SageCategoryTiles({ section, storefront, nearTop }: SectionProps
               <span className={`media tone-${[2, 5, 3][i]} tile__media`} aria-hidden="true">
                 {tile.imageUrl ? <StoreImage src={tile.imageUrl} alt="" sizes="(min-width: 768px) 33vw, 100vw" eager={nearTop && i < 3} /> : null}
               </span>
-              <span className="tile__label">Shop {tile.label}</span>
+              <span className="tile__label">{t("listing.shopNamed", { name: tile.label })}</span>
             </Link>
           ))}
         </div>

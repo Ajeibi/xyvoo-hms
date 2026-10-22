@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { FixedPrices } from "@/lib/store/currencies";
 import { STORE_PATHS, storeHref } from "@/lib/store/site/links";
-import { useStorefront } from "./StorefrontProvider";
+import { useStorefront, useT } from "./StorefrontProvider";
 import { Price, StoreImage } from "./primitives";
 
 type Suggestion =
@@ -28,7 +28,8 @@ const DEBOUNCE_MS = 200;
  * search form.
  */
 export default function SearchBox({ inputRef }: { inputRef: React.RefObject<HTMLInputElement | null> }) {
-  const { slug, basePath } = useStorefront();
+  const { slug, basePath, language } = useStorefront();
+  const t = useT();
   const router = useRouter();
   const id = useId();
   const listId = `${id}-list`;
@@ -46,26 +47,26 @@ export default function SearchBox({ inputRef }: { inputRef: React.RefObject<HTML
     const href = (path: string) => storeHref(basePath, path);
     const timer = window.setTimeout(async () => {
       try {
-        const res = await fetch(`/api/shop/${encodeURIComponent(slug)}/search?q=${encodeURIComponent(q)}`);
+        const res = await fetch(`/api/shop/${encodeURIComponent(slug)}/search?q=${encodeURIComponent(q)}&lang=${language}`);
         const data = (await res.json()) as ApiResult;
         // An older, slower answer mustn't replace a newer one.
         if (ticket !== latest.current) return;
         const next: Suggestion[] = [
           ...data.products.map((p) => ({ kind: "product" as const, key: p.id, label: p.name, href: href(STORE_PATHS.product(p.slug)), imageUrl: p.imageUrl, price: p.price, compareAt: p.compareAt, fixedPrices: p.fixedPrices, inStock: p.inStock })),
           ...data.categories.map((c) => ({ kind: "category" as const, key: `c-${c}`, label: c, href: href(STORE_PATHS.category(c)) })),
-          { kind: "all" as const, key: "all", label: `See all results for “${q}”`, href: `${href(STORE_PATHS.products)}?search=${encodeURIComponent(q)}` },
+          { kind: "all" as const, key: "all", label: t("chrome.seeAllResults", { query: q }), href: `${href(STORE_PATHS.products)}?search=${encodeURIComponent(q)}` },
         ];
         setItems(next);
         setActive(-1);
         setOpen(true);
         const found = data.products.length;
-        setStatus(found ? `${found} ${found === 1 ? "suggestion" : "suggestions"}. Use the up and down arrows to choose.` : "No suggestions. Press Enter to search.");
+        setStatus(found ? t("chrome.suggestions", { count: found }) : t("chrome.noSuggestions"));
       } catch {
         // No suggestions this time; the search itself still works.
       }
     }, DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
-  }, [query, slug, basePath]);
+  }, [query, slug, basePath, language, t]);
 
   const go = (target: string) => {
     setOpen(false);
@@ -101,7 +102,7 @@ export default function SearchBox({ inputRef }: { inputRef: React.RefObject<HTML
         id="q"
         name="search"
         type="search"
-        placeholder="Search products"
+        placeholder={t("chrome.searchProducts")}
         autoComplete="off"
         role="combobox"
         aria-autocomplete="list"
@@ -122,7 +123,7 @@ export default function SearchBox({ inputRef }: { inputRef: React.RefObject<HTML
         onBlur={() => window.setTimeout(() => setOpen(false), 150)}
         onFocus={() => items.length && setOpen(true)}
       />
-      <ul className={`search-box__list${expanded ? " is-open" : ""}`} id={listId} role="listbox" aria-label="Search suggestions">
+      <ul className={`search-box__list${expanded ? " is-open" : ""}`} id={listId} role="listbox" aria-label={t("chrome.searchSuggestions")}>
         {expanded
           ? items.map((item, i) => (
               <li
@@ -147,13 +148,13 @@ export default function SearchBox({ inputRef }: { inputRef: React.RefObject<HTML
                       <span className="search-box__name">{item.label}</span>
                       <span className="search-box__price">
                         <Price amount={item.price} compareAt={item.compareAt} fixedPrices={item.fixedPrices} />
-                        {item.inStock ? null : <span className="search-box__stock"> · Out of stock</span>}
+                        {item.inStock ? null : <span className="search-box__stock"> · {t("chrome.outOfStock")}</span>}
                       </span>
                     </span>
                   </>
                 ) : item.kind === "category" ? (
                   <span className="search-box__text">
-                    <span className="search-box__hint">Category</span> {item.label}
+                    <span className="search-box__hint">{t("chrome.category")}</span> {item.label}
                   </span>
                 ) : (
                   <span className="search-box__all">{item.label}</span>

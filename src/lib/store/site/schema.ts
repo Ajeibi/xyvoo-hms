@@ -1,3 +1,4 @@
+import { SHOP_LANGUAGES } from "@/lib/store/i18n/languages";
 import { z } from "zod";
 import { HEX_COLOUR_PATTERN } from "./contrast";
 import { CUSTOM_FONT_FORMATS, FONT_PAIRING_IDS, GOOGLE_FONT_NAME } from "./fonts";
@@ -208,6 +209,10 @@ export const contentSchema = z.object({
   }),
   footerBlurb: text(300),
   copyright: text(120),
+  /** The language the shop's own words are written in, and what shoppers see first. */
+  language: z.enum(SHOP_LANGUAGES).optional(),
+  /** Other languages shoppers can switch to. */
+  languages: z.array(z.enum(SHOP_LANGUAGES)).max(3).optional(),
   shop: pageCopy.partial(),
   collections: pageCopy.partial(),
   journal: pageCopy.partial(),

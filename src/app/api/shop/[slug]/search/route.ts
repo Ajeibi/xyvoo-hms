@@ -3,6 +3,8 @@ import { matchScore, normalise } from "@/lib/shop/catalogue-filter";
 import { getShopCatalogue } from "@/lib/shop/catalogue-index";
 import { getCachedShopTenant } from "@/lib/store/site/shop-cache";
 import { isShopLive } from "@/lib/store/site/data";
+import { isShopLanguage, SHOP_LANGUAGE_PARAM } from "@/lib/store/i18n/languages";
+import { getStorefront } from "@/lib/store/site/storefront";
 
 /** How many products and categories the suggestions under the search box show. */
 const PRODUCTS = 6;
@@ -12,6 +14,9 @@ const CATEGORIES = 3;
  * Suggestions as a shopper types in the shop's search box: the best-matching
  * products (with photo and price) and categories. The same matching as the
  * search results page, so a suggestion is never missing from the results.
+ * With ?lang=xx (the shopper's language), products come with the merchant's
+ * translations for it; the language is in the address, so shared caches keep
+ * each language apart.
  */
 export async function GET(req: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -21,6 +26,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
   const tenant = await getCachedShopTenant(slug);
   if (!tenant || !(await isShopLive(tenant.id))) return NextResponse.json({ products: [], categories: [] }, { status: 404 });
 
+  // Loading the shop records the shopper's language (from ?lang=, via the proxy) for the product loaders.
+  if (isShopLanguage(new URL(req.url).searchParams.get(SHOP_LANGUAGE_PARAM))) await getStorefront(slug);
   const catalogue = await getShopCatalogue(tenant.id);
   const products = catalogue
     .map((p) => ({ p, score: matchScore(p, q) }))

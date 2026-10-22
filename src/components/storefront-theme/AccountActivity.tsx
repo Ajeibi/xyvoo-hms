@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useCartStore } from "@/components/shop/CartProvider";
 import type { CartLine } from "@/lib/shop/cart";
-import { announce, useStorefront } from "./StorefrontProvider";
+import { announce, useStorefront, useT } from "./StorefrontProvider";
 import { sendAccountActivity, useShopAccount } from "./useShopAccount";
 
 /**
@@ -16,6 +16,7 @@ import { sendAccountActivity, useShopAccount } from "./useShopAccount";
  */
 export default function AccountActivity() {
   const { slug } = useStorefront();
+  const t = useT();
   const { account } = useShopAccount();
   const lines = useCartStore((s) => s.lines);
   const updatedAt = useCartStore((s) => s.updatedAt);
@@ -37,7 +38,7 @@ export default function AccountActivity() {
         const theirs = Number(data?.updatedAt) || 0;
         if (data?.lines && theirs > updatedAt) {
           replaceLines(data.lines, theirs);
-          if (data.lines.length) announce("We've brought over the basket from your account.");
+          if (data.lines.length) announce(t("account.basketBroughtOver"));
         }
       })
       .catch(() => undefined)
@@ -45,7 +46,7 @@ export default function AccountActivity() {
     return () => {
       cancelled = true;
     };
-  }, [who, account?.confirmed, hasHydrated, synced, slug, replaceLines, updatedAt]);
+  }, [who, account?.confirmed, hasHydrated, synced, slug, replaceLines, updatedAt, t]);
 
   useEffect(() => {
     const checked = synced === who || !account?.confirmed;

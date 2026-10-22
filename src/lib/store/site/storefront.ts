@@ -11,6 +11,8 @@ import { releaseExpiredOrdersSoon } from "@/lib/store/release-orders";
 import type { StoreSocials } from "@/lib/store/socials";
 import { availablePaymentMethods, parseOfflinePayments, type CheckoutPaymentMethod } from "@/lib/store/offline-payments";
 import { STOREFRONT_HOST_HEADER, STOREFRONT_PREVIEW_COOKIE, storefrontUrl } from "@/lib/store/subdomain";
+import { pickShopLanguage, shopLanguageCookie, shopLanguages, STOREFRONT_LANG_HEADER, type ShopLanguage } from "@/lib/store/i18n/languages";
+import { setProductLanguage } from "@/lib/shop/product-translations";
 import { getStoreSite } from "./data";
 import { getCachedShopTenant, getShopSnapshot, type ShopSnapshot } from "./shop-cache";
 
@@ -66,6 +68,10 @@ export type Storefront = {
   currencies: DisplayCurrency[];
   /** The currency this shopper sees: their earlier choice, else their country's, else the home currency. */
   displayCurrency: string;
+  /** Languages the shop is shown in, its main one (what its own words are written in) first. */
+  languages: ShopLanguage[];
+  /** The language this shopper sees: ?lang= in the address, else their earlier choice, else the shop's own. */
+  language: ShopLanguage;
   collections: StoreCollectionSummary[];
   pages: StorePageSummary[];
   categories: string[];
@@ -193,6 +199,11 @@ export const getStorefront = cache(async (slug: string): Promise<Storefront | nu
   const displayCurrency =
     [chosen, visitorCurrency].find((code) => code && currencies.some((c) => c.code === code)) ?? profile.currencyCode;
 
+  const languages = shopLanguages(site.content.language, site.content.languages);
+  const language = pickShopLanguage(languages, requestHeaders.get(STOREFRONT_LANG_HEADER), (await cookies()).get(shopLanguageCookie(slug))?.value);
+  // Products on this page come in that language where the merchant has translated them.
+  setProductLanguage(tenant.id, language, languages[0]);
+
   return {
     slug,
     tenant,
@@ -209,6 +220,8 @@ export const getStorefront = cache(async (slug: string): Promise<Storefront | nu
     profile,
     currencies,
     displayCurrency,
+    languages,
+    language,
     collections,
     pages,
     categories,

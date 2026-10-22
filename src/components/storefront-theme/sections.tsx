@@ -3,6 +3,7 @@ import Link from "next/link";
 import { STORE_PATHS, storeHref } from "@/lib/store/site/links";
 import { readingMinutes } from "@/lib/store/blog";
 import { listPublishedPosts } from "@/lib/store/blog-server";
+import { getShopT } from "@/lib/store/i18n/server";
 import type { SiteSection } from "@/lib/store/site/schema";
 import type { Storefront } from "@/lib/store/site/storefront";
 import type { StorefrontTemplateSlug } from "@/lib/store/site/templates";
@@ -53,10 +54,11 @@ function Hero({ section, storefront, isFirst }: SectionProps<"hero">) {
   );
 }
 
-function ValueStrip({ section }: SectionProps<"value-strip">) {
+function ValueStrip({ section, storefront }: SectionProps<"value-strip">) {
   if (section.items.length === 0) return null;
+  const t = getShopT(storefront);
   return (
-    <section className="trust" aria-label="Why shop with us">
+    <section className="trust" aria-label={t("listing.whyShopWithUs")}>
       <div className="container">
         <ul className="trust__list">
           {section.items.map((item, i) => (
@@ -78,12 +80,13 @@ function CategoryTiles({ section, storefront, nearTop }: SectionProps<"category-
   const tiles = buildTiles(storefront, section.collectionIds, 8);
   if (tiles.length === 0) return null;
   const titleId = `${section.id}-title`;
+  const t = getShopT(storefront);
 
   return (
-    <section className="section" aria-labelledby={section.heading ? titleId : undefined} aria-label={section.heading ? undefined : "Shop by category"}>
+    <section className="section" aria-labelledby={section.heading ? titleId : undefined} aria-label={section.heading ? undefined : t("listing.shopByCategory")}>
       <div className="container">
         {section.heading ? (
-          <SectionHead id={titleId} heading={section.heading} link={{ label: "View all products", href: sectionHref(storefront, STORE_PATHS.products) }} />
+          <SectionHead id={titleId} heading={section.heading} link={{ label: t("listing.viewAllProducts"), href: sectionHref(storefront, STORE_PATHS.products) }} />
         ) : null}
         <ul className="categories">
           {tiles.map((tile, i) => (
@@ -107,18 +110,19 @@ function FeaturedCollections({ section, storefront, nearTop }: SectionProps<"fea
     ? storefront.collections.filter((c) => section.collectionIds.includes(c.id))
     : storefront.collections.slice(0, 2);
   if (collections.length === 0) return null;
+  const t = getShopT(storefront);
 
   return (
-    <section className="section section--tight-top" aria-label={section.heading || "Featured collections"}>
+    <section className="section section--tight-top" aria-label={section.heading || t("listing.featuredCollections")}>
       <div className="container banners">
         {collections.map((c, i) => (
           <article className="banner" key={c.id}>
             <div className="banner__content">
-              <p className="eyebrow">Featured collection</p>
+              <p className="eyebrow">{t("listing.featuredCollection")}</p>
               <h2 className="h-card">{c.name}</h2>
               {c.description ? <p>{c.description}</p> : null}
               <Link className="btn btn--primary" href={sectionHref(storefront, STORE_PATHS.collection(c.slug))}>
-                Shop {c.name} <Icon name="arrow-right" size="sm" />
+                {t("listing.shopNamed", { name: c.name })} <Icon name="arrow-right" size="sm" />
               </Link>
             </div>
             <MediaLink className={`media tone-${i % 2 ? 4 : 2}`} href={sectionHref(storefront, STORE_PATHS.collection(c.slug))}>
@@ -136,10 +140,11 @@ async function ProductList({ section, storefront, nearTop }: SectionProps<"produ
   if (products.length === 0) return null;
 
   const titleId = `${section.id}-title`;
+  const t = getShopT(storefront);
   return (
     <section className="section section--tight-top" aria-labelledby={titleId}>
       <div className="container">
-        <SectionHead id={titleId} heading={section.heading} link={{ label: "View all", href: sectionHref(storefront, STORE_PATHS.products) }} />
+        <SectionHead id={titleId} heading={section.heading} link={{ label: t("listing.viewAll"), href: sectionHref(storefront, STORE_PATHS.products) }} />
         <ProductGridList products={products} basePath={storefront.basePath} variant={storefront.site.theme.cardVariant} eagerCount={nearTop ? 4 : 0} />
       </div>
     </section>
@@ -200,10 +205,11 @@ async function Journal({ section, storefront }: SectionProps<"journal">) {
   const posts = await listPublishedPosts(storefront.tenant.id, 3).catch(() => []);
   if (posts.length === 0) return null;
   const titleId = `${section.id}-title`;
+  const t = getShopT(storefront);
   return (
     <section className="section" aria-labelledby={titleId}>
       <div className="container">
-        <SectionHead id={titleId} heading={section.heading} link={{ label: "All posts", href: storeHref(storefront.basePath, STORE_PATHS.blog) }} />
+        <SectionHead id={titleId} heading={section.heading} link={{ label: t("listing.allPosts"), href: storeHref(storefront.basePath, STORE_PATHS.blog) }} />
         <ul className="blog-list">
           {posts.map((p) => (
             <li key={p.id} className="blog-card">
@@ -213,7 +219,7 @@ async function Journal({ section, storefront }: SectionProps<"journal">) {
                 </Link>
               ) : null}
               <div className="blog-card__body">
-                <p className="eyebrow">{readingMinutes(p.body)} min read</p>
+                <p className="eyebrow">{t("listing.minRead", { count: readingMinutes(p.body) })}</p>
                 <h3 className="h-card">
                   <Link href={storeHref(storefront.basePath, STORE_PATHS.blogPost(p.slug))}>{p.title}</Link>
                 </h3>
@@ -227,13 +233,14 @@ async function Journal({ section, storefront }: SectionProps<"journal">) {
   );
 }
 
-function Press({ section }: SectionProps<"press">) {
+function Press({ section, storefront }: SectionProps<"press">) {
   if (section.names.length === 0) return null;
+  const t = getShopT(storefront);
   return (
     <section className="press" aria-labelledby={`${section.id}-title`}>
       <div className="container">
         <h2 className="press__title" id={`${section.id}-title`}>
-          {section.heading || "As featured in"}
+          {section.heading || t("listing.asFeaturedIn")}
         </h2>
         <ul className="press__logos">
           {section.names.map((name) => (
@@ -245,11 +252,12 @@ function Press({ section }: SectionProps<"press">) {
   );
 }
 
-function Gallery({ section }: SectionProps<"gallery">) {
+function Gallery({ section, storefront }: SectionProps<"gallery">) {
   if (section.images.length === 0) return null;
   const titleId = `${section.id}-title`;
+  const t = getShopT(storefront);
   return (
-    <section className="section section--tight-top" aria-labelledby={section.heading ? titleId : undefined} aria-label={section.heading ? undefined : "Gallery"}>
+    <section className="section section--tight-top" aria-labelledby={section.heading ? titleId : undefined} aria-label={section.heading ? undefined : t("listing.gallery")}>
       <div className="container">
         {section.heading ? <SectionHead id={titleId} heading={section.heading} /> : null}
         <ul className="gallery">

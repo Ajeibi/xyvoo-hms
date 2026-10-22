@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import ProductListing, { listingCanonical, listingRobots, parseListingQuery, type ListingQuery } from "@/components/storefront-theme/ProductListing";
 import { STORE_PATHS } from "@/lib/store/site/links";
 import { getStorefront } from "@/lib/store/site/storefront";
+import { getShopT } from "@/lib/store/i18n/server";
 import { SectionList } from "@/components/storefront-theme/sections";
 
 type Props = { params: Promise<{ slug: string; collectionSlug: string }>; searchParams: Promise<ListingQuery> };
@@ -19,7 +20,7 @@ export async function generateMetadata({ params, searchParams }: Props): Promise
   if (!found) return {};
   const query = parseListingQuery(await searchParams, "featured");
   return {
-    title: query.page > 1 ? `${found.collection.name}, page ${query.page}` : found.collection.name,
+    title: query.page > 1 ? getShopT(found.storefront)("listing.titleWithPage", { title: found.collection.name, page: query.page }) : found.collection.name,
     description: found.collection.description || undefined,
     alternates: { canonical: listingCanonical(STORE_PATHS.collection(found.collection.slug), query.page) },
     robots: listingRobots(query),

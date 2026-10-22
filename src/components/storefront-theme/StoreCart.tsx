@@ -6,7 +6,7 @@ import { FaWhatsapp } from "react-icons/fa6";
 import { useCartStore } from "@/components/shop/CartProvider";
 import { calculateCartTotals, cartLineKey } from "@/lib/shop/cart";
 import { STORE_PATHS } from "@/lib/store/site/links";
-import { announce, useMoney, useStorefront } from "./StorefrontProvider";
+import { announce, useMoney, useStorefront, useT } from "./StorefrontProvider";
 import ChargeNote from "./ChargeNote";
 import { useBasketPrices } from "./useBasketPrices";
 import { Breadcrumb, Icon, StoreImage } from "./primitives";
@@ -23,6 +23,7 @@ export default function StoreCart() {
   const removeLine = useCartStore((s) => s.removeLine);
   const emptyHeading = useRef<HTMLHeadingElement>(null);
   const money = useMoney();
+  const t = useT();
   const { subtotal: homeSubtotal, itemCount } = calculateCartTotals(lines);
   const subtotal = money.subtotal(lines);
   // A code applied in the basket: shown as a saving here, applied again at checkout.
@@ -35,7 +36,7 @@ export default function StoreCart() {
     name: string,
   ) => {
     removeLine(productId, variantId);
-    announce(`${name} removed from your basket.`);
+    announce(t("checkout.removedFromBasket", { name }));
     if (lines.length === 1)
       window.setTimeout(() => emptyHeading.current?.focus(), 0);
   };
@@ -43,39 +44,38 @@ export default function StoreCart() {
   return (
     <div className="container section">
       <Breadcrumb
-        items={[{ label: "Home", href: href("/") }, { label: "Basket" }]}
+        items={[{ label: t("common.home"), href: href("/") }, { label: t("checkout.basket") }]}
       />
-      <h1 className="h-page cart-title">Your basket</h1>
+      <h1 className="h-page cart-title">{t("checkout.basketTitle")}</h1>
 
       {!hasHydrated ? (
         <p className="body-copy" role="status">
-          Loading your basket…
+          {t("checkout.loadingBasket")}
         </p>
       ) : lines.length === 0 ? (
         <div className="cart-empty">
           <Icon name="bag" />
           <h2 className="h-section" tabIndex={-1} ref={emptyHeading}>
-            Your basket is empty
+            {t("checkout.basketEmpty")}
           </h2>
           <p className="body-copy">
-            Have a look around. Anything you add will be saved here.
+            {t("checkout.basketEmptyText")}
           </p>
           <Link className="btn btn--primary" href={href(STORE_PATHS.products)}>
-            Start shopping
+            {t("checkout.startShopping")}
           </Link>
         </div>
       ) : (
         <>
           {pricesChanged ? (
             <p className="price-change" role="status">
-              Some prices have changed since you added them to your basket. Your
-              basket shows today&rsquo;s prices.
+              {t("checkout.pricesChangedBasket")}
             </p>
           ) : null}
           <div className="cart-layout">
             <section aria-labelledby="items-title">
               <h2 className="visually-hidden" id="items-title">
-                Items in your basket
+                {t("checkout.itemsInBasket")}
               </h2>
               <ul className="cart-lines">
                 {lines.map((line, i) => {
@@ -102,11 +102,11 @@ export default function StoreCart() {
                               </p>
                             ) : null}
                             <p className="cart-line__meta">
-                              {money.format(money.lineUnit(line))} each
+                              {t("checkout.eachPrice", { price: money.format(money.lineUnit(line)) })}
                             </p>
                             {line.problem ? (
                               <p className="cart-line__problem">
-                                <Icon name="close" size="sm" /> {PROBLEM_TEXT[line.problem]}
+                                <Icon name="close" size="sm" /> {t(PROBLEM_TEXT[line.problem])}
                               </p>
                             ) : null}
                           </div>
@@ -118,7 +118,7 @@ export default function StoreCart() {
                           <div className="qty qty--sm" hidden={Boolean(line.problem)}>
                             <button
                               type="button"
-                              aria-label={`Decrease quantity of ${line.name}`}
+                              aria-label={t("checkout.decreaseQuantity", { name: line.name })}
                               disabled={line.quantity <= (line.minQuantity ?? 1)}
                               onClick={() =>
                                 updateQuantity(
@@ -131,7 +131,7 @@ export default function StoreCart() {
                               <Icon name="minus" />
                             </button>
                             <label className="visually-hidden" htmlFor={qtyId}>
-                              Quantity of {line.name}
+                              {t("checkout.quantityOf", { name: line.name })}
                             </label>
                             <input
                               id={qtyId}
@@ -160,7 +160,7 @@ export default function StoreCart() {
                             />
                             <button
                               type="button"
-                              aria-label={`Increase quantity of ${line.name}`}
+                              aria-label={t("checkout.increaseQuantity", { name: line.name })}
                               disabled={line.quantity >= line.maxQuantity}
                               onClick={() =>
                                 updateQuantity(
@@ -175,7 +175,7 @@ export default function StoreCart() {
                           </div>
                           {(line.minQuantity ?? 1) > 1 ? (
                             <p className="hint" id={`${qtyId}-min`}>
-                              Minimum order {line.minQuantity}
+                              {t("checkout.minimumOrder", { min: line.minQuantity ?? 1 })}
                             </p>
                           ) : null}
                           <button
@@ -185,7 +185,7 @@ export default function StoreCart() {
                               remove(line.productId, line.variantId, line.name)
                             }
                           >
-                            Remove
+                            {t("common.remove")}
                             <span className="visually-hidden">
                               {" "}
                               {line.name}
@@ -199,36 +199,36 @@ export default function StoreCart() {
               </ul>
               <Link className="link-arrow" href={href(STORE_PATHS.products)}>
                 <Icon name="chevron-left" size="sm" />
-                Continue shopping
+                {t("checkout.continueShopping")}
               </Link>
               <BasketSuggestions />
             </section>
 
             <aside className="summary" aria-labelledby="summary-title">
-              <h2 id="summary-title">Order summary</h2>
+              <h2 id="summary-title">{t("checkout.orderSummary")}</h2>
               <dl>
                 <dt>
-                  Subtotal ({itemCount} {itemCount === 1 ? "item" : "items"})
+                  {t("checkout.subtotalItems", { count: itemCount })}
                 </dt>
                 <dd>{money.format(subtotal)}</dd>
                 {discount && discount.amount > 0 ? (
                   <>
-                    <dt>Discount ({discount.code})</dt>
+                    <dt>{t("checkout.discountWithCode", { code: discount.code })}</dt>
                     <dd>−{money.format(money.convert(discount.amount))}</dd>
                   </>
                 ) : null}
-                <dt className="total">Estimated total</dt>
+                <dt className="total">{t("checkout.estimatedTotal")}</dt>
                 <dd className="total">
                   {money.format(Math.max(subtotal - (discount ? money.convert(discount.amount) : 0), 0))}
                 </dd>
               </dl>
               <BasketDiscount onApplied={(a) => setDiscount(a ? { code: a.code, amount: a.amount } : null)} />
               <DeliveryNote />
-              <p className="hint">Delivery and any tax are added at checkout.</p>
+              <p className="hint">{t("checkout.deliveryTaxAtCheckout")}</p>
               <ChargeNote homeAmount={homeSubtotal} />
               {blocked ? (
                 <p className="cart-line__problem" role="status">
-                  Some items can&rsquo;t be bought any more. Remove them, then check out.
+                  {t("checkout.cartBlocked")}
                 </p>
               ) : (
                 <Link
@@ -236,7 +236,7 @@ export default function StoreCart() {
                   href={href(STORE_PATHS.checkout)}
                 >
                   <Icon name="lock" size="sm" />
-                  Checkout securely
+                  {t("checkout.checkoutSecurely")}
                 </Link>
               )}
               {whatsappOrdering && !blocked ? (
@@ -244,10 +244,10 @@ export default function StoreCart() {
                   {/* The same checkout with WhatsApp chosen, so the order is recorded before the chat opens. */}
                   <Link className="btn btn--whatsapp" href={`${href(STORE_PATHS.checkout)}?pay=whatsapp`} aria-describedby="cart-whatsapp-hint">
                     <FaWhatsapp aria-hidden />
-                    Order on WhatsApp
+                    {t("checkout.orderOnWhatsApp")}
                   </Link>
                   <p className="whatsapp-hint" id="cart-whatsapp-hint">
-                    Send your order to the shop on WhatsApp and agree payment and delivery there.
+                    {t("checkout.whatsappHint")}
                   </p>
                 </>
               ) : null}

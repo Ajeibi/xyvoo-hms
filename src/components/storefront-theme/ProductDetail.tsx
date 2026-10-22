@@ -12,7 +12,7 @@ import type { ShopProduct, ShopProductVariant } from "@/lib/shop/products";
 import { cartLineKey, fixedLinePrices } from "@/lib/shop/cart";
 import { STORE_PATHS } from "@/lib/store/site/links";
 import { openBasketDrawer } from "@/lib/shop/basket-code";
-import { announce, useStorefront } from "./StorefrontProvider";
+import { announce, useStorefront, useT } from "./StorefrontProvider";
 import { Icon, Price, Rating } from "./primitives";
 import { GuidePriceNote } from "./ChargeNote";
 import SaleEnds from "./SaleEnds";
@@ -43,12 +43,13 @@ function optionExists(product: ShopProduct, selected: Record<string, string>, na
  */
 export default function ProductDetail({ product, details, initialVariantId }: { product: ShopProduct; details: React.ReactNode; initialVariantId?: string }) {
   const { href, whatsappOrdering } = useStorefront();
+  const t = useT();
   const router = useRouter();
   const addLine = useCartStore((s) => s.addLine);
   const basketLines = useCartStore((s) => s.lines);
 
   const images = product.imageUrls.length > 0 ? product.imageUrls : product.imageUrl ? [product.imageUrl] : [];
-  const altFor = (i: number) => product.imageAltTexts[i] || `${product.name}, image ${i + 1} of ${images.length}`;
+  const altFor = (i: number) => product.imageAltTexts[i] || t("product.imageAlt", { name: product.name, number: i + 1, total: images.length });
   const [activeImage, setActiveImage] = useState(0);
   // Choosing an option shows its own photo; clicking a thumbnail afterwards shows that one instead.
   const [showVariantImage, setShowVariantImage] = useState(true);
@@ -63,6 +64,8 @@ export default function ProductDetail({ product, details, initialVariantId }: { 
   const price = variant?.priceOverride ?? product.price;
   // A variant on its own sale shows its normal price struck through; one that follows the product's price shows the product's.
   const followsProduct = !variant || variant.priceOverride == null;
+  // The option's own prices in other currencies win; an option with its own home price but none of its own converts.
+  const shownFixedPrices = variant && Object.keys(variant.fixedPrices ?? {}).length ? variant.fixedPrices : variant?.priceOverride != null ? undefined : product.fixedPrices;
   const compareAt = variant?.compareAtPrice ?? (followsProduct ? product.compareAtPrice : null);
   const saleEndsAt = variant?.saleEndsAt ?? (followsProduct && product.onSale ? product.saleEndsAt : null);
   const stock = variant ? variant.stock : product.stock;
@@ -83,14 +86,15 @@ export default function ProductDetail({ product, details, initialVariantId }: { 
       : `${product.name}, ${Object.values(variant?.options ?? {}).join(" · ")}`;
 
   const stockText = !inStock
-    ? "Out of stock"
+    ? t("product.outOfStock")
     : belowMinimum
-      ? `Only ${stock} left, fewer than the minimum order of ${minQty}`
+      ? t("product.onlyLeftBelowMinimum", { stock, minimum: minQty })
       : product.preorder
-        ? "Available to pre-order"
+        ? t("product.availableToPreorder")
         : !product.allowBackorder && stock > 0 && stock <= 5 && (!hasVariants || allChosen)
-          ? `Only ${stock} left in stock`
-          : "In stock";
+          ? t("product.onlyLeftInStock", { stock })
+          : t("product.inStock");
+  const addedMessage = t("product.addedToBasket", { name: product.name });
 
   /**
    * Puts the chosen product in the basket. False (with a message saying why) when an option still needs choosing.
@@ -98,15 +102,16 @@ export default function ProductDetail({ product, details, initialVariantId }: { 
    */
   const addToBasket = (onlyIfMissing = false) => {
     if (hasVariants && !allChosen) {
-      setStatus("Please choose " + product.productOptions.filter((o) => !selected[o.name]).map((o) => o.name.toLowerCase()).join(" and ") + ".");
+      const missing = product.productOptions.filter((o) => !selected[o.name]).map((o) => o.name.toLowerCase());
+      setStatus(t("product.pleaseChoose", { options: new Intl.ListFormat(t.lang === "en" ? "en-GB" : t.lang, { type: "conjunction" }).format(missing) }));
       return false;
     }
     if (hasVariants && !variant) {
-      setStatus("That combination isn't available. Please choose another.");
+      setStatus(t("product.combinationUnavailable"));
       return false;
     }
     if (belowMinimum) {
-      setStatus(`There aren't enough left to make the minimum order of ${minQty}.`);
+      setStatus(t("product.notEnoughForMinimum", { minimum: minQty }));
       return false;
     }
     if (onlyIfMissing && basketLines.some((l) => cartLineKey(l.productId, l.variantId) === cartLineKey(product.id, variant?.id || null))) return true;
@@ -119,7 +124,7 @@ export default function ProductDetail({ product, details, initialVariantId }: { 
       unitPrice: price,
       currency: product.currency,
       // A variant with its own price is converted; the product's fixed prices are for its base price.
-      fixedPrices: variant?.priceOverride != null ? undefined : fixedLinePrices(product.fixedPrices),
+      fixedPrices: fixedLinePrices(shownFixedPrices),
       deliveryExtra: product.deliveryExtra || undefined,
       quantity: qty,
       maxQuantity: maxQty,
@@ -134,9 +139,8 @@ export default function ProductDetail({ product, details, initialVariantId }: { 
       document.getElementById("pdp-buy-form")?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
-    const message = `${product.name} added to your basket.`;
-    setStatus(message);
-    announce(message);
+    setStatus(addedMessage);
+    announce(addedMessage);
     openBasketDrawer(product.name);
   };
 
@@ -148,7 +152,7 @@ export default function ProductDetail({ product, details, initialVariantId }: { 
   // A short checkout with WhatsApp chosen: the order is recorded (and its stock held) before the chat opens.
   const orderOnWhatsApp = () => {
     if (!addToBasket(true)) return;
-    announce(`${product.name} is in your basket. Taking you to checkout to send your order on WhatsApp.`);
+    announce(t("product.whatsappCheckout", { name: product.name }));
     router.push(`${href(STORE_PATHS.checkout)}?pay=whatsapp`);
   };
 
@@ -178,11 +182,11 @@ export default function ProductDetail({ product, details, initialVariantId }: { 
           <h1 className="h-page">{product.name}</h1>
           {product.ratingCount > 0 ? (
             <a href="#reviews" className="rating-link">
-              <Rating value={product.ratingAverage} count={product.ratingCount} />
+              <Rating t={t} value={product.ratingAverage} count={product.ratingCount} />
             </a>
           ) : null}
           <p className="pdp__price">
-            <Price amount={price} compareAt={compareAt} fixedPrices={variant?.priceOverride != null ? undefined : product.fixedPrices} />
+            <Price amount={price} compareAt={compareAt} fixedPrices={shownFixedPrices} />
             {saleEndsAt ? <SaleEnds endsAt={saleEndsAt} /> : null}
           </p>
           <GuidePriceNote />
@@ -196,7 +200,7 @@ export default function ProductDetail({ product, details, initialVariantId }: { 
             ? product.productOptions.map((option) => (
                 <fieldset className="option-group" key={option.name}>
                   <legend>
-                    {option.name}: <span>{selected[option.name] || "choose one"}</span>
+                    {option.name}: <span>{selected[option.name] || t("product.chooseOne")}</span>
                   </legend>
                   <div className="pills">
                     {option.values.map((value) => {
@@ -219,7 +223,7 @@ export default function ProductDetail({ product, details, initialVariantId }: { 
                           />
                           <span>
                             {value}
-                            {!available ? <span className="visually-hidden"> (sold out)</span> : null}
+                            {!available ? <span className="visually-hidden"> {t("product.soldOut")}</span> : null}
                           </span>
                         </label>
                       );
@@ -233,11 +237,11 @@ export default function ProductDetail({ product, details, initialVariantId }: { 
 
           <div className="buy-row" id="pdp-buy">
             <div className="qty">
-              <button type="button" aria-label="Decrease quantity" disabled={qty <= minQty} onClick={() => setQuantity(Math.max(minQty, qty - 1))}>
+              <button type="button" aria-label={t("product.decreaseQuantity")} disabled={qty <= minQty} onClick={() => setQuantity(Math.max(minQty, qty - 1))}>
                 <Icon name="minus" />
               </button>
               <label className="visually-hidden" htmlFor="qty">
-                Quantity
+                {t("product.quantity")}
               </label>
               <input
                 id="qty"
@@ -252,31 +256,31 @@ export default function ProductDetail({ product, details, initialVariantId }: { 
                   if (Number.isFinite(n)) setQuantity(Math.min(Math.max(minQty, n), Math.max(minQty, maxQty)));
                 }}
               />
-              <button type="button" aria-label="Increase quantity" disabled={qty >= maxQty} onClick={() => setQuantity(Math.min(Math.max(minQty, maxQty), qty + 1))}>
+              <button type="button" aria-label={t("product.increaseQuantity")} disabled={qty >= maxQty} onClick={() => setQuantity(Math.min(Math.max(minQty, maxQty), qty + 1))}>
                 <Icon name="plus" />
               </button>
             </div>
             <button className="btn btn--primary" type="submit" disabled={!buyable}>
-              {!inStock ? "Out of stock" : belowMinimum ? "Not enough in stock" : "Add to basket"}
+              {!inStock ? t("product.outOfStock") : belowMinimum ? t("product.notEnoughInStock") : t("product.addToBasket")}
             </button>
             {whatsappOrdering && buyable ? (
               <button className="btn btn--whatsapp" type="button" onClick={orderOnWhatsApp} aria-describedby="pdp-whatsapp-hint">
                 <FaWhatsapp aria-hidden />
-                Order on WhatsApp
+                {t("product.orderOnWhatsApp")}
               </button>
             ) : null}
           </div>
           {whatsappOrdering && buyable ? (
             <p className="whatsapp-hint" id="pdp-whatsapp-hint">
-              Add your details, then send the order to the shop on WhatsApp to agree payment and delivery.
+              {t("product.whatsappHint")}
             </p>
           ) : null}
           <p className="form-status" role="status">
             {status}
-            {status.endsWith("basket.") ? (
+            {status === addedMessage ? (
               <>
                 {" "}
-                <Link href={href(STORE_PATHS.cart)}>View basket</Link>
+                <Link href={href(STORE_PATHS.cart)}>{t("product.viewBasket")}</Link>
               </>
             ) : null}
           </p>
@@ -298,8 +302,8 @@ export default function ProductDetail({ product, details, initialVariantId }: { 
       <StickyBuyBar
         watch="pdp-buy"
         name={product.name}
-        price={<Price amount={price} compareAt={compareAt} fixedPrices={variant?.priceOverride != null ? undefined : product.fixedPrices} />}
-        label={!inStock ? "Out of stock" : belowMinimum ? "Not enough in stock" : hasVariants && !allChosen ? "Choose options" : "Add to basket"}
+        price={<Price amount={price} compareAt={compareAt} fixedPrices={shownFixedPrices} />}
+        label={!inStock ? t("product.outOfStock") : belowMinimum ? t("product.notEnoughInStock") : hasVariants && !allChosen ? t("product.chooseOptions") : t("product.addToBasket")}
         disabled={!buyable}
         onAdd={addAndShow}
       />

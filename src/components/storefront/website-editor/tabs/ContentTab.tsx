@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { DashAlert, DashField, dashInput } from "../../dashboard-ui";
+import { LANGUAGE_NAMES, LANGUAGE_NAMES_IN_ENGLISH, SHOP_LANGUAGES, shopLanguages, type ShopLanguage } from "@/lib/store/i18n/languages";
 import type { TabProps } from "../WebsiteEditor";
 
 const okHref = (href: string | null) => !href || href.startsWith("/") || /^https:\/\//.test(href);
@@ -122,6 +123,54 @@ export default function ContentTab({ state, saving, saveDraft }: TabProps) {
           </DashField>
         </div>
         <p className="text-xs text-slate-500">Handy for a sale: the bar appears and disappears on its own. Times are in your own time zone.</p>
+      </section>
+
+      <section aria-labelledby="languages-title" className="space-y-3">
+        <h2 id="languages-title" className="text-base font-semibold text-slate-900">
+          Languages
+        </h2>
+        <DashField id="content-language" label="Your shop's main language" hint="The language you write your products, pages and sections in. Shoppers see this first.">
+          <select
+            id="content-language"
+            className={dashInput}
+            aria-describedby="content-language-hint"
+            value={shopLanguages(content.language, content.languages)[0]}
+            onChange={(e) => {
+              const main = e.target.value as ShopLanguage;
+              setContent({ ...content, language: main, languages: (content.languages ?? []).filter((l) => l !== main) });
+            }}
+          >
+            {SHOP_LANGUAGES.map((l) => (
+              <option key={l} value={l}>
+                {LANGUAGE_NAMES_IN_ENGLISH[l]}
+                {l !== "en" ? ` (${LANGUAGE_NAMES[l]})` : ""}
+              </option>
+            ))}
+          </select>
+        </DashField>
+        <fieldset>
+          <legend className="mb-1 text-sm font-medium text-slate-800">Shoppers can also switch to</legend>
+          <div className="flex flex-wrap gap-x-5 gap-y-2">
+            {SHOP_LANGUAGES.filter((l) => l !== shopLanguages(content.language, content.languages)[0]).map((l) => (
+              <label key={l} className="flex items-center gap-2 text-sm text-slate-800">
+                <input
+                  type="checkbox"
+                  checked={(content.languages ?? []).includes(l)}
+                  onChange={(e) =>
+                    setContent({
+                      ...content,
+                      languages: e.target.checked ? [...(content.languages ?? []), l] : (content.languages ?? []).filter((x) => x !== l),
+                    })
+                  }
+                />
+                {LANGUAGE_NAMES_IN_ENGLISH[l]}
+              </label>
+            ))}
+          </div>
+          <p className="mt-1 text-xs text-slate-500">
+            Buttons, the basket, checkout and accounts are translated for you. Your own words stay as you wrote them, so add product translations under each product&rsquo;s &ldquo;Other languages&rdquo;.
+          </p>
+        </fieldset>
       </section>
 
       <section aria-labelledby="footer-title" className="space-y-3">

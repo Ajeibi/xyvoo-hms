@@ -8,6 +8,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { parsePageBlocks, type PageBlock, type PageImage } from "@/lib/store/pages";
 import { STORE_PATHS, storeHref } from "@/lib/store/site/links";
 import { getStorefront, type Storefront } from "@/lib/store/site/storefront";
+import { getShopT } from "@/lib/store/i18n/server";
 
 type Props = { params: Promise<{ slug: string; pageSlug: string }> };
 
@@ -45,13 +46,14 @@ function ContactDetails({ storefront }: { storefront: Storefront }) {
   const { profile } = storefront;
   const address = [profile.addressLine1, profile.addressLine2, profile.city, profile.state].filter(Boolean).join(", ");
   const whatsappDigits = profile.whatsapp?.replace(/\D/g, "");
+  const t = getShopT(storefront);
   const rows: Array<{ label: string; value: React.ReactNode } | null> = [
-    profile.businessEmail ? { label: "Email", value: <a href={`mailto:${profile.businessEmail}`}>{profile.businessEmail}</a> } : null,
-    profile.phone ? { label: "Phone", value: <a href={`tel:${profile.phone.replace(/[^\d+]/g, "")}`}>{profile.phone}</a> } : null,
+    profile.businessEmail ? { label: t("listing.contactEmail"), value: <a href={`mailto:${profile.businessEmail}`}>{profile.businessEmail}</a> } : null,
+    profile.phone ? { label: t("listing.contactPhone"), value: <a href={`tel:${profile.phone.replace(/[^\d+]/g, "")}`}>{profile.phone}</a> } : null,
     whatsappDigits
       ? { label: "WhatsApp", value: <a href={`https://wa.me/${whatsappDigits}`} rel="noopener noreferrer" target="_blank">{profile.whatsapp}</a> }
       : null,
-    address ? { label: "Address", value: address } : null,
+    address ? { label: t("listing.contactAddress"), value: address } : null,
   ];
   const shown = rows.filter((r): r is { label: string; value: React.ReactNode } => r !== null);
   if (!shown.length) return null;
@@ -131,7 +133,8 @@ export default async function StorefrontContentPage({ params }: Props) {
   if (!found) notFound();
   const { storefront, page } = found;
   const blocks = parsePageBlocks(page.body);
-  const crumbs = [{ label: "Home", href: storeHref(storefront.basePath, "/") }, { label: page.title }];
+  const t = getShopT(storefront);
+  const crumbs = [{ label: t("common.home"), href: storeHref(storefront.basePath, "/") }, { label: page.title }];
   const privacy = storefront.pages.find((p) => p.systemKey === "privacy");
   const privacyHref = privacy ? storeHref(storefront.basePath, STORE_PATHS.page(privacy.slug)) : null;
 
@@ -151,7 +154,7 @@ export default async function StorefrontContentPage({ params }: Props) {
     <>
       {startsWithHero ? null : (
         <div className="container section section--tight-bottom">
-          <Breadcrumb items={crumbs} />
+          <Breadcrumb t={t} items={crumbs} />
           <h1 className="h-page">{page.title}</h1>
         </div>
       )}
@@ -175,7 +178,7 @@ export default async function StorefrontContentPage({ params }: Props) {
             const Heading = isTop ? "h1" : "h2";
             const content = (
               <>
-                {isTop ? <Breadcrumb items={crumbs} /> : null}
+                {isTop ? <Breadcrumb t={t} items={crumbs} /> : null}
                 {block.eyebrow ? <p className="eyebrow">{block.eyebrow}</p> : null}
                 <Heading className="h-page" id={`${id}-title`}>
                   {block.heading}
@@ -231,7 +234,7 @@ export default async function StorefrontContentPage({ params }: Props) {
           }
           case "steps":
             return (
-              <section className="section" aria-labelledby={block.heading ? `${id}-title` : undefined} aria-label={block.heading ? undefined : "Our approach"} key={group.index}>
+              <section className="section" aria-labelledby={block.heading ? `${id}-title` : undefined} aria-label={block.heading ? undefined : t("listing.ourApproach")} key={group.index}>
                 <div className="container">
                   {block.heading || block.eyebrow ? (
                     <div className="section-head section-head--center">
@@ -281,16 +284,16 @@ export default async function StorefrontContentPage({ params }: Props) {
             );
           case "contact_form":
             return (
-              <section className="section" aria-label="Contact details and form" key={group.index}>
+              <section className="section" aria-label={t("listing.contactDetailsAndForm")} key={group.index}>
                 <div className="container contact-grid">
                   <ContactForm heading={block.heading} intro={block.intro} replyTime={block.replyTime} privacyHref={privacyHref} />
                   <div className="contact-aside">
                     <div className="details">
-                      <h2 className="h-card">Other ways to reach us</h2>
+                      <h2 className="h-card">{t("listing.otherWays")}</h2>
                       <ContactDetails storefront={storefront} />
                       {block.hours ? (
                         <>
-                          <h3 className="h-card">Opening hours</h3>
+                          <h3 className="h-card">{t("listing.openingHours")}</h3>
                           {block.hours.split(/\n+/).map((line, j) => (
                             <p className="body-copy" key={j}>
                               {line}

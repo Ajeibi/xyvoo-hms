@@ -2,7 +2,8 @@ import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { shopTag } from "@/lib/store/site/shop-changed";
-import { LEGACY_PRODUCT_COLUMNS, mapRows, missingSaleColumns, SHOP_PRODUCT_COLUMNS, type ShopProduct, type ShopProductRow } from "./products";
+import { translateProducts } from "./product-translations";
+import { LEGACY_PRODUCT_COLUMNS, mapRows, missingSaleColumns, missingVariantPrices, shopProductColumns, type ShopProduct, type ShopProductRow } from "./products";
 
 /*
  * A shop's whole visible catalogue, for search and filters (catalogue-filter.ts).
@@ -34,10 +35,14 @@ async function loadRows(tenantId: string): Promise<ShopProductRow[]> {
       .order("id")
       .range(from, from + PAGE - 1);
 
-  let columns = SHOP_PRODUCT_COLUMNS;
+  let columns = shopProductColumns();
   const rows: ShopProductRow[] = [];
   for (let from = 0; from < MAX_PRODUCTS; from += PAGE) {
     let { data, error } = await read(columns, from);
+    if (missingVariantPrices(error)) {
+      columns = shopProductColumns();
+      ({ data, error } = await read(columns, from));
+    }
     if (missingSaleColumns(error)) {
       columns = LEGACY_PRODUCT_COLUMNS;
       ({ data, error } = await read(columns, from));
@@ -53,7 +58,7 @@ async function loadRows(tenantId: string): Promise<ShopProductRow[]> {
 /** Every visible product in the shop, newest first, with today's prices. Read once per request. */
 export const getShopCatalogue = cache(async (tenantId: string): Promise<ShopProduct[]> => {
   const rows = await unstable_cache(() => loadRows(tenantId), ["shop-catalogue-v1", tenantId], { tags: [shopTag(tenantId)], revalidate: CATALOGUE_SECONDS })();
-  return mapRows(tenantId, rows);
+  return translateProducts(tenantId, await mapRows(tenantId, rows));
 });
 
 /** A collection's products and the merchant's order for them (product id to position). */

@@ -324,7 +324,7 @@ export async function rebuildBasket(tenantId: string, items: unknown): Promise<C
       imageUrl: variant?.imageUrl || product.imageUrl,
       unitPrice: product.price,
       currency: product.currency,
-      fixedPrices: variant?.priceOverride != null ? undefined : fixedLinePrices(product.fixedPrices),
+      fixedPrices: variant && Object.keys(variant.fixedPrices ?? {}).length ? fixedLinePrices(variant.fixedPrices) : variant?.priceOverride != null ? undefined : fixedLinePrices(product.fixedPrices),
       deliveryExtra: product.deliveryExtra || undefined,
       quantity: Math.min(Math.max(item.quantity, minQuantity), maxQuantity),
       maxQuantity,

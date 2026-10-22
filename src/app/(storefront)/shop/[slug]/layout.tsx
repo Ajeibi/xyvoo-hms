@@ -1,3 +1,8 @@
+import { wordsFor } from "@/lib/store/i18n/messages";
+import { getShopT } from "@/lib/store/i18n/server";
+import type { Translator } from "@/lib/store/i18n/translate";
+import { promoCountdownLabel } from "@/components/storefront-theme/primitives";
+import { languageTag, ogLocale, SHOP_LANGUAGE_PARAM, shopLanguageCookie } from "@/lib/store/i18n/languages";
 import "@/styles/storefront/base.css";
 import "@/styles/storefront/themes.css";
 import "@/styles/storefront/app.css";
@@ -23,7 +28,6 @@ import { getStorefront, type Storefront } from "@/lib/store/site/storefront";
 import { storeAppPath, storeAppScope } from "@/lib/store/app";
 import { getPushPublicKey } from "@/lib/store/push";
 import { hasShopFeature } from "@/lib/store/features";
-import { countdownLabel } from "@/lib/store/discounts";
 import { getPromoBanner } from "@/lib/store/discounts-server";
 import { formatShopCurrency } from "@/lib/shop/format";
 import { findSlugRedirect } from "@/lib/store/slugs";
@@ -98,14 +102,15 @@ export async function generateMetadata({ params }: LayoutParams): Promise<Metada
     metadataBase: new URL(storefront.siteUrl),
     title: { default: seo.title, template: `%s | ${storefront.storeName}` },
     // Search results show this under the store's name; until the merchant writes one, say what the site is.
-    description: seo.description || `Shop online at ${storefront.storeName}.`,
+    description: seo.description || getShopT(storefront)("chrome.metaDescription", { store: storefront.storeName }),
     // Unpublished stores (and draft previews) stay out of search results.
     robots: storefront.isLive ? undefined : { index: false, follow: false },
     icons: icon ? { icon } : undefined,
     openGraph: {
       siteName: storefront.storeName,
       type: "website",
-      locale: "en_NG",
+      locale: ogLocale(storefront.language, storefront.profile.countryCode),
+      alternateLocale: storefront.languages.filter((l) => l !== storefront.language).map((l) => ogLocale(l, storefront.profile.countryCode)),
       images: seo.shareImageUrl ? [{ url: seo.shareImageUrl }] : undefined,
     },
     twitter: { card: "summary_large_image" },
@@ -115,6 +120,29 @@ export async function generateMetadata({ params }: LayoutParams): Promise<Metada
 export async function generateViewport({ params }: LayoutParams): Promise<Viewport> {
   const storefront = await getStorefront((await params).slug);
   return { themeColor: storefront?.site.theme.colours.bg };
+}
+
+/**
+ * Arrived on a link in another language (?lang=fr): remember it straight away, before the page's
+ * scripts start, so a link tapped at once still opens in that language.
+ */
+function languageCookieScript(slug: string, language: string) {
+  const cookie = `${shopLanguageCookie(slug)}=${language}; path=/; max-age=31536000; samesite=lax`;
+  return `(function(){try{if(new URLSearchParams(location.search).get(${JSON.stringify(SHOP_LANGUAGE_PARAM)})===${JSON.stringify(language)})document.cookie=${JSON.stringify(cookie)}}catch(e){}})();`;
+}
+
+/**
+ * The same page in each language the shop offers (?lang=xx), for search engines. The plain address is
+ * the default: it shows the shop's main language unless the shopper has chosen another.
+ */
+function languageAlternates(storefront: Storefront, path: string | null) {
+  if (storefront.languages.length < 2 || !storefront.isLive) return [];
+  // On the platform domain the path header is already inside the shop ("/products"); on the subdomain it's the whole path.
+  const base = `${storefront.siteUrl.replace(/\/$/, "")}${path && path !== "/" ? path : ""}`;
+  return [
+    ...storefront.languages.map((l) => ({ hrefLang: languageTag(l), href: `${base}?${SHOP_LANGUAGE_PARAM}=${l}` })),
+    { hrefLang: "x-default", href: base || "/" },
+  ];
 }
 
 /** The store's privacy page, if it has published one (linked from the cookie banner). */
@@ -135,7 +163,7 @@ function announcementFor(storefront: Storefront) {
   return { messages, dismissible: Boolean(announcement.dismissible) };
 }
 
-function headerNavItems(storefront: Storefront): HeaderNavItem[] {
+function headerNavItems(storefront: Storefront, t: Translator): HeaderNavItem[] {
   const { basePath, categories } = storefront;
   return storefront.site.navigation.header.flatMap((item): HeaderNavItem[] => {
     const path = menuItemPath(item);
@@ -145,7 +173,7 @@ function headerNavItems(storefront: Storefront): HeaderNavItem[] {
       const childPath = menuItemPath(child);
       return childPath ? [{ label: child.label, href: storeHref(basePath, childPath) }] : [];
     });
-    if (children.length) return [{ label: item.label, href: storeHref(basePath, path), children: [{ label: `All of ${item.label}`, href: storeHref(basePath, path) }, ...children] }];
+    if (children.length) return [{ label: item.label, href: storeHref(basePath, path), children: [{ label: t("chrome.allOf", { label: item.label }), href: storeHref(basePath, path) }, ...children] }];
     // "Shop" opens a list of the store's categories, as in the templates.
     if (item.type === "shop" && categories.length > 1) {
       return [
@@ -153,7 +181,7 @@ function headerNavItems(storefront: Storefront): HeaderNavItem[] {
           label: item.label,
           href: storeHref(basePath, path),
           children: [
-            { label: "All products", href: storeHref(basePath, STORE_PATHS.products) },
+            { label: t("chrome.allProducts"), href: storeHref(basePath, STORE_PATHS.products) },
             ...categories.slice(0, 12).map((c) => ({ label: c, href: storeHref(basePath, STORE_PATHS.category(c)) })),
           ],
         },
@@ -164,12 +192,13 @@ function headerNavItems(storefront: Storefront): HeaderNavItem[] {
 }
 
 function OpeningSoon({ storefront }: { storefront: Storefront }) {
+  const t = getShopT(storefront);
   return (
     <main id="main" tabIndex={-1} className="opening-soon">
       <div>
-        <p className="eyebrow">Opening soon</p>
+        <p className="eyebrow">{t("chrome.openingSoon")}</p>
         <h1 className="h-display">{storefront.storeName}</h1>
-        <p className="lead">We&rsquo;re putting the finishing touches to our shop. Please check back soon.</p>
+        <p className="lead">{t("chrome.openingSoonText")}</p>
       </div>
     </main>
   );
@@ -214,11 +243,12 @@ export default async function StorefrontLayout({ children, params }: LayoutParam
         }
       : null;
 
-  const promoLabel = promo ? countdownLabel(promo.endsAt, new Date()) : null;
+  const t = getShopT(storefront);
+  const promoLabel = promo ? promoCountdownLabel(promo.endsAt, new Date(), t) : null;
 
   return (
     <html
-      lang="en"
+      lang={languageTag(storefront.language, storefront.profile.countryCode)}
       className={`no-js ${fontVariableClasses(fontPairing)}`}
       data-template={site.template.slug}
       style={site.cssVariables as CSSProperties}
@@ -226,6 +256,10 @@ export default async function StorefrontLayout({ children, params }: LayoutParam
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: ENHANCE_SCRIPT + consentScript(slug) }} />
+        {storefront.languages.length > 1 ? <script dangerouslySetInnerHTML={{ __html: languageCookieScript(slug, storefront.language) }} /> : null}
+        {languageAlternates(storefront, (await headers()).get(STOREFRONT_PATH_HEADER)).map((alt) => (
+          <link key={alt.hrefLang} rel="alternate" hrefLang={alt.hrefLang} href={alt.href} />
+        ))}
         {customFont?.source === "google" ? (
           <>
             {/* The merchant chose a Google Font, so this is the one font a shop loads from outside XYVOO. */}
@@ -247,7 +281,7 @@ export default async function StorefrontLayout({ children, params }: LayoutParam
       </head>
       <body>
         <a className="skip-link" href="#main">
-          Skip to main content
+          {t("chrome.skipToContent")}
         </a>
 
         {storefront.isPreview ? (
@@ -282,12 +316,15 @@ export default async function StorefrontLayout({ children, params }: LayoutParam
               displayCurrency: storefront.displayCurrency,
               whatsappOrdering: storefront.paymentMethods.includes("whatsapp"),
               push: appConfig ? { swUrl: appConfig.swUrl, scope: appConfig.scope, pushPublicKey: appConfig.pushPublicKey } : null,
+              language: storefront.language,
+              languages: storefront.languages,
+              words: wordsFor(storefront.language),
             }}
           >
             {promo && promoLabel ? <PromoBar offer={promo.offer} code={promo.code} endsAt={promo.endsAt} initialLabel={promoLabel} /> : null}
             <StoreHeader
               brand={{ storeName, homeHref: storeHref(basePath, "/"), logoUrl: site.brand.logoUrl, logoAlt: site.brand.logoAlt, showMark }}
-              navItems={headerNavItems(storefront)}
+              navItems={headerNavItems(storefront, t)}
               announcement={announcementFor(storefront)}
               productsHref={storeHref(basePath, STORE_PATHS.products)}
               cartHref={storeHref(basePath, STORE_PATHS.cart)}

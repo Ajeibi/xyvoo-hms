@@ -7,7 +7,7 @@ import { calculateCartTotals, fixedLinePrices, type CartLine } from "@/lib/shop/
 import { getBasketCode, setBasketCode } from "@/lib/shop/basket-code";
 import type { FixedPrices } from "@/lib/store/currencies";
 import { STORE_PATHS } from "@/lib/store/site/links";
-import { announce, useMoney, useStorefront } from "./StorefrontProvider";
+import { announce, useMoney, useStorefront, useT } from "./StorefrontProvider";
 import { Icon, Price, StoreImage } from "./primitives";
 
 type DeliverySummary = { deliveryFrom: number | null; eta: string | null; pickup: boolean; freeOver: number | null };
@@ -30,6 +30,7 @@ export function deliverySummary(slug: string) {
 export function DeliveryNote() {
   const { slug } = useStorefront();
   const money = useMoney();
+  const t = useT();
   const lines = useCartStore((s) => s.lines);
   const [summary, setSummary] = useState<DeliverySummary | null>(null);
   useEffect(() => {
@@ -39,7 +40,7 @@ export function DeliveryNote() {
       live = false;
     };
   }, [slug]);
-  if (!summary) return <p className="hint">Delivery is worked out at checkout from your address.</p>;
+  if (!summary) return <p className="hint">{t("checkout.deliveryAtCheckout")}</p>;
 
   const { subtotal } = calculateCartTotals(lines);
   const left = summary.freeOver != null ? Math.max(summary.freeOver - subtotal, 0) : null;
@@ -50,26 +51,31 @@ export function DeliveryNote() {
         left > 0 ? (
           <>
             <p>
-              <Icon name="truck" size="sm" /> Spend <strong>{money.format(money.convert(left))}</strong> more for free delivery.
+              <Icon name="truck" size="sm" /> {t.rich("checkout.spendMore", { amount: <strong>{money.format(money.convert(left))}</strong> })}
             </p>
-            <div className="delivery-note__bar" role="progressbar" aria-label="Towards free delivery" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
+            <div className="delivery-note__bar" role="progressbar" aria-label={t("checkout.towardsFreeDelivery")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}>
               <span style={{ width: `${progress}%` }} />
             </div>
           </>
         ) : (
           <p>
-            <Icon name="truck" size="sm" /> <strong>Your order delivers free.</strong>
+            <Icon name="truck" size="sm" /> <strong>{t("checkout.deliversFree")}</strong>
           </p>
         )
       ) : null}
       {left !== 0 && summary.deliveryFrom != null ? (
         <p className="hint">
-          {summary.deliveryFrom === 0 ? "Free delivery" : `Delivery from ${money.format(money.convert(summary.deliveryFrom))}`}
-          {summary.eta ? `, ${summary.eta}` : ""}
-          {summary.pickup ? ", or collect it yourself" : ""}. The exact charge is worked out at checkout.
+          {t("checkout.deliveryNoteLine", {
+            delivery:
+              summary.deliveryFrom === 0
+                ? t("checkout.freeDelivery")
+                : t("checkout.deliveryFrom", { amount: money.format(money.convert(summary.deliveryFrom)) }),
+            eta: summary.eta ? `, ${summary.eta}` : "",
+            pickup: summary.pickup ? t("checkout.orCollect") : "",
+          })}
         </p>
       ) : summary.pickup && summary.deliveryFrom == null ? (
-        <p className="hint">Collect your order from the shop. Details at checkout.</p>
+        <p className="hint">{t("checkout.collectFromShopDetails")}</p>
       ) : null}
     </div>
   );
@@ -85,6 +91,7 @@ type Applied = { code: string; amount: number; description: string; freeDelivery
 export function BasketDiscount({ onApplied }: { onApplied?: (applied: Applied | null) => void }) {
   const { slug } = useStorefront();
   const money = useMoney();
+  const t = useT();
   const id = useId();
   const lines = useCartStore((s) => s.lines);
   const [input, setInput] = useState("");
@@ -107,7 +114,7 @@ export function BasketDiscount({ onApplied }: { onApplied?: (applied: Applied | 
         setApplied(null);
         onApplied?.(null);
         setBasketCode(slug, null);
-        setMessage(typeof data.error === "string" ? data.error : "We couldn't check that code. Please try again.");
+        setMessage(typeof data.error === "string" ? data.error : t("checkout.couldntCheckCode"));
         return;
       }
       const next = { code: data.code, amount: Number(data.amount) || 0, description: data.description, freeDelivery: Boolean(data.freeDelivery) };
@@ -116,12 +123,12 @@ export function BasketDiscount({ onApplied }: { onApplied?: (applied: Applied | 
       setBasketCode(slug, next.code);
       setInput("");
       if (!quiet) {
-        const text = `Code ${next.code} applied: ${next.description}.`;
+        const text = t("checkout.codeApplied", { code: next.code, description: next.description });
         setMessage(text);
         announce(text);
       }
     } catch {
-      setMessage("We couldn't connect. Check your internet connection and try again.");
+      setMessage(t("common.offline"));
     } finally {
       setBusy(false);
     }
@@ -141,8 +148,8 @@ export function BasketDiscount({ onApplied }: { onApplied?: (applied: Applied | 
     setApplied(null);
     onApplied?.(null);
     setBasketCode(slug, null);
-    setMessage("Discount code removed.");
-    announce("Discount code removed.");
+    setMessage(t("checkout.discountRemoved"));
+    announce(t("checkout.discountRemoved"));
   };
 
   return (
@@ -150,15 +157,15 @@ export function BasketDiscount({ onApplied }: { onApplied?: (applied: Applied | 
       {applied ? (
         <p className="discount-code__applied">
           <Icon name="check" size="sm" /> <strong>{applied.code}</strong> {applied.description}
-          {applied.amount > 0 ? ` (you save ${money.format(money.convert(applied.amount))})` : ""}{" "}
+          {applied.amount > 0 ? ` ${t("checkout.youSave", { amount: money.format(money.convert(applied.amount)) })}` : ""}{" "}
           <button type="button" className="link-button" onClick={remove}>
-            Remove<span className="visually-hidden"> discount code {applied.code}</span>
+            {t("common.remove")}<span className="visually-hidden"> {t("checkout.discountCodeHidden", { code: applied.code })}</span>
           </button>
         </p>
       ) : (
         <>
           <label htmlFor={`${id}-code`}>
-            Discount code <span className="optional">(optional)</span>
+            {t("checkout.discountCode")} <span className="optional">{t("common.optional")}</span>
           </label>
           <div className="discount-code__row">
             <input
@@ -176,8 +183,8 @@ export function BasketDiscount({ onApplied }: { onApplied?: (applied: Applied | 
               }}
               aria-describedby={`${id}-status`}
             />
-            <button className="btn btn--outline" type="button" disabled={busy} onClick={() => (input.trim() ? void check(input.trim()) : setMessage("Enter a discount code."))}>
-              {busy ? "Checking…" : "Apply"}
+            <button className="btn btn--outline" type="button" disabled={busy} onClick={() => (input.trim() ? void check(input.trim()) : setMessage(t("checkout.enterDiscountCode")))}>
+              {busy ? t("checkout.checking") : t("checkout.apply")}
             </button>
           </div>
         </>
@@ -207,8 +214,9 @@ type Suggestion = {
 };
 
 /** "You might also like": the merchant's pairings for what's in the basket, then similar products. */
-export function BasketSuggestions({ heading = "You might also like" }: { heading?: string }) {
+export function BasketSuggestions({ heading }: { heading?: string }) {
   const { slug, href } = useStorefront();
+  const t = useT();
   const lines = useCartStore((s) => s.lines);
   const addLine = useCartStore((s) => s.addLine);
   const [items, setItems] = useState<Suggestion[]>([]);
@@ -243,13 +251,13 @@ export function BasketSuggestions({ heading = "You might also like" }: { heading
       minQuantity: Math.max(1, p.minimumOrderQty || 1),
     };
     addLine(line);
-    announce(`${p.name} added to your basket.`);
+    announce(t("checkout.addedToBasket", { name: p.name }));
   };
 
   return (
     <section className="basket-suggestions" aria-labelledby={titleId}>
       <h2 className="basket-suggestions__title" id={titleId}>
-        {heading}
+        {heading ?? t("checkout.youMightAlsoLike")}
       </h2>
       <ul>
         {items.map((p) => (
@@ -267,11 +275,11 @@ export function BasketSuggestions({ heading = "You might also like" }: { heading
             </div>
             {p.needsOptions ? (
               <Link className="btn btn--outline btn--sm" href={href(STORE_PATHS.product(p.slug))}>
-                Choose<span className="visually-hidden"> options for {p.name}</span>
+                {t("checkout.choose")}<span className="visually-hidden"> {t("checkout.chooseOptionsHidden", { name: p.name })}</span>
               </Link>
             ) : (
               <button className="btn btn--outline btn--sm" type="button" onClick={() => add(p)}>
-                Add<span className="visually-hidden"> {p.name} to your basket</span>
+                {t("checkout.add")}<span className="visually-hidden"> {t("checkout.addHidden", { name: p.name })}</span>
               </button>
             )}
           </li>

@@ -7,7 +7,7 @@ import { useCartStore } from "@/components/shop/CartProvider";
 import { formatShopCurrency } from "@/lib/shop/format";
 import { clearCheckoutToken } from "@/lib/store/analytics-client";
 import { STORE_PATHS } from "@/lib/store/site/links";
-import { useStorefront } from "./StorefrontProvider";
+import { useStorefront, useT } from "./StorefrontProvider";
 import { Icon } from "./primitives";
 import { TrackPurchase } from "./StoreAnalytics";
 import OrderUpdatesPush from "./OrderUpdatesPush";
@@ -37,6 +37,7 @@ const RECHECK_TIMES = 10;
 /** Confirms the Paystack payment on return and shows the order, emptying the basket once paid. */
 export default function StoreOrderResult({ reference }: { reference: string }) {
   const { slug, href, currency } = useStorefront();
+  const t = useT();
   const clearCart = useCartStore((s) => s.clear);
   const [result, setResult] = useState<VerifyResult | null>(null);
   const [error, setError] = useState("");
@@ -53,7 +54,7 @@ export default function StoreOrderResult({ reference }: { reference: string }) {
           .then(async (res) => {
             const data = await res.json().catch(() => ({}));
             if (cancelled) return;
-            if (!res.ok) throw new Error(data.error || "We couldn't confirm your payment.");
+            if (!res.ok) throw new Error(data.error || t("checkout.couldntConfirmPayment"));
             setResult(data);
             if (data.status === "success") {
               clearCart();
@@ -66,7 +67,7 @@ export default function StoreOrderResult({ reference }: { reference: string }) {
             if (data.status === "pending" && attempt < RECHECK_TIMES) setAttempt(attempt + 1);
           })
           .catch((err) => {
-            if (!cancelled) setError(err instanceof Error ? err.message : "Something went wrong.");
+            if (!cancelled) setError(err instanceof Error ? err.message : t("checkout.somethingWentWrong"));
           });
       },
       attempt === 0 ? 0 : RECHECK_EVERY,
@@ -75,7 +76,7 @@ export default function StoreOrderResult({ reference }: { reference: string }) {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [slug, reference, clearCart, attempt]);
+  }, [slug, reference, clearCart, attempt, t]);
   const stillChecking = result?.status === "pending" && attempt < RECHECK_TIMES;
 
   // Move focus to the outcome so screen-reader users hear it. Repeat checks don't move it again.
@@ -87,10 +88,10 @@ export default function StoreOrderResult({ reference }: { reference: string }) {
   if (!reference) {
     return (
       <div className="cart-empty">
-        <h1 className="h-page">We couldn&rsquo;t find that payment</h1>
-        <p className="body-copy">The link is missing its payment reference.</p>
+        <h1 className="h-page">{t("checkout.paymentNotFound")}</h1>
+        <p className="body-copy">{t("checkout.missingReference")}</p>
         <Link className="btn btn--primary" href={href("/")}>
-          Back to the shop
+          {t("checkout.backToShop")}
         </Link>
       </div>
     );
@@ -101,28 +102,28 @@ export default function StoreOrderResult({ reference }: { reference: string }) {
     return (
       <div className="cart-empty">
         <h1 className="h-page" tabIndex={-1} ref={heading}>
-          {pending ? "Your payment is still processing" : error ? "We couldn't confirm your payment" : "Your payment wasn't completed"}
+          {pending ? t("checkout.paymentProcessing") : error ? t("checkout.couldntConfirmPaymentTitle") : t("checkout.paymentNotCompleted")}
         </h1>
         <p className="body-copy">
           {/* Only a confirmed failure means nothing was taken; a checking error doesn't tell us either way. */}
           {pending
             ? stillChecking
-              ? "This can take a minute. We're checking again automatically, so you can keep this page open. You won't be charged twice."
-              : "This is taking longer than usual. Refresh this page in a few minutes to check again, or look out for our confirmation email. You won't be charged twice."
-            : error || "Nothing has been taken from your account. Your basket has been kept so you can try again."}
+              ? t("checkout.stillChecking")
+              : t("checkout.takingLonger")
+            : error || t("checkout.nothingTaken")}
         </p>
         {stillChecking ? (
           <p className="hint" role="status">
-            Checking your payment…
+            {t("checkout.checkingPayment")}
           </p>
         ) : null}
         {pending ? null : error ? (
           <Link className="btn btn--primary" href={href("/")}>
-            Back to the shop
+            {t("checkout.backToShop")}
           </Link>
         ) : (
           <Link className="btn btn--primary" href={href(STORE_PATHS.checkout)}>
-            Try again
+            {t("common.tryAgain")}
           </Link>
         )}
       </div>
@@ -132,9 +133,9 @@ export default function StoreOrderResult({ reference }: { reference: string }) {
   if (!result) {
     return (
       <div className="cart-empty">
-        <h1 className="h-page">Confirming your payment…</h1>
+        <h1 className="h-page">{t("checkout.confirmingPayment")}</h1>
         <p className="body-copy" role="status">
-          Please keep this page open.
+          {t("checkout.keepPageOpen")}
         </p>
       </div>
     );
@@ -145,23 +146,23 @@ export default function StoreOrderResult({ reference }: { reference: string }) {
     <div className="stack">
       <Icon name="check-circle" size="lg" />
       <h1 className="h-page" tabIndex={-1} ref={heading}>
-        Thank you, your order is confirmed
+        {t("checkout.orderConfirmed")}
       </h1>
       {order ? (
         <>
           <TrackPurchase orderId={order.id} total={Number(order.total_amount)} lines={purchaseLines(order.order_items)} />
           <p className="body-copy">
-            Your order reference is <strong>{order.id.slice(0, 8).toUpperCase()}</strong>. Please keep it in case you need to contact the shop.
+            {t.rich("checkout.orderReferenceShop", { ref: <strong>{order.id.slice(0, 8).toUpperCase()}</strong> })}
           </p>
           <OrderUpdatesPush orderId={order.id} />
           <aside className="summary" aria-labelledby="order-summary-title">
-            <h2 id="order-summary-title">Your order</h2>
+            <h2 id="order-summary-title">{t("checkout.yourOrder")}</h2>
             <ul className="mini-lines">
               {order.order_items.map((item, i) => (
                 <li className="mini-line" key={i}>
                   <span>
                     <strong>{item.product_name}</strong>
-                    <span className="muted">Qty {item.quantity}</span>
+                    <span className="muted">{t("checkout.qty", { quantity: item.quantity })}</span>
                   </span>
                   <span>{formatShopCurrency(item.line_total, currency)}</span>
                 </li>
@@ -170,36 +171,36 @@ export default function StoreOrderResult({ reference }: { reference: string }) {
             <dl>
               {Number(order.discount_amount) > 0 ? (
                 <>
-                  <dt>Discount{order.discount_code ? ` (${order.discount_code})` : ""}</dt>
+                  <dt>{order.discount_code ? t("checkout.discountWithCode", { code: order.discount_code }) : t("checkout.discount")}</dt>
                   <dd>−{formatShopCurrency(Number(order.discount_amount), currency)}</dd>
                 </>
               ) : null}
               {order.delivery_method ? (
                 <>
-                  <dt>Delivery: {order.delivery_method}</dt>
-                  <dd>{Number(order.delivery_fee) > 0 ? formatShopCurrency(Number(order.delivery_fee), currency) : "Free"}</dd>
+                  <dt>{t("checkout.deliveryNamed", { method: order.delivery_method })}</dt>
+                  <dd>{Number(order.delivery_fee) > 0 ? formatShopCurrency(Number(order.delivery_fee), currency) : t("checkout.free")}</dd>
                 </>
               ) : null}
               {Number(order.gift_card_amount) > 0 ? (
                 <>
-                  <dt>Paid with gift card</dt>
+                  <dt>{t("checkout.paidWithGiftCard")}</dt>
                   <dd>−{formatShopCurrency(Number(order.gift_card_amount), currency)}</dd>
                 </>
               ) : null}
-              <dt className="total">Total paid</dt>
+              <dt className="total">{t("checkout.totalPaid")}</dt>
               <dd className="total">{formatShopCurrency(order.total_amount, currency)}</dd>
             </dl>
             {addressText(order.shipping_address) ? (
               <p className="body-copy">
-                <strong>Delivering to:</strong> {addressText(order.shipping_address)}
+                <strong>{t("checkout.deliveringTo")}</strong> {addressText(order.shipping_address)}
               </p>
             ) : null}
-            <p className="hint">We&rsquo;ve emailed your receipt. The shop will let you know when your order is on its way.</p>
+            <p className="hint">{t("checkout.receiptEmailed")}</p>
           </aside>
         </>
       ) : null}
       <Link className="btn btn--primary" href={href(STORE_PATHS.products)}>
-        Continue shopping
+        {t("checkout.continueShopping")}
       </Link>
     </div>
   );

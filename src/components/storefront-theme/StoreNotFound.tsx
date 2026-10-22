@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { STORE_PATHS } from "@/lib/store/site/links";
 import { STOREFRONT_ROOT_DOMAIN } from "@/lib/store/subdomain";
-import { useHasStorefront, useStorefront } from "./StorefrontProvider";
+import { useHasStorefront, useStorefront, useT } from "./StorefrontProvider";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || `https://${STOREFRONT_ROOT_DOMAIN}`;
 
@@ -18,16 +18,17 @@ export default function StoreNotFound() {
 
 function MissingStorePage() {
   const { href } = useStorefront();
+  const t = useT();
   return (
     <div className="container section cart-empty">
-      <h1 className="h-page">We can&rsquo;t find that page</h1>
-      <p className="body-copy">It may have moved, or the product may no longer be available.</p>
+      <h1 className="h-page">{t("chrome.notFoundTitle")}</h1>
+      <p className="body-copy">{t("chrome.notFoundText")}</p>
       <div className="stack">
         <Link className="btn btn--primary" href={href(STORE_PATHS.products)}>
-          Browse all products
+          {t("chrome.browseAllProducts")}
         </Link>
         <Link className="link-arrow" href={href("/")}>
-          Go to the home page
+          {t("chrome.goHome")}
         </Link>
       </div>
     </div>

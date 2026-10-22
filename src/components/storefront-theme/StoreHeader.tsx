@@ -6,12 +6,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCartStore } from "@/components/shop/CartProvider";
 import CurrencySwitcher from "./CurrencySwitcher";
+import LanguageSwitcher from "./LanguageSwitcher";
 import SearchBox from "./SearchBox";
 import BasketDrawer from "./BasketDrawer";
 import { openBasketDrawer } from "@/lib/shop/basket-code";
 import type { StoreSocialLink } from "./socials";
 import { Icon } from "./primitives";
-import { useStorefront } from "./StorefrontProvider";
+import { useStorefront, useT } from "./StorefrontProvider";
 import { useShopAccount } from "./useShopAccount";
 
 export type HeaderNavItem = { label: string; href: string; children?: Array<{ label: string; href: string }> };
@@ -26,8 +27,9 @@ export type StoreBrandProps = {
 };
 
 export function StoreLogo({ storeName, homeHref, logoUrl, logoAlt, showMark }: StoreBrandProps) {
+  const t = useT();
   return (
-    <Link className="logo" href={homeHref} aria-label={`${storeName}, home page`}>
+    <Link className="logo" href={homeHref} aria-label={t("chrome.logoHome", { store: storeName })}>
       {logoUrl ? (
         // eslint-disable-next-line @next/next/no-img-element -- small brand mark, any host
         <img className="logo__img" src={logoUrl} alt={logoAlt || storeName} width={160} height={48} />
@@ -51,7 +53,8 @@ export function StoreLogo({ storeName, homeHref, logoUrl, logoAlt, showMark }: S
 function AccountLink() {
   const { href } = useStorefront();
   const { account } = useShopAccount();
-  const label = account ? `Your account${account.name ? `, signed in as ${account.name}` : ""}` : "Sign in or create an account";
+  const t = useT();
+  const label = account ? (account.name ? t("chrome.accountSignedIn", { name: account.name }) : t("chrome.account")) : t("chrome.signIn");
   return (
     <Link className="icon-btn" href={href("/account")} aria-label={label}>
       <Icon name="user" />
@@ -61,11 +64,12 @@ function AccountLink() {
 
 function BasketLink({ href }: { href: string }) {
   const count = useCartStore((s) => (s.hasHydrated ? s.lines.reduce((sum, l) => sum + l.quantity, 0) : 0));
+  const t = useT();
   return (
     <Link
       className="icon-btn"
       href={href}
-      aria-label={count ? `Basket, ${count} ${count === 1 ? "item" : "items"}` : "Basket, empty"}
+      aria-label={count ? t("chrome.basketCount", { count }) : t("chrome.basketEmpty")}
       aria-haspopup="dialog"
       onClick={(e) => {
         // Opens the basket panel; a new tab (or no JavaScript) still goes to the basket page.
@@ -105,6 +109,7 @@ export default function StoreHeader({
   topbarExtras?: { phone: string | null; socials: StoreSocialLink[] };
 }) {
   const pathname = usePathname();
+  const t = useT();
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [openSubmenu, setOpenSubmenu] = useState<number | null>(null);
@@ -234,11 +239,11 @@ export default function StoreHeader({
   return (
     <>
       {showAnnouncement ? (
-        <aside className="topbar" aria-label="Store announcements">
+        <aside className="topbar" aria-label={t("chrome.storeAnnouncements")}>
           <div className="container topbar__inner">
             {topbarExtras?.phone ? (
               <p className="topbar__side">
-                Call us: <a href={`tel:${topbarExtras.phone.replace(/[^\d+]/g, "")}`}>{topbarExtras.phone}</a>
+                {t.rich("chrome.callUs", { phone: <a href={`tel:${topbarExtras.phone.replace(/[^\d+]/g, "")}`}>{topbarExtras.phone}</a> })}
               </p>
             ) : null}
             <AnnouncementMessages messages={announcement.messages} onDismiss={announcement.dismissible ? closeAnnouncement : undefined} />
@@ -246,7 +251,7 @@ export default function StoreHeader({
               <ul className="topbar__side topbar__social">
                 {topbarExtras.socials.map((s) => (
                   <li key={s.href}>
-                    <a className="icon-btn" href={s.href} aria-label={`${brand.storeName} on ${s.label}`} rel="noopener noreferrer" target="_blank">
+                    <a className="icon-btn" href={s.href} aria-label={t("chrome.socialLink", { store: brand.storeName, network: s.label })} rel="noopener noreferrer" target="_blank">
                       {s.iconSm}
                     </a>
                   </li>
@@ -266,7 +271,7 @@ export default function StoreHeader({
               ref={menuButton}
               className="icon-btn menu-btn"
               type="button"
-              aria-label={menuOpen ? "Close menu" : "Open menu"}
+              aria-label={menuOpen ? t("chrome.closeMenu") : t("chrome.openMenu")}
               aria-expanded={menuOpen}
               aria-controls="site-nav"
               onClick={() => setMenuOpen((open) => !open)}
@@ -274,7 +279,7 @@ export default function StoreHeader({
               <Icon name="menu" className="icon-open" />
               <Icon name="close" className="icon-close" />
             </button>
-            <nav className={`site-nav${menuOpen ? " is-open" : ""}`} id="site-nav" aria-label="Main">
+            <nav className={`site-nav${menuOpen ? " is-open" : ""}`} id="site-nav" aria-label={t("chrome.mainNav")}>
               <ul className="nav-list">
                 {navItems.map((item, i) =>
                   item.children?.length ? (
@@ -313,12 +318,13 @@ export default function StoreHeader({
           {logoPosition === "centre" ? <StoreLogo {...brand} /> : null}
 
           <div className="header-actions">
+            <LanguageSwitcher />
             <CurrencySwitcher />
             <button
               ref={searchButton}
               className="icon-btn"
               type="button"
-              aria-label="Search"
+              aria-label={t("common.search")}
               aria-expanded={searchOpen}
               aria-controls="site-search"
               onClick={() => setSearchOpen((open) => !open)}
@@ -334,11 +340,11 @@ export default function StoreHeader({
           <div className="container">
             <form role="search" action={productsHref} method="get">
               <label className="visually-hidden" htmlFor="q">
-                Search products
+                {t("chrome.searchProducts")}
               </label>
               <SearchBox inputRef={searchInput} />
               <button className="btn btn--primary" type="submit">
-                Search
+                {t("common.search")}
               </button>
             </form>
           </div>

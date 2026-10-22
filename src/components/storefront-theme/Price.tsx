@@ -1,7 +1,7 @@
 "use client";
 
 import type { FixedPrices } from "@/lib/store/currencies";
-import { useMoney } from "./StorefrontProvider";
+import { useMoney, useT } from "./StorefrontProvider";
 
 /**
  * A price in the shopper's chosen currency. `amount` and `compareAt` are in the
@@ -10,6 +10,7 @@ import { useMoney } from "./StorefrontProvider";
  */
 export default function Price({ amount, compareAt, fixedPrices }: { amount: number; compareAt?: number | null; fixedPrices?: FixedPrices }) {
   const money = useMoney();
+  const t = useT();
   const fixed = money.fixedFor(fixedPrices);
   const shown = money.convert(amount, fixed?.price);
   // With a fixed price, only the merchant's own "was" price is shown alongside it.
@@ -18,8 +19,8 @@ export default function Price({ amount, compareAt, fixedPrices }: { amount: numb
   if (shownCompare != null && shownCompare > shown) {
     return (
       <>
-        <span className="visually-hidden">Sale price </span>
-        {money.format(shown)} <s><span className="visually-hidden">was </span>{money.format(shownCompare)}</s>
+        <span className="visually-hidden">{t("product.salePrice")} </span>
+        {money.format(shown)} <s><span className="visually-hidden">{t("product.was")} </span>{money.format(shownCompare)}</s>
       </>
     );
   }

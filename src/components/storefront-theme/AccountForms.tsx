@@ -1,7 +1,8 @@
 "use client";
 
 import { useId, useState } from "react";
-import { announce, useStorefront } from "./StorefrontProvider";
+import { announce, useStorefront, useT } from "./StorefrontProvider";
+import type { Translator } from "@/lib/store/i18n/translate";
 import { refreshShopAccount } from "./useShopAccount";
 
 /*
@@ -10,21 +11,22 @@ import { refreshShopAccount } from "./useShopAccount";
  * one signs in with a 6-digit code we email.
  */
 
-async function post(url: string, body: object) {
+async function post(url: string, body: object, t: Translator) {
   const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(typeof data.error === "string" ? data.error : "Something went wrong. Please try again.");
+  if (!res.ok) throw new Error(typeof data.error === "string" ? data.error : t("common.somethingWrong"));
   return data;
 }
 
 /** Marks a field the shopper needs to fix, and points it at the message saying how. */
 const invalidProps = (invalid: boolean, id: string) => ({ "aria-invalid": invalid || undefined, "aria-describedby": invalid ? `${id}-status` : undefined });
 
-const failed = (e: unknown) => (e instanceof TypeError ? "We couldn't connect. Check your internet connection and try again." : (e as Error).message);
+const failed = (e: unknown, t: Translator) => (e instanceof TypeError ? t("common.offline") : (e as Error).message);
 
 /** "Enter the code we emailed you." */
 export function CodeForm({ email, intro, onDone }: { email: string; intro: string; onDone: () => void }) {
   const { slug } = useStorefront();
+  const t = useT();
   const id = useId();
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
@@ -36,18 +38,18 @@ export function CodeForm({ email, intro, onDone }: { email: string; intro: strin
     if (!/^\d{6}$/.test(code.trim())) {
       setInvalid(true);
       document.getElementById(`${id}-code`)?.focus();
-      return setStatus("Enter the 6-digit code from the email.");
+      return setStatus(t("account.enterCode"));
     }
     setInvalid(false);
     setBusy(true);
     setStatus("");
     try {
-      await post(`/api/shop/${encodeURIComponent(slug)}/account/verify`, { email, code: code.trim() });
+      await post(`/api/shop/${encodeURIComponent(slug)}/account/verify`, { email, code: code.trim() }, t);
       await refreshShopAccount(slug);
-      announce("You're signed in.");
+      announce(t("account.signedIn"));
       onDone();
     } catch (err) {
-      setStatus(failed(err));
+      setStatus(failed(err, t));
     } finally {
       setBusy(false);
     }
@@ -56,10 +58,10 @@ export function CodeForm({ email, intro, onDone }: { email: string; intro: strin
   const resend = async () => {
     setStatus("");
     try {
-      await post(`/api/shop/${encodeURIComponent(slug)}/account/code`, { email });
-      setStatus("If you can't see it, check your junk folder. We've sent a new code if one was due.");
+      await post(`/api/shop/${encodeURIComponent(slug)}/account/code`, { email }, t);
+      setStatus(t("account.codeResent"));
     } catch (err) {
-      setStatus(failed(err));
+      setStatus(failed(err, t));
     }
   };
 
@@ -67,7 +69,7 @@ export function CodeForm({ email, intro, onDone }: { email: string; intro: strin
     <form className="account-form" onSubmit={submit} noValidate>
       <p className="body-copy">{intro}</p>
       <div className="field">
-        <label htmlFor={`${id}-code`}>6-digit code</label>
+        <label htmlFor={`${id}-code`}>{t("account.codeLabel")}</label>
         <input
           className="input account-form__code"
           id={`${id}-code`}
@@ -82,10 +84,10 @@ export function CodeForm({ email, intro, onDone }: { email: string; intro: strin
       </div>
       <div className="account-form__actions">
         <button className="btn btn--primary" type="submit" disabled={busy}>
-          {busy ? "Signing in…" : "Sign in"}
+          {busy ? t("account.signingIn") : t("account.signIn")}
         </button>
         <button className="link-button" type="button" onClick={resend}>
-          Send a new code
+          {t("account.sendNewCode")}
         </button>
       </div>
       <p className="form-status" role="status" id={`${id}-status`}>
@@ -101,7 +103,7 @@ export function CreateAccountForm({
   storeName,
   privacyHref,
   onDone,
-  submitLabel = "Create my account",
+  submitLabel,
   extraActions,
 }: {
   source: "prompt" | "account_page";
@@ -112,6 +114,7 @@ export function CreateAccountForm({
   extraActions?: React.ReactNode;
 }) {
   const { slug } = useStorefront();
+  const t = useT();
   const id = useId();
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
@@ -122,7 +125,7 @@ export function CreateAccountForm({
     return (
       <CodeForm
         email={codeFor}
-        intro={`You already have an account with ${storeName}. We've emailed a 6-digit code to ${codeFor}. Enter it here to sign in.`}
+        intro={t("account.existingAccountCode", { storeName, email: codeFor })}
         onDone={onDone}
       />
     );
@@ -133,9 +136,9 @@ export function CreateAccountForm({
     const form = new FormData(e.currentTarget);
     const get = (name: string) => String(form.get(name) ?? "").trim();
     const problem: ["name" | "email", string] | null = !get("name")
-      ? ["name", "Enter your name."]
+      ? ["name", t("account.enterName")]
       : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(get("email"))
-        ? ["email", "Enter an email address in the format name@example.com."]
+        ? ["email", t("account.enterEmail")]
         : null;
     setInvalid(problem?.[0] ?? null);
     if (problem) {
@@ -152,16 +155,16 @@ export function CreateAccountForm({
         consent: form.get("consent") === "yes",
         marketing: form.get("marketing") === "yes",
         source,
-      });
+      }, t);
       if (data.needsCode) {
         setCodeFor(String(data.email));
         return;
       }
       await refreshShopAccount(slug);
-      announce("Your account is ready.");
+      announce(t("account.accountReady"));
       onDone();
     } catch (err) {
-      setStatus(failed(err));
+      setStatus(failed(err, t));
     } finally {
       setBusy(false);
     }
@@ -170,39 +173,39 @@ export function CreateAccountForm({
   return (
     <form className="account-form" onSubmit={submit} noValidate>
       <div className="field">
-        <label htmlFor={`${id}-name`}>Your name</label>
+        <label htmlFor={`${id}-name`}>{t("account.yourName")}</label>
         <input className="input" id={`${id}-name`} name="name" autoComplete="name" maxLength={120} {...invalidProps(invalid === "name", id)} />
       </div>
       <div className="field">
-        <label htmlFor={`${id}-email`}>Email address</label>
+        <label htmlFor={`${id}-email`}>{t("common.email")}</label>
         <input className="input" id={`${id}-email`} name="email" type="email" inputMode="email" autoComplete="email" maxLength={200} {...invalidProps(invalid === "email", id)} />
       </div>
       <div className="field">
         <label htmlFor={`${id}-phone`}>
-          Phone number <span className="optional">(optional)</span>
+          {t("common.phone")} <span className="optional">{t("common.optional")}</span>
         </label>
         <input className="input" id={`${id}-phone`} name="phone" type="tel" inputMode="tel" autoComplete="tel" maxLength={40} />
       </div>
       <label className="check check--top">
         <input type="checkbox" name="consent" value="yes" />
-        <span>Yes, {storeName} can contact me about my basket, new arrivals and offers. I can change this at any time.</span>
+        <span>{t("account.consentYes", { storeName })}</span>
       </label>
       <label className="check check--top">
         <input type="checkbox" name="marketing" value="yes" />
-        <span>Send me news and offers from {storeName} by email. You can unsubscribe at any time.</span>
+        <span>{t("account.marketingOptIn", { storeName })}</span>
       </label>
       <p className="hint">
-        {`No password needed: next time, we’ll email you a code to sign in. With an account, ${storeName} can see the products you look at and what’s in your basket, so they can help you.`}
+        {t("account.noPasswordHint", { storeName })}
         {privacyHref ? (
           <>
             {" "}
-            <a href={privacyHref}>Read the privacy policy</a>.
+            <a href={privacyHref}>{t("account.readPrivacy")}</a>.
           </>
         ) : null}
       </p>
       <div className="account-form__actions">
         <button className="btn btn--primary" type="submit" disabled={busy}>
-          {busy ? "Creating your account…" : submitLabel}
+          {busy ? t("account.creatingAccount") : (submitLabel ?? t("account.createMyAccount"))}
         </button>
         {extraActions}
       </div>
@@ -216,6 +219,7 @@ export function CreateAccountForm({
 /** Sign in: email, then the code we send. */
 export function SignInForm({ storeName, onDone }: { storeName: string; onDone: () => void }) {
   const { slug } = useStorefront();
+  const t = useT();
   const id = useId();
   const [email, setEmail] = useState("");
   const [sentTo, setSentTo] = useState<string | null>(null);
@@ -227,7 +231,7 @@ export function SignInForm({ storeName, onDone }: { storeName: string; onDone: (
     return (
       <CodeForm
         email={sentTo}
-        intro={`If ${sentTo} has an account with ${storeName}, we've emailed it a 6-digit code. It expires in 10 minutes.`}
+        intro={t("account.signInCodeSent", { email: sentTo, storeName })}
         onDone={onDone}
       />
     );
@@ -240,15 +244,15 @@ export function SignInForm({ storeName, onDone }: { storeName: string; onDone: (
     setInvalid(bad);
     if (bad) {
       document.getElementById(`${id}-email`)?.focus();
-      return setStatus("Enter an email address in the format name@example.com.");
+      return setStatus(t("account.enterEmail"));
     }
     setBusy(true);
     setStatus("");
     try {
-      await post(`/api/shop/${encodeURIComponent(slug)}/account/code`, { email: value });
+      await post(`/api/shop/${encodeURIComponent(slug)}/account/code`, { email: value }, t);
       setSentTo(value);
     } catch (err) {
-      setStatus(failed(err));
+      setStatus(failed(err, t));
     } finally {
       setBusy(false);
     }
@@ -257,13 +261,13 @@ export function SignInForm({ storeName, onDone }: { storeName: string; onDone: (
   return (
     <form className="account-form" onSubmit={submit} noValidate>
       <div className="field">
-        <label htmlFor={`${id}-email`}>Email address</label>
+        <label htmlFor={`${id}-email`}>{t("common.email")}</label>
         <input className="input" id={`${id}-email`} type="email" inputMode="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} {...invalidProps(invalid, id)} />
-        <p className="hint">We&rsquo;ll email you a code to sign in. No password needed.</p>
+        <p className="hint">{t("account.signInHint")}</p>
       </div>
       <div className="account-form__actions">
         <button className="btn btn--primary" type="submit" disabled={busy}>
-          {busy ? "Sending…" : "Email me a code"}
+          {busy ? t("common.sending") : t("account.emailMeCode")}
         </button>
       </div>
       <p className="form-status" role="status" id={`${id}-status`}>

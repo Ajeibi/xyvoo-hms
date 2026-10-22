@@ -14,6 +14,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ slug: s
     description: site.seo.description || site.brand.tagline || null,
     backgroundColour: site.theme.colours.bg,
     themeColour: site.theme.colours.bg,
+    lang: storefront.languages[0],
   });
   return NextResponse.json(manifest, {
     headers: { "Content-Type": "application/manifest+json; charset=utf-8", "Cache-Control": "public, max-age=300, s-maxage=300" },

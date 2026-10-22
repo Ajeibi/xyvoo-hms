@@ -3,11 +3,12 @@
 import { useEffect, useState } from "react";
 import { FiShare2 } from "react-icons/fi";
 import { deliverySummary } from "./BasketExtras";
-import { announce, useMoney, useStorefront } from "./StorefrontProvider";
+import { announce, useMoney, useStorefront, useT } from "./StorefrontProvider";
 import { Icon } from "./primitives";
 
 /** Share the product: the phone's own share sheet where there is one, else copy the link. */
 export function ShareButton({ title }: { title: string }) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
   const share = async () => {
     const url = window.location.href.split("#")[0];
@@ -18,7 +19,7 @@ export function ShareButton({ title }: { title: string }) {
       }
       await navigator.clipboard.writeText(url);
       setCopied(true);
-      announce("Link copied.");
+      announce(t("product.linkCopiedAnnounce"));
       window.setTimeout(() => setCopied(false), 2500);
     } catch {
       // The shopper closed the share sheet, or the browser wouldn't copy: nothing to do.
@@ -26,7 +27,7 @@ export function ShareButton({ title }: { title: string }) {
   };
   return (
     <button className="link-btn share-btn" type="button" onClick={share}>
-      <FiShare2 aria-hidden className="icon icon--sm" /> {copied ? "Link copied" : "Share"}
+      <FiShare2 aria-hidden className="icon icon--sm" /> {copied ? t("product.linkCopied") : t("product.share")}
     </button>
   );
 }
@@ -35,6 +36,7 @@ export function ShareButton({ title }: { title: string }) {
 export function ProductDelivery() {
   const { slug } = useStorefront();
   const money = useMoney();
+  const t = useT();
   const [summary, setSummary] = useState<Awaited<ReturnType<typeof deliverySummary>>>(null);
   useEffect(() => {
     let live = true;
@@ -50,15 +52,15 @@ export function ProductDelivery() {
         <li>
           <Icon name="truck" size="sm" />
           <span>
-            {summary.deliveryFrom === 0 ? "Free delivery" : `Delivery from ${money.format(money.convert(summary.deliveryFrom))}`}
-            {summary.eta ? `, ${summary.eta}` : ""}.{summary.freeOver != null ? ` Free delivery on orders over ${money.format(money.convert(summary.freeOver))}.` : ""}
+            {summary.deliveryFrom === 0 ? t("product.freeDelivery") : t("product.deliveryFrom", { price: money.format(money.convert(summary.deliveryFrom)) })}
+            {summary.eta ? `, ${summary.eta}` : ""}.{summary.freeOver != null ? ` ${t("product.freeDeliveryOver", { price: money.format(money.convert(summary.freeOver)) })}` : ""}
           </span>
         </li>
       ) : null}
       {summary.pickup ? (
         <li>
           <Icon name="pin" size="sm" />
-          <span>Or collect it from the shop.</span>
+          <span>{t("product.collectFromShop")}</span>
         </li>
       ) : null}
     </ul>

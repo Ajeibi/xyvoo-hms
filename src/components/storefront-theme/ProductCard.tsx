@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ShopProduct } from "@/lib/shop/products";
 import { STORE_PATHS, storeHref } from "@/lib/store/site/links";
 import type { SiteTheme } from "@/lib/store/site/schema";
-import AddToBasketButton, { type BasketProduct } from "./AddToBasketButton";
+import AddToBasketButton, { CardText, type BasketProduct } from "./AddToBasketButton";
 import { Icon, Price, Rating, StoreImage } from "./primitives";
 import SaleEnds from "./SaleEnds";
 
@@ -35,7 +35,9 @@ function CardMedia({ product, eager }: { product: ShopProduct; eager?: boolean }
       {product.imageUrl ? (
         <StoreImage src={product.imageUrl} alt={product.imageAltTexts[0] || ""} sizes={CARD_SIZES} eager={eager} />
       ) : (
-        <span className="media__label">No photo yet</span>
+        <span className="media__label">
+          <CardText k="product.noPhotoYet" />
+        </span>
       )}
     </div>
   );
@@ -77,7 +79,7 @@ export default function ProductCard({
   );
   const chooseLink = (
     <Link className={variant === "view" ? "btn btn--primary btn--sm" : "btn btn--soft"} href={href}>
-      {needsOptions ? "Choose options" : "View product"}
+      <CardText k={needsOptions ? "product.chooseOptions" : "product.viewProduct"} />
       <span className="visually-hidden">: {product.name}</span>
     </Link>
   );
@@ -87,7 +89,9 @@ export default function ProductCard({
       <article className="card card--view">
         <div className="card__frame">
           <CardMedia product={product} eager={eager} />
-          {product.newArrival ? <span className="card__badge">New</span> : null}
+          {product.newArrival ? <span className="card__badge">
+              <CardText k="product.newBadge" />
+            </span> : null}
         </div>
         <div className="card__body">
           {title}
@@ -115,10 +119,11 @@ export default function ProductCard({
             <span>{product.category || ""}</span>
             {product.ratingCount > 0 ? (
               <span className="card__score">
-                <span className="visually-hidden">Rated </span>
+                <span className="visually-hidden">
+                  <CardText k="product.ratedOutOfFive" vars={{ score: product.ratingAverage.toFixed(1) }} />
+                </span>
                 <Icon name="star" />
-                {product.ratingAverage.toFixed(1)}
-                <span className="visually-hidden"> out of 5</span>
+                <span aria-hidden="true">{product.ratingAverage.toFixed(1)}</span>
               </span>
             ) : null}
           </div>

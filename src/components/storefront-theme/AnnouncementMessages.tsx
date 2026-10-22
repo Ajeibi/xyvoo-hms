@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Icon } from "./primitives";
+import { useT } from "./StorefrontProvider";
 
 /** How long each message shows before the next. */
 const EVERY_MS = 6000;
@@ -21,6 +22,7 @@ export default function AnnouncementMessages({ messages, onDismiss }: { messages
   const [holding, setHolding] = useState(false);
   const [still] = useState(() => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
   const many = messages.length > 1;
+  const t = useT();
 
   useEffect(() => {
     if (!many || paused || holding || still) return;
@@ -40,7 +42,7 @@ export default function AnnouncementMessages({ messages, onDismiss }: { messages
       {many && !still ? (
         <button type="button" className="announce__control" onClick={() => setPaused((p) => !p)} aria-pressed={paused}>
           <Icon name={paused ? "play" : "pause"} size="sm" />
-          <span className="visually-hidden">{paused ? "Play announcements" : "Pause announcements"}</span>
+          <span className="visually-hidden">{paused ? t("chrome.playAnnouncements") : t("chrome.pauseAnnouncements")}</span>
         </button>
       ) : null}
       <p aria-live="off">
@@ -48,20 +50,20 @@ export default function AnnouncementMessages({ messages, onDismiss }: { messages
         {many ? (
           <span className="visually-hidden">
             {" "}
-            (announcement {(index % messages.length) + 1} of {messages.length})
+            {t("chrome.announcementPosition", { index: (index % messages.length) + 1, total: messages.length })}
           </span>
         ) : null}
       </p>
       {many && (still || paused) ? (
         <button type="button" className="announce__control" onClick={() => setIndex((i) => (i + 1) % messages.length)}>
           <Icon name="chevron-right" size="sm" />
-          <span className="visually-hidden">Next announcement</span>
+          <span className="visually-hidden">{t("chrome.nextAnnouncement")}</span>
         </button>
       ) : null}
       {onDismiss ? (
         <button type="button" className="announce__control announce__close" onClick={onDismiss}>
           <Icon name="close" size="sm" />
-          <span className="visually-hidden">Close announcements</span>
+          <span className="visually-hidden">{t("chrome.closeAnnouncements")}</span>
         </button>
       ) : null}
     </div>

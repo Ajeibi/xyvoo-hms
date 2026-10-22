@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCartStore } from "@/components/shop/CartProvider";
 import { cartLineKey } from "@/lib/shop/cart";
-import { useStorefront } from "./StorefrontProvider";
+import { useStorefront, useT } from "./StorefrontProvider";
 import { sendAccountActivity, useShopAccount } from "./useShopAccount";
 import { getConsent, initStoreAnalytics, onConsentChange, reopenCookieSettings, setConsent, track, type ConsentChoice } from "@/lib/store/analytics-client";
 import { configurePixels, loadPixels, pixelPurchase, stopPixels, type PurchaseLine } from "@/lib/store/ad-pixels";
@@ -35,13 +35,15 @@ export type ShopPixels = { metaPixelId: string | null; googleAnalyticsId: string
 export default function StoreAnalytics({ slug, storeName, privacyHref, pixels }: { slug: string; storeName: string; privacyHref: string | null; pixels: ShopPixels }) {
   const consent = useConsent(slug);
   const { currency } = useStorefront();
+  const t = useT();
   const [reopened, setReopened] = useState(false);
   const pathname = usePathname();
   const lines = useCartStore((s) => s.lines);
   const hasHydrated = useCartStore((s) => s.hasHydrated);
   const previousLines = useRef<Map<string, { quantity: number; unitPrice: number; productId: string; itemId: string }> | null>(null);
   const { metaPixelId, googleAnalyticsId } = pixels;
-  const partners = [metaPixelId ? "Meta" : null, googleAnalyticsId ? "Google" : null].filter(Boolean).join(" and ");
+  const partners =
+    metaPixelId && googleAnalyticsId ? t("chrome.partnersAnd", { first: "Meta", second: "Google" }) : metaPixelId ? "Meta" : googleAnalyticsId ? "Google" : "";
 
   useEffect(() => {
     // Pixels first, so events held from before the tracker started reach them too.
@@ -99,25 +101,24 @@ export default function StoreAnalytics({ slug, storeName, privacyHref, pixels }:
   return (
     <section className={`cookie-banner${reopened ? " is-reopened" : ""}`} aria-labelledby="cookie-banner-title" role="region">
       <h2 id="cookie-banner-title" className="cookie-banner__title">
-        Cookies on {storeName}
+        {t("chrome.cookiesOn", { store: storeName })}
       </h2>
       <p>
-        We use essential cookies to run this shop, such as remembering your basket. With your permission, we&rsquo;d also like to use analytics
-        cookies to understand how visitors use the shop, so we can improve it.
-        {partners ? ` These include cookies from ${partners}, which help us measure and improve our adverts.` : ""} We never sell your information.
+        {t("chrome.cookieIntro")}
+        {partners ? ` ${t("chrome.cookiePartners", { partners })}` : ""} {t("chrome.neverSell")}
         {privacyHref ? (
           <>
             {" "}
-            <Link href={privacyHref}>Read our privacy policy</Link>.
+            <Link href={privacyHref}>{t("chrome.readPrivacy")}</Link>.
           </>
         ) : null}
       </p>
       <div className="cookie-banner__actions">
         <button type="button" className="btn btn--primary btn--sm" onClick={() => choose("accepted")}>
-          {partners ? "Accept analytics and advert cookies" : "Accept analytics cookies"}
+          {partners ? t("chrome.acceptAnalyticsAdverts") : t("chrome.acceptAnalytics")}
         </button>
         <button type="button" className="btn btn--outline btn--sm" onClick={() => choose("rejected")}>
-          {partners ? "Reject analytics and advert cookies" : "Reject analytics cookies"}
+          {partners ? t("chrome.rejectAnalyticsAdverts") : t("chrome.rejectAnalytics")}
         </button>
       </div>
     </section>
@@ -126,9 +127,10 @@ export default function StoreAnalytics({ slug, storeName, privacyHref, pixels }:
 
 /** "Cookie settings" in the footer, to change the choice later. */
 export function CookieSettingsButton() {
+  const t = useT();
   return (
     <button type="button" className="cookie-settings-link" onClick={reopenCookieSettings}>
-      Cookie settings
+      {t("chrome.cookieSettings")}
     </button>
   );
 }

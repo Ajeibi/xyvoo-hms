@@ -8,14 +8,14 @@ import { calculateCartTotals, cartLineKey } from "@/lib/shop/cart";
 import { STORE_PATHS } from "@/lib/store/site/links";
 import { BasketSuggestions, DeliveryNote } from "./BasketExtras";
 import ChargeNote from "./ChargeNote";
-import { announce, useMoney, useStorefront } from "./StorefrontProvider";
+import { announce, useMoney, useStorefront, useT } from "./StorefrontProvider";
 import { useBasketPrices } from "./useBasketPrices";
 import { Icon, StoreImage } from "./primitives";
 
-/** What a basket line's problem means for the shopper. */
+/** What a basket line's problem means for the shopper: t(PROBLEM_TEXT[line.problem]). */
 export const PROBLEM_TEXT = {
-  unavailable: "No longer available. Remove it to check out.",
-  "sold-out": "Sold out. Remove it to check out.",
+  unavailable: "checkout.problemUnavailable",
+  "sold-out": "checkout.problemSoldOut",
 } as const;
 
 /**
@@ -34,6 +34,7 @@ export default function BasketDrawer() {
   const updateQuantity = useCartStore((s) => s.updateQuantity);
   const removeLine = useCartStore((s) => s.removeLine);
   const money = useMoney();
+  const t = useT();
   // Today's prices and stock, while the panel is open.
   useBasketPrices(open ? slug : "");
   const { subtotal: homeSubtotal, itemCount } = calculateCartTotals(lines);
@@ -78,12 +79,12 @@ export default function BasketDrawer() {
         <div className="basket-drawer__panel">
           <header className="basket-drawer__head">
             <h2 id="basket-drawer-title" className="h-card">
-              Your basket{itemCount ? ` (${itemCount})` : ""}
+              {itemCount ? t("checkout.basketTitleCount", { count: itemCount }) : t("checkout.basketTitle")}
             </h2>
             <button
               className="icon-btn"
               type="button"
-              aria-label="Close basket"
+              aria-label={t("checkout.closeBasket")}
               onClick={() => setOpen(false)}
             >
               <Icon name="close" />
@@ -91,19 +92,18 @@ export default function BasketDrawer() {
           </header>
           {added ? (
             <p className="basket-drawer__added" role="status">
-              <Icon name="check-circle" size="sm" /> {added} added to your
-              basket.
+              <Icon name="check-circle" size="sm" /> {t("checkout.addedToBasket", { name: added })}
             </p>
           ) : null}
 
           {lines.length === 0 ? (
             <div className="basket-drawer__empty">
-              <p className="body-copy">Your basket is empty.</p>
+              <p className="body-copy">{t("checkout.basketEmptyShort")}</p>
               <Link
                 className="btn btn--primary"
                 href={href(STORE_PATHS.products)}
               >
-                Start shopping
+                {t("checkout.startShopping")}
               </Link>
             </div>
           ) : (
@@ -131,7 +131,7 @@ export default function BasketDrawer() {
                       ) : null}
                       {line.problem ? (
                         <p className="mini-cart-line__problem">
-                          {PROBLEM_TEXT[line.problem]}
+                          {t(PROBLEM_TEXT[line.problem])}
                         </p>
                       ) : null}
                       <div className="mini-cart-line__actions">
@@ -139,7 +139,7 @@ export default function BasketDrawer() {
                           <div className="qty qty--sm">
                             <button
                               type="button"
-                              aria-label={`Decrease quantity of ${line.name}`}
+                              aria-label={t("checkout.decreaseQuantity", { name: line.name })}
                               disabled={
                                 line.quantity <= (line.minQuantity ?? 1)
                               }
@@ -154,12 +154,12 @@ export default function BasketDrawer() {
                               <Icon name="minus" />
                             </button>
                             <span className="qty__value" aria-live="polite">
-                              <span className="visually-hidden">Quantity </span>
+                              <span className="visually-hidden">{t("checkout.quantity")} </span>
                               {line.quantity}
                             </span>
                             <button
                               type="button"
-                              aria-label={`Increase quantity of ${line.name}`}
+                              aria-label={t("checkout.increaseQuantity", { name: line.name })}
                               disabled={line.quantity >= line.maxQuantity}
                               onClick={() =>
                                 updateQuantity(
@@ -178,10 +178,10 @@ export default function BasketDrawer() {
                           type="button"
                           onClick={() => {
                             removeLine(line.productId, line.variantId);
-                            announce(`${line.name} removed from your basket.`);
+                            announce(t("checkout.removedFromBasket", { name: line.name }));
                           }}
                         >
-                          Remove
+                          {t("common.remove")}
                           <span className="visually-hidden"> {line.name}</span>
                         </button>
                       </div>
@@ -196,27 +196,27 @@ export default function BasketDrawer() {
               <div className="basket-drawer__foot">
                 <DeliveryNote />
                 <dl className="basket-drawer__total">
-                  <dt>Subtotal</dt>
+                  <dt>{t("checkout.subtotal")}</dt>
                   <dd>{money.format(money.subtotal(lines))}</dd>
                 </dl>
                 <ChargeNote homeAmount={homeSubtotal} />
                 {blocked ? (
                   <p className="mini-cart-line__problem" role="status">
-                    Remove the items that can&rsquo;t be bought, then check out.
+                    {t("checkout.drawerBlocked")}
                   </p>
                 ) : (
                   <Link
                     className="btn btn--primary"
                     href={href(STORE_PATHS.checkout)}
                   >
-                    <Icon name="lock" size="sm" /> Checkout securely
+                    <Icon name="lock" size="sm" /> {t("checkout.checkoutSecurely")}
                   </Link>
                 )}
                 <Link
                   className="btn btn--outline"
                   href={href(STORE_PATHS.cart)}
                 >
-                  View basket
+                  {t("checkout.viewBasket")}
                 </Link>
               </div>
               <BasketSuggestions />

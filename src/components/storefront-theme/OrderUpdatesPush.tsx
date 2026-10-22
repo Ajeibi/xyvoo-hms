@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { canUsePush, currentPushSubscription, linkPush, subscribeToShopPush } from "./push-client";
-import { useStorefront } from "./StorefrontProvider";
+import { useStorefront, useT } from "./StorefrontProvider";
 
 type State = "checking" | "offer" | "working" | "on" | "blocked" | "failed" | "none";
 
@@ -13,6 +13,7 @@ type State = "checking" | "offer" | "working" | "on" | "blocked" | "failed" | "n
  */
 export default function OrderUpdatesPush({ orderId }: { orderId: string }) {
   const { slug, push } = useStorefront();
+  const t = useT();
   const [state, setState] = useState<State>("checking");
 
   useEffect(() => {
@@ -41,15 +42,15 @@ export default function OrderUpdatesPush({ orderId }: { orderId: string }) {
   return (
     <div className="order-push">
       {state === "on" ? (
-        <p role="status">We&rsquo;ll send a notification to this device when your order is on its way, and if anything changes.</p>
+        <p role="status">{t("checkout.pushOn")}</p>
       ) : (
         <>
-          <p>Get a notification on this device when your order is on its way.</p>
+          <p>{t("checkout.pushOffer")}</p>
           <button type="button" className="btn btn--outline btn--sm" onClick={turnOn} disabled={state === "working"}>
-            {state === "working" ? "Turning on…" : "Get order updates here"}
+            {state === "working" ? t("checkout.turningOn") : t("checkout.getUpdatesHere")}
           </button>
           <p className="form-status" role="status">
-            {state === "blocked" ? "Notifications are blocked for this shop in your browser settings. We'll still email you." : state === "failed" ? "We couldn't turn them on. We'll still email you." : ""}
+            {state === "blocked" ? t("checkout.pushBlocked") : state === "failed" ? t("checkout.pushFailed") : ""}
           </p>
         </>
       )}

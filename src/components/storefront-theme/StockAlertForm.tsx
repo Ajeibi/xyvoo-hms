@@ -2,7 +2,7 @@
 
 import { useId, useState, useSyncExternalStore } from "react";
 import { canUsePush, currentPushSubscription, subscribeToShopPush } from "./push-client";
-import { useStorefront } from "./StorefrontProvider";
+import { useStorefront, useT } from "./StorefrontProvider";
 import { useShopAccount } from "./useShopAccount";
 
 const noopSubscribe = () => () => {};
@@ -14,6 +14,7 @@ const noopSubscribe = () => () => {};
  */
 export default function StockAlertForm({ productId, variantId, label }: { productId: string; variantId: string | null; label: string }) {
   const { slug, push } = useStorefront();
+  const t = useT();
   const pushable = useSyncExternalStore(noopSubscribe, () => canUsePush(push), () => false);
   const { account } = useShopAccount();
   const id = useId();
@@ -31,7 +32,7 @@ export default function StockAlertForm({ productId, variantId, label }: { produc
       body: JSON.stringify({ productId, variantId, ...extra }),
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(typeof data.error === "string" ? data.error : "We couldn't save that. Please try again.");
+    if (!res.ok) throw new Error(typeof data.error === "string" ? data.error : t("product.saveFailed"));
     return data as { email: string | null; push?: boolean };
   };
 
@@ -41,13 +42,13 @@ export default function StockAlertForm({ productId, variantId, label }: { produc
     setStatus("");
     try {
       const sub = (await currentPushSubscription(push)) ?? (await subscribeToShopPush(slug, push, false));
-      if (sub === "blocked") return setStatus("Notifications are blocked for this shop in your browser settings. You can ask for an email instead.");
-      if (sub === "failed") return setStatus("We couldn't turn on notifications. You can ask for an email instead.");
+      if (sub === "blocked") return setStatus(t("product.notificationsBlocked"));
+      if (sub === "failed") return setStatus(t("product.notificationsFailed"));
       await send({ pushEndpoint: sub.endpoint });
       setDoneFor(key);
-      setStatus(`Done. We'll send a notification to this device when ${label} is back in stock.`);
+      setStatus(t("product.alertPushDone", { product: label }));
     } catch (err) {
-      setStatus(err instanceof TypeError ? "We couldn't connect. Check your internet connection and try again." : (err as Error).message);
+      setStatus(err instanceof TypeError ? t("common.offline") : (err as Error).message);
     } finally {
       setBusy(false);
     }
@@ -56,15 +57,15 @@ export default function StockAlertForm({ productId, variantId, label }: { produc
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const typed = email.trim();
-    if (!account && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(typed)) return setStatus("Enter an email address in the format name@example.com.");
+    if (!account && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(typed)) return setStatus(t("product.emailFormat"));
     setBusy(true);
     setStatus("");
     try {
       const data = await send({ email: account ? undefined : typed });
       setDoneFor(key);
-      setStatus(`Done. We'll email ${data.email} when ${label} is back in stock.`);
+      setStatus(t("product.alertEmailDone", { email: String(data.email), product: label }));
     } catch (err) {
-      setStatus(err instanceof TypeError ? "We couldn't connect. Check your internet connection and try again." : (err as Error).message);
+      setStatus(err instanceof TypeError ? t("common.offline") : (err as Error).message);
     } finally {
       setBusy(false);
     }
@@ -73,23 +74,23 @@ export default function StockAlertForm({ productId, variantId, label }: { produc
   return (
     <form className="stock-alert" onSubmit={submit} noValidate aria-labelledby={`${id}-title`}>
       <p className="stock-alert__title" id={`${id}-title`}>
-        Sold out for now
+        {t("product.soldOutForNow")}
       </p>
       {doneFor === key ? null : (
         <>
-          <p className="stock-alert__text">Want it? We&rsquo;ll send you one email as soon as it&rsquo;s back.</p>
+          <p className="stock-alert__text">{t("product.alertIntro")}</p>
           {account ? null : (
             <div className="field">
-              <label htmlFor={`${id}-email`}>Your email address</label>
+              <label htmlFor={`${id}-email`}>{t("product.yourEmail")}</label>
               <input className="input" id={`${id}-email`} type="email" inputMode="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
           )}
           <button className="btn btn--outline" type="submit" disabled={busy}>
-            {busy ? "Saving…" : "Email me when it’s back"}
+            {busy ? t("common.saving") : t("product.emailWhenBack")}
           </button>
           {pushable ? (
             <button className="stock-alert__alt" type="button" onClick={notifyHere} disabled={busy}>
-              Or send a notification to this device
+              {t("product.notifyDevice")}
             </button>
           ) : null}
         </>

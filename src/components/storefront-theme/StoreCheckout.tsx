@@ -15,7 +15,8 @@ import { allocateDiscount, computeTax, taxLabel, type TaxSettings } from "@/lib/
 import { decodeStoredReferral, referralStorageKey } from "@/lib/store/referral-link";
 import { getBasketCode, readCheckoutDetails, saveCheckoutDetails, setBasketCode } from "@/lib/shop/basket-code";
 import { pointsValue, redeemablePoints, type LoyaltySettings } from "@/lib/store/loyalty";
-import { useMoney, useStorefront } from "./StorefrontProvider";
+import type { Translator } from "@/lib/store/i18n/translate";
+import { useMoney, useStorefront, useT } from "./StorefrontProvider";
 import { currentPushSubscription, linkPush } from "./push-client";
 import ChargeNote from "./ChargeNote";
 import { useBasketPrices } from "./useBasketPrices";
@@ -29,10 +30,10 @@ type Errors = Partial<Record<FieldName, string>>;
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** "Nigeria" for "NG". */
-function countryNameFor(code: string) {
+/** "Nigeria" for "NG", in the shopper's language. */
+function countryNameFor(code: string, lang: string) {
   try {
-    return new Intl.DisplayNames(["en-GB"], { type: "region" }).of(code) ?? code;
+    return new Intl.DisplayNames([lang === "en" ? "en-GB" : lang], { type: "region" }).of(code) ?? code;
   } catch {
     return code;
   }
@@ -58,28 +59,38 @@ export type CheckoutDeliveryOption = {
 /** The shop's tax settings, for showing tax in the summary (the server works it out again). */
 export type CheckoutTax = Pick<TaxSettings, "enabled" | "name" | "rate" | "inclusive" | "onDelivery">;
 
-function validate(form: FormData, needsTerms: boolean, needsAddress: boolean, stateLabel = "state"): Errors {
+function validate(form: FormData, needsTerms: boolean, needsAddress: boolean, t: Translator, stateLabel = "state"): Errors {
   const value = (name: FieldName) => String(form.get(name) ?? "").trim();
   const errors: Errors = {};
-  if (!value("email")) errors.email = "Enter your email address.";
-  else if (!EMAIL_PATTERN.test(value("email"))) errors.email = "Enter an email address in the format name@example.com.";
-  if (!isValidPhoneNumber(value("phone"))) errors.phone = "Enter a phone number with its country code, so the shop can reach you about your order.";
-  if (!value("name")) errors.name = "Enter your full name.";
+  if (!value("email")) errors.email = t("checkout.errEmailRequired");
+  else if (!EMAIL_PATTERN.test(value("email"))) errors.email = t("checkout.errEmailFormat");
+  if (!isValidPhoneNumber(value("phone"))) errors.phone = t("checkout.errPhone");
+  if (!value("name")) errors.name = t("checkout.errFullName");
   if (needsAddress) {
-    if (!value("line1")) errors.line1 = "Enter the first line of your address.";
-    if (!value("city")) errors.city = "Enter your town or city.";
-    if (!value("state")) errors.state = `Choose your ${stateLabel}.`;
+    if (!value("line1")) errors.line1 = t("checkout.errLine1");
+    if (!value("city")) errors.city = t("checkout.errCity");
+    if (!value("state")) errors.state = t("checkout.errRegion", { region: stateLabel });
   }
-  if (needsTerms && !form.get("terms")) errors.terms = "Please confirm you agree to the terms of sale.";
+  if (needsTerms && !form.get("terms")) errors.terms = t("checkout.errTerms");
   return errors;
 }
 
-const PAYMENT_COPY: Record<CheckoutPaymentMethod, { title: string; text: string }> = {
-  card: { title: "Pay online now", text: "By card or bank transfer on Paystack's secure page. Your card details never pass through this shop." },
-  bank_transfer: { title: "Bank transfer", text: "We'll show the shop's account details after you order. The shop confirms your order once your payment arrives." },
-  pay_on_delivery: { title: "Pay on delivery", text: "Pay when your order arrives." },
-  whatsapp: { title: "Order on WhatsApp", text: "Send your order to the shop on WhatsApp and agree payment with them there." },
-};
+/** The words for each way to pay (keys in the checkout dictionary). */
+const PAYMENT_COPY = {
+  card: { title: "checkout.payCardTitle", text: "checkout.payCardText" },
+  bank_transfer: { title: "checkout.payBankTitle", text: "checkout.payBankText" },
+  pay_on_delivery: { title: "checkout.payOnDeliveryTitle", text: "checkout.payOnDeliveryText" },
+  whatsapp: { title: "checkout.payWhatsAppTitle", text: "checkout.payWhatsAppText" },
+} as const satisfies Record<CheckoutPaymentMethod, { title: string; text: string }>;
+
+/** What regionLabel() calls a country's states, in the shopper's language. */
+const REGION_WORDS = {
+  State: "checkout.regionState",
+  Region: "checkout.regionRegion",
+  County: "checkout.regionCounty",
+  Province: "checkout.regionProvince",
+  "State or region": "checkout.regionStateOrRegion",
+} as const;
 
 const FIELD_ORDER: FieldName[] = ["email", "phone", "name", "line1", "line2", "city", "state", "terms"];
 
@@ -126,6 +137,7 @@ export default function StoreCheckout({
     initialPaymentMethod && paymentMethods.includes(initialPaymentMethod) ? initialPaymentMethod : (paymentMethods[0] ?? "card"),
   );
   const money = useMoney();
+  const t = useT();
   // A discount code the shopper applied, checked by the shop's server. Cleared if the basket changes.
   const [discount, setDiscount] = useState<{ code: string; amount: number; freeDelivery: boolean; appliesTo: string[] | null; description: string; basket: string } | null>(
     null,
@@ -196,14 +208,15 @@ export default function StoreCheckout({
   const shownPointsOff = money.convert(pointsOff);
   const shownToPay = Math.max(shownTotal - shownGift - shownPointsOff, 0);
   const stateRegions = COUNTRY_REGIONS[countryCode]?.regions ?? null;
-  const stateLabel = regionLabel(countryCode);
-  const countryName = countryNameFor(countryCode);
+  const regionWord = regionLabel(countryCode);
+  const stateLabel = regionWord in REGION_WORDS ? t(REGION_WORDS[regionWord as keyof typeof REGION_WORDS]) : regionWord;
+  const countryName = countryNameFor(countryCode, t.lang);
   // A line taken off sale or sold out since it was added (see useBasketPrices): checkout waits until it's removed.
   const blocked = lines.some((l) => l.problem);
 
   const applyGiftCard = async () => {
     const typed = giftInput.trim();
-    if (!typed) return setGiftMessage("Enter your gift card code.");
+    if (!typed) return setGiftMessage(t("checkout.enterGiftCode"));
     setCheckingGift(true);
     setGiftMessage("");
     try {
@@ -214,14 +227,14 @@ export default function StoreCheckout({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setGiftMessage(typeof data.error === "string" ? data.error : "We couldn't check that gift card. Please try again.");
+        setGiftMessage(typeof data.error === "string" ? data.error : t("checkout.couldntCheckGift"));
         return;
       }
       setGiftCard({ code: data.code, balance: Number(data.balance) || 0 });
       setGiftInput("");
-      setGiftMessage(`Gift card added. It has ${money.format(money.convert(Number(data.balance) || 0))} on it.`);
+      setGiftMessage(t("checkout.giftAdded", { amount: money.format(money.convert(Number(data.balance) || 0)) }));
     } catch {
-      setGiftMessage("We couldn't connect. Check your internet connection and try again.");
+      setGiftMessage(t("common.offline"));
     } finally {
       setCheckingGift(false);
     }
@@ -230,7 +243,7 @@ export default function StoreCheckout({
   const applyCode = async (code?: string, fromBasket = false) => {
     const typed = (code ?? codeInput).trim();
     if (!typed) {
-      setCodeMessage("Enter a discount code.");
+      setCodeMessage(t("checkout.enterDiscountCode"));
       return;
     }
     setApplyingCode(true);
@@ -246,7 +259,7 @@ export default function StoreCheckout({
         setDiscount(null);
         if (code) forgetReferral();
         if (fromBasket) setBasketCode(slug, null);
-        setCodeMessage(typeof data.error === "string" ? data.error : "We couldn't check that code. Please try again.");
+        setCodeMessage(typeof data.error === "string" ? data.error : t("checkout.couldntCheckCode"));
         return;
       }
       setDiscount({
@@ -258,9 +271,9 @@ export default function StoreCheckout({
         basket: basketKey,
       });
       setCodeInput("");
-      setCodeMessage(`Code ${data.code} applied: ${data.description}.`);
+      setCodeMessage(t("checkout.codeApplied", { code: data.code, description: data.description }));
     } catch {
-      setCodeMessage("We couldn't connect. Check your internet connection and try again.");
+      setCodeMessage(t("common.offline"));
     } finally {
       setApplyingCode(false);
     }
@@ -299,7 +312,7 @@ export default function StoreCheckout({
   const showAddress = deliveryOptions.length === 0 || deliveryOptions.some((o) => !o.isPickup);
   const optionPrice = (o: CheckoutDeliveryOption) => {
     const fee = deliveryFor(o).fee;
-    return fee === 0 ? "Free" : money.format(money.convert(fee));
+    return fee === 0 ? t("checkout.free") : money.format(money.convert(fee));
   };
 
   // A signed-in shopper's details (and, on a confirmed device, their last address) are filled in for them.
@@ -408,7 +421,7 @@ export default function StoreCheckout({
     onBlur: (e: React.FocusEvent<HTMLInputElement>) => {
       const form = e.currentTarget.form;
       if (!errors[name] || !form) return;
-      const next = validate(new FormData(form), Boolean(termsHref), needsAddress, stateLabel.toLowerCase());
+      const next = validate(new FormData(form), Boolean(termsHref), needsAddress, t, stateLabel.toLowerCase());
       setErrors((prev) => ({ ...prev, [name]: next[name] }));
     },
   });
@@ -422,11 +435,11 @@ export default function StoreCheckout({
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const found = validate(form, Boolean(termsHref), needsAddress, stateLabel.toLowerCase());
+    const found = validate(form, Boolean(termsHref), needsAddress, t, stateLabel.toLowerCase());
     setErrors(found);
     const firstInvalid = FIELD_ORDER.find((f) => found[f]);
     if (firstInvalid) {
-      setStatus("Please correct the highlighted fields.");
+      setStatus(t("checkout.fixHighlighted"));
       setShowSummary(true);
       // The summary is drawn on this render; focus it on the next frame.
       window.requestAnimationFrame(() => errorSummary.current?.focus());
@@ -434,20 +447,20 @@ export default function StoreCheckout({
     }
     setShowSummary(false);
     if (blocked) {
-      setStatus("Some items in your basket can't be bought any more. Remove them from your basket, then try again.");
+      setStatus(t("checkout.blockedSubmit"));
       return;
     }
     if (tooHeavy) {
-      setStatus("Sorry, this order is too heavy for the delivery options in your area. Please contact the shop to arrange your order.");
+      setStatus(t("checkout.tooHeavySubmit"));
       return;
     }
     if (noDeliveryHere) {
-      setStatus("Sorry, this shop doesn't deliver to your address yet. Please contact the shop to arrange your order.");
+      setStatus(t("checkout.noDeliverySubmit"));
       return;
     }
 
     setSubmitting(true);
-    setStatus(method === "card" ? "Taking you to secure payment…" : "Placing your order…");
+    setStatus(method === "card" ? t("checkout.toSecurePayment") : t("checkout.placingOrder"));
     // Kept for this tab, so "Try again" after a card payment that didn't go through brings it back.
     const typed = (name: string) => String(form.get(name) ?? "").trim() || undefined;
     saveCheckoutDetails(slug, { name: typed("name"), email: typed("email"), phone: typed("phone"), line1: typed("line1"), line2: typed("line2"), city: typed("city"), state: typed("state"), postcode: typed("postcode"), note: typed("note") });
@@ -477,7 +490,7 @@ export default function StoreCheckout({
       const data = await res.json().catch(() => ({}));
       const next = typeof data.authorizationUrl === "string" ? data.authorizationUrl : typeof data.receivedUrl === "string" ? data.receivedUrl : null;
       if (!res.ok || !next) {
-        setStatus(typeof data.error === "string" ? data.error : "We couldn't place your order. Please try again.");
+        setStatus(typeof data.error === "string" ? data.error : t("checkout.couldntPlaceOrder"));
         setSubmitting(false);
         return;
       }
@@ -490,7 +503,7 @@ export default function StoreCheckout({
       // The basket is kept until payment is confirmed, so an abandoned payment can be retried.
       window.location.assign(data.authorizationUrl);
     } catch {
-      setStatus("We couldn't connect. Check your internet connection and try again.");
+      setStatus(t("common.offline"));
       setSubmitting(false);
     }
   };
@@ -498,7 +511,7 @@ export default function StoreCheckout({
   if (!hasHydrated) {
     return (
       <p className="body-copy" role="status">
-        Loading your basket…
+        {t("checkout.loadingBasket")}
       </p>
     );
   }
@@ -507,10 +520,10 @@ export default function StoreCheckout({
     return (
       <div className="cart-empty">
         <Icon name="bag" />
-        <h2 className="h-section">Your basket is empty</h2>
-        <p className="body-copy">Add something to your basket before checking out.</p>
+        <h2 className="h-section">{t("checkout.basketEmpty")}</h2>
+        <p className="body-copy">{t("checkout.addBeforeCheckout")}</p>
         <Link className="btn btn--primary" href={href(STORE_PATHS.products)}>
-          Start shopping
+          {t("checkout.startShopping")}
         </Link>
       </div>
     );
@@ -523,7 +536,7 @@ export default function StoreCheckout({
         className="contact-form"
         onSubmit={submit}
         noValidate
-        aria-label="Checkout"
+        aria-label={t("checkout.checkout")}
         // Leaving the email, phone or name field saves the checkout for abandoned-cart follow-up.
         onBlur={(e) => {
           const target = e.target as EventTarget & { name?: string; id?: string };
@@ -533,7 +546,7 @@ export default function StoreCheckout({
         {showSummary && FIELD_ORDER.some((f) => errors[f]) ? (
           <div className="error-summary" ref={errorSummary} tabIndex={-1} role="alert" aria-labelledby="co-error-summary-title">
             <h2 className="error-summary__title" id="co-error-summary-title">
-              There&rsquo;s a problem
+              {t("checkout.problemTitle")}
             </h2>
             <ul>
               {FIELD_ORDER.filter((f) => errors[f]).map((f) => (
@@ -552,43 +565,42 @@ export default function StoreCheckout({
             </ul>
           </div>
         ) : null}
-        <p className="body-copy">All fields are required unless marked optional.</p>
+        <p className="body-copy">{t("checkout.allRequired")}</p>
 
         <section className="checkout-step" aria-labelledby="step-contact">
           <h2 className="step-title" id="step-contact">
             <span className="step-num" aria-hidden="true">
               1
             </span>
-            Contact details
+            {t("checkout.contactDetails")}
           </h2>
           <p className="body-copy checkout-account">
             {account ? (
               <>
-                Signed in as <strong>{account.email}</strong>. Your details are filled in for you.
+                {t.rich("checkout.signedInAs", { email: <strong>{account.email}</strong> })}
               </>
             ) : (
               <>
-                We&rsquo;ll set up your account from these details, so you can follow your order and check out faster next time. No password needed.{" "}
-                <Link href={href("/account")}>Already have an account? Sign in</Link>
+                {t("checkout.accountFromDetails")}{" "}
+                <Link href={href("/account")}>{t("checkout.haveAccount")}</Link>
               </>
             )}
           </p>
           <div className="field">
-            <label htmlFor="co-name">Full name</label>
+            <label htmlFor="co-name">{t("checkout.fullName")}</label>
             <input className="input" type="text" autoComplete="name" {...field("name")} />
             {errorFor("name")}
           </div>
           <div className="field">
-            <label htmlFor="co-email">Email address</label>
+            <label htmlFor="co-email">{t("common.email")}</label>
             <input className="input" type="email" autoComplete="email" inputMode="email" {...field("email")} />
             <p className="hint">
-              So the shop can contact you about your order. Your details and basket are saved as you type, so if you don&rsquo;t finish, the
-              shop can help or email you a reminder (you can stop these at any time).
+              {t("checkout.emailHint")}
             </p>
             {errorFor("email")}
           </div>
           <div className="field">
-            <label htmlFor="co-phone">Phone number</label>
+            <label htmlFor="co-phone">{t("common.phone")}</label>
             <PhoneField
               id="co-phone"
               value={phoneNumber}
@@ -600,14 +612,15 @@ export default function StoreCheckout({
               countryCode={countryCode}
               invalid={Boolean(errors.phone)}
               describedBy={errors.phone ? "co-phone-error" : undefined}
+              lang={t.lang}
             />
             <input type="hidden" name="phone" value={phoneNumber} />
-            <p className="hint">Only used for your order.</p>
+            <p className="hint">{t("checkout.phoneHint")}</p>
             {errorFor("phone")}
             {offerWhatsAppUpdates ? (
               <label className="check check--top">
                 <input type="checkbox" name="whatsappUpdates" value="yes" />
-                <span>Send my order updates to this number on WhatsApp: when it&rsquo;s confirmed, sent and delivered. Reply STOP at any time to stop them.</span>
+                <span>{t("checkout.whatsappUpdates")}</span>
               </label>
             ) : null}
           </div>
@@ -619,37 +632,37 @@ export default function StoreCheckout({
               <span className="step-num" aria-hidden="true">
                 2
               </span>
-              Delivery address
+              {t("checkout.deliveryAddress")}
             </h2>
             {/* Said before the address is typed, so nobody abroad fills it in for nothing. */}
             <p className="hint checkout-country">
               <Icon name="pin" size="sm" />
               <span>
-                {storeName} delivers within <strong>{countryName}</strong>. For delivery anywhere else, please contact the shop.
+                {t.rich("checkout.deliversWithin", { store: storeName, country: <strong>{countryName}</strong> })}
               </span>
             </p>
-            {!needsAddress ? <p className="hint">You&rsquo;re collecting your order, so you don&rsquo;t need to enter an address.</p> : null}
+            {!needsAddress ? <p className="hint">{t("checkout.collectingNoAddress")}</p> : null}
             <div className="field">
-              <label htmlFor="co-line1">Address line 1{!needsAddress ? <span className="optional"> (optional)</span> : null}</label>
+              <label htmlFor="co-line1">{t("checkout.addressLine1")}{!needsAddress ? <span className="optional"> {t("common.optional")}</span> : null}</label>
               <input className="input" type="text" autoComplete="address-line1" {...field("line1")} />
               {errorFor("line1")}
             </div>
             <div className="field">
               <label htmlFor="co-line2">
-                Address line 2 <span className="optional">(optional)</span>
+                {t("checkout.addressLine2")} <span className="optional">{t("common.optional")}</span>
               </label>
               <input className="input" type="text" autoComplete="address-line2" {...field("line2")} />
             </div>
             <div className="form-row">
               <div className="field">
-                <label htmlFor="co-city">Town or city{!needsAddress ? <span className="optional"> (optional)</span> : null}</label>
+                <label htmlFor="co-city">{t("checkout.townOrCity")}{!needsAddress ? <span className="optional"> {t("common.optional")}</span> : null}</label>
                 <input className="input" type="text" autoComplete="address-level2" {...field("city")} onChange={(e) => setAddress((a) => ({ ...a, city: e.target.value }))} />
                 {errorFor("city")}
               </div>
               <div className="field">
                 <label htmlFor="co-state">
                   {stateLabel}
-                  {!needsAddress ? <span className="optional"> (optional)</span> : null}
+                  {!needsAddress ? <span className="optional"> {t("common.optional")}</span> : null}
                 </label>
                 {stateRegions ? (
                   <select
@@ -666,7 +679,7 @@ export default function StoreCheckout({
                       if (errors.state && value) setErrors((prev) => ({ ...prev, state: undefined }));
                     }}
                   >
-                    <option value="">Choose your {stateLabel.toLowerCase()}</option>
+                    <option value="">{t("checkout.chooseRegion", { region: stateLabel.toLowerCase() })}</option>
                     {stateRegions.map((r) => (
                       <option key={r} value={r}>
                         {r}
@@ -681,7 +694,7 @@ export default function StoreCheckout({
             </div>
             <div className="field field--short">
               <label htmlFor="co-postcode">
-                Postcode <span className="optional">(optional)</span>
+                {t("checkout.postcode")} <span className="optional">{t("common.optional")}</span>
               </label>
               <input className="input" type="text" autoComplete="postal-code" maxLength={20} id="co-postcode" name="postcode" />
             </div>
@@ -694,30 +707,30 @@ export default function StoreCheckout({
               <span className="step-num" aria-hidden="true">
                 {showAddress ? 3 : 2}
               </span>
-              Delivery method
+              {t("checkout.deliveryMethod")}
             </h2>
             {/* Announced as the options change with the address. */}
             <p className={`delivery-note${noDeliveryHere || tooHeavy ? " delivery-note--warn" : ""}`} role="status">
               {tooHeavy
-                ? "Sorry, this order is heavier than the delivery options for your area can carry. Please contact the shop to arrange it, or remove something from your basket."
+                ? t("checkout.tooHeavyNote")
                 : noDeliveryHere
-                ? `Sorry, this shop doesn't deliver to ${address.city.trim() || address.state.trim()} yet. Check your address, or contact the shop to arrange your order.`
+                ? t("checkout.noDeliveryHere", { place: address.city.trim() || address.state.trim() })
                 : waitingForAddress
-                  ? "Enter your address above to see every delivery option for your area."
+                  ? t("checkout.enterAddressForOptions")
                   : addressKnown && offered.length < deliveryOptions.length
-                    ? `Showing the ${offered.length === 1 ? "option" : "options"} that deliver to your address.`
+                    ? t("checkout.showingOptions", { count: offered.length })
                     : ""}
             </p>
             {offered.length ? (
               <fieldset>
-                <legend className="visually-hidden">Choose a delivery method</legend>
+                <legend className="visually-hidden">{t("checkout.chooseDeliveryMethod")}</legend>
                 <div className="radio-cards">
                   {offered.map((o) => (
                     <label className="radio-card" key={o.id}>
                       <input type="radio" name="delivery" value={o.id} checked={zone?.id === o.id} onChange={() => setZoneId(o.id)} />
                       <span>
                         <strong>{o.name}</strong>
-                        {o.etaText || o.isPickup ? <small>{o.isPickup ? o.etaText || "Collect from the shop" : o.etaText}</small> : null}
+                        {o.etaText || o.isPickup ? <small>{o.isPickup ? o.etaText || t("checkout.collectFromShop") : o.etaText}</small> : null}
                       </span>
                       <span>{optionPrice(o)}</span>
                     </label>
@@ -733,17 +746,17 @@ export default function StoreCheckout({
             <span className="step-num" aria-hidden="true">
               {2 + (deliveryOptions.length ? 1 : 0) + (showAddress ? 1 : 0)}
             </span>
-            Payment
+            {t("checkout.payment")}
           </h2>
           {paymentMethods.length > 1 ? (
             <fieldset className="radio-cards">
-              <legend className="visually-hidden">Choose how to pay</legend>
+              <legend className="visually-hidden">{t("checkout.chooseHowToPay")}</legend>
               {paymentMethods.map((m) => (
                 <label className="radio-card" key={m}>
                   <input type="radio" name="paymentMethod" value={m} checked={method === m} onChange={() => setMethod(m)} />
                   <span>
-                    <strong>{PAYMENT_COPY[m].title}</strong>
-                    <span className="hint">{PAYMENT_COPY[m].text}</span>
+                    <strong>{t(PAYMENT_COPY[m].title)}</strong>
+                    <span className="hint">{t(PAYMENT_COPY[m].text)}</span>
                   </span>
                 </label>
               ))}
@@ -751,37 +764,35 @@ export default function StoreCheckout({
           ) : (
             <div className="payment-box">
               <p>
-                <strong>{PAYMENT_COPY[method].title}</strong>
+                <strong>{t(PAYMENT_COPY[method].title)}</strong>
               </p>
-              <p>{PAYMENT_COPY[method].text}</p>
+              <p>{t(PAYMENT_COPY[method].text)}</p>
             </div>
           )}
           <div className="field">
             <label htmlFor="co-note">
-              Note for {storeName} <span className="optional">(optional)</span>
+              {t("checkout.noteFor", { store: storeName })} <span className="optional">{t("common.optional")}</span>
             </label>
             <textarea className="input" id="co-note" name="note" rows={2} maxLength={500} aria-describedby="co-note-hint" />
             <p className="hint" id="co-note-hint">
-              For example, delivery instructions or a gift message.
+              {t("checkout.noteHint")}
             </p>
           </div>
           <label className="check check--top">
             <input type="checkbox" name="marketing" value="yes" />
-            <span>Send me news and offers from {storeName} by email. You can unsubscribe at any time.</span>
+            <span>{t("checkout.marketingConsent", { store: storeName })}</span>
           </label>
           {termsHref ? (
             <>
               <label className="check check--top">
                 <input type="checkbox" value="yes" {...field("terms")} />
                 <span>
-                  I agree to the <Link href={termsHref}>terms of sale</Link>
-                  {privacyHref ? (
-                    <>
-                      {" "}
-                      and have read the <Link href={privacyHref}>privacy policy</Link>
-                    </>
-                  ) : null}
-                  .
+                  {privacyHref
+                    ? t.rich("checkout.agreeTermsPrivacy", {
+                        terms: <Link href={termsHref}>{t("checkout.termsOfSale")}</Link>,
+                        privacy: <Link href={privacyHref}>{t("checkout.privacyPolicy")}</Link>,
+                      })
+                    : t.rich("checkout.agreeTerms", { terms: <Link href={termsHref}>{t("checkout.termsOfSale")}</Link> })}
                 </span>
               </label>
               {errorFor("terms")}
@@ -789,22 +800,26 @@ export default function StoreCheckout({
           ) : null}
           {blocked ? (
             <p className="cart-line__problem" role="status">
-              Some items in your basket can&rsquo;t be bought any more. <Link href={href(STORE_PATHS.cart)}>Remove them from your basket</Link>, then come back.
+              {t.rich("checkout.blockedCheckout", { link: <Link href={href(STORE_PATHS.cart)}>{t("checkout.removeFromBasket")}</Link> })}
             </p>
           ) : null}
           <button className="btn btn--primary" type="submit" disabled={submitting || blocked}>
             <Icon name="lock" size="sm" />
-            {submitting ? "Please wait…" : method === "card" ? `Pay ${money.formatHome(Math.max(total - giftUsed - pointsOff, 0))}` : `Place order (${money.formatHome(Math.max(total - giftUsed - pointsOff, 0))})`}
+            {submitting
+              ? t("checkout.pleaseWait")
+              : method === "card"
+                ? t("checkout.payAmount", { amount: money.formatHome(Math.max(total - giftUsed - pointsOff, 0)) })
+                : t("checkout.placeOrderAmount", { amount: money.formatHome(Math.max(total - giftUsed - pointsOff, 0)) })}
           </button>
           <p className="form-status" role="status">
             {status}
           </p>
           <p className="checkout-trust">
-            <Icon name="lock" size="sm" /> {method === "card" ? "Payments are handled securely by Paystack." : "Your details are only shared with this shop."}
+            <Icon name="lock" size="sm" /> {method === "card" ? t("checkout.trustCard") : t("checkout.trustOffline")}
             {deliveryReturnsHref ? (
               <>
                 {" "}
-                <Link href={deliveryReturnsHref}>Delivery and returns</Link>
+                <Link href={deliveryReturnsHref}>{t("checkout.deliveryReturns")}</Link>
               </>
             ) : null}
           </p>
@@ -812,15 +827,15 @@ export default function StoreCheckout({
       </form>
 
       <aside className="summary" aria-labelledby="co-summary-title">
-        <h2 id="co-summary-title">Your order</h2>
+        <h2 id="co-summary-title">{t("checkout.yourOrder")}</h2>
         {trade ? (
           <p className="price-change" role="status">
-            Your trade prices are applied. They&rsquo;re checked again when you place your order.
+            {t("checkout.tradePrices")}
           </p>
         ) : null}
         {pricesChanged && !trade ? (
           <p className="price-change" role="status">
-            Some prices have changed since you added them to your basket. Your order shows today&rsquo;s prices.
+            {t("checkout.pricesChangedOrder")}
           </p>
         ) : null}
         <ul className="mini-lines">
@@ -833,7 +848,7 @@ export default function StoreCheckout({
               <span>
                 <strong>{line.name}</strong>
                 <span className="muted">
-                  {line.variantLabel ? `${line.variantLabel} · ` : ""}Qty {line.quantity}
+                  {line.variantLabel ? `${line.variantLabel} · ` : ""}{t("checkout.qty", { quantity: line.quantity })}
                 </span>
               </span>
               <span>{money.format(money.lineUnit(line) * line.quantity)}</span>
@@ -841,7 +856,7 @@ export default function StoreCheckout({
           ))}
         </ul>
         <div className="discount-code">
-          <label htmlFor="co-discount">Discount code <span className="optional">(optional)</span></label>
+          <label htmlFor="co-discount">{t("checkout.discountCode")} <span className="optional">{t("common.optional")}</span></label>
           <div className="promo">
             <input
               id="co-discount"
@@ -861,35 +876,35 @@ export default function StoreCheckout({
               aria-describedby="co-discount-status"
             />
             <button className="btn btn--outline" type="button" onClick={() => applyCode()} disabled={applyingCode}>
-              {applyingCode ? "Checking…" : "Apply"}
+              {applyingCode ? t("checkout.checking") : t("checkout.apply")}
             </button>
           </div>
           <p className="hint" id="co-discount-status" role="status">
-            {discount && !activeDiscount ? "Your basket changed, so please apply your code again." : codeMessage}
+            {discount && !activeDiscount ? t("checkout.codeChanged") : codeMessage}
           </p>
           {activeDiscount ? (
             <p className="discount-code__applied">
               <Icon name="check" size="sm" /> <strong>{activeDiscount.code}</strong> {activeDiscount.description}{" "}
-              <button type="button" className="link-button" onClick={() => { setDiscount(null); forgetReferral(); setBasketCode(slug, null); setCodeMessage("Discount code removed."); }}>
-                Remove<span className="visually-hidden"> discount code {activeDiscount.code}</span>
+              <button type="button" className="link-button" onClick={() => { setDiscount(null); forgetReferral(); setBasketCode(slug, null); setCodeMessage(t("checkout.discountRemoved")); }}>
+                {t("common.remove")}<span className="visually-hidden"> {t("checkout.discountCodeHidden", { code: activeDiscount.code })}</span>
               </button>
             </p>
           ) : null}
         </div>
         <div className="discount-code">
-          <label htmlFor="co-giftcard">Gift card <span className="optional">(optional)</span></label>
+          <label htmlFor="co-giftcard">{t("checkout.giftCard")} <span className="optional">{t("common.optional")}</span></label>
           {giftCard ? (
             <p className="discount-code__applied">
-              <Icon name="check" size="sm" /> <strong>{giftCard.code}</strong> {money.format(money.convert(giftCard.balance))} on this card{" "}
+              <Icon name="check" size="sm" /> <strong>{giftCard.code}</strong> {t("checkout.giftOnCard", { amount: money.format(money.convert(giftCard.balance)) })}{" "}
               <button
                 type="button"
                 className="link-button"
                 onClick={() => {
                   setGiftCard(null);
-                  setGiftMessage("Gift card removed.");
+                  setGiftMessage(t("checkout.giftRemoved"));
                 }}
               >
-                Remove<span className="visually-hidden"> gift card {giftCard.code}</span>
+                {t("common.remove")}<span className="visually-hidden"> {t("checkout.giftCardHidden", { code: giftCard.code })}</span>
               </button>
             </p>
           ) : (
@@ -912,7 +927,7 @@ export default function StoreCheckout({
                 aria-describedby="co-giftcard-status"
               />
               <button className="btn btn--outline" type="button" onClick={applyGiftCard} disabled={checkingGift}>
-                {checkingGift ? "Checking…" : "Apply"}
+                {checkingGift ? t("checkout.checking") : t("checkout.apply")}
               </button>
             </div>
           )}
@@ -925,8 +940,8 @@ export default function StoreCheckout({
             <label className="check check--top">
               <input type="checkbox" checked={usePoints} onChange={(e) => setUsePoints(e.target.checked)} />
               <span>
-                Use my points: {availablePoints.toLocaleString("en-GB")} points for {money.format(money.convert(pointsValue(pointSettings, availablePoints)))} off
-                <span className="hint"> You have {loyalty.balance.toLocaleString("en-GB")} points.</span>
+                {t("checkout.usePoints", { points: availablePoints, amount: money.format(money.convert(pointsValue(pointSettings, availablePoints))) })}
+                <span className="hint"> {t("checkout.youHavePoints", { points: loyalty.balance })}</span>
               </span>
             </label>
           </div>
@@ -934,20 +949,20 @@ export default function StoreCheckout({
         <dl>
           {zone || activeDiscount || taxResult.amount > 0 || giftCard || pointsToUse > 0 ? (
             <>
-              <dt>Subtotal</dt>
+              <dt>{t("checkout.subtotal")}</dt>
               <dd>{money.format(shownSubtotal)}</dd>
             </>
           ) : null}
           {activeDiscount && !activeDiscount.freeDelivery ? (
             <>
-              <dt>Discount ({activeDiscount.code})</dt>
+              <dt>{t("checkout.discountWithCode", { code: activeDiscount.code })}</dt>
               <dd>−{money.format(shownDiscount)}</dd>
             </>
           ) : null}
           {zone ? (
             <>
-              <dt>{zone.isPickup ? "Collection" : freeDeliveryCode ? `Delivery (${activeDiscount?.code})` : "Delivery"}</dt>
-              <dd>{deliveryFee === 0 ? (freeDeliveryCode && !zone.isPickup ? "Free delivery" : "Free") : money.format(shownDeliveryFee)}</dd>
+              <dt>{zone.isPickup ? t("checkout.collection") : freeDeliveryCode ? t("checkout.deliveryWithCode", { code: activeDiscount?.code ?? "" }) : t("checkout.delivery")}</dt>
+              <dd>{deliveryFee === 0 ? (freeDeliveryCode && !zone.isPickup ? t("checkout.freeDelivery") : t("checkout.free")) : money.format(shownDeliveryFee)}</dd>
             </>
           ) : null}
           {taxResult.amount > 0 && !taxResult.inclusive ? (
@@ -958,22 +973,22 @@ export default function StoreCheckout({
           ) : null}
           {giftCard ? (
             <>
-              <dt>Gift card</dt>
+              <dt>{t("checkout.giftCard")}</dt>
               <dd>−{money.format(shownGift)}</dd>
             </>
           ) : null}
           {pointsToUse > 0 ? (
             <>
-              <dt>Points ({pointsToUse.toLocaleString("en-GB")})</dt>
+              <dt>{t("checkout.pointsCount", { points: pointsToUse })}</dt>
               <dd>−{money.format(shownPointsOff)}</dd>
             </>
           ) : null}
-          <dt className="total">{giftCard || pointsToUse > 0 ? "To pay" : "Total"}</dt>
+          <dt className="total">{giftCard || pointsToUse > 0 ? t("checkout.toPay") : t("checkout.total")}</dt>
           <dd className="total">{money.format(giftCard || pointsToUse > 0 ? shownToPay : shownTotal)}</dd>
         </dl>
         {taxResult.amount > 0 && taxResult.inclusive ? (
           <p className="tax-note">
-            Includes {tax.name} of {money.format(shownTax)}
+            {t("checkout.includesNamedTax", { tax: tax.name, amount: money.format(shownTax) })}
           </p>
         ) : null}
         {delivery.rule ? (
@@ -983,7 +998,7 @@ export default function StoreCheckout({
         ) : null}
         <ChargeNote homeAmount={Math.max(total - giftUsed - pointsOff, 0)} />
         <Link className="link-arrow" href={href(STORE_PATHS.cart)}>
-          Edit basket
+          {t("checkout.editBasket")}
         </Link>
       </aside>
     </div>

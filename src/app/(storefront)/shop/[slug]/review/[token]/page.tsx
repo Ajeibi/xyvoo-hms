@@ -6,9 +6,14 @@ import { reviewerName } from "@/lib/store/reviews";
 import { loadReviewableOrder } from "@/lib/store/reviews-server";
 import { STORE_PATHS, storeHref } from "@/lib/store/site/links";
 import { getStorefront } from "@/lib/store/site/storefront";
+import { getShopT } from "@/lib/store/i18n/server";
 
 // A private link: never indexed, never cached.
-export const metadata: Metadata = { title: "Review your order", robots: { index: false, follow: false } };
+export async function generateMetadata({ params }: { params: Promise<{ slug: string; token: string }> }): Promise<Metadata> {
+  const storefront = await getStorefront((await params).slug);
+  const title = storefront ? getShopT(storefront)("product.reviewYourOrder") : "Review your order";
+  return { title, robots: { index: false, follow: false } };
+}
 export const dynamic = "force-dynamic";
 
 export default async function ReviewOrderPage({ params }: { params: Promise<{ slug: string; token: string }> }) {
@@ -18,23 +23,24 @@ export default async function ReviewOrderPage({ params }: { params: Promise<{ sl
   const order = await loadReviewableOrder(storefront.tenant.id, token);
   if (!order) notFound();
   const shopHref = storeHref(storefront.basePath, STORE_PATHS.products);
+  const t = getShopT(storefront);
 
   return (
     <div className="container section">
-      <p className="eyebrow">Your order</p>
-      <h1 className="h-page">How did we do?</h1>
+      <p className="eyebrow">{t("product.yourOrder")}</p>
+      <h1 className="h-page">{t("product.howDidWeDo")}</h1>
       {order.status !== "Delivered" ? (
         <div className="body-copy">
-          <p>You can review your order once it&rsquo;s been delivered. We&rsquo;ll email you when it&rsquo;s time.</p>
+          <p>{t("product.reviewAfterDelivery")}</p>
           <p>
             <Link className="link-arrow" href={shopHref}>
-              Back to the shop
+              {t("product.backToShop")}
             </Link>
           </p>
         </div>
       ) : (
         <>
-          <p className="lead">Rate the items you bought, tell other shoppers what you thought, and add a photo if you like. Skip anything you&rsquo;d rather not review.</p>
+          <p className="lead">{t("product.reviewIntro")}</p>
           <ReviewForm
             token={token}
             defaultName={reviewerName(order.customerName)}

@@ -24,6 +24,20 @@ export const SHOP_PRODUCT_COLUMNS = LEGACY_PRODUCT_COLUMNS.replace("compare_at_p
   "price_override, sale_price, sale_starts_at, sale_ends_at, stock,",
 );
 
+/** The shop's columns plus each size or colour's own currency prices (once that column has been added). */
+const WITH_VARIANT_PRICES = SHOP_PRODUCT_COLUMNS.replace("image_url, barcode, archived_at)", "image_url, barcode, archived_at, currency_prices)");
+let variantPricesMissing = false;
+
+/** The columns to read for the shop: with the options' own currency prices, unless that column isn't there yet. */
+export const shopProductColumns = () => (variantPricesMissing ? SHOP_PRODUCT_COLUMNS : WITH_VARIANT_PRICES);
+
+/** Whether a query failed only because the options' currency prices column hasn't been added yet (read shopProductColumns() again, then retry). */
+export function missingVariantPrices(error: { code?: string; message?: string } | null) {
+  if (!error || !/currency_prices/.test(error.message || "")) return false;
+  variantPricesMissing = true;
+  return true;
+}
+
 /** Whether a query failed only because the sale columns haven't been added yet. */
 export const missingSaleColumns = (error: { code?: string; message?: string } | null) =>
   Boolean(error && (error.code === "42703" || /sale_(price|starts_at|ends_at)/.test(error.message || "")));
@@ -38,6 +52,8 @@ export type ShopProductVariant = {
   compareAtPrice: number | null;
   /** When the variant's own sale ends, if it's on sale and has an end. */
   saleEndsAt: string | null;
+  /** The merchant's own prices for this option in other currencies (empty: as the product's, or converted). */
+  fixedPrices: FixedPrices;
   stock: number;
   imageUrl: string | null;
   barcode: string | null;
@@ -140,6 +156,7 @@ export type ShopProductRow = {
         image_url: string | null;
         barcode: string | null;
         archived_at: string | null;
+        currency_prices?: Record<string, number> | null;
       }>
     | null;
   product_prices: Array<{ currency: string; price: number; compare_at_price: number | null }> | null;
@@ -161,6 +178,18 @@ function fixedPricesFor(rows: ShopProductRow["product_prices"], productPrice: { 
   );
 }
 
+/** An option's own prices in other currencies; cut by the same share as its home price while it's on sale. */
+function variantFixedPrices(prices: Record<string, number> | null | undefined, sale: { price: number; regular: number } | null): FixedPrices {
+  const share = sale && sale.regular > 0 ? sale.price / sale.regular : null;
+  const out: FixedPrices = {};
+  for (const [code, raw] of Object.entries(prices || {})) {
+    const price = Number(raw);
+    if (!Number.isFinite(price) || price <= 0) continue;
+    out[code] = share == null ? { price, compareAt: null } : { price: Math.round(price * share * 100) / 100, compareAt: price };
+  }
+  return out;
+}
+
 function mapRow(row: ShopProductRow, salesEnabled: boolean, now: Date): ShopProduct {
   const base = { price: Number(row.price) || 0, ...saleFromRow(row) };
   const productPrice = effectivePrice(base, null, now, salesEnabled);
@@ -178,6 +207,7 @@ function mapRow(row: ShopProductRow, salesEnabled: boolean, now: Date): ShopProd
       priceOverride: ownSale || override != null ? own.price : null,
       compareAtPrice: ownSale ? own.regular : null,
       saleEndsAt: ownSale ? own.saleEndsAt : null,
+      fixedPrices: variantFixedPrices(v.currency_prices, ownSale ? { price: own.price, regular: own.regular } : null),
       stock: v.stock,
       imageUrl: v.image_url,
       barcode: v.barcode,
@@ -291,7 +321,7 @@ export async function listShopProducts(
     let query = supabase
       .schema("store")
       .from("products")
-      .select(withSales ? SHOP_PRODUCT_COLUMNS : LEGACY_PRODUCT_COLUMNS, { count: "exact" })
+      .select(withSales ? shopProductColumns() : LEGACY_PRODUCT_COLUMNS, { count: "exact" })
       .eq("tenant_id", tenantId)
       .eq("status", "active")
       .eq("visibility", "visible")
@@ -317,6 +347,7 @@ export async function listShopProducts(
 
   let withSales = true;
   let result = await run(true);
+  if (missingVariantPrices(result.error)) result = await run(true);
   if (missingSaleColumns(result.error)) {
     withSales = false;
     result = await run(false);
@@ -378,7 +409,7 @@ export async function listShopCategories(tenantId: string): Promise<Array<{ name
 export const getShopProductBySlug = cache(async (tenantId: string, slug: string): Promise<ShopProduct | null> => {
   const supabase = createServerSupabaseClient();
 
-  let columns = SHOP_PRODUCT_COLUMNS;
+  let columns = shopProductColumns();
   const lookup = (column: "slug" | "id") =>
     supabase
       .schema("store")
@@ -392,6 +423,10 @@ export const getShopProductBySlug = cache(async (tenantId: string, slug: string)
       .maybeSingle();
 
   let { data, error } = await lookup("slug");
+  if (missingVariantPrices(error)) {
+    columns = shopProductColumns();
+    ({ data, error } = await lookup("slug"));
+  }
   if (missingSaleColumns(error)) {
     columns = LEGACY_PRODUCT_COLUMNS;
     ({ data, error } = await lookup("slug"));
@@ -402,7 +437,9 @@ export const getShopProductBySlug = cache(async (tenantId: string, slug: string)
   if (error) throw new Error(error.message);
   if (!data) return null;
 
-  return (await mapRows(tenantId, [data as unknown as ShopProductRow]))[0];
+  // In the shopper's language, where the merchant has translated it.
+  const { translateProducts } = await import("./product-translations");
+  return (await translateProducts(tenantId, await mapRows(tenantId, [data as unknown as ShopProductRow])))[0];
 });
 
 /** Products on sale in the shop, by id (e.g. to put a saved basket back). Ones no longer on sale are left out. */
@@ -421,7 +458,8 @@ export async function getShopProductsByIds(tenantId: string, ids: string[]): Pro
       .eq("visibility", "visible")
       .eq("approval_status", "approved");
 
-  let { data, error } = await lookup(SHOP_PRODUCT_COLUMNS);
+  let { data, error } = await lookup(shopProductColumns());
+  if (missingVariantPrices(error)) ({ data, error } = await lookup(shopProductColumns()));
   if (missingSaleColumns(error)) ({ data, error } = await lookup(LEGACY_PRODUCT_COLUMNS));
   if (error) throw new Error(error.message);
   return mapRows(tenantId, (data || []) as unknown as ShopProductRow[]);

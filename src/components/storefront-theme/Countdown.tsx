@@ -1,12 +1,13 @@
 "use client";
 
 import { Fragment, useEffect, useState } from "react";
+import { useT } from "./StorefrontProvider";
 
 const UNITS = [
-  { key: "d", label: "Days", ms: 86_400_000 },
-  { key: "h", label: "Hours", ms: 3_600_000 },
-  { key: "m", label: "Minutes", ms: 60_000 },
-  { key: "s", label: "Seconds", ms: 1000 },
+  { key: "d", label: "chrome.unitDays", ms: 86_400_000 },
+  { key: "h", label: "chrome.unitHours", ms: 3_600_000 },
+  { key: "m", label: "chrome.unitMinutes", ms: 60_000 },
+  { key: "s", label: "chrome.unitSeconds", ms: 1000 },
 ] as const;
 
 function split(remaining: number) {
@@ -25,6 +26,7 @@ function split(remaining: number) {
  */
 export default function Countdown({ endsAt, endsText }: { endsAt: string; endsText: string }) {
   const [remaining, setRemaining] = useState<number | null>(null);
+  const t = useT();
 
   useEffect(() => {
     const end = new Date(endsAt).getTime();
@@ -39,7 +41,7 @@ export default function Countdown({ endsAt, endsText }: { endsAt: string; endsTe
 
   return (
     <div className={`countdown${ended ? " is-ended" : ""}`} data-countdown={endsAt}>
-      <p className="visually-hidden">Offer ends {endsText}</p>
+      <p className="visually-hidden">{t("chrome.offerEnds", { date: endsText })}</p>
       {!ended ? (
         <ul className="countdown__units" aria-hidden="true">
           {UNITS.map((u, i) => (
@@ -47,13 +49,13 @@ export default function Countdown({ endsAt, endsText }: { endsAt: string; endsTe
               {i > 0 ? <li className="countdown__sep">:</li> : null}
               <li>
                 <b>{digits[i]}</b>
-                {u.label}
+                {t(u.label)}
               </li>
             </Fragment>
           ))}
         </ul>
       ) : (
-        <p className="deal-timer__ended">This offer has ended</p>
+        <p className="deal-timer__ended">{t("chrome.offerEnded")}</p>
       )}
     </div>
   );

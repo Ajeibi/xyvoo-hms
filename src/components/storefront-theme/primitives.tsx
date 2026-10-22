@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import type { Translator } from "@/lib/store/i18n/translate";
 
 export const ICON_SPRITE = "/sf-assets/icons.svg";
 
@@ -87,9 +88,40 @@ export function MediaLink({ href, className, children }: { href?: string; classN
 /** In the shopper's chosen currency, so it lives in a client component. */
 export { default as Price } from "./Price";
 
-export function Rating({ value, count }: { value: number; count?: number }) {
+/**
+ * The promotion banner's "2 days 4 hours left", in the shopper's language; null once it has ended.
+ * Here (not in PromoBar) so the server layout and the banner in the browser word it the same way.
+ */
+export function promoCountdownLabel(endsAt: string, now: Date, t: Translator) {
+  const ms = new Date(endsAt).getTime() - now.getTime();
+  if (!Number.isFinite(ms) || ms <= 0) return null;
+  const minutes = Math.max(1, Math.ceil(ms / 60_000));
+  const days = Math.floor(minutes / 1440);
+  const hours = Math.floor((minutes % 1440) / 60);
+  const mins = minutes % 60;
+  const time =
+    days >= 1
+      ? hours
+        ? `${t("chrome.days", { count: days })} ${t("chrome.hours", { count: hours })}`
+        : t("chrome.days", { count: days })
+      : hours >= 1
+        ? mins
+          ? `${t("chrome.hours", { count: hours })} ${t("chrome.minutes", { count: mins })}`
+          : t("chrome.hours", { count: hours })
+        : t("chrome.minutes", { count: mins });
+  return t("chrome.timeLeft", { time });
+}
+
+/** Pass `t` (the shop's words) to describe the rating in the shopper's language; without it, English. */
+export function Rating({ value, count, t }: { value: number; count?: number; t?: Translator }) {
   const rounded = Math.round(value);
-  const label = count != null ? `Rated ${value.toFixed(1)} out of 5 from ${count} ${count === 1 ? "review" : "reviews"}` : `Rated ${value} out of 5`;
+  const label = t
+    ? count != null
+      ? t("chrome.ratedFrom", { rating: new Intl.NumberFormat(t.lang, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value), count })
+      : t("chrome.rated", { rating: value })
+    : count != null
+      ? `Rated ${value.toFixed(1)} out of 5 from ${count} ${count === 1 ? "review" : "reviews"}`
+      : `Rated ${value} out of 5`;
   return (
     <p className="rating">
       <span className="visually-hidden">{label}</span>
@@ -105,9 +137,10 @@ export function Rating({ value, count }: { value: number; count?: number }) {
   );
 }
 
-export function Breadcrumb({ items }: { items: Array<{ label: string; href?: string }> }) {
+/** Pass `t` (the shop's words) to name the trail in the shopper's language; without it, English. */
+export function Breadcrumb({ items, t }: { items: Array<{ label: string; href?: string }>; t?: Translator }) {
   return (
-    <nav className="breadcrumb" aria-label="Breadcrumb">
+    <nav className="breadcrumb" aria-label={t ? t("chrome.breadcrumb") : "Breadcrumb"}>
       <ol>
         {items.map((item, i) =>
           item.href && i < items.length - 1 ? (

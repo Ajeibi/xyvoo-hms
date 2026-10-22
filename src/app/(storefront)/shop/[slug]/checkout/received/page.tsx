@@ -10,12 +10,20 @@ import { formatShopCurrency } from "@/lib/shop/format";
 import { parseOfflinePayments } from "@/lib/store/offline-payments";
 import { purchaseLines } from "@/lib/store/product-feed";
 import { orderReference } from "@/lib/store/order-emails";
+import { getShopT } from "@/lib/store/i18n/server";
 import { STORE_PATHS, storeHref } from "@/lib/store/site/links";
 import { getStorefront } from "@/lib/store/site/storefront";
 import { whatsappLink, whatsappOrderMessage } from "@/lib/store/whatsapp";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
-export const metadata: Metadata = { title: "Order received", robots: { index: false, follow: false } };
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const storefront = await getStorefront((await params).slug);
+  const title = storefront ? getShopT(storefront)("checkout.orderReceived") : "Order received";
+  return { title, robots: { index: false, follow: false } };
+}
+
+/** A line of the summary, in the shopper's language, and in English for the WhatsApp message to the shop (written in English). */
+type SummaryLine = { label: string; value: string; en: { label: string; value: string } };
 
 /** A recent offline order (last 14 days) and the shop's offline payment settings. */
 async function loadOfflineOrder(tenantId: string, orderId: string) {
@@ -74,6 +82,7 @@ export default async function OrderReceivedPage({ params, searchParams }: { para
   if (!order) notFound();
 
   const { basePath, storeName, profile: shop } = storefront;
+  const t = getShopT(storefront);
   const money = (v: number) => formatShopCurrency(v, shop.currencyCode);
   const reference = orderReference(order.id);
   const items = (order.order_items as { product_id: string | null; variant_id: string | null; product_name: string; quantity: number; unit_price: number; line_total: number }[]) || [];
@@ -101,13 +110,25 @@ export default async function OrderReceivedPage({ params, searchParams }: { para
   const giftCard = Number(order.gift_card_amount) || 0;
   const { taxAmount, taxInclusive, pointsAmount } = extras;
   // Every line between the items and the total, so the summary adds up.
-  const summaryLines = [
-    { label: "Subtotal", value: money(subtotal) },
-    ...(discount > 0 ? [{ label: `Discount${order.discount_code ? ` (${order.discount_code})` : ""}`, value: `−${money(discount)}` }] : []),
-    ...(order.delivery_method ? [{ label: `Delivery: ${order.delivery_method}`, value: deliveryFee > 0 ? money(deliveryFee) : "Free" }] : []),
-    ...(taxAmount > 0 && !taxInclusive ? [{ label: "Tax", value: money(taxAmount) }] : []),
-    ...(giftCard > 0 ? [{ label: "Paid with gift card", value: `−${money(giftCard)}` }] : []),
-    ...(pointsAmount > 0 ? [{ label: "Paid with points", value: `−${money(pointsAmount)}` }] : []),
+  const line = (label: string, value: string, enLabel: string, enValue = value): SummaryLine => ({ label, value, en: { label: enLabel, value: enValue } });
+  const summaryLines: SummaryLine[] = [
+    line(t("checkout.subtotal"), money(subtotal), "Subtotal"),
+    ...(discount > 0
+      ? [
+          line(
+            order.discount_code ? t("checkout.discountWithCode", { code: order.discount_code }) : t("checkout.discount"),
+            `−${money(discount)}`,
+            `Discount${order.discount_code ? ` (${order.discount_code})` : ""}`,
+          ),
+        ]
+      : []),
+    // The delivery method has its own line in the WhatsApp message, so there it's just the charge.
+    ...(order.delivery_method
+      ? [line(t("checkout.deliveryNamed", { method: order.delivery_method }), deliveryFee > 0 ? money(deliveryFee) : t("checkout.free"), "Delivery", deliveryFee > 0 ? money(deliveryFee) : "Free")]
+      : []),
+    ...(taxAmount > 0 && !taxInclusive ? [line(t("checkout.tax"), money(taxAmount), "Tax")] : []),
+    ...(giftCard > 0 ? [line(t("checkout.paidWithGiftCard"), `−${money(giftCard)}`, "Paid with gift card")] : []),
+    ...(pointsAmount > 0 ? [line(t("checkout.paidWithPoints"), `−${money(pointsAmount)}`, "Paid with points")] : []),
   ];
   // Nothing left to pay: a discount or gift card (and points) covered the whole order.
   const fullyPaid = order.payment_status === "paid";
@@ -115,8 +136,7 @@ export default async function OrderReceivedPage({ params, searchParams }: { para
     storeName,
     reference,
     items: lineDetails,
-    // The delivery method has its own line in the message, so here it's just the charge.
-    extras: summaryLines.map((l) => (l.label.startsWith("Delivery:") ? { ...l, label: "Delivery" } : l)),
+    extras: summaryLines.map((l) => l.en),
     total,
     deliveryMethod: order.delivery_method,
     customer: { name: order.customer_name, phone: order.customer_phone, email: order.customer_email, address: addressText || null },
@@ -128,69 +148,68 @@ export default async function OrderReceivedPage({ params, searchParams }: { para
       <ClearBasket />
       {/* A sale for the ad pixels only once it's paid: bank transfer, pay on delivery and WhatsApp orders aren't yet. */}
       {fullyPaid ? <TrackPurchase orderId={order.id} total={Number(order.total_amount) || 0} lines={purchaseLines(items)} /> : null}
-      <h1 className="h-page">Thank you, we&rsquo;ve got your order</h1>
+      <h1 className="h-page">{t("checkout.gotYourOrder")}</h1>
       <p className="body-copy">
-        Your order reference is <strong>{reference}</strong>. Please keep it in case you need to contact {storeName}.
+        {t.rich("checkout.orderReferenceStore", { ref: <strong>{reference}</strong>, store: storeName })}
       </p>
       <OrderUpdatesPush orderId={order.id} />
 
       <div className="payment-box" style={{ marginTop: "1.5rem" }}>
         {fullyPaid ? (
           <>
-            <h2 className="h-section">Nothing more to pay</h2>
+            <h2 className="h-section">{t("checkout.nothingMoreToPay")}</h2>
             <p>
-              Your {giftCard > 0 ? "gift card" : pointsAmount > 0 ? "points" : "discount"} covered the whole order. We&rsquo;ve emailed you a confirmation, and {storeName} will
-              let you know when it&rsquo;s on its way.
+              {t(giftCard > 0 ? "checkout.coveredByGiftCard" : pointsAmount > 0 ? "checkout.coveredByPoints" : "checkout.coveredByDiscount", { store: storeName })}
             </p>
           </>
         ) : order.payment_method === "Bank Transfer" && bank.enabled ? (
           <>
-            <h2 className="h-section">Pay by bank transfer</h2>
+            <h2 className="h-section">{t("checkout.payByBankTransfer")}</h2>
             <p>
-              Please transfer <strong>{total}</strong> to:
+              {t.rich("checkout.transferTo", { amount: <strong>{total}</strong> })}
             </p>
             <dl className="order-received__bank">
-              <dt>Bank</dt>
+              <dt>{t("checkout.bank")}</dt>
               <dd>{bank.bankName}</dd>
-              <dt>Account name</dt>
+              <dt>{t("checkout.accountName")}</dt>
               <dd>{bank.accountName}</dd>
-              <dt>Account number</dt>
+              <dt>{t("checkout.accountNumber")}</dt>
               <dd>
                 <strong>{bank.accountNumber}</strong>
               </dd>
-              <dt>Reference</dt>
+              <dt>{t("checkout.reference")}</dt>
               <dd>
                 <strong>{reference}</strong>
               </dd>
             </dl>
             {bank.note ? <p>{bank.note}</p> : null}
-            <p>{storeName} will confirm your order once your payment arrives. We&rsquo;ve also emailed you these details.</p>
+            <p>{t("checkout.bankConfirm", { store: storeName })}</p>
             {order.payment_status === "unpaid" ? <PaymentProofUpload orderId={order.id} storeName={storeName} alreadySent={extras.proofSent} /> : null}
           </>
         ) : order.payment_method === "Pay on Delivery" ? (
           <>
-            <h2 className="h-section">Pay when it arrives</h2>
+            <h2 className="h-section">{t("checkout.payWhenArrives")}</h2>
             <p>
-              Please have <strong>{total}</strong> ready when your order is delivered.
+              {t.rich("checkout.haveReady", { amount: <strong>{total}</strong> })}
             </p>
             {offline.payOnDelivery.note ? <p>{offline.payOnDelivery.note}</p> : null}
           </>
         ) : order.payment_method !== "WhatsApp" ? (
           <>
-            <h2 className="h-section">What happens next</h2>
-            <p>{storeName} will be in touch to arrange payment. We&rsquo;ve emailed you the details of your order.</p>
+            <h2 className="h-section">{t("checkout.whatNext")}</h2>
+            <p>{t("checkout.inTouch", { store: storeName })}</p>
           </>
         ) : (
           <>
-            <h2 className="h-section">Send your order on WhatsApp</h2>
-            <p>Tap the button to send your order to {storeName} on WhatsApp. They&rsquo;ll reply to arrange payment and delivery.</p>
+            <h2 className="h-section">{t("checkout.sendOnWhatsApp")}</h2>
+            <p>{t("checkout.tapToSend", { store: storeName })}</p>
             {whatsapp ? (
               <a className="btn btn--whatsapp" href={whatsapp} target="_blank" rel="noreferrer">
                 <FaWhatsapp aria-hidden />
-                Send order on WhatsApp <span className="visually-hidden">(opens WhatsApp)</span>
+                {t("checkout.sendOrderWhatsApp")} <span className="visually-hidden">{t("checkout.opensWhatsApp")}</span>
               </a>
             ) : (
-              <p>{storeName} will contact you shortly.</p>
+              <p>{t("checkout.willContact", { store: storeName })}</p>
             )}
           </>
         )}
@@ -198,7 +217,7 @@ export default async function OrderReceivedPage({ params, searchParams }: { para
 
       <section aria-labelledby="received-summary" style={{ marginTop: "2rem" }}>
         <h2 id="received-summary" className="h-section">
-          Your order
+          {t("checkout.yourOrder")}
         </h2>
         <ul className="order-received__items">
           {items.map((i, n) => (
@@ -216,16 +235,16 @@ export default async function OrderReceivedPage({ params, searchParams }: { para
             </li>
           ))}
           <li className="order-received__total">
-            <span>{fullyPaid ? "Paid" : "To pay"}</span>
+            <span>{fullyPaid ? t("checkout.paid") : t("checkout.toPay")}</span>
             <span>{total}</span>
           </li>
         </ul>
-        {taxAmount > 0 && taxInclusive ? <p className="hint">Includes tax of {money(taxAmount)}</p> : null}
+        {taxAmount > 0 && taxInclusive ? <p className="hint">{t("checkout.includesTax", { amount: money(taxAmount) })}</p> : null}
       </section>
 
       <p style={{ marginTop: "2rem" }}>
         <Link className="link-arrow" href={storeHref(basePath, STORE_PATHS.products)}>
-          Continue shopping
+          {t("checkout.continueShopping")}
         </Link>
       </p>
     </div>

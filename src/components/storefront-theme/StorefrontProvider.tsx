@@ -7,6 +7,8 @@ import type { CartLine } from "@/lib/shop/cart";
 import { formatShopCurrency } from "@/lib/shop/format";
 import { storeHref } from "@/lib/store/site/links";
 import type { StorePushConfig } from "./push-client";
+import type { ShopLanguage } from "@/lib/store/i18n/languages";
+import { createTranslator } from "@/lib/store/i18n/translate";
 
 type StorefrontClientContext = {
   slug: string;
@@ -21,6 +23,11 @@ type StorefrontClientContext = {
   whatsappOrdering?: boolean;
   /** The shop's app and notifications (live shops only; no key when the shop doesn't send notifications). */
   push?: StorePushConfig | null;
+  /** The language shoppers see now, and the others the shop offers (its main one first). */
+  language: ShopLanguage;
+  languages: ShopLanguage[];
+  /** Every word the shop says in that language ("area.key"), for useT(). */
+  words: Record<string, string>;
 };
 
 type MoneyContext = { selected: DisplayCurrency; setCurrency: (code: string) => void };
@@ -55,6 +62,14 @@ export function useStorefront() {
   const value = useContext(Context);
   if (!value) throw new Error("useStorefront must be used within a StorefrontProvider");
   return { ...value, href: (path: string) => storeHref(value.basePath, path) };
+}
+
+/** The shop's words in the shopper's language: const t = useT(); t("checkout.payNow"). */
+export function useT() {
+  const value = useContext(Context);
+  if (!value) throw new Error("useT must be used within a StorefrontProvider");
+  const { language, words } = value;
+  return useMemo(() => createTranslator(language, words), [language, words]);
 }
 
 /** True inside a store's pages; false on the "no shop at this address" page, which has no store. */

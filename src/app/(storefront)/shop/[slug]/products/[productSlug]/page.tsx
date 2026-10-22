@@ -15,6 +15,8 @@ import { parseReviewImages } from "@/lib/store/reviews";
 import { getShopProductBySlug, type ShopProduct } from "@/lib/shop/products";
 import { STORE_PATHS, storeHref } from "@/lib/store/site/links";
 import { getStorefront } from "@/lib/store/site/storefront";
+import { getShopT } from "@/lib/store/i18n/server";
+import type { Translator } from "@/lib/store/i18n/translate";
 
 type Props = { params: Promise<{ slug: string; productSlug: string }>; searchParams: Promise<{ variant?: string | string[] }> };
 
@@ -50,13 +52,13 @@ function paragraphs(text: string) {
 type BundleItem = { quantity: number; name: string; href: string | null; price: number };
 
 /** "What's in the bundle", and what it would cost bought separately. */
-function BundleContents({ items, price, currency }: { items: BundleItem[]; price: number; currency: string }) {
+function BundleContents({ items, price, currency, t }: { items: BundleItem[]; price: number; currency: string; t: Translator }) {
   const separately = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
   const saving = separately - price;
   return (
     <section className="bundle-contents" aria-labelledby="bundle-contents-title">
       <h2 className="bundle-contents__title" id="bundle-contents-title">
-        What&rsquo;s in the bundle
+        {t("product.whatsInBundle")}
       </h2>
       <ul>
         {items.map((i) => (
@@ -67,24 +69,27 @@ function BundleContents({ items, price, currency }: { items: BundleItem[]; price
       </ul>
       {saving > 0 ? (
         <p className="bundle-contents__saving">
-          Worth {formatShopCurrency(separately, currency)} bought separately. <strong>You save {formatShopCurrency(saving, currency)}.</strong>
+          {t.rich("product.bundleWorth", {
+            worth: formatShopCurrency(separately, currency),
+            saving: <strong>{t("product.youSave", { amount: formatShopCurrency(saving, currency) })}</strong>,
+          })}
         </p>
       ) : null}
     </section>
   );
 }
 
-function Details({ product }: { product: ShopProduct }) {
+function Details({ product, t }: { product: ShopProduct; t: Translator }) {
   const perks = [
     product.returnable
-      ? { icon: "returns" as const, text: product.returnWindowDays ? `${product.returnWindowDays}-day returns` : "Returns accepted" }
-      : { icon: "returns" as const, text: "This item can't be returned" },
+      ? { icon: "returns" as const, text: product.returnWindowDays ? t("product.dayReturns", { days: product.returnWindowDays }) : t("product.returnsAccepted") }
+      : { icon: "returns" as const, text: t("product.notReturnable") },
     ...(product.warrantyText ? [{ icon: "shield-plain" as const, text: product.warrantyText }] : []),
   ];
   const specs = [
-    product.brand ? ["Brand", product.brand] : null,
-    product.sku ? ["Product code", product.sku] : null,
-    product.weightKg ? ["Weight", `${product.weightKg} kg`] : null,
+    product.brand ? [t("product.brand"), product.brand] : null,
+    product.sku ? [t("product.productCode"), product.sku] : null,
+    product.weightKg ? [t("product.weight"), `${product.weightKg} kg`] : null,
   ].filter((s): s is [string, string] => s !== null);
 
   return (
@@ -101,7 +106,7 @@ function Details({ product }: { product: ShopProduct }) {
         {product.description ? (
           <details open>
             <summary>
-              Description
+              {t("product.description")}
               <Icon name="plus" />
             </summary>
             <div className="accordion__body">{paragraphs(product.description)}</div>
@@ -110,7 +115,7 @@ function Details({ product }: { product: ShopProduct }) {
         {specs.length ? (
           <details>
             <summary>
-              Details
+              {t("product.details")}
               <Icon name="plus" />
             </summary>
             <div className="accordion__body">
@@ -136,6 +141,7 @@ export default async function StorefrontProductPage({ params, searchParams }: Pr
   const { storefront, product } = found;
   const { variant } = await searchParams;
   const { basePath, site, siteUrl } = storefront;
+  const t = getShopT(storefront);
 
   const reviewsQuery = (withExtras: boolean) => {
     const q = createServerSupabaseClient()
@@ -253,10 +259,10 @@ export default async function StorefrontProductPage({ params, searchParams }: Pr
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       <div className="container section">
-        <Breadcrumb
+        <Breadcrumb t={t}
           items={[
-            { label: "Home", href: storeHref(basePath, "/") },
-            { label: site.content.shop.title || "Shop", href: storeHref(basePath, STORE_PATHS.products) },
+            { label: t("common.home"), href: storeHref(basePath, "/") },
+            { label: site.content.shop.title || t("product.shop"), href: storeHref(basePath, STORE_PATHS.products) },
             ...(product.category ? [{ label: product.category, href: storeHref(basePath, STORE_PATHS.category(product.category)) }] : []),
             { label: product.name },
           ]}
@@ -269,8 +275,8 @@ export default async function StorefrontProductPage({ params, searchParams }: Pr
             initialVariantId={typeof variant === "string" ? variant : undefined}
             details={
               <>
-                {bundleItems.length ? <BundleContents items={bundleItems} price={product.price} currency={product.currency} /> : null}
-                <Details product={product} />
+                {bundleItems.length ? <BundleContents items={bundleItems} price={product.price} currency={product.currency} t={t} /> : null}
+                <Details product={product} t={t} />
               </>
             }
           />
@@ -284,7 +290,7 @@ export default async function StorefrontProductPage({ params, searchParams }: Pr
       {pairs.length ? (
         <section className="section section--tight-top" aria-labelledby="pairs-title">
           <div className="container">
-            <SectionHead id="pairs-title" heading="Goes well with" />
+            <SectionHead id="pairs-title" heading={t("product.goesWellWith")} />
             <ProductGridList products={pairs} basePath={basePath} variant={site.theme.cardVariant} />
           </div>
         </section>
@@ -295,8 +301,8 @@ export default async function StorefrontProductPage({ params, searchParams }: Pr
           <div className="container">
             <SectionHead
               id="related-title"
-              heading="You may also like"
-              link={product.category ? { label: `More ${product.category}`, href: storeHref(basePath, STORE_PATHS.category(product.category)) } : undefined}
+              heading={t("product.youMayAlsoLike")}
+              link={product.category ? { label: t("product.moreInCategory", { category: product.category }), href: storeHref(basePath, STORE_PATHS.category(product.category)) } : undefined}
             />
             <ProductGridList products={related} basePath={basePath} variant={site.theme.cardVariant} />
           </div>

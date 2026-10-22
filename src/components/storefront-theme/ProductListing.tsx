@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { LISTING_SORTS, queryCatalogue, type CatalogueFacets, type ListingSort } from "@/lib/shop/catalogue-filter";
 import { getCollectionPositions, getShopCatalogue } from "@/lib/shop/catalogue-index";
 import { formatShopCurrency } from "@/lib/shop/format";
+import { getShopT } from "@/lib/store/i18n/server";
+import type { Translator } from "@/lib/store/i18n/translate";
 import { STORE_PATHS, storeHref } from "@/lib/store/site/links";
 import type { Storefront } from "@/lib/store/site/storefront";
 import FiltersPanel from "./FiltersPanel";
@@ -104,7 +106,7 @@ function pageNumbers(current: number, count: number): Array<number | "gap"> {
 }
 
 /** "Size: M", "Brand: Acme", "Under ₦20,000": the filters in use, each with a link that removes it. */
-function appliedFilters(q: ParsedListing, money: (n: number) => string) {
+function appliedFilters(q: ParsedListing, money: (n: number) => string, t: Translator) {
   const pills: Array<{ label: string; href: string }> = [];
   for (const b of q.brands) pills.push({ label: b, href: queryString(q, { brand: q.brands.filter((x) => x !== b) }) });
   for (const t of q.tags) pills.push({ label: t, href: queryString(q, { tag: q.tags.filter((x) => x !== t) }) });
@@ -112,10 +114,14 @@ function appliedFilters(q: ParsedListing, money: (n: number) => string) {
   for (const pair of pairs) pills.push({ label: pair.replace(":", ": "), href: queryString(q, { opt: pairs.filter((x) => x !== pair) }) });
   if (q.minPrice != null || q.maxPrice != null) {
     const label =
-      q.minPrice != null && q.maxPrice != null ? `${money(q.minPrice)} to ${money(q.maxPrice)}` : q.minPrice != null ? `From ${money(q.minPrice)}` : `Up to ${money(q.maxPrice!)}`;
+      q.minPrice != null && q.maxPrice != null
+        ? t("listing.priceRange", { min: money(q.minPrice), max: money(q.maxPrice) })
+        : q.minPrice != null
+          ? t("listing.priceFrom", { min: money(q.minPrice) })
+          : t("listing.priceUpTo", { max: money(q.maxPrice!) });
     pills.push({ label, href: queryString(q, { min: undefined, max: undefined }) });
   }
-  if (q.inStockOnly) pills.push({ label: "In stock", href: queryString(q, { stock: undefined }) });
+  if (q.inStockOnly) pills.push({ label: t("listing.inStock"), href: queryString(q, { stock: undefined }) });
   return pills;
 }
 
@@ -164,18 +170,19 @@ export default async function ProductListing({
   const href = (change: Parameters<typeof queryString>[1] = {}) => `${action}${queryString(query, change)}`;
   const first = total === 0 ? 0 : (query.page - 1) * PAGE_SIZE + 1;
   const last = Math.min(total, query.page * PAGE_SIZE);
-  const heading = query.search ? `Results for “${query.search}”` : query.category ? query.category : title;
+  const t = getShopT(storefront);
+  const heading = query.search ? t("listing.resultsFor", { search: query.search }) : query.category ? query.category : title;
   const money = (n: number) => formatShopCurrency(n, profile.currencyCode);
-  const pills = appliedFilters(query, money);
+  const pills = appliedFilters(query, money, t);
   const chips = facets.categories.length > 1 || query.category ? facets.categories : [];
 
   return (
     <>
       <section className="page-header" aria-labelledby="page-title">
         <div className="container page-header__inner">
-          <Breadcrumb
+          <Breadcrumb t={t}
             items={[
-              { label: "Home", href: storeHref(basePath, "/") },
+              { label: t("common.home"), href: storeHref(basePath, "/") },
               ...(query.category || query.search ? [{ label: title, href: action }] : []),
               { label: heading },
             ]}
@@ -185,18 +192,18 @@ export default async function ProductListing({
           </h1>
           {lead && !query.search ? <p className="lead">{lead}</p> : null}
           {showCategories && chips.length ? (
-            <nav aria-label="Categories">
+            <nav aria-label={t("listing.categories")}>
               <ul className="chips">
                 <li>
                   <Link className="chip" href={href({ category: undefined })} aria-current={!query.category ? "page" : undefined}>
-                    All
+                    {t("listing.all")}
                   </Link>
                 </li>
                 {chips.map((c) => (
                   <li key={c.value}>
                     <Link className="chip" href={href({ category: c.value })} aria-current={c.selected ? "page" : undefined}>
                       {c.value} <span className="chip__count">{c.count}</span>
-                      <span className="visually-hidden"> {c.count === 1 ? "product" : "products"}</span>
+                      <span className="visually-hidden"> {t("listing.productWord", { count: c.count })}</span>
                     </Link>
                   </li>
                 ))}
@@ -210,16 +217,16 @@ export default async function ProductListing({
         <div className="container shop-layout">
           <FiltersPanel action={action} hidden={{ search: query.search, category: showCategories ? query.category : undefined, sort: query.sort !== query.defaultSort ? query.sort : undefined }} clearHref={href({ brand: [], tag: [], opt: [], min: undefined, max: undefined, stock: undefined })}>
             {/* Keyed on the filters, so the boxes match the address after a filter is removed from a chip. */}
-            <FilterGroups key={queryString(query, { page: undefined })} facets={facets} query={query} money={money} currency={profile.currencyCode} />
+            <FilterGroups key={queryString(query, { page: undefined })} facets={facets} query={query} money={money} currency={profile.currencyCode} t={t} />
           </FiltersPanel>
 
           <section aria-labelledby="results-title">
             <h2 className="visually-hidden" id="results-title">
-              Products
+              {t("listing.products")}
             </h2>
             <div className="toolbar">
               <p className="toolbar__count" role="status">
-                {total === 0 ? "No products found" : `Showing ${first} to ${last} of ${total} ${total === 1 ? "product" : "products"}`}
+                {total === 0 ? t("listing.noProductsFound") : t("listing.showing", { first, last, count: total })}
               </p>
               {total > 1 ? (
                 <SortSelect
@@ -234,20 +241,20 @@ export default async function ProductListing({
 
             {pills.length ? (
               <div className="applied-filters">
-                <h3 className="visually-hidden">Filters in use</h3>
+                <h3 className="visually-hidden">{t("listing.filtersInUse")}</h3>
                 <ul className="chips chips--wrap">
                   {pills.map((p) => (
                     <li key={p.label}>
                       <Link className="chip chip--removable" href={`${action}${p.href}`}>
                         {p.label}
                         <Icon name="close" size="sm" />
-                        <span className="visually-hidden"> (remove this filter)</span>
+                        <span className="visually-hidden"> {t("listing.removeFilter")}</span>
                       </Link>
                     </li>
                   ))}
                   <li>
                     <Link className="link-btn" href={href({ brand: [], tag: [], opt: [], min: undefined, max: undefined, stock: undefined })}>
-                      Clear all filters
+                      {t("listing.clearAllFilters")}
                     </Link>
                   </li>
                 </ul>
@@ -261,38 +268,38 @@ export default async function ProductListing({
               <div className="empty-state">
                 <Icon name="search" />
                 <p className="body-copy">
-                  {query.search || query.category || query.filtered ? "Nothing matches that yet." : "There are no products here yet. Please check back soon."}
+                  {query.search || query.category || query.filtered ? t("listing.nothingMatches") : t("listing.noProductsYet")}
                 </p>
                 {didYouMean ? (
                   <p className="body-copy">
-                    Did you mean <Link href={href({ search: didYouMean })}>{didYouMean}</Link>?
+                    {t.rich("listing.didYouMean", { suggestion: <Link href={href({ search: didYouMean })}>{didYouMean}</Link> })}
                   </p>
                 ) : null}
                 {query.filtered ? (
                   <Link className="btn btn--outline" href={href({ brand: [], tag: [], opt: [], min: undefined, max: undefined, stock: undefined })}>
-                    Clear the filters
+                    {t("listing.clearTheFilters")}
                   </Link>
                 ) : query.search || query.category ? (
                   <Link className="btn btn--outline" href={storeHref(basePath, STORE_PATHS.products)}>
-                    See all products
+                    {t("listing.seeAllProducts")}
                   </Link>
                 ) : null}
               </div>
             )}
 
             {pageCount > 1 ? (
-              <nav className="pagination" aria-label="Pages of products">
+              <nav className="pagination" aria-label={t("listing.pagesOfProducts")}>
                 <ul>
                   <li>
                     {query.page > 1 ? (
                       <Link href={href({ page: query.page > 2 ? String(query.page - 1) : undefined })}>
                         <Icon name="chevron-left" size="sm" />
-                        Previous<span className="visually-hidden"> page</span>
+                        {t("common.previous")}<span className="visually-hidden">{t("listing.pageHint")}</span>
                       </Link>
                     ) : (
                       <span className="is-disabled" aria-disabled="true">
                         <Icon name="chevron-left" size="sm" />
-                        Previous<span className="visually-hidden"> page</span>
+                        {t("common.previous")}<span className="visually-hidden">{t("listing.pageHint")}</span>
                       </span>
                     )}
                   </li>
@@ -303,7 +310,7 @@ export default async function ProductListing({
                       </li>
                     ) : (
                       <li key={n}>
-                        <Link href={href({ page: n > 1 ? String(n) : undefined })} aria-current={n === query.page ? "page" : undefined} aria-label={`Page ${n}`}>
+                        <Link href={href({ page: n > 1 ? String(n) : undefined })} aria-current={n === query.page ? "page" : undefined} aria-label={t("listing.pageNumber", { number: n })}>
                           {n}
                         </Link>
                       </li>
@@ -312,11 +319,11 @@ export default async function ProductListing({
                   <li>
                     {query.page < pageCount ? (
                       <Link href={href({ page: String(query.page + 1) })}>
-                        Next<span className="visually-hidden"> page</span> <Icon name="chevron-right" size="sm" />
+                        {t("common.next")}<span className="visually-hidden">{t("listing.pageHint")}</span> <Icon name="chevron-right" size="sm" />
                       </Link>
                     ) : (
                       <span className="is-disabled" aria-disabled="true">
-                        Next<span className="visually-hidden"> page</span> <Icon name="chevron-right" size="sm" />
+                        {t("common.next")}<span className="visually-hidden">{t("listing.pageHint")}</span> <Icon name="chevron-right" size="sm" />
                       </span>
                     )}
                   </li>
@@ -331,7 +338,7 @@ export default async function ProductListing({
 }
 
 /** The filter checkboxes and price fields, each with how many products it would leave. */
-function FilterGroups({ facets, query, money, currency }: { facets: CatalogueFacets; query: ParsedListing; money: (n: number) => string; currency: string }) {
+function FilterGroups({ facets, query, money, currency, t }: { facets: CatalogueFacets; query: ParsedListing; money: (n: number) => string; currency: string; t: Translator }) {
   const checks = (name: string, values: CatalogueFacets["brands"], valueOf: (v: string) => string = (v) => v) =>
     values.map((v) => (
       <label className="check" key={v.value}>
@@ -339,7 +346,7 @@ function FilterGroups({ facets, query, money, currency }: { facets: CatalogueFac
         {v.value}
         <span className="check__count">
           {v.count}
-          <span className="visually-hidden"> {v.count === 1 ? "product" : "products"}</span>
+          <span className="visually-hidden"> {t("listing.productWord", { count: v.count })}</span>
         </span>
       </label>
     ));
@@ -353,42 +360,42 @@ function FilterGroups({ facets, query, money, currency }: { facets: CatalogueFac
       ))}
       {facets.brands.length > 1 || query.brands.length ? (
         <fieldset className="filter-group">
-          <legend>Brand</legend>
+          <legend>{t("listing.brand")}</legend>
           {checks("brand", facets.brands)}
         </fieldset>
       ) : null}
       {facets.tags.length > 1 || query.tags.length ? (
         <fieldset className="filter-group">
-          <legend>Type</legend>
+          <legend>{t("listing.type")}</legend>
           {checks("tag", facets.tags)}
         </fieldset>
       ) : null}
       {facets.price && facets.price.max > facets.price.min ? (
         <fieldset className="filter-group">
-          <legend>Price ({currency})</legend>
+          <legend>{t("listing.priceIn", { currency })}</legend>
           <p className="hint">
-            From {money(facets.price.min)} to {money(facets.price.max)}
+            {t("listing.priceSpan", { min: money(facets.price.min), max: money(facets.price.max) })}
           </p>
           <div className="price-range">
             <div className="field">
-              <label htmlFor="filter-min">Lowest</label>
+              <label htmlFor="filter-min">{t("listing.lowest")}</label>
               <input className="input" id="filter-min" name="min" type="number" inputMode="decimal" min={0} step="any" placeholder={String(Math.floor(facets.price.min))} defaultValue={query.minPrice ?? ""} />
             </div>
             <div className="field">
-              <label htmlFor="filter-max">Highest</label>
+              <label htmlFor="filter-max">{t("listing.highest")}</label>
               <input className="input" id="filter-max" name="max" type="number" inputMode="decimal" min={0} step="any" placeholder={String(Math.ceil(facets.price.max))} defaultValue={query.maxPrice ?? ""} />
             </div>
           </div>
         </fieldset>
       ) : null}
       <fieldset className="filter-group">
-        <legend>Availability</legend>
+        <legend>{t("listing.availability")}</legend>
         <label className="check">
           <input type="checkbox" name="stock" value="in" defaultChecked={query.inStockOnly} />
-          In stock only
+          {t("listing.inStockOnly")}
           <span className="check__count">
             {facets.inStock}
-            <span className="visually-hidden"> {facets.inStock === 1 ? "product" : "products"}</span>
+            <span className="visually-hidden"> {t("listing.productWord", { count: facets.inStock })}</span>
           </span>
         </label>
       </fieldset>

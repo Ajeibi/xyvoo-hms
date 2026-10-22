@@ -9,14 +9,20 @@ import { getStorefront } from "@/lib/store/site/storefront";
 import { getCheckoutFreeRules } from "@/lib/store/free-delivery-server";
 import { getTaxSettings } from "@/lib/store/tax-server";
 import { hasShopFeature } from "@/lib/store/features";
+import { getShopT } from "@/lib/store/i18n/server";
 
-export const metadata: Metadata = { title: "Checkout", robots: { index: false, follow: false } };
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const storefront = await getStorefront((await params).slug);
+  const title = storefront ? getShopT(storefront)("checkout.checkout") : "Checkout";
+  return { title, robots: { index: false, follow: false } };
+}
 
 export default async function StorefrontCheckoutPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ pay?: string | string[] }> }) {
   const { pay } = await searchParams;
   const storefront = await getStorefront((await params).slug);
   if (!storefront) notFound();
   const { basePath, pages } = storefront;
+  const t = getShopT(storefront);
   const pageHref = (key: string) => {
     const page = pages.find((p) => p.systemKey === key);
     return page ? storeHref(basePath, STORE_PATHS.page(page.slug)) : null;
@@ -46,13 +52,13 @@ export default async function StorefrontCheckoutPage({ params, searchParams }: {
 
   return (
     <div className="container section">
-      <h1 className="h-page">Checkout</h1>
-      <ol className="progress-steps" aria-label="Checkout progress">
+      <h1 className="h-page">{t("checkout.checkout")}</h1>
+      <ol className="progress-steps" aria-label={t("checkout.checkoutProgress")}>
         <li>
-          <Link href={storeHref(basePath, STORE_PATHS.cart)}>Basket</Link>
+          <Link href={storeHref(basePath, STORE_PATHS.cart)}>{t("checkout.basket")}</Link>
         </li>
-        <li aria-current="step">Details and payment</li>
-        <li>Confirmation</li>
+        <li aria-current="step">{t("checkout.detailsAndPayment")}</li>
+        <li>{t("checkout.confirmation")}</li>
       </ol>
       {storefront.paymentMethods.length ? (
         <StoreCheckout
@@ -70,8 +76,8 @@ export default async function StorefrontCheckoutPage({ params, searchParams }: {
         />
       ) : (
         <div className="cart-empty">
-          <h2 className="h-section">Ordering isn&rsquo;t open yet</h2>
-          <p className="body-copy">This shop isn&rsquo;t taking orders online at the moment. Please contact the shop to place your order.</p>
+          <h2 className="h-section">{t("checkout.orderingNotOpen")}</h2>
+          <p className="body-copy">{t("checkout.notTakingOrders")}</p>
         </div>
       )}
     </div>

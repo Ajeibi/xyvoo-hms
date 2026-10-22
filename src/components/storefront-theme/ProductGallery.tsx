@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Icon, StoreImage } from "./primitives";
+import { useT } from "./StorefrontProvider";
 
 /** A sideways swipe further than this (px) moves to the next or previous photo. */
 const SWIPE = 40;
@@ -26,6 +27,7 @@ export default function ProductGallery({
   onSelect: (i: number) => void;
   productName: string;
 }) {
+  const t = useT();
   const dialog = useRef<HTMLDialogElement>(null);
   const [zoomed, setZoomed] = useState<number | null>(null);
   const many = images.length > 1;
@@ -63,36 +65,36 @@ export default function ProductGallery({
           <>
             <StoreImage src={shown.src} alt={shown.alt} sizes="(min-width: 900px) 50vw, 100vw" priority />
             <button className="gallery-main__zoom" type="button" onClick={() => setZoomed(shown.index)} aria-haspopup="dialog">
-              <span className="visually-hidden">Open photo full screen</span>
+              <span className="visually-hidden">{t("product.openFullScreen")}</span>
               <Icon name="search" size="sm" />
             </button>
           </>
         ) : (
           <span className="media__label" aria-hidden="true">
             <Icon name="image" />
-            No photo yet
+            {t("product.noPhotoYet")}
           </span>
         )}
         {many ? (
           <>
-            <button className="gallery-main__arrow gallery-main__arrow--prev" type="button" aria-label="Previous photo" onClick={() => onSelect(step(current, -1))}>
+            <button className="gallery-main__arrow gallery-main__arrow--prev" type="button" aria-label={t("product.previousPhoto")} onClick={() => onSelect(step(current, -1))}>
               <Icon name="chevron-left" />
             </button>
-            <button className="gallery-main__arrow gallery-main__arrow--next" type="button" aria-label="Next photo" onClick={() => onSelect(step(current, 1))}>
+            <button className="gallery-main__arrow gallery-main__arrow--next" type="button" aria-label={t("product.nextPhoto")} onClick={() => onSelect(step(current, 1))}>
               <Icon name="chevron-right" />
             </button>
             <p className="gallery-main__count" aria-live="polite">
               {current + 1} / {images.length}
-              <span className="visually-hidden"> photos</span>
+              <span className="visually-hidden"> {t("product.photos")}</span>
             </p>
           </>
         ) : null}
       </div>
       {many ? (
-        <ul className="thumbs" aria-label="Product images">
+        <ul className="thumbs" aria-label={t("product.productImages")}>
           {images.map((src, i) => (
             <li key={src + i}>
-              <button className="thumb" type="button" aria-pressed={i === shown.index} aria-label={`Show image ${i + 1} of ${images.length}`} onClick={() => onSelect(i)}>
+              <button className="thumb" type="button" aria-pressed={i === shown.index} aria-label={t("product.showImage", { number: i + 1, total: images.length })} onClick={() => onSelect(i)}>
                 <span className="media" aria-hidden="true">
                   <StoreImage src={src} alt="" sizes="96px" />
                 </span>
@@ -105,7 +107,7 @@ export default function ProductGallery({
       <dialog
         ref={dialog}
         className="lightbox"
-        aria-label={`${productName} photos`}
+        aria-label={t("product.productPhotos", { name: productName })}
         onClose={() => setZoomed(null)}
         onKeyDown={(e) => {
           if (!many || zoomed == null || zoomed < 0) return;
@@ -118,19 +120,19 @@ export default function ProductGallery({
             <StoreImage src={zoomSrc} alt={zoomAlt} sizes="100vw" />
           </div>
         ) : null}
-        <button className="lightbox__close icon-btn" type="button" onClick={() => setZoomed(null)} aria-label="Close full screen photo">
+        <button className="lightbox__close icon-btn" type="button" onClick={() => setZoomed(null)} aria-label={t("product.closeFullScreen")}>
           <Icon name="close" />
         </button>
         {many && zoomed != null && zoomed >= 0 ? (
           <>
-            <button className="lightbox__arrow lightbox__arrow--prev" type="button" aria-label="Previous photo" onClick={() => setZoomed(step(zoomed, -1))}>
+            <button className="lightbox__arrow lightbox__arrow--prev" type="button" aria-label={t("product.previousPhoto")} onClick={() => setZoomed(step(zoomed, -1))}>
               <Icon name="chevron-left" />
             </button>
-            <button className="lightbox__arrow lightbox__arrow--next" type="button" aria-label="Next photo" onClick={() => setZoomed(step(zoomed, 1))}>
+            <button className="lightbox__arrow lightbox__arrow--next" type="button" aria-label={t("product.nextPhoto")} onClick={() => setZoomed(step(zoomed, 1))}>
               <Icon name="chevron-right" />
             </button>
             <p className="lightbox__count" aria-live="polite">
-              Photo {zoomed + 1} of {images.length}
+              {t("product.photoCount", { number: zoomed + 1, total: images.length })}
             </p>
           </>
         ) : null}
