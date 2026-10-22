@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import AnnouncementMessages, { type AnnouncementMessage } from "./AnnouncementMessages";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCartStore } from "@/components/shop/CartProvider";
@@ -94,7 +95,8 @@ export default function StoreHeader({
 }: {
   brand: StoreBrandProps;
   navItems: HeaderNavItem[];
-  announcement: { text: string; href: string | null };
+  /** The announcement bar's messages (none hides it); `dismissible` lets shoppers close it for their visit. */
+  announcement: { messages: AnnouncementMessage[]; dismissible: boolean };
   productsHref: string;
   cartHref: string;
   /** Sage and Stem centres the logo between the menu and the icons; its CSS expects it after the menu in the markup. */
@@ -203,9 +205,35 @@ export default function StoreHeader({
 
   const isCurrent = (href: string) => href === pathname;
 
+  // Closed for this visit (kept for the browser tab); the key changes with the words, so a new message shows again.
+  const closedKey = `sf-announce-closed:${announcement.messages.map((m) => m.text).join("|")}`;
+  const closed = useSyncExternalStore(
+    (onChange) => {
+      window.addEventListener("sf:announce-closed", onChange);
+      return () => window.removeEventListener("sf:announce-closed", onChange);
+    },
+    () => {
+      try {
+        return window.sessionStorage.getItem(closedKey) === "1";
+      } catch {
+        return false;
+      }
+    },
+    () => false,
+  );
+  const closeAnnouncement = () => {
+    try {
+      window.sessionStorage.setItem(closedKey, "1");
+    } catch {
+      // Private browsing: it closes for this page only.
+    }
+    window.dispatchEvent(new Event("sf:announce-closed"));
+  };
+  const showAnnouncement = announcement.messages.length > 0 && !closed;
+
   return (
     <>
-      {announcement.text ? (
+      {showAnnouncement ? (
         <aside className="topbar" aria-label="Store announcements">
           <div className="container topbar__inner">
             {topbarExtras?.phone ? (
@@ -213,7 +241,7 @@ export default function StoreHeader({
                 Call us: <a href={`tel:${topbarExtras.phone.replace(/[^\d+]/g, "")}`}>{topbarExtras.phone}</a>
               </p>
             ) : null}
-            <p>{announcement.href ? <Link href={announcement.href}>{announcement.text}</Link> : announcement.text}</p>
+            <AnnouncementMessages messages={announcement.messages} onDismiss={announcement.dismissible ? closeAnnouncement : undefined} />
             {topbarExtras?.socials.length ? (
               <ul className="topbar__side topbar__social">
                 {topbarExtras.socials.map((s) => (

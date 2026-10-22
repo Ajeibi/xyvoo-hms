@@ -435,3 +435,27 @@
 .review-bar__track span { display: block; height: 100%; background: var(--accent-text, var(--accent)); }
 .review-bar__count { text-align: right; color: var(--muted); }
 .review-toolbar { margin-bottom: 1rem; }
+
+
+/* Section settings (sections.tsx): colour scheme and spacing. A scheme re-maps the theme's own tokens inside the
+   section, so every template's styles follow it, and text stays on the pairs the theme's contrast check covers. */
+.sf-block { position: relative; }
+.sf-block--scheme-surface { background: var(--surface); --bg: var(--surface); }
+.sf-block--scheme-dark { background: var(--dark); color: var(--on-dark); --bg: var(--dark); --surface: color-mix(in srgb, var(--on-dark) 8%, var(--dark)); --ink: var(--on-dark); --ink-2: var(--on-dark); --muted: var(--on-dark-2, var(--on-dark)); --line: color-mix(in srgb, var(--on-dark) 20%, transparent); --accent-text: var(--on-dark); }
+.sf-block--scheme-accent { background: var(--accent); color: var(--on-accent); --bg: var(--accent); --surface: color-mix(in srgb, var(--on-accent) 10%, var(--accent)); --ink: var(--on-accent); --ink-2: var(--on-accent); --muted: var(--on-accent); --line: color-mix(in srgb, var(--on-accent) 25%, transparent); --accent-text: var(--on-accent); }
+.sf-block--scheme-accent .btn--primary { background: var(--on-accent); color: var(--accent); }
+.sf-block--scheme-dark .btn--primary { background: var(--on-dark); color: var(--dark); }
+.sf-block--space-compact > .section, .sf-block--space-compact > section { padding-block: calc(var(--section) * 0.5); }
+.sf-block--space-roomy > .section, .sf-block--space-roomy > section { padding-block: calc(var(--section) * 1.5); }
+
+/* In the website editor's preview only: "Edit" on each section. */
+.sf-edit-section { display: none; }
+.is-framed .sf-edit-section { display: inline-flex; position: absolute; z-index: 30; top: 0.5rem; left: 0.5rem; align-items: center; min-height: 2rem; padding: 0.25rem 0.75rem; border: 0; border-radius: 999px; background: #1d4ed8; color: #fff; font: 600 0.8125rem/1 system-ui, sans-serif; text-transform: capitalize; cursor: pointer; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2); }
+.is-framed .sf-edit-section:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+
+/* Announcement bar messages (AnnouncementMessages.tsx). */
+.announce { display: flex; align-items: center; justify-content: center; gap: 0.5rem; min-width: 0; }
+.announce p { margin: 0; }
+.announce__control { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; padding: 0; border: 0; border-radius: 50%; background: none; color: inherit; cursor: pointer; }
+.announce__control:hover { background: color-mix(in srgb, currentColor 12%, transparent); }
+.announce__control:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }

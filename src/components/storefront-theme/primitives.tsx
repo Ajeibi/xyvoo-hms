@@ -8,13 +8,14 @@ export type IconName =
   | "chevron-right" | "plus" | "minus" | "leaf" | "truck" | "returns" | "shield" | "shield-plain" | "cloud"
   | "diamond" | "home" | "image" | "star" | "star-empty" | "pin" | "phone" | "mail" | "clock" | "lock"
   | "filter" | "check" | "check-circle" | "package" | "sparkle" | "card" | "headset" | "recycle" | "users"
-  | "calendar" | "instagram" | "facebook" | "pinterest" | "youtube" | "tiktok";
+  | "calendar" | "instagram" | "facebook" | "pinterest" | "youtube" | "tiktok" | "play" | "pause";
 
 const ICON_NAMES = new Set<string>([
   "search", "user", "heart", "bag", "menu", "close", "arrow-right", "chevron-down", "chevron-left", "chevron-right",
   "plus", "minus", "leaf", "truck", "returns", "shield", "shield-plain", "cloud", "diamond", "home", "image", "star",
   "star-empty", "pin", "phone", "mail", "clock", "lock", "filter", "check", "check-circle", "package", "sparkle",
   "card", "headset", "recycle", "users", "calendar", "instagram", "facebook", "pinterest", "youtube", "tiktok",
+  "play", "pause",
 ]);
 
 /** Maps merchant-chosen icon names (which may be free text) onto the sprite, with a safe default. */

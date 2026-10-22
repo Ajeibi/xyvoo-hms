@@ -25,13 +25,15 @@ export type TabProps = {
   saveDraft: SaveDraft;
   /** Reloads the editor's state and the preview after a change made outside the draft (pages). */
   refresh: () => Promise<void>;
+  /** A section the merchant clicked "Edit" on in the preview: the Sections tab opens it. */
+  focusSection?: string | null;
 };
 
 // Each tab has its own colour and a line saying what it's for, so it's easy to find your way back.
 const TABS = [
   { key: "template", label: "Template", icon: LayoutTemplate, meaning: "marketing", help: "Pick the look of your whole shop. Your words and pictures come with you." },
   { key: "theme", label: "Theme and brand", icon: Palette, meaning: "customers", help: "Your logo, colours and fonts." },
-  { key: "homepage", label: "Homepage", icon: Home, meaning: "orders", help: "Choose and order the sections on your front page." },
+  { key: "homepage", label: "Sections", icon: Home, meaning: "orders", help: "Choose and order the sections on your homepage, and add your own to every product and collection page." },
   { key: "content", label: "Words", icon: Type, meaning: "stock", help: "The headings, buttons and messages shoppers read." },
   { key: "pages", label: "Pages", icon: FileText, meaning: "marketing", help: "About, Contact, FAQs and any other pages for your brand." },
   { key: "navigation", label: "Menus", icon: Menu, meaning: "orders", help: "What shows in your shop's top menu and footer." },
@@ -55,6 +57,18 @@ export default function WebsiteEditor({ slug }: { slug: string }) {
   const [previewKey, setPreviewKey] = useState(0);
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
   const [showHistory, setShowHistory] = useState(false);
+  const [focusSection, setFocusSection] = useState<string | null>(null);
+
+  // "Edit" on a section in the preview (EditSectionButton): open that section here.
+  useEffect(() => {
+    const onMessage = (e: MessageEvent) => {
+      if (e.origin !== window.location.origin || e.data?.type !== "sf:edit-section" || typeof e.data.id !== "string") return;
+      setTab("homepage");
+      setFocusSection(e.data.id);
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
 
   const refresh = useCallback(async () => {
     const res = await fetch(`/api/store/site?slug=${encodeURIComponent(slug)}`);
@@ -126,7 +140,7 @@ export default function WebsiteEditor({ slug }: { slug: string }) {
   if (!state) return <p className="text-sm text-slate-500">{error || "Loading your website…"}</p>;
 
   const live = state.status === "live";
-  const tabProps: TabProps = { slug, state, saving, saveDraft, refresh };
+  const tabProps: TabProps = { slug, state, saving, saveDraft, refresh, focusSection };
   const current = TABS.find((t) => t.key === tab) ?? TABS[0];
   const currentTone = MEANING[current.meaning as Meaning];
 
@@ -260,7 +274,7 @@ export default function WebsiteEditor({ slug }: { slug: string }) {
             </div>
             {tab === "template" ? <TemplateTab {...tabProps} /> : null}
             {tab === "theme" ? <ThemeTab key={previewKey} {...tabProps} /> : null}
-            {tab === "homepage" ? <HomepageTab key={previewKey} {...tabProps} /> : null}
+            {tab === "homepage" ? <HomepageTab key={`${previewKey}-${focusSection ?? ""}`} {...tabProps} /> : null}
             {tab === "content" ? <ContentTab key={previewKey} {...tabProps} /> : null}
             {tab === "pages" ? <PagesTab {...tabProps} /> : null}
             {tab === "navigation" ? <NavigationTab key={previewKey} {...tabProps} /> : null}

@@ -123,11 +123,29 @@ function privacyPageHref(storefront: Storefront) {
   return page ? storeHref(storefront.basePath, STORE_PATHS.page(page.slug)) : null;
 }
 
+/** The announcement bar's messages, if it's within its dates. */
+function announcementFor(storefront: Storefront) {
+  const { announcement } = storefront.site.content;
+  const now = Date.now();
+  const inDates = (!announcement.startsAt || new Date(announcement.startsAt).getTime() <= now) && (!announcement.endsAt || new Date(announcement.endsAt).getTime() > now);
+  const link = (href: string | null) => (href ? storeHref(storefront.basePath, href) : null);
+  const messages = inDates
+    ? [...(announcement.text ? [{ text: announcement.text, href: link(announcement.href) }] : []), ...(announcement.more ?? []).map((m) => ({ text: m.text, href: link(m.href) }))]
+    : [];
+  return { messages, dismissible: Boolean(announcement.dismissible) };
+}
+
 function headerNavItems(storefront: Storefront): HeaderNavItem[] {
   const { basePath, categories } = storefront;
   return storefront.site.navigation.header.flatMap((item): HeaderNavItem[] => {
     const path = menuItemPath(item);
     if (!path) return [];
+    // The merchant's own dropdown links (a link with nowhere to go is left out).
+    const children = (item.children ?? []).flatMap((child) => {
+      const childPath = menuItemPath(child);
+      return childPath ? [{ label: child.label, href: storeHref(basePath, childPath) }] : [];
+    });
+    if (children.length) return [{ label: item.label, href: storeHref(basePath, path), children: [{ label: `All of ${item.label}`, href: storeHref(basePath, path) }, ...children] }];
     // "Shop" opens a list of the store's categories, as in the templates.
     if (item.type === "shop" && categories.length > 1) {
       return [
@@ -269,10 +287,7 @@ export default async function StorefrontLayout({ children, params }: LayoutParam
             <StoreHeader
               brand={{ storeName, homeHref: storeHref(basePath, "/"), logoUrl: site.brand.logoUrl, logoAlt: site.brand.logoAlt, showMark }}
               navItems={headerNavItems(storefront)}
-              announcement={{
-                text: site.content.announcement.text,
-                href: site.content.announcement.href ? storeHref(basePath, site.content.announcement.href) : null,
-              }}
+              announcement={announcementFor(storefront)}
               productsHref={storeHref(basePath, STORE_PATHS.products)}
               cartHref={storeHref(basePath, STORE_PATHS.cart)}
               logoPosition={site.template.slug === "sage-and-stem" ? "centre" : "start"}

@@ -70,7 +70,17 @@ export const brandSchema = z.object({
 const cta = z.object({ label: text(40).min(1), href });
 const image = z.object({ url: imageUrl, alt: text(200) });
 
-const sectionBase = { id: z.string().min(1).max(40), enabled: z.boolean() };
+/** How much room above and below a section. */
+export const SECTION_SPACINGS = ["compact", "normal", "roomy"] as const;
+/** Which of the theme's colours a section uses: the page's, the panel colour, the dark band, or the accent. */
+export const SECTION_SCHEMES = ["default", "surface", "dark", "accent"] as const;
+
+const sectionBase = {
+  id: z.string().min(1).max(40),
+  enabled: z.boolean(),
+  spacing: z.enum(SECTION_SPACINGS).optional(),
+  scheme: z.enum(SECTION_SCHEMES).optional(),
+};
 
 export const SECTION_TYPES = [
   "hero",
@@ -171,16 +181,31 @@ export const menuItemSchema = z.object({
   target: text(500),
 });
 
+/** A top menu link, which can open a dropdown of the merchant's own links. */
+export const headerItemSchema = menuItemSchema.extend({ children: z.array(menuItemSchema).max(10).optional() });
+
 export const navigationSchema = z.object({
-  header: z.array(menuItemSchema).max(8),
+  header: z.array(headerItemSchema).max(8),
   footer: z.array(z.object({ title: text(40).min(1), items: z.array(menuItemSchema).max(8) })).max(4),
   showSocialIcons: z.boolean(),
 });
 
 const pageCopy = z.object({ title: text(80), description: text(300), lead: text(300) });
 
+const announcementMessage = z.object({ text: text(120).min(1), href: href.nullable() });
+
 export const contentSchema = z.object({
-  announcement: z.object({ text: text(120), href: href.nullable() }),
+  announcement: z.object({
+    text: text(120),
+    href: href.nullable(),
+    /** More messages, shown in turn after the first (with a pause button). */
+    more: z.array(announcementMessage).max(4).optional(),
+    /** Shoppers can close it for the rest of their visit. */
+    dismissible: z.boolean().optional(),
+    /** Shown only from and until these times (ISO), e.g. for a sale. */
+    startsAt: z.string().datetime().nullable().optional(),
+    endsAt: z.string().datetime().nullable().optional(),
+  }),
   footerBlurb: text(300),
   copyright: text(120),
   shop: pageCopy.partial(),
@@ -200,6 +225,10 @@ export const siteOverridesSchema = z.object({
   theme: themeSchema.extend({ colours: themeSchema.shape.colours.partial() }).partial(),
   brand: brandSchema.partial(),
   sections: z.array(sectionSchema).max(20),
+  /** Sections under every product's details (reviews and related products come first). */
+  productSections: z.array(sectionSchema).max(10),
+  /** Sections under every collection's products. */
+  collectionSections: z.array(sectionSchema).max(10),
   navigation: navigationSchema.partial(),
   content: contentSchema.extend({ announcement: contentSchema.shape.announcement.partial() }).partial(),
   seo: seoSchema.partial(),

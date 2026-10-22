@@ -1,3 +1,4 @@
+import EditSectionButton from "./EditSectionButton";
 import Link from "next/link";
 import { STORE_PATHS, storeHref } from "@/lib/store/site/links";
 import { readingMinutes } from "@/lib/store/blog";
@@ -305,10 +306,45 @@ const TEMPLATE_SECTIONS: Record<StorefrontTemplateSlug, SectionSet> = {
 
 type RenderableSection = Extract<SiteSection, { type: RenderableType }>;
 
-function renderSection(set: SectionSet, section: RenderableSection, storefront: Storefront, index: number) {
+/** What each section is called in the editor (and on its preview "Edit" button). */
+export const SECTION_NAMES: Record<SiteSection["type"], string> = {
+  hero: "main banner",
+  "value-strip": "reasons to buy",
+  "category-tiles": "shop by category",
+  "featured-collections": "featured collections",
+  "product-list": "product row",
+  promo: "promotion",
+  reviews: "customer reviews",
+  journal: "journal",
+  press: "as featured in",
+  gallery: "photo gallery",
+  newsletter: "newsletter sign-up",
+};
+
+/**
+ * One section, in a wrapper that applies its spacing and colour scheme, with
+ * an "Edit" button when the merchant is previewing in the website editor.
+ * `isFirst` gives the page's <h1> to a first banner (the homepage only).
+ */
+function renderSection(set: SectionSet, section: RenderableSection, storefront: Storefront, index: number, isFirstOnPage: boolean) {
   // SectionSet pairs each type with its own component, so this lookup is always the matching one.
   const Component = set[section.type] as unknown as (props: { section: RenderableSection; storefront: Storefront; isFirst: boolean; nearTop: boolean }) => React.ReactNode;
-  return <Component key={section.id} section={section} storefront={storefront} isFirst={index === 0} nearTop={index === 0} />;
+  return (
+    <div key={section.id} className={`sf-block sf-block--space-${section.spacing ?? "normal"} sf-block--scheme-${section.scheme ?? "default"}`} data-sf-section={section.id}>
+      {storefront.isPreview ? <EditSectionButton id={section.id} label={SECTION_NAMES[section.type]} /> : null}
+      <Component section={section} storefront={storefront} isFirst={isFirstOnPage && index === 0} nearTop={isFirstOnPage && index === 0} />
+    </div>
+  );
+}
+
+/**
+ * A list of sections anywhere in the shop: under a product's details or a
+ * collection's products. The homepage uses HomeSections (it also owns the <h1>).
+ */
+export function SectionList({ storefront, sections }: { storefront: Storefront; sections: SiteSection[] }) {
+  const set = TEMPLATE_SECTIONS[storefront.site.template.slug];
+  const visible = sections.filter((s): s is RenderableSection => s.enabled);
+  return <>{visible.map((section, i) => renderSection(set, section, storefront, i, false))}</>;
 }
 
 /**
@@ -326,7 +362,7 @@ export default function HomeSections({ storefront }: { storefront: Storefront })
   return (
     <>
       {!firstIsHero ? <h1 className="visually-hidden">{storefront.storeName}</h1> : null}
-      {visible.map((section, i) => renderSection(set, section, storefront, i))}
+      {visible.map((section, i) => renderSection(set, section, storefront, i, true))}
     </>
   );
 }

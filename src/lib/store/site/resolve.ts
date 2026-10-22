@@ -27,6 +27,8 @@ export type ResolvedSite = {
   theme: SiteTheme & { onAccent: string; accentText: string };
   brand: SiteBrand;
   sections: SiteSection[];
+  productSections: SiteSection[];
+  collectionSections: SiteSection[];
   navigation: SiteNavigation;
   content: SiteContent;
   seo: SiteSeo;
@@ -181,6 +183,8 @@ export function resolveSite(templateSlug: string | null | undefined, overrides: 
     theme,
     brand,
     sections: overrides.sections ?? template.sections,
+    productSections: overrides.productSections ?? [],
+    collectionSections: overrides.collectionSections ?? [],
     navigation: { ...defaultNavigation(), ...overrides.navigation },
     content,
     seo,

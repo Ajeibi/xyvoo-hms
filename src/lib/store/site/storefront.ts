@@ -103,7 +103,7 @@ function pruneNavigation(nav: SiteNavigation, pages: StorePageSummary[], collect
 
   return {
     ...nav,
-    header: nav.header.filter(linkable),
+    header: nav.header.filter(linkable).map((item) => (item.children ? { ...item, children: item.children.filter(linkable) } : item)),
     footer: nav.footer.map((col) => ({ ...col, items: col.items.filter(linkable) })).filter((col) => col.items.length > 0),
   };
 }
@@ -155,11 +155,14 @@ export const getStorefront = cache(async (slug: string): Promise<Storefront | nu
 
   const resolved = resolveSite(siteRecord?.templateSlug, overrides, { storeName, tenantLogoUrl: tenant.logoUrl });
   const now = Date.now();
+  // A promotion with a countdown disappears once it has ended.
+  const current = (list: ResolvedSite["sections"]) => list.filter((s) => !(s.type === "promo" && s.endsAt && new Date(s.endsAt).getTime() < now));
   const site: ResolvedSite = {
     ...resolved,
     navigation: pruneNavigation(resolved.navigation, pages, collections),
-    // A promotion with a countdown disappears once it has ended.
-    sections: resolved.sections.filter((s) => !(s.type === "promo" && s.endsAt && new Date(s.endsAt).getTime() < now)),
+    sections: current(resolved.sections),
+    productSections: current(resolved.productSections),
+    collectionSections: current(resolved.collectionSections),
   };
 
   const p = snapshot.profile;

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import ProductListing, { listingCanonical, listingRobots, parseListingQuery, type ListingQuery } from "@/components/storefront-theme/ProductListing";
 import { STORE_PATHS } from "@/lib/store/site/links";
 import { getStorefront } from "@/lib/store/site/storefront";
+import { SectionList } from "@/components/storefront-theme/sections";
 
 type Props = { params: Promise<{ slug: string; collectionSlug: string }>; searchParams: Promise<ListingQuery> };
 
@@ -31,14 +32,18 @@ export default async function StorefrontCollectionPage({ params, searchParams }:
   const query = parseListingQuery(await searchParams, "featured");
 
   return (
-    <ProductListing
-      storefront={found.storefront}
-      title={found.collection.name}
-      lead={found.collection.description ?? undefined}
-      listingPath={STORE_PATHS.collection(found.collection.slug)}
-      query={{ ...query, category: undefined }}
-      collectionId={found.collection.id}
-      showCategories={false}
-    />
+    <>
+      <ProductListing
+        storefront={found.storefront}
+        title={found.collection.name}
+        lead={found.collection.description ?? undefined}
+        listingPath={STORE_PATHS.collection(found.collection.slug)}
+        query={{ ...query, category: undefined }}
+        collectionId={found.collection.id}
+        showCategories={false}
+      />
+      {/* The merchant's own sections for every collection page (Website > Sections > Collection pages). */}
+      <SectionList storefront={found.storefront} sections={found.storefront.site.collectionSections} />
+    </>
   );
 }

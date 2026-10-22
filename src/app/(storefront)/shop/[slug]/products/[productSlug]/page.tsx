@@ -1,3 +1,4 @@
+import { SectionList } from "@/components/storefront-theme/sections";
 import ProductReviews from "@/components/storefront-theme/ProductReviews";
 import { getShopCatalogue } from "@/lib/shop/catalogue-index";
 import { Fragment } from "react";
@@ -301,6 +302,8 @@ export default async function StorefrontProductPage({ params, searchParams }: Pr
           </div>
         </section>
       ) : null}
+      {/* The merchant's own sections for every product page (Website > Sections > Product pages). */}
+      <SectionList storefront={storefront} sections={site.productSections} />
     </>
   );
 }
