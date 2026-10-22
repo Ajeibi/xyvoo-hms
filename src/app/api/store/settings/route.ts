@@ -1,5 +1,6 @@
 import { shopTenantChanged } from "@/lib/store/site/shop-changed";
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
+import { alertOwnerMoneyChange, ownerOnlyMoney } from "@/lib/store/money-settings";
 import { z } from "zod";
 import { resolveStoreRequest } from "@/lib/store/api-helpers";
 import { diffFields, logActivity } from "@/lib/store/activity";
@@ -44,6 +45,9 @@ export async function PATCH(req: Request) {
   const resolved = await resolveStoreRequest(slug);
   if (resolved.error) return resolved.error;
   if (!resolved.capabilities.canManageSettings) return forbidden();
+  // The shop's own Paystack keys decide where card payments go: owner only.
+  const notOwner = ownerOnlyMoney(resolved.access.role);
+  if (notOwner) return notOwner;
 
   const parsed = PaystackSetupSchema.safeParse(body?.paystackSetup);
   if (!parsed.success) {
@@ -70,6 +74,22 @@ export async function PATCH(req: Request) {
     action: "paystack_keys_updated",
     changes: diffFields({ enabled: stored.enabled, mode: stored.mode }, { enabled: next.enabled, mode: next.mode }),
   });
+  // Tell the owner whenever the keys or their use change (never the keys themselves).
+  const keysChanged = next.secretKey !== (stored.secretKey || "") || next.publicKey !== (stored.publicKey || "") || next.webhookSecret !== (stored.webhookSecret || "");
+  if (keysChanged || next.enabled !== Boolean(stored.enabled) || next.mode !== stored.mode) {
+    const tenantId = resolved.access.tenantId;
+    const userId = resolved.access.userId as string;
+    after(() =>
+      alertOwnerMoneyChange(tenantId, userId, {
+        title: "Your shop's Paystack settings were changed",
+        detail: "The Paystack keys your shop uses to take card payments, or whether they're used, have just been changed.",
+        rows: [
+          { label: "Keys changed", value: keysChanged ? "Yes" : "No" },
+          { label: "Using your own Paystack", value: next.enabled ? `Yes (${next.mode} mode)` : "No" },
+        ],
+      }),
+    );
+  }
   // Whether the shop takes cards may have changed.
   shopTenantChanged(resolved.access.tenantId);
   return NextResponse.json({ success: true });

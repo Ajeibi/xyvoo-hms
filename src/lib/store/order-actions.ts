@@ -29,7 +29,10 @@ export async function applyOrderAction(tenantId: string, orderId: string, action
   if (action === "cancel") {
     const { data, error: cancelError } = await db.rpc("cancel_order", { p_tenant_id: tenantId, p_order_id: orderId });
     if (cancelError) throw new Error(cancelError.message);
+    // cancel_order locks the order and checks it again, so a change made meanwhile is caught there.
     if (data === "delivered") throw new OrderActionError("Delivered orders can't be cancelled.");
+    if (data === "already_cancelled") throw new OrderActionError("This order has already been cancelled. Please refresh the page.");
+    if (data === "not_found") throw new OrderActionError("Order not found.");
   } else {
     const update: Record<string, unknown> =
       action === "payment_received"
@@ -37,8 +40,18 @@ export async function applyOrderAction(tenantId: string, orderId: string, action
         : action === "shipped"
           ? { status: "Shipped", expires_at: null }
           : { status: "Delivered", expires_at: null };
-    const { error: updateError } = await db.from("orders").update({ ...update, updated_at: now }).eq("tenant_id", tenantId).eq("id", orderId);
+    // Only if the order is still as it was checked above: two people acting on it at once (or a payment
+    // arriving) can't both win, e.g. one marking it shipped while the other cancels it.
+    const { data: changed, error: updateError } = await db
+      .from("orders")
+      .update({ ...update, updated_at: now })
+      .eq("tenant_id", tenantId)
+      .eq("id", orderId)
+      .eq("status", order.status)
+      .eq("payment_status", order.payment_status)
+      .select("id");
     if (updateError) throw new Error(updateError.message);
+    if (!changed?.length) throw new OrderActionError("Someone else has just changed this order. Please refresh the page to see it.");
   }
 
   if (actor) await creditTriggerEvents(tenantId, orderId, since, actor);

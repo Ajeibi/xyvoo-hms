@@ -1,3 +1,4 @@
+import { allRows } from "@/lib/supabase/all-rows";
 import { z } from "zod";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -70,12 +71,15 @@ export function vipThreshold(spends: number[]) {
 const db = () => createServerSupabaseClient().schema("store");
 
 export async function listCustomers(tenantId: string, now = Date.now()): Promise<CustomerRow[]> {
+  // Paged: a shop can have more customers than one request returns.
   const [{ data, error }, { data: notes }] = await Promise.all([
-    db().rpc("customer_summaries", { p_tenant: tenantId }),
-    db().from("customer_notes").select("customer_key, tags, note").eq("tenant_id", tenantId),
+    allRows<Record<string, unknown>>((from, to) => db().rpc("customer_summaries", { p_tenant: tenantId }).order("customer_key").range(from, to)),
+    allRows<{ customer_key: string; tags: string[] | null; note: string | null }>((from, to) =>
+      db().from("customer_notes").select("customer_key, tags, note").eq("tenant_id", tenantId).order("customer_key").range(from, to),
+    ),
   ]);
   if (error) throw new Error(error.message);
-  const rows = (data || []) as Record<string, unknown>[];
+  const rows = data;
   const notesByKey = new Map((notes || []).map((n) => [n.customer_key as string, n]));
   const threshold = vipThreshold(rows.map((r) => Number(r.total_spent) || 0));
 

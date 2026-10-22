@@ -1,3 +1,4 @@
+import { allRows } from "@/lib/supabase/all-rows";
 import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -26,14 +27,19 @@ type Translation = { name: string | null; description: string | null; shortDescr
 
 /** A shop's translations for one language, kept with its other shared data and cleared on every product save. */
 async function loadTranslations(tenantId: string, language: ShopLanguage): Promise<Record<string, Translation>> {
-  const { data, error } = await createServerSupabaseClient()
-    .schema("store")
-    .from("product_translations")
-    .select("product_id, locale, name, description, short_description, products!inner(tenant_id)")
-    .eq("products.tenant_id", tenantId)
-    // "fr", or a regional form such as "fr-FR".
-    .or(`locale.eq.${language},locale.like.${language}-%`)
-    .limit(5000);
+  const { data, error } = await allRows<{ product_id: string; locale: string; name: string | null; description: string | null; short_description: string | null }>(
+    (from, to) =>
+      createServerSupabaseClient()
+        .schema("store")
+        .from("product_translations")
+        .select("product_id, locale, name, description, short_description, products!inner(tenant_id)")
+        .eq("products.tenant_id", tenantId)
+        // "fr", or a regional form such as "fr-FR".
+        .or(`locale.eq.${language},locale.like.${language}-%`)
+        .order("id")
+        .range(from, to),
+    10_000,
+  );
   if (error) {
     console.error("[product translations] not loaded", error.message);
     return {};

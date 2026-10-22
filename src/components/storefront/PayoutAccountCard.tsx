@@ -148,6 +148,8 @@ export default function PayoutAccountCard({ slug, defaultBusinessName = "" }: { 
           </div>
         ) : null}
 
+        {available && !canManage ? <p className="text-sm text-slate-600">Only the shop owner can add or change the payout account, so your shop&rsquo;s money always goes where they expect.</p> : null}
+
         {editing && available && canManage ? (
           <form onSubmit={save} className="space-y-4" noValidate>
             <DashField id="payout-bank" label="Bank">

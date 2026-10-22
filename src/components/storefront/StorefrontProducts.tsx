@@ -48,6 +48,8 @@ type VariantFormRow = {
   /** Its own prices in currencies the shop prices by hand, by currency code. */
   currencyPrices?: Record<string, string>;
   stock: string;
+  /** The option's stock when the editor opened (saved options only). */
+  stockWas?: string;
   barcode: string;
   weightKg: string;
   imageUrl: string;
@@ -93,6 +95,8 @@ type ProductFormState = {
 
   // Inventory & shipping
   stock: string;
+  /** The stock when the editor opened, so saving adds the change rather than overwriting sales made meanwhile. */
+  stockWas: string;
   reorderLevel: string;
   unit: string;
   allowBackorder: boolean;
@@ -171,6 +175,7 @@ const EMPTY_FORM: ProductFormState = {
   wholesaleMinQty: "1",
 
   stock: "0",
+  stockWas: "0",
   reorderLevel: "10",
   unit: "piece",
   allowBackorder: false,
@@ -589,6 +594,7 @@ export default function StorefrontProducts({
       wholesaleMinQty: String(product.wholesaleMinQty ?? 1),
 
       stock: String(product.stock),
+      stockWas: String(product.stock),
       reorderLevel: String(product.reorderLevel),
       unit: product.unit || "piece",
       allowBackorder: product.allowBackorder,
@@ -637,6 +643,7 @@ export default function StorefrontProducts({
           Object.entries((v as { currency_prices?: Record<string, number> | null }).currency_prices || {}).map(([code, price]) => [code, String(price)]),
         ),
         stock: String(v.stock ?? 0),
+        stockWas: String(v.stock ?? 0),
         barcode: v.barcode || "",
         weightKg: v.weight_kg != null ? String(v.weight_kg) : "",
         imageUrl: v.image_url || "",
@@ -768,6 +775,7 @@ export default function StorefrontProducts({
 
       // Inventory & shipping
       stock: Number(form.stock) || 0,
+      ...(form.id ? { stock_was: Number(form.stockWas) || 0 } : {}),
       reorder_level: Number(form.reorderLevel) || 10,
       unit: form.unit.trim() || "piece",
       allow_backorder: form.allowBackorder,
@@ -836,6 +844,7 @@ export default function StorefrontProducts({
             }
           : {}),
         stock: v.stock ? Number(v.stock) : 0,
+        ...(v.id && v.stockWas !== undefined ? { stock_was: Number(v.stockWas) || 0 } : {}),
         barcode: v.barcode.trim() || undefined,
         weight_kg: v.weightKg ? Number(v.weightKg) : undefined,
         image_url: v.imageUrl.trim() || undefined,

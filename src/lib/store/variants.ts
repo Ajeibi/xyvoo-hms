@@ -1,3 +1,4 @@
+import { addToStock, stockChange } from "./stock-edit";
 import type { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { StoreProductVariantRow } from "./products";
 
@@ -22,6 +23,8 @@ export type VariantInput = {
   /** Its own prices in currencies the shop prices by hand, e.g. { USD: 25 }. Left out when not sent, so saves work before the column exists. */
   currency_prices?: Record<string, number>;
   stock?: number;
+  /** The stock when the editor opened: then only the change is added (see stock-edit.ts). */
+  stock_was?: number;
   image_url?: string;
   barcode?: string;
   weight_kg?: number;
@@ -104,8 +107,12 @@ export async function syncProductVariants(service: ReturnType<typeof createServe
   const plan = planVariantSync((existing || []) as Existing[], incoming);
 
   for (const { id, input } of plan.update) {
-    const { error } = await db.from("product_variants").update(columns(input)).eq("id", id).eq("product_id", productId);
+    // A stock figure the merchant didn't change isn't written; a changed one is added, so sales made meanwhile still count.
+    const change = stockChange(input.stock ?? 0, input.stock_was);
+    const { stock, ...rest } = columns(input);
+    const { error } = await db.from("product_variants").update(change.kind === "set" ? { ...rest, stock } : rest).eq("id", id).eq("product_id", productId);
     if (error) throw new Error(error.message);
+    if (change.kind === "add") await addToStock(db, "product_variants", id, change.delta, { product_id: productId });
   }
   if (plan.insert.length) {
     const { error } = await db.from("product_variants").insert(plan.insert.map((v) => ({ product_id: productId, ...columns(v) })));

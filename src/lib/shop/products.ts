@@ -1,3 +1,4 @@
+import { allRows } from "@/lib/supabase/all-rows";
 import { cache } from "react";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { DEFAULT_SHOP_CURRENCY } from "@/lib/shop/tenants";
@@ -385,16 +386,22 @@ export async function listShopProducts(
 /** Distinct categories of a store's visible products, with how many products each has. */
 export async function listShopCategories(tenantId: string): Promise<Array<{ name: string; count: number }>> {
   const supabase = createServerSupabaseClient();
-  const { data, error } = await supabase
-    .schema("store")
-    .from("products")
-    .select("category")
-    .eq("tenant_id", tenantId)
-    .eq("status", "active")
-    .eq("visibility", "visible")
-    .eq("approval_status", "approved")
-    .not("category", "is", null)
-    .limit(2000);
+  // Paged, so a big catalogue's counts are right.
+  const { data, error } = await allRows<{ category: string }>(
+    (from, to) =>
+      supabase
+        .schema("store")
+        .from("products")
+        .select("category")
+        .eq("tenant_id", tenantId)
+        .eq("status", "active")
+        .eq("visibility", "visible")
+        .eq("approval_status", "approved")
+        .not("category", "is", null)
+        .order("id")
+        .range(from, to),
+    20_000,
+  );
   if (error) throw new Error(error.message);
 
   const counts = new Map<string, number>();

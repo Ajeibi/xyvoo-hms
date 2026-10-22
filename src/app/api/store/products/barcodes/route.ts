@@ -1,3 +1,4 @@
+import { allRows } from "@/lib/supabase/all-rows";
 import { NextResponse } from "next/server";
 import { resolveStoreRequest } from "@/lib/store/api-helpers";
 
@@ -10,7 +11,9 @@ export async function GET(req: Request) {
   const tenantId = resolved.access.tenantId;
   const store = resolved.service.schema("store");
   const [{ data, error }, { data: profile }] = await Promise.all([
-    store.from("products").select("id, name, price, barcode, status, product_variants(options, barcode, price_override, archived_at)").eq("tenant_id", tenantId).neq("status", "archived").order("name").limit(2000),
+    allRows((from, to) =>
+      store.from("products").select("id, name, price, barcode, status, product_variants(options, barcode, price_override, archived_at)").eq("tenant_id", tenantId).neq("status", "archived").order("name").order("id").range(from, to),
+    5_000),
     store.from("business_profile").select("currency_code").eq("tenant_id", tenantId).maybeSingle(),
   ]);
   if (error) {

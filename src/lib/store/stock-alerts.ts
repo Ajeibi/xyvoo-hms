@@ -1,3 +1,4 @@
+import { allRows } from "@/lib/supabase/all-rows";
 import { z } from "zod";
 import { badge, escapeHtml } from "@/lib/mail/layout";
 import { sendBrandedEmail } from "@/lib/mail/mailtrap";
@@ -203,7 +204,7 @@ async function sendStockAlertEmail(row: PendingRow, tenant: { subdomain?: unknow
 
 /** Waiting requests per product, for the dashboard. */
 export async function waitingCounts(tenantId: string): Promise<Record<string, number>> {
-  const { data } = await store().from("stock_alerts").select("product_id").eq("tenant_id", tenantId).is("notified_at", null).limit(10_000);
+  const { data } = await allRows<{ product_id: string }>((from, to) => store().from("stock_alerts").select("product_id").eq("tenant_id", tenantId).is("notified_at", null).order("id").range(from, to), 10_000);
   const counts: Record<string, number> = {};
   for (const r of data || []) counts[r.product_id as string] = (counts[r.product_id as string] ?? 0) + 1;
   return counts;
