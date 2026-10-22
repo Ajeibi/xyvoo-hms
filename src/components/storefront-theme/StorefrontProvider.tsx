@@ -6,6 +6,7 @@ import { convertFromHome, shopCurrencyCookie, type DisplayCurrency, type FixedPr
 import type { CartLine } from "@/lib/shop/cart";
 import { formatShopCurrency } from "@/lib/shop/format";
 import { storeHref } from "@/lib/store/site/links";
+import type { StorePushConfig } from "./push-client";
 
 type StorefrontClientContext = {
   slug: string;
@@ -18,6 +19,8 @@ type StorefrontClientContext = {
   displayCurrency: string;
   /** The shop takes orders over WhatsApp, so products and the basket offer "Order on WhatsApp". */
   whatsappOrdering?: boolean;
+  /** The shop's app and notifications (live shops only; no key when the shop doesn't send notifications). */
+  push?: StorePushConfig | null;
 };
 
 type MoneyContext = { selected: DisplayCurrency; setCurrency: (code: string) => void };

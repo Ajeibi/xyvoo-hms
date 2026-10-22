@@ -3,6 +3,7 @@ import { badge, escapeHtml } from "@/lib/mail/layout";
 import { sendBrandedEmail } from "@/lib/mail/mailtrap";
 import { rateLimitShared } from "@/lib/rate-limit";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { sendLinkedPush } from "./push-links";
 import { isShopLive } from "./site/data";
 import { STORE_PATHS } from "./site/links";
 import { storefrontUrl } from "./subdomain";
@@ -24,11 +25,14 @@ export const stockAlertSchema = z.object({
   email: z.string().trim().toLowerCase().max(200).email("Enter an email address in the format name@example.com.").optional(),
 });
 
-/** Saves a request. Returns false if the product isn't this shop's or is in stock already. Asking twice is fine. */
+/**
+ * Saves a request and returns its id, or null if the product isn't this shop's. Asking twice is fine. With no
+ * email, the shopper asked for a notification on their device instead (linked to the request by the caller).
+ */
 export async function requestStockAlert(
   tenantId: string,
-  input: { productId: string; variantId?: string | null; email: string; name?: string | null; accountId?: string | null },
-) {
+  input: { productId: string; variantId?: string | null; email: string | null; name?: string | null; accountId?: string | null },
+): Promise<string | null> {
   const { data: product } = await store()
     .from("products")
     .select("id, stock, allow_backorder, product_variants(id, stock)")
@@ -36,29 +40,38 @@ export async function requestStockAlert(
     .eq("id", input.productId)
     .eq("status", "active")
     .maybeSingle();
-  if (!product) return false;
+  if (!product) return null;
   const variants = (product.product_variants as { id: string; stock: number }[]) || [];
   const variant = input.variantId ? variants.find((v) => v.id === input.variantId) : null;
-  if (input.variantId && !variant) return false;
+  if (input.variantId && !variant) return null;
 
-  const { error } = await store()
+  const email = input.email?.toLowerCase() || null;
+  const { data, error } = await store()
     .from("stock_alerts")
     .insert({
       tenant_id: tenantId,
       product_id: input.productId,
       variant_id: variant?.id ?? null,
-      email: input.email.toLowerCase(),
+      email,
       name: input.name?.slice(0, 120) || null,
       customer_account_id: input.accountId ?? null,
-    });
-  if (error && error.code !== "23505") throw new Error(error.message);
-  return true;
+    })
+    .select("id")
+    .single();
+  if (!error) return data.id as string;
+  if (error.code !== "23505" || !email) throw new Error(error.message);
+  // Already waiting: the earlier request.
+  let existing = store().from("stock_alerts").select("id").eq("tenant_id", tenantId).eq("product_id", input.productId).eq("email", email).is("notified_at", null);
+  existing = variant ? existing.eq("variant_id", variant.id) : existing.is("variant_id", null);
+  const { data: found } = await existing.limit(1).maybeSingle();
+  return (found?.id as string | undefined) ?? null;
 }
 
 type PendingRow = {
   id: string;
   tenant_id: string;
-  email: string;
+  /** Empty when the shopper asked for a notification on their device instead. */
+  email: string | null;
   name: string | null;
   variant_id: string | null;
   product: {
@@ -121,8 +134,16 @@ export async function sendDueStockAlerts(tenantId?: string, productIds?: string[
     const { data: claimed } = await store().from("stock_alerts").update({ notified_at: new Date().toISOString() }).eq("id", row.id).is("notified_at", null).select("id");
     if (!claimed?.length) continue;
     try {
-      await sendStockAlertEmail(row, tenant, replyTo.get(row.tenant_id) ?? null);
-      sent += 1;
+      if (row.email) await sendStockAlertEmail(row, tenant, replyTo.get(row.tenant_id) ?? null);
+      const product = row.product!;
+      const option = row.variant?.options ? Object.values(row.variant.options).join(" · ") : "";
+      const reached = await sendLinkedPush(row.tenant_id, "stock_alert", row.id, {
+        title: "It's back in stock",
+        body: `${option ? `${product.name} (${option})` : product.name} is available again. Have a look before it sells out.`,
+        path: STORE_PATHS.product(product.slug || product.id),
+        tag: `restock-${row.id}`,
+      });
+      if (row.email || reached) sent += 1;
     } catch (err) {
       console.error("[stock alerts] email not sent", err);
       await store().from("stock_alerts").update({ notified_at: null }).eq("id", row.id);
@@ -162,7 +183,7 @@ async function sendStockAlertEmail(row: PendingRow, tenant: { subdomain?: unknow
   const intro = `${greeting}good news: ${what} is back in stock at ${storeName}. It may not last long, so have a look while it's available.`;
 
   await sendBrandedEmail({
-    to: row.email,
+    to: row.email!,
     subject: `${what} is back in stock at ${storeName}`,
     replyTo: shopEmail,
     text: [intro, "", `See it here: ${url}`, "", "You asked us to tell you when it was back. This is the only email we'll send about it."].join("\n"),

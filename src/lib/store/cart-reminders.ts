@@ -6,6 +6,7 @@ import { getShopProductsByIds } from "@/lib/shop/products";
 import { rateLimitShared } from "@/lib/rate-limit";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { priceBasketLines } from "./discounts-server";
+import { sendLinkedPush } from "./push-links";
 import { isSale } from "./sales";
 import { isShopLive } from "./site/data";
 import { storefrontUrl } from "./subdomain";
@@ -180,6 +181,14 @@ export async function sendDueCartReminders(now = Date.now()): Promise<number> {
     try {
       await sendReminderEmail(row, which, tenant, (profileFor.get(row.tenant_id)?.business_email as string | null) ?? null);
       sent += 1;
+      // And on the device the basket was left on, if the shopper has the shop's notifications there.
+      const storeName = (tenant.display_name as string | null)?.trim() || String(tenant.subdomain || tenant.name);
+      await sendLinkedPush(row.tenant_id, "checkout", row.id, {
+        title: which === 1 ? "You left something in your basket" : "Your basket is still waiting",
+        body: `We've kept your basket at ${storeName}. Tap to pick up where you left off.`,
+        path: `/cart?restore=${row.reminder_key}`,
+        tag: `basket-${row.id}`,
+      });
       // Don't remind about another basket from the same person in this run.
       ctx.optedOut.add(key(row.tenant_id, row.customer_email));
     } catch (err) {

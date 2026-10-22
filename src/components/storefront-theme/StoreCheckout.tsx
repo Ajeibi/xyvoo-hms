@@ -16,6 +16,7 @@ import { decodeStoredReferral, referralStorageKey } from "@/lib/store/referral-l
 import { getBasketCode, readCheckoutDetails, saveCheckoutDetails, setBasketCode } from "@/lib/shop/basket-code";
 import { pointsValue, redeemablePoints, type LoyaltySettings } from "@/lib/store/loyalty";
 import { useMoney, useStorefront } from "./StorefrontProvider";
+import { currentPushSubscription, linkPush } from "./push-client";
 import ChargeNote from "./ChargeNote";
 import { useBasketPrices } from "./useBasketPrices";
 import { useShopAccount } from "./useShopAccount";
@@ -111,7 +112,7 @@ export default function StoreCheckout({
   /** Chosen to start with: "Order on WhatsApp" on a product or the basket opens checkout with ?pay=whatsapp. */
   initialPaymentMethod?: CheckoutPaymentMethod;
 }) {
-  const { slug, href } = useStorefront();
+  const { slug, href, push } = useStorefront();
   const lines = useCartStore((s) => s.lines);
   const hasHydrated = useCartStore((s) => s.hasHydrated);
   const [errors, setErrors] = useState<Errors>({});
@@ -353,6 +354,8 @@ export default function StoreCheckout({
   // Analytics (only sent with the shopper's consent) and the abandoned-cart save.
   const started = useRef(false);
   const detailsTracked = useRef(false);
+  // The basket's reminder also goes to this device when it already has the shop's notifications (asked once).
+  const pushLinked = useRef(false);
   const saveTimer = useRef<number | null>(null);
   useEffect(() => {
     if (!hasHydrated || lines.length === 0 || started.current) return;
@@ -381,7 +384,14 @@ export default function StoreCheckout({
           items: lines.map((l) => ({ productId: l.productId, variantId: l.variantId, quantity: l.quantity })),
         }),
         keepalive: true,
-      }).catch(() => undefined);
+      })
+        .then(async (res) => {
+          if (!res.ok || pushLinked.current) return;
+          pushLinked.current = true;
+          const sub = await currentPushSubscription(push);
+          if (sub) await linkPush(slug, { kind: "checkout", endpoint: sub.endpoint, token: checkoutToken(slug) });
+        })
+        .catch(() => undefined);
       if (!detailsTracked.current) {
         detailsTracked.current = true;
         track({ type: "checkout_details", value: subtotal });

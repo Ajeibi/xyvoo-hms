@@ -1,15 +1,20 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId, useState, useSyncExternalStore } from "react";
+import { canUsePush, currentPushSubscription, subscribeToShopPush } from "./push-client";
 import { useStorefront } from "./StorefrontProvider";
 import { useShopAccount } from "./useShopAccount";
+
+const noopSubscribe = () => () => {};
 
 /**
  * "Email me when it's back" on a sold-out product (or size or colour). Signed-in
  * shoppers just press the button; guests type their email. One email, once.
+ * Where the shop sends notifications, a notification on this device instead.
  */
 export default function StockAlertForm({ productId, variantId, label }: { productId: string; variantId: string | null; label: string }) {
-  const { slug } = useStorefront();
+  const { slug, push } = useStorefront();
+  const pushable = useSyncExternalStore(noopSubscribe, () => canUsePush(push), () => false);
   const { account } = useShopAccount();
   const id = useId();
   const [email, setEmail] = useState("");
@@ -19,6 +24,35 @@ export default function StockAlertForm({ productId, variantId, label }: { produc
   const [doneFor, setDoneFor] = useState<string | null>(null);
   const key = `${productId}:${variantId ?? ""}`;
 
+  const send = async (extra: { email?: string; pushEndpoint?: string }) => {
+    const res = await fetch(`/api/shop/${encodeURIComponent(slug)}/stock-alerts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ productId, variantId, ...extra }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(typeof data.error === "string" ? data.error : "We couldn't save that. Please try again.");
+    return data as { email: string | null; push?: boolean };
+  };
+
+  const notifyHere = async () => {
+    if (!push) return;
+    setBusy(true);
+    setStatus("");
+    try {
+      const sub = (await currentPushSubscription(push)) ?? (await subscribeToShopPush(slug, push, false));
+      if (sub === "blocked") return setStatus("Notifications are blocked for this shop in your browser settings. You can ask for an email instead.");
+      if (sub === "failed") return setStatus("We couldn't turn on notifications. You can ask for an email instead.");
+      await send({ pushEndpoint: sub.endpoint });
+      setDoneFor(key);
+      setStatus(`Done. We'll send a notification to this device when ${label} is back in stock.`);
+    } catch (err) {
+      setStatus(err instanceof TypeError ? "We couldn't connect. Check your internet connection and try again." : (err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const typed = email.trim();
@@ -26,13 +60,7 @@ export default function StockAlertForm({ productId, variantId, label }: { produc
     setBusy(true);
     setStatus("");
     try {
-      const res = await fetch(`/api/shop/${encodeURIComponent(slug)}/stock-alerts`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId, variantId, email: account ? undefined : typed }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(typeof data.error === "string" ? data.error : "We couldn't save that. Please try again.");
+      const data = await send({ email: account ? undefined : typed });
       setDoneFor(key);
       setStatus(`Done. We'll email ${data.email} when ${label} is back in stock.`);
     } catch (err) {
@@ -59,6 +87,11 @@ export default function StockAlertForm({ productId, variantId, label }: { produc
           <button className="btn btn--outline" type="submit" disabled={busy}>
             {busy ? "Saving…" : "Email me when it’s back"}
           </button>
+          {pushable ? (
+            <button className="stock-alert__alt" type="button" onClick={notifyHere} disabled={busy}>
+              Or send a notification to this device
+            </button>
+          ) : null}
         </>
       )}
       <p className="form-status" role="status">

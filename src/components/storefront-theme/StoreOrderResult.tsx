@@ -10,6 +10,7 @@ import { STORE_PATHS } from "@/lib/store/site/links";
 import { useStorefront } from "./StorefrontProvider";
 import { Icon } from "./primitives";
 import { TrackPurchase } from "./StoreAnalytics";
+import OrderUpdatesPush from "./OrderUpdatesPush";
 import { purchaseLines } from "@/lib/store/product-feed";
 
 type OrderSummary = {
@@ -152,6 +153,7 @@ export default function StoreOrderResult({ reference }: { reference: string }) {
           <p className="body-copy">
             Your order reference is <strong>{order.id.slice(0, 8).toUpperCase()}</strong>. Please keep it in case you need to contact the shop.
           </p>
+          <OrderUpdatesPush orderId={order.id} />
           <aside className="summary" aria-labelledby="order-summary-title">
             <h2 id="order-summary-title">Your order</h2>
             <ul className="mini-lines">

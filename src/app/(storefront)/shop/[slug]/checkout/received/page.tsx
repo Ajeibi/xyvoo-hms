@@ -1,3 +1,4 @@
+import OrderUpdatesPush from "@/components/storefront-theme/OrderUpdatesPush";
 import PaymentProofUpload from "@/components/storefront-theme/PaymentProofUpload";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -131,6 +132,7 @@ export default async function OrderReceivedPage({ params, searchParams }: { para
       <p className="body-copy">
         Your order reference is <strong>{reference}</strong>. Please keep it in case you need to contact {storeName}.
       </p>
+      <OrderUpdatesPush orderId={order.id} />
 
       <div className="payment-box" style={{ marginTop: "1.5rem" }}>
         {fullyPaid ? (

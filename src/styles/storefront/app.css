@@ -459,3 +459,9 @@
 .announce__control { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; padding: 0; border: 0; border-radius: 50%; background: none; color: inherit; cursor: pointer; }
 .announce__control:hover { background: color-mix(in srgb, currentColor 12%, transparent); }
 .announce__control:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
+
+/* Back in stock by notification (StockAlertForm) and order updates on this device (OrderUpdatesPush). */
+.stock-alert__alt { justify-self: start; min-height: 2.75rem; padding: 0; border: 0; background: none; color: var(--accent-text, var(--accent)); font: inherit; font-size: 0.9375rem; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.stock-alert__alt:disabled { opacity: 0.6; cursor: default; }
+.order-push { display: grid; gap: 0.5rem; justify-items: start; margin-top: 1rem; padding: 1rem 1.25rem; border: 1px solid var(--line); border-radius: var(--card-radius, 0.75rem); background: var(--surface); }
+.order-push p { margin: 0; }

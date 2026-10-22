@@ -281,6 +281,7 @@ export default async function StorefrontLayout({ children, params }: LayoutParam
               currencies: storefront.currencies,
               displayCurrency: storefront.displayCurrency,
               whatsappOrdering: storefront.paymentMethods.includes("whatsapp"),
+              push: appConfig ? { swUrl: appConfig.swUrl, scope: appConfig.scope, pushPublicKey: appConfig.pushPublicKey } : null,
             }}
           >
             {promo && promoLabel ? <PromoBar offer={promo.offer} code={promo.code} endsAt={promo.endsAt} initialLabel={promoLabel} /> : null}
