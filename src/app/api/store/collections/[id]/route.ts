@@ -1,6 +1,8 @@
-import { NextResponse } from "next/server";
+import { copyCollectionImages } from "@/lib/store/external-images";
+import { after, NextResponse } from "next/server";
 import { resolveStoreRequest } from "@/lib/store/api-helpers";
 import { collectionSchema, setCollectionProducts, toCollectionRow } from "@/lib/store/collections";
+import { shopChanged } from "@/lib/store/site/shop-changed";
 
 async function authorise(slug: unknown) {
   const resolved = await resolveStoreRequest(typeof slug === "string" ? slug : "");
@@ -38,6 +40,10 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
+  shopChanged(resolved.access.tenantId);
+  // A banner added by address is copied into the shop's storage after the reply.
+  const tenantId = resolved.access.tenantId;
+  after(() => copyCollectionImages(tenantId));
   return NextResponse.json({ ok: true });
 }
 
@@ -47,5 +53,6 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   if (resolved.error) return resolved.error;
   const { error } = await resolved.service.schema("store").from("collections").delete().eq("id", (await params).id).eq("tenant_id", resolved.access.tenantId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  shopChanged(resolved.access.tenantId);
   return NextResponse.json({ ok: true });
 }

@@ -1,13 +1,15 @@
+import { allRows } from "@/lib/supabase/all-rows";
+import { cache } from "react";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { DEFAULT_SHOP_CURRENCY } from "@/lib/shop/tenants";
 import type { FixedPrices } from "@/lib/store/currencies";
-import { getStorePlan, storeHasFeature } from "@/lib/store/features";
+import { hasShopFeature } from "@/lib/store/features";
 import { effectivePrice, saleFromRow, saleIsLive } from "@/lib/store/sale-price";
 
 /** Columns a shopper is allowed to see -- excludes cost_price, supplier/warehouse
  * info, metadata, import/audit fields, and anything else that's merchant-internal.
  * The legacy list is used until the sale price columns have been added. */
-const LEGACY_PRODUCT_COLUMNS = `
+export const LEGACY_PRODUCT_COLUMNS = `
   id, name, slug, sku, brand, category, subcategory, tags, product_type,
   description, short_description, image_url, image_urls, image_alt_texts,
   product_options, price, compare_at_price, currency, delivery_extra, minimum_order_qty,
@@ -18,13 +20,27 @@ const LEGACY_PRODUCT_COLUMNS = `
   product_prices (currency, price, compare_at_price)
 `;
 
-const SHOP_PRODUCT_COLUMNS = LEGACY_PRODUCT_COLUMNS.replace("compare_at_price, currency,", "compare_at_price, sale_price, sale_starts_at, sale_ends_at, currency,").replace(
+export const SHOP_PRODUCT_COLUMNS = LEGACY_PRODUCT_COLUMNS.replace("compare_at_price, currency,", "compare_at_price, sale_price, sale_starts_at, sale_ends_at, currency,").replace(
   "price_override, stock,",
   "price_override, sale_price, sale_starts_at, sale_ends_at, stock,",
 );
 
+/** The shop's columns plus each size or colour's own currency prices (once that column has been added). */
+const WITH_VARIANT_PRICES = SHOP_PRODUCT_COLUMNS.replace("image_url, barcode, archived_at)", "image_url, barcode, archived_at, currency_prices)");
+let variantPricesMissing = false;
+
+/** The columns to read for the shop: with the options' own currency prices, unless that column isn't there yet. */
+export const shopProductColumns = () => (variantPricesMissing ? SHOP_PRODUCT_COLUMNS : WITH_VARIANT_PRICES);
+
+/** Whether a query failed only because the options' currency prices column hasn't been added yet (read shopProductColumns() again, then retry). */
+export function missingVariantPrices(error: { code?: string; message?: string } | null) {
+  if (!error || !/currency_prices/.test(error.message || "")) return false;
+  variantPricesMissing = true;
+  return true;
+}
+
 /** Whether a query failed only because the sale columns haven't been added yet. */
-const missingSaleColumns = (error: { code?: string; message?: string } | null) =>
+export const missingSaleColumns = (error: { code?: string; message?: string } | null) =>
   Boolean(error && (error.code === "42703" || /sale_(price|starts_at|ends_at)/.test(error.message || "")));
 
 export type ShopProductVariant = {
@@ -37,6 +53,8 @@ export type ShopProductVariant = {
   compareAtPrice: number | null;
   /** When the variant's own sale ends, if it's on sale and has an end. */
   saleEndsAt: string | null;
+  /** The merchant's own prices for this option in other currencies (empty: as the product's, or converted). */
+  fixedPrices: FixedPrices;
   stock: number;
   imageUrl: string | null;
   barcode: string | null;
@@ -89,7 +107,7 @@ export type ShopProduct = {
   variants: ShopProductVariant[];
 };
 
-type ShopProductRow = {
+export type ShopProductRow = {
   id: string;
   name: string;
   slug: string | null;
@@ -139,10 +157,39 @@ type ShopProductRow = {
         image_url: string | null;
         barcode: string | null;
         archived_at: string | null;
+        currency_prices?: Record<string, number> | null;
       }>
     | null;
   product_prices: Array<{ currency: string; price: number; compare_at_price: number | null }> | null;
 };
+
+/**
+ * The merchant's own prices in other currencies. They're set for the normal
+ * price, so while a sale is on each one is cut by the same share as the home
+ * price and shown against its normal price, rather than switching to conversion.
+ */
+function fixedPricesFor(rows: ShopProductRow["product_prices"], productPrice: { price: number; regular: number; onSale: boolean }): FixedPrices {
+  const share = productPrice.onSale && productPrice.regular > 0 ? productPrice.price / productPrice.regular : null;
+  return Object.fromEntries(
+    (rows || []).map((p) => {
+      const price = Number(p.price);
+      if (share == null) return [p.currency, { price, compareAt: p.compare_at_price != null ? Number(p.compare_at_price) : null }];
+      return [p.currency, { price: Math.round(price * share * 100) / 100, compareAt: price }];
+    }),
+  );
+}
+
+/** An option's own prices in other currencies; cut by the same share as its home price while it's on sale. */
+function variantFixedPrices(prices: Record<string, number> | null | undefined, sale: { price: number; regular: number } | null): FixedPrices {
+  const share = sale && sale.regular > 0 ? sale.price / sale.regular : null;
+  const out: FixedPrices = {};
+  for (const [code, raw] of Object.entries(prices || {})) {
+    const price = Number(raw);
+    if (!Number.isFinite(price) || price <= 0) continue;
+    out[code] = share == null ? { price, compareAt: null } : { price: Math.round(price * share * 100) / 100, compareAt: price };
+  }
+  return out;
+}
 
 function mapRow(row: ShopProductRow, salesEnabled: boolean, now: Date): ShopProduct {
   const base = { price: Number(row.price) || 0, ...saleFromRow(row) };
@@ -161,6 +208,7 @@ function mapRow(row: ShopProductRow, salesEnabled: boolean, now: Date): ShopProd
       priceOverride: ownSale || override != null ? own.price : null,
       compareAtPrice: ownSale ? own.regular : null,
       saleEndsAt: ownSale ? own.saleEndsAt : null,
+      fixedPrices: variantFixedPrices(v.currency_prices, ownSale ? { price: own.price, regular: own.regular } : null),
       stock: v.stock,
       imageUrl: v.image_url,
       barcode: v.barcode,
@@ -194,12 +242,7 @@ function mapRow(row: ShopProductRow, salesEnabled: boolean, now: Date): ShopProd
     onSale: productPrice.onSale,
     saleEndsAt: productPrice.saleEndsAt,
     currency: row.currency || DEFAULT_SHOP_CURRENCY,
-    // The merchant's own prices in other currencies are for the normal price, so a sale price is converted instead.
-    fixedPrices: productPrice.onSale
-      ? {}
-      : Object.fromEntries(
-          (row.product_prices || []).map((p) => [p.currency, { price: Number(p.price), compareAt: p.compare_at_price != null ? Number(p.compare_at_price) : null }]),
-        ),
+    fixedPrices: fixedPricesFor(row.product_prices, productPrice),
     deliveryExtra: Number(row.delivery_extra) || 0,
     minimumOrderQty: row.minimum_order_qty,
     stock: row.stock,
@@ -274,11 +317,12 @@ export async function listShopProducts(
   const fetchAll = byPrice || filters.flag === "on-sale";
   const PRICE_SORT_LIMIT = 2000;
 
-  const run = (withSales: boolean) => {
+  // `countOnly` asks for one row, just for the count (used when the page asked for is past the end).
+  const run = (withSales: boolean, countOnly = false) => {
     let query = supabase
       .schema("store")
       .from("products")
-      .select(withSales ? SHOP_PRODUCT_COLUMNS : LEGACY_PRODUCT_COLUMNS, { count: "exact" })
+      .select(withSales ? shopProductColumns() : LEGACY_PRODUCT_COLUMNS, { count: "exact" })
       .eq("tenant_id", tenantId)
       .eq("status", "active")
       .eq("visibility", "visible")
@@ -286,7 +330,8 @@ export async function listShopProducts(
 
     if (productIds) query = query.in("id", productIds);
     if (filters.category) query = query.eq("category", filters.category);
-    if (filters.search) query = query.ilike("name", `%${filters.search}%`);
+    // % and _ are wildcards to the database; a shopper typing them means the characters themselves.
+    if (filters.search) query = query.ilike("name", `%${filters.search.replace(/[\\%_]/g, (c) => `\\${c}`)}%`);
     if (filters.flag === "featured") query = query.eq("featured", true);
     if (filters.flag === "new-arrival") query = query.eq("new_arrival", true);
     if (filters.flag === "best-seller") query = query.eq("best_seller", true);
@@ -297,11 +342,23 @@ export async function listShopProducts(
     const sort = SORTS[filters.sort ?? "newest"];
     query = query.order(sort.column, { ascending: sort.ascending });
     if (sort.column !== "created_at") query = query.order("created_at", { ascending: false });
+    if (countOnly) return query.range(0, 0);
     return fetchAll ? query.range(0, PRICE_SORT_LIMIT - 1) : query.range(from, to);
   };
 
+  let withSales = true;
   let result = await run(true);
-  if (missingSaleColumns(result.error)) result = await run(false);
+  if (missingVariantPrices(result.error)) result = await run(true);
+  if (missingSaleColumns(result.error)) {
+    withSales = false;
+    result = await run(false);
+  }
+  // A page past the last one (an old link, or a typed ?page=): an empty page, with the real count for the page links.
+  if (result.error?.code === "PGRST103") {
+    const counted = await run(withSales, true);
+    if (counted.error) throw new Error(counted.error.message);
+    return { products: [], total: counted.count || 0, page, pageSize };
+  }
   const { data, error, count } = result;
   if (error) throw new Error(error.message);
 
@@ -329,16 +386,22 @@ export async function listShopProducts(
 /** Distinct categories of a store's visible products, with how many products each has. */
 export async function listShopCategories(tenantId: string): Promise<Array<{ name: string; count: number }>> {
   const supabase = createServerSupabaseClient();
-  const { data, error } = await supabase
-    .schema("store")
-    .from("products")
-    .select("category")
-    .eq("tenant_id", tenantId)
-    .eq("status", "active")
-    .eq("visibility", "visible")
-    .eq("approval_status", "approved")
-    .not("category", "is", null)
-    .limit(2000);
+  // Paged, so a big catalogue's counts are right.
+  const { data, error } = await allRows<{ category: string }>(
+    (from, to) =>
+      supabase
+        .schema("store")
+        .from("products")
+        .select("category")
+        .eq("tenant_id", tenantId)
+        .eq("status", "active")
+        .eq("visibility", "visible")
+        .eq("approval_status", "approved")
+        .not("category", "is", null)
+        .order("id")
+        .range(from, to),
+    20_000,
+  );
   if (error) throw new Error(error.message);
 
   const counts = new Map<string, number>();
@@ -349,10 +412,11 @@ export async function listShopCategories(tenantId: string): Promise<Array<{ name
   return Array.from(counts, ([name, count]) => ({ name, count })).sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export async function getShopProductBySlug(tenantId: string, slug: string): Promise<ShopProduct | null> {
+// Once per request: a product page reads it for its metadata and again for the page.
+export const getShopProductBySlug = cache(async (tenantId: string, slug: string): Promise<ShopProduct | null> => {
   const supabase = createServerSupabaseClient();
 
-  let columns = SHOP_PRODUCT_COLUMNS;
+  let columns = shopProductColumns();
   const lookup = (column: "slug" | "id") =>
     supabase
       .schema("store")
@@ -366,6 +430,10 @@ export async function getShopProductBySlug(tenantId: string, slug: string): Prom
       .maybeSingle();
 
   let { data, error } = await lookup("slug");
+  if (missingVariantPrices(error)) {
+    columns = shopProductColumns();
+    ({ data, error } = await lookup("slug"));
+  }
   if (missingSaleColumns(error)) {
     columns = LEGACY_PRODUCT_COLUMNS;
     ({ data, error } = await lookup("slug"));
@@ -376,8 +444,10 @@ export async function getShopProductBySlug(tenantId: string, slug: string): Prom
   if (error) throw new Error(error.message);
   if (!data) return null;
 
-  return (await mapRows(tenantId, [data as unknown as ShopProductRow]))[0];
-}
+  // In the shopper's language, where the merchant has translated it.
+  const { translateProducts } = await import("./product-translations");
+  return (await translateProducts(tenantId, await mapRows(tenantId, [data as unknown as ShopProductRow])))[0];
+});
 
 /** Products on sale in the shop, by id (e.g. to put a saved basket back). Ones no longer on sale are left out. */
 export async function getShopProductsByIds(tenantId: string, ids: string[]): Promise<ShopProduct[]> {
@@ -395,16 +465,17 @@ export async function getShopProductsByIds(tenantId: string, ids: string[]): Pro
       .eq("visibility", "visible")
       .eq("approval_status", "approved");
 
-  let { data, error } = await lookup(SHOP_PRODUCT_COLUMNS);
+  let { data, error } = await lookup(shopProductColumns());
+  if (missingVariantPrices(error)) ({ data, error } = await lookup(shopProductColumns()));
   if (missingSaleColumns(error)) ({ data, error } = await lookup(LEGACY_PRODUCT_COLUMNS));
   if (error) throw new Error(error.message);
   return mapRows(tenantId, (data || []) as unknown as ShopProductRow[]);
 }
 
 /** Maps rows for the shop, with sale prices applied when the shop's plan includes flash sales. */
-async function mapRows(tenantId: string, rows: ShopProductRow[]) {
+export async function mapRows(tenantId: string, rows: ShopProductRow[]) {
   const hasSale = rows.some((r) => r.sale_price != null || (r.product_variants || []).some((v) => v.sale_price != null));
-  const salesEnabled = hasSale ? storeHasFeature(await getStorePlan(tenantId), "flashSales") : false;
+  const salesEnabled = hasSale ? await hasShopFeature(tenantId, "flashSales") : false;
   const now = new Date();
   return rows.map((row) => mapRow(row, salesEnabled, now));
 }

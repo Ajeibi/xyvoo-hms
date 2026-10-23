@@ -4,7 +4,9 @@ import { formatShopCurrency } from "@/lib/shop/format";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { claimOrderEmail, releaseOrderEmail } from "./order-events";
 import { orderRef } from "./orders";
+import { sendLinkedPush } from "./push-links";
 import { storefrontUrl } from "./subdomain";
+import { whatsappOrderUpdate } from "./whatsapp-messages";
 
 /*
  * Shopper emails when an order moves on: shipped, delivered, cancelled,
@@ -103,12 +105,34 @@ function build(kind: OrderStatusEmail, ctx: NonNullable<Awaited<ReturnType<typeo
   };
 }
 
+/** Where the notification takes the shopper: their order's own page in the shop. */
+const orderPagePath = (order: Record<string, unknown>) =>
+  order.payment_method === "Card" ? `/checkout/callback?reference=${order.id}` : `/checkout/received?order=${order.id}`;
+
+/** The same update as a notification, on devices the shopper asked to get it on. Once per change, like the email. */
+async function orderStatusPush(tenantId: string, orderId: string, ctx: NonNullable<Awaited<ReturnType<typeof loadContext>>>, content: Content) {
+  const claim = await claimOrderEmail(tenantId, orderId, `push:${content.key}`, `Notification sent: ${content.title.toLowerCase()}`);
+  if (!claim) return;
+  const reached = await sendLinkedPush(tenantId, "order", orderId, {
+    title: `${content.title} (${ctx.reference})`,
+    body: content.lines[0],
+    path: orderPagePath(ctx.order),
+    tag: `order-${orderId}`,
+  });
+  // Nobody to tell: leave no "sent" line on the order's timeline.
+  if (!reached) await releaseOrderEmail(tenantId, claim);
+}
+
 export async function sendOrderStatusEmail(tenantId: string, orderId: string, kind: OrderStatusEmail) {
+  // The same update on WhatsApp, for shoppers who asked for it (never throws; it has its own once-only claim).
+  await whatsappOrderUpdate(tenantId, orderId, kind);
   try {
     const ctx = await loadContext(tenantId, orderId);
-    const to = ctx?.order.customer_email as string | null | undefined;
-    if (!ctx || !to) return;
+    if (!ctx) return;
     const content = build(kind, ctx);
+    await orderStatusPush(tenantId, orderId, ctx, content).catch((error) => console.error("[order status push] not sent", { orderId, error }));
+    const to = ctx.order.customer_email as string | null | undefined;
+    if (!to) return;
     const claim = await claimOrderEmail(tenantId, orderId, content.key, `Email sent to ${to}: ${content.title.toLowerCase()}`);
     if (!claim) return;
     try {

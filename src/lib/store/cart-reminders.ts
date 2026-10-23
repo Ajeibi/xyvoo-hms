@@ -6,6 +6,7 @@ import { getShopProductsByIds } from "@/lib/shop/products";
 import { rateLimitShared } from "@/lib/rate-limit";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { priceBasketLines } from "./discounts-server";
+import { sendLinkedPush } from "./push-links";
 import { isSale } from "./sales";
 import { isShopLive } from "./site/data";
 import { storefrontUrl } from "./subdomain";
@@ -180,6 +181,14 @@ export async function sendDueCartReminders(now = Date.now()): Promise<number> {
     try {
       await sendReminderEmail(row, which, tenant, (profileFor.get(row.tenant_id)?.business_email as string | null) ?? null);
       sent += 1;
+      // And on the device the basket was left on, if the shopper has the shop's notifications there.
+      const storeName = (tenant.display_name as string | null)?.trim() || String(tenant.subdomain || tenant.name);
+      await sendLinkedPush(row.tenant_id, "checkout", row.id, {
+        title: which === 1 ? "You left something in your basket" : "Your basket is still waiting",
+        body: `We've kept your basket at ${storeName}. Tap to pick up where you left off.`,
+        path: `/cart?restore=${row.reminder_key}`,
+        tag: `basket-${row.id}`,
+      });
       // Don't remind about another basket from the same person in this run.
       ctx.optedOut.add(key(row.tenant_id, row.customer_email));
     } catch (err) {
@@ -282,7 +291,16 @@ async function checkoutByKey(tenantId: string, reminderKey: string) {
 export async function reminderBasket(tenantId: string, reminderKey: string): Promise<CartLine[] | null> {
   const checkout = await checkoutByKey(tenantId, reminderKey);
   if (!checkout) return null;
-  const saved = ((checkout.items as { productId?: string; variantId?: string | null; quantity?: number }[]) || []).filter(
+  return rebuildBasket(tenantId, checkout.items);
+}
+
+/**
+ * A saved basket (a reminder's, or one kept on a shopper's account) as basket
+ * lines rebuilt from today's products: today's names, photos, prices and stock.
+ * Items no longer on sale or out of stock are left out.
+ */
+export async function rebuildBasket(tenantId: string, items: unknown): Promise<CartLine[]> {
+  const saved = ((Array.isArray(items) ? items : []) as { productId?: string; variantId?: string | null; quantity?: number }[]).filter(
     (i): i is { productId: string; variantId: string | null; quantity: number } => typeof i.productId === "string" && Number(i.quantity) > 0,
   );
   const products = new Map((await getShopProductsByIds(tenantId, saved.map((i) => i.productId))).map((p) => [p.id, p]));
@@ -295,7 +313,9 @@ export async function reminderBasket(tenantId: string, reminderKey: string): Pro
     if (item.variantId && !variant) continue;
     const stock = variant ? variant.stock : product.stock;
     const maxQuantity = product.allowBackorder ? 999 : Math.max(stock, 0);
-    if (maxQuantity <= 0) continue;
+    const minQuantity = Math.max(1, product.minimumOrderQty || 1);
+    // Sold out, or fewer left than the shop's minimum order: it can't be bought, so it isn't put back.
+    if (maxQuantity < minQuantity) continue;
     lines.push({
       productId: product.id,
       variantId: variant?.id ?? null,
@@ -304,10 +324,11 @@ export async function reminderBasket(tenantId: string, reminderKey: string): Pro
       imageUrl: variant?.imageUrl || product.imageUrl,
       unitPrice: product.price,
       currency: product.currency,
-      fixedPrices: variant?.priceOverride != null ? undefined : fixedLinePrices(product.fixedPrices),
+      fixedPrices: variant && Object.keys(variant.fixedPrices ?? {}).length ? fixedLinePrices(variant.fixedPrices) : variant?.priceOverride != null ? undefined : fixedLinePrices(product.fixedPrices),
       deliveryExtra: product.deliveryExtra || undefined,
-      quantity: Math.min(item.quantity, maxQuantity),
+      quantity: Math.min(Math.max(item.quantity, minQuantity), maxQuantity),
       maxQuantity,
+      minQuantity,
     });
   }
   // Today's price for each line, sale and size included.

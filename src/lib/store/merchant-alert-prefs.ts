@@ -6,7 +6,11 @@
 
 export const ALERT_KINDS = ["new_order", "low_stock", "payment_failed", "paid_cancelled"] as const;
 export type AlertKind = (typeof ALERT_KINDS)[number];
-export type AlertChannels = { email: boolean; push: boolean };
+export type AlertChannels = { email: boolean; push: boolean; whatsapp: boolean };
+
+/** The alerts that can also go to the shop's WhatsApp (each one is a paid message, so only the ones that need action). */
+export const WHATSAPP_ALERT_KINDS = ["new_order", "paid_cancelled"] as const satisfies readonly AlertKind[];
+export const whatsappAlertKind = (kind: AlertKind) => (WHATSAPP_ALERT_KINDS as readonly AlertKind[]).includes(kind);
 export type AlertPrefs = Record<AlertKind, AlertChannels>;
 
 export const ALERT_LABELS: Record<AlertKind, { title: string; description: string }> = {
@@ -16,11 +20,12 @@ export const ALERT_LABELS: Record<AlertKind, { title: string; description: strin
   paid_cancelled: { title: "Cancelled order was paid", description: "When a payment arrives for an order that was already cancelled." },
 };
 
+// WhatsApp alerts only go once the shop has added a WhatsApp number for them.
 export const DEFAULT_ALERT_PREFS: AlertPrefs = {
-  new_order: { email: true, push: true },
-  low_stock: { email: true, push: true },
-  payment_failed: { email: true, push: true },
-  paid_cancelled: { email: true, push: true },
+  new_order: { email: true, push: true, whatsapp: true },
+  low_stock: { email: true, push: true, whatsapp: false },
+  payment_failed: { email: true, push: true, whatsapp: false },
+  paid_cancelled: { email: true, push: true, whatsapp: true },
 };
 
 export function parseAlertPrefs(value: unknown): AlertPrefs {
@@ -31,9 +36,16 @@ export function parseAlertPrefs(value: unknown): AlertPrefs {
     prefs[kind] = {
       email: typeof entry.email === "boolean" ? entry.email : DEFAULT_ALERT_PREFS[kind].email,
       push: typeof entry.push === "boolean" ? entry.push : DEFAULT_ALERT_PREFS[kind].push,
+      whatsapp: whatsappAlertKind(kind) && (typeof entry.whatsapp === "boolean" ? entry.whatsapp : DEFAULT_ALERT_PREFS[kind].whatsapp),
     };
   }
   return prefs;
+}
+
+/** The number WhatsApp alerts go to (digits with country code), saved with the preferences. */
+export function parseAlertWhatsAppNumber(value: unknown): string | null {
+  const number = value && typeof value === "object" ? (value as Record<string, unknown>).whatsapp_number : null;
+  return typeof number === "string" && /^[1-9][0-9]{7,14}$/.test(number) ? number : null;
 }
 
 /** Low stock: the products that an order has just taken to (or below) their warning level. */

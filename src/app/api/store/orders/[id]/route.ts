@@ -5,6 +5,7 @@ import { applyOrderAction, OrderActionError, orderActionSchema } from "@/lib/sto
 import { emailForAction, sendOrderStatusEmail } from "@/lib/store/order-status-emails";
 import { sendReceiptEmail } from "@/lib/store/receipts";
 import { sendReviewRequest } from "@/lib/store/reviews-server";
+import { whatsappOrderUpdate } from "@/lib/store/whatsapp-messages";
 
 /** PATCH /api/store/orders/<id> { slug, action } — confirm payment, ship, deliver or cancel an order. Any team member. */
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -31,6 +32,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   // The shop confirmed an offline payment: the shopper gets their numbered receipt.
   if (parsed.data.action === "payment_received") {
     after(() => sendReceiptEmail(tenantId, id));
+    after(() => whatsappOrderUpdate(tenantId, id, "payment_received"));
     // A paid gift card order: the database has made the card, so email it now.
     after(() => sendGiftCardsForShop(tenantId));
   }

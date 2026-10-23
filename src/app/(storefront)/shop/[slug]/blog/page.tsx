@@ -6,33 +6,38 @@ import { listPublishedPosts } from "@/lib/store/blog-server";
 import { readingMinutes } from "@/lib/store/blog";
 import { STORE_PATHS, storeHref } from "@/lib/store/site/links";
 import { getStorefront } from "@/lib/store/site/storefront";
+import { getShopT } from "@/lib/store/i18n/server";
+import type { ShopLanguage } from "@/lib/store/i18n/languages";
 
 type Props = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const storefront = await getStorefront((await params).slug);
   if (!storefront) return {};
+  const t = getShopT(storefront);
   return {
-    title: "Blog",
-    description: `News, stories and advice from ${storefront.storeName}.`,
+    title: t("listing.blog"),
+    description: t("listing.blogDescription", { store: storefront.storeName }),
     alternates: { canonical: STORE_PATHS.blog },
   };
 }
 
-const dateText = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "");
+const dateText = (iso: string | null, lang: ShopLanguage) =>
+  iso ? new Date(iso).toLocaleDateString(lang === "en" ? "en-GB" : lang, { day: "numeric", month: "long", year: "numeric" }) : "";
 
 export default async function StorefrontBlogPage({ params }: Props) {
   const storefront = await getStorefront((await params).slug);
   if (!storefront) notFound();
   const posts = await listPublishedPosts(storefront.tenant.id, 24).catch(() => []);
-  const crumbs = [{ label: "Home", href: storeHref(storefront.basePath, "/") }, { label: "Blog" }];
+  const t = getShopT(storefront);
+  const crumbs = [{ label: t("common.home"), href: storeHref(storefront.basePath, "/") }, { label: t("listing.blog") }];
 
   return (
     <div className="container section">
-      <Breadcrumb items={crumbs} />
-      <h1 className="h-page">Blog</h1>
+      <Breadcrumb t={t} items={crumbs} />
+      <h1 className="h-page">{t("listing.blog")}</h1>
       {posts.length === 0 ? (
-        <p className="body-copy">There are no posts yet. Please check back soon.</p>
+        <p className="body-copy">{t("listing.noPosts")}</p>
       ) : (
         <ul className="blog-list">
           {posts.map((p) => (
@@ -44,7 +49,7 @@ export default async function StorefrontBlogPage({ params }: Props) {
               ) : null}
               <div className="blog-card__body">
                 <p className="eyebrow">
-                  {dateText(p.publishedAt)} · {readingMinutes(p.body)} min read
+                  {dateText(p.publishedAt, t.lang)} · {t("listing.minRead", { count: readingMinutes(p.body) })}
                 </p>
                 <h2 className="h-card">
                   <Link href={storeHref(storefront.basePath, STORE_PATHS.blogPost(p.slug))}>{p.title}</Link>

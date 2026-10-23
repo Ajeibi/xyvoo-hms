@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Plus, Trash2 } from "lucide-react";
-import { PRODUCT_LIST_SOURCES, sectionSchema, type SiteSection, type SiteSectionType } from "@/lib/store/site/schema";
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, GripVertical, Plus, Trash2 } from "lucide-react";
+import { PRODUCT_LIST_SOURCES, SECTION_SCHEMES, SECTION_SPACINGS, sectionSchema, type SiteSection, type SiteSectionType } from "@/lib/store/site/schema";
 import { DashAlert, DashField, dashInput } from "../../dashboard-ui";
 import ImagePicker from "../ImagePicker";
 import type { TabProps } from "../WebsiteEditor";
@@ -15,13 +15,39 @@ const SECTION_LABELS: Record<SiteSectionType, string> = {
   "product-list": "Product row",
   promo: "Promotion",
   reviews: "Customer reviews",
-  journal: "Journal (coming soon)",
+  journal: "Latest blog posts",
   press: "As featured in",
   gallery: "Photo gallery",
-  newsletter: "Newsletter sign-up (coming soon)",
+  newsletter: "Newsletter sign-up",
 };
 
-const ADDABLE: SiteSectionType[] = ["hero", "value-strip", "category-tiles", "featured-collections", "product-list", "promo", "reviews", "press", "gallery"];
+/** Which pages have their own sections, what each list is called, and which sections suit it. */
+const PAGES = {
+  sections: {
+    label: "Homepage",
+    help: "Sections appear on your homepage in this order.",
+    addable: ["hero", "value-strip", "category-tiles", "featured-collections", "product-list", "promo", "reviews", "journal", "press", "gallery", "newsletter"],
+  },
+  productSections: {
+    label: "Product pages",
+    help: "Shown on every product page, under the product's details, reviews and related products.",
+    addable: ["value-strip", "promo", "product-list", "featured-collections", "category-tiles", "reviews", "press", "gallery", "newsletter"],
+  },
+  collectionSections: {
+    label: "Collection pages",
+    help: "Shown on every collection page, under its products.",
+    addable: ["value-strip", "promo", "product-list", "featured-collections", "category-tiles", "reviews", "journal", "gallery", "newsletter"],
+  },
+} satisfies Record<string, { label: string; help: string; addable: SiteSectionType[] }>;
+type PageKey = keyof typeof PAGES;
+
+const SPACING_LABELS: Record<(typeof SECTION_SPACINGS)[number], string> = { compact: "Less space", normal: "Normal", roomy: "More space" };
+const SCHEME_LABELS: Record<(typeof SECTION_SCHEMES)[number], string> = {
+  default: "Page colour",
+  surface: "Panel colour",
+  dark: "Dark band",
+  accent: "Accent colour",
+};
 
 const SOURCE_LABELS: Record<(typeof PRODUCT_LIST_SOURCES)[number], string> = {
   featured: "Featured products",
@@ -288,9 +314,52 @@ function SectionFields({ section, onChange, slug, collections }: { section: Site
           ) : null}
         </div>
       );
-    default:
-      return <p className="text-sm text-slate-500">This section isn&rsquo;t available yet. It stays hidden on your shop.</p>;
+    case "journal":
+      return (
+        <div className="space-y-3">
+          {text("heading", "Heading", section.heading, 120)}
+          <p className="text-xs text-slate-500">Shows your latest blog posts. Hidden until you&rsquo;ve published one.</p>
+        </div>
+      );
+    case "newsletter":
+      return (
+        <div className="space-y-3">
+          {text("heading", "Heading", section.heading, 120)}
+          {text("text", "Text", section.text, 300, true)}
+          {text("note", "Small print under the form (optional)", section.note, 200, false, "For example: We'll email you once a month. Unsubscribe at any time.")}
+          <p className="text-xs text-slate-500">People who join are added to your customers with their consent recorded, ready for your email campaigns.</p>
+        </div>
+      );
   }
+}
+
+/** Spacing and colours, for every kind of section. */
+function LookFields({ section, onChange }: { section: SiteSection; onChange: (s: SiteSection) => void }) {
+  const id = `look-${section.id}`;
+  return (
+    <fieldset className="mb-3 grid gap-2 rounded-lg border border-slate-200 p-3 sm:grid-cols-2">
+      <legend className="px-1 text-sm font-medium text-slate-800">How it looks</legend>
+      <DashField id={`${id}-scheme`} label="Colours">
+        <select id={`${id}-scheme`} className={dashInput} value={section.scheme ?? "default"} onChange={(e) => onChange({ ...section, scheme: e.target.value as SiteSection["scheme"] })}>
+          {SECTION_SCHEMES.map((s) => (
+            <option key={s} value={s}>
+              {SCHEME_LABELS[s]}
+            </option>
+          ))}
+        </select>
+      </DashField>
+      <DashField id={`${id}-spacing`} label="Space around it">
+        <select id={`${id}-spacing`} className={dashInput} value={section.spacing ?? "normal"} onChange={(e) => onChange({ ...section, spacing: e.target.value as SiteSection["spacing"] })}>
+          {SECTION_SPACINGS.map((s) => (
+            <option key={s} value={s}>
+              {SPACING_LABELS[s]}
+            </option>
+          ))}
+        </select>
+      </DashField>
+      <p className="text-xs text-slate-500 sm:col-span-2">Colours come from your theme, so text stays easy to read.</p>
+    </fieldset>
+  );
 }
 
 /** Find the first problem that would stop the homepage saving, in words a merchant understands. */
@@ -305,11 +374,23 @@ function firstProblem(sections: SiteSection[]) {
   return null;
 }
 
-export default function HomepageTab({ slug, state, saving, saveDraft }: TabProps) {
-  const [sections, setSections] = useState<SiteSection[]>(state.resolved.sections);
-  const [open, setOpen] = useState<string | null>(null);
+export default function HomepageTab({ slug, state, saving, saveDraft, focusSection }: TabProps) {
+  const lists: Record<PageKey, SiteSection[]> = {
+    sections: state.resolved.sections,
+    productSections: state.resolved.productSections,
+    collectionSections: state.resolved.collectionSections,
+  };
+  // "Edit" in the preview opens the list that section is in.
+  const startPage = (Object.keys(lists) as PageKey[]).find((k) => lists[k].some((s) => s.id === focusSection)) ?? "sections";
+  const [page, setPage] = useState<PageKey>(startPage);
+  const [all, setAll] = useState(lists);
+  const sections = all[page];
+  const setSections = (next: SiteSection[] | ((prev: SiteSection[]) => SiteSection[])) =>
+    setAll((prev) => ({ ...prev, [page]: typeof next === "function" ? next(prev[page]) : next }));
+  const [open, setOpen] = useState<string | null>(focusSection ?? null);
   const [adding, setAdding] = useState(false);
   const [problem, setProblem] = useState("");
+  const [dragging, setDragging] = useState<number | null>(null);
 
   const update = (i: number, s: SiteSection) => setSections((all) => all.map((x, j) => (j === i ? s : x)));
   const move = (i: number, dir: -1 | 1) =>
@@ -323,19 +404,77 @@ export default function HomepageTab({ slug, state, saving, saveDraft }: TabProps
     e.preventDefault();
     const p = firstProblem(sections);
     setProblem(p ?? "");
-    if (!p) void saveDraft({ patch: { sections } });
+    if (!p) void saveDraft({ patch: { [page]: sections } });
+  };
+
+  // Drag a section by its handle to move it (the arrows do the same from the keyboard).
+  const dropAt = (to: number) => {
+    if (dragging == null || dragging === to) return;
+    setSections((list) => {
+      const next = [...list];
+      const [moved] = next.splice(dragging, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+    setDragging(null);
   };
 
   return (
     <form onSubmit={save} className="space-y-4" noValidate>
-      <p className="text-sm text-slate-600">Sections appear on your homepage in this order. Sections with nothing to show, such as a product row with no matching products, stay hidden.</p>
+      <fieldset>
+        <legend className="mb-1 text-sm font-medium text-slate-800">Which page</legend>
+        <div className="flex flex-wrap gap-1.5" role="radiogroup">
+          {(Object.keys(PAGES) as PageKey[]).map((k) => (
+            <label key={k} className={`cursor-pointer rounded-full border px-3 py-1.5 text-sm ${page === k ? "border-xyvoo-blue bg-blue-50 font-medium text-blue-900" : "border-slate-300 text-slate-700"}`}>
+              <input
+                type="radio"
+                name="sections-page"
+                className="sr-only"
+                checked={page === k}
+                onChange={() => {
+                  setPage(k);
+                  setOpen(null);
+                  setAdding(false);
+                  setProblem("");
+                }}
+              />
+              {PAGES[k].label} ({all[k].length})
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      <p className="text-sm text-slate-600">
+        {PAGES[page].help} Sections with nothing to show, such as a product row with no matching products, stay hidden. Drag a section by its handle, or use the arrows, to change the order.
+      </p>
+      {sections.length === 0 ? <p className="text-sm text-slate-500">No sections here yet.</p> : null}
       <DashAlert message={problem} />
       <ol className="space-y-2">
         {sections.map((s, i) => {
           const expanded = open === s.id;
           return (
-            <li key={s.id} className="rounded-xl border border-slate-200">
+            <li
+              key={s.id}
+              className={`rounded-xl border ${dragging === i ? "border-xyvoo-blue opacity-60" : "border-slate-200"}`}
+              onDragOver={(e) => dragging != null && e.preventDefault()}
+              onDrop={(e) => {
+                e.preventDefault();
+                dropAt(i);
+              }}
+            >
               <div className="flex items-center gap-2 px-3 py-2">
+                <span
+                  draggable
+                  onDragStart={(e) => {
+                    setDragging(i);
+                    e.dataTransfer.effectAllowed = "move";
+                  }}
+                  onDragEnd={() => setDragging(null)}
+                  className="cursor-grab rounded p-1 text-slate-400 hover:bg-slate-100"
+                  aria-hidden
+                  title="Drag to move"
+                >
+                  <GripVertical className="h-4 w-4" />
+                </span>
                 <button type="button" onClick={() => setOpen(expanded ? null : s.id)} aria-expanded={expanded} className="flex flex-1 items-center gap-2 text-left text-sm font-medium text-slate-900">
                   {expanded ? <ChevronDown className="h-4 w-4" aria-hidden /> : <ChevronRight className="h-4 w-4" aria-hidden />}
                   {SECTION_LABELS[s.type]}
@@ -363,6 +502,7 @@ export default function HomepageTab({ slug, state, saving, saveDraft }: TabProps
               </div>
               {expanded ? (
                 <div className="border-t border-slate-200 p-3">
+                  <LookFields section={s} onChange={(next) => update(i, next)} />
                   <SectionFields section={s} onChange={(next) => update(i, next)} slug={slug} collections={state.collections} />
                 </div>
               ) : null}
@@ -375,7 +515,7 @@ export default function HomepageTab({ slug, state, saving, saveDraft }: TabProps
         <div className="rounded-xl border border-slate-200 p-3">
           <p className="mb-2 text-sm font-medium text-slate-800">Add a section</p>
           <div className="flex flex-wrap gap-2">
-            {ADDABLE.map((type) => (
+            {PAGES[page].addable.map((type) => (
               <button
                 key={type}
                 type="button"
@@ -400,7 +540,7 @@ export default function HomepageTab({ slug, state, saving, saveDraft }: TabProps
 
       <div>
         <button type="submit" disabled={saving} className="rounded-xl bg-xyvoo-blue px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
-          {saving ? "Saving…" : "Save homepage"}
+          {saving ? "Saving…" : `Save ${PAGES[page].label.toLowerCase()}`}
         </button>
       </div>
     </form>

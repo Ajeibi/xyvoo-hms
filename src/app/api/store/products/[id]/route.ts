@@ -1,3 +1,5 @@
+import { copyProductImages, hasExternalImages } from "@/lib/store/external-images";
+import { shopChanged } from "@/lib/store/site/shop-changed";
 import { after, NextResponse } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getStoreAccessContext, getStoreCapabilities } from "@/lib/store/access";
@@ -6,6 +8,7 @@ import { mapProductRowToDashboard, pickWritableProductFields, type StoreProductR
 import { syncProductVariants, type VariantInput } from "@/lib/store/variants";
 import { checkPricingWrite, withCheckedPricing } from "@/lib/store/sale-price-server";
 import { sendStockAlertsForProducts } from "@/lib/store/stock-alerts";
+import { addToStock, stockChange } from "@/lib/store/stock-edit";
 
 type UpdateProductBody = {
   tenantSlug?: string;
@@ -29,8 +32,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   // Sale price and dates (Standard plan) and tax class are checked before anything is written.
   const pricing = await checkPricingWrite(service, access.tenantId, body, id);
   if (pricing.error) return pricing.error;
-  const updates = withCheckedPricing(pickWritableProductFields(body), pricing.fields);
+  const updates: Record<string, unknown> = withCheckedPricing(pickWritableProductFields(body), pricing.fields);
   if (pricing.variants) body.variants = pricing.variants;
+  // The editor sends the stock it opened with: an unchanged figure isn't written, a changed one is added to the
+  // stock as it is now, so orders placed while the editor was open aren't wiped out (see stock-edit.ts).
+  const stockEdit = "stock" in updates ? stockChange(updates.stock, body.stock_was) : ({ kind: "keep" } as const);
+  if (stockEdit.kind !== "set") delete updates.stock;
   // For the activity log: what the changed fields were before this edit.
   const before = await readBefore("products", access.tenantId, id, [...new Set(["name", ...Object.keys(updates)])]);
 
@@ -45,6 +52,17 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   if (error || !product) {
     return NextResponse.json({ error: error?.message || "Product not found." }, { status: 404 });
+  }
+  if (stockEdit.kind === "add") {
+    try {
+      const stock = await addToStock(service.schema("store"), "products", id, stockEdit.delta, { tenant_id: access.tenantId });
+      if (stock !== null) {
+        product.stock = stock;
+        updates.stock = stock;
+      }
+    } catch (err) {
+      return NextResponse.json({ error: err instanceof Error ? err.message : "Couldn't save the stock." }, { status: 409 });
+    }
   }
 
   if (Object.keys(updates).length) {
@@ -88,6 +106,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   // Back in stock? Tell anyone who asked (never holds up the save).
   const tenantId = access.tenantId;
   after(() => sendStockAlertsForProducts(tenantId, [id]));
+  // Photos added by address are copied into the shop's storage, so they can be resized for shoppers.
+  if (hasExternalImages(row)) after(() => copyProductImages(tenantId, [id]));
+  shopChanged(access.tenantId);
   return NextResponse.json({ product: mapProductRowToDashboard(row) });
 }
 
@@ -117,5 +138,6 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   if (deleted?.length) {
     await logActivity({ tenantId: access.tenantId, actor: access, area: "products", action: "deleted", targetId: id, targetLabel: deleted[0].name });
   }
+  shopChanged(access.tenantId);
   return NextResponse.json({ success: true });
 }

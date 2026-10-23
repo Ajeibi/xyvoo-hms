@@ -20,10 +20,12 @@ export type StoreAppManifestInput = {
   description: string | null;
   backgroundColour: string;
   themeColour: string;
+  /** The shop's language, e.g. "en" or "fr". */
+  lang?: string;
 };
 
 /** The web app manifest for a store (served at <scope>/manifest.webmanifest). */
-export function buildStoreAppManifest({ basePath, storeName, description, backgroundColour, themeColour }: StoreAppManifestInput) {
+export function buildStoreAppManifest({ basePath, storeName, description, backgroundColour, themeColour, lang = "en" }: StoreAppManifestInput) {
   const scope = storeAppScope(basePath);
   const name = storeName.trim().slice(0, 45) || "Shop";
   return {
@@ -35,11 +37,19 @@ export function buildStoreAppManifest({ basePath, storeName, description, backgr
     start_url: basePath ? `${basePath}?source=app` : "/?source=app",
     scope,
     display: "standalone",
-    orientation: "portrait",
+    // No orientation lock: the app turns with the phone or tablet, like the shop does in a browser.
     background_color: backgroundColour,
     theme_color: themeColour,
-    lang: "en",
+    lang,
+    dir: "ltr",
     categories: ["shopping"],
+    prefer_related_applications: false,
+    // Long-press the home-screen icon (Android) or right-click it (desktop) to jump straight in.
+    shortcuts: [
+      { name: "Shop all products", short_name: "Shop", url: `${storeAppPath(basePath, "products")}?source=app-shortcut` },
+      { name: "Your basket", short_name: "Basket", url: `${storeAppPath(basePath, "cart")}?source=app-shortcut` },
+      { name: "Your account", short_name: "Account", url: `${storeAppPath(basePath, "account")}?source=app-shortcut` },
+    ].map((s) => ({ ...s, icons: [{ src: storeAppPath(basePath, "app-icon/192"), sizes: "192x192", type: "image/png" }] })),
     icons: [
       { src: storeAppPath(basePath, "app-icon/192"), sizes: "192x192", type: "image/png", purpose: "any" },
       { src: storeAppPath(basePath, "app-icon/512"), sizes: "512x512", type: "image/png", purpose: "any" },

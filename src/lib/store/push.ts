@@ -57,21 +57,30 @@ export type PushMessage = z.infer<typeof pushMessageSchema>;
 
 const storeDb = () => createServerSupabaseClient().schema("store");
 
-export async function savePushSubscription(tenantId: string, sub: PushSubscriptionInput, userAgent: string | null) {
-  const { error } = await storeDb()
-    .from("push_subscriptions")
-    .upsert(
-      {
-        tenant_id: tenantId,
-        endpoint: sub.endpoint,
-        p256dh: sub.keys.p256dh,
-        auth: sub.keys.auth,
-        user_agent: userAgent?.slice(0, 300) ?? null,
-        last_seen_at: new Date().toISOString(),
-      },
-      { onConflict: "tenant_id,endpoint" },
-    );
+/** The marketing column comes with a migration; until it has run, every device is treated as wanting offers. */
+const missingColumn = (error: { code?: string; message?: string } | null) => Boolean(error && (error.code === "42703" || error.code === "PGRST204"));
+
+/**
+ * Saves a device. `marketing` false is a device that only wants updates about
+ * its own order, basket or back-in-stock request: it never downgrades a device
+ * that already gets the shop's offers.
+ */
+export async function savePushSubscription(tenantId: string, sub: PushSubscriptionInput, userAgent: string | null, marketing = true) {
+  const row = {
+    tenant_id: tenantId,
+    endpoint: sub.endpoint,
+    p256dh: sub.keys.p256dh,
+    auth: sub.keys.auth,
+    user_agent: userAgent?.slice(0, 300) ?? null,
+    last_seen_at: new Date().toISOString(),
+  };
+  const db = storeDb();
+  let { error } = marketing
+    ? await db.from("push_subscriptions").upsert({ ...row, marketing: true }, { onConflict: "tenant_id,endpoint" })
+    : await db.from("push_subscriptions").upsert({ ...row, marketing: false }, { onConflict: "tenant_id,endpoint", ignoreDuplicates: true });
+  if (missingColumn(error)) ({ error } = await db.from("push_subscriptions").upsert(row, { onConflict: "tenant_id,endpoint" }));
   if (error) throw new Error(error.message);
+  if (!marketing) await db.from("push_subscriptions").update({ last_seen_at: row.last_seen_at, p256dh: row.p256dh, auth: row.auth }).eq("tenant_id", tenantId).eq("endpoint", sub.endpoint);
 }
 
 export async function removePushSubscription(tenantId: string, endpoint: string) {
@@ -79,8 +88,11 @@ export async function removePushSubscription(tenantId: string, endpoint: string)
   if (error) throw new Error(error.message);
 }
 
+/** Devices that get the shop's own notifications (not those that only asked about an order or a product). */
 export async function countPushSubscribers(tenantId: string) {
-  const { count, error } = await storeDb().from("push_subscriptions").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId);
+  const query = () => storeDb().from("push_subscriptions").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId);
+  let { count, error } = await query().eq("marketing", true);
+  if (missingColumn(error)) ({ count, error } = await query());
   if (error) throw new Error(error.message);
   return count ?? 0;
 }
@@ -121,6 +133,36 @@ export function buildPushPayload(message: PushMessage, notificationId: string) {
 
 type SendResult = { recipients: number; delivered: number; failed: number; removed: number };
 
+type Device = { id: string; endpoint: string; p256dh: string; auth: string };
+
+/** Sends one payload to each device, 50 at a time, and forgets devices the push service says are gone. */
+export async function deliverPush(devices: Device[], payload: string, urgency: "normal" | "high" = "normal"): Promise<SendResult> {
+  const config = getPushConfig();
+  const result: SendResult = { recipients: devices.length, delivered: 0, failed: 0, removed: 0 };
+  if (!config || !devices.length) return result;
+  const options = { vapidDetails: config, TTL: 24 * 60 * 60, urgency };
+  const gone: string[] = [];
+  for (let i = 0; i < devices.length; i += 50) {
+    await Promise.all(
+      devices.slice(i, i + 50).map(async (s) => {
+        try {
+          await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, options);
+          result.delivered += 1;
+        } catch (e) {
+          result.failed += 1;
+          // 404/410: the customer unsubscribed or the browser dropped it.
+          if (e instanceof WebPushError && (e.statusCode === 404 || e.statusCode === 410)) gone.push(s.id);
+        }
+      }),
+    );
+  }
+  if (gone.length) {
+    await storeDb().from("push_subscriptions").delete().in("id", gone);
+    result.removed = gone.length;
+  }
+  return result;
+}
+
 /** Sends to every subscriber of a store, removing subscriptions the push service says are gone. */
 export async function sendStoreNotification(tenantId: string, message: PushMessage, sentBy: string): Promise<SendResult & { id: string }> {
   const config = getPushConfig();
@@ -134,34 +176,13 @@ export async function sendStoreNotification(tenantId: string, message: PushMessa
     .single();
   if (insertError || !record) throw new Error(insertError?.message || "Couldn't record the notification.");
 
-  const { data: subs, error } = await db.from("push_subscriptions").select("id, endpoint, p256dh, auth").eq("tenant_id", tenantId);
+  // Only devices that asked for the shop's news, not those following just their own order.
+  const devices = () => db.from("push_subscriptions").select("id, endpoint, p256dh, auth").eq("tenant_id", tenantId);
+  let { data: subs, error } = await devices().eq("marketing", true);
+  if (missingColumn(error)) ({ data: subs, error } = await devices());
   if (error) throw new Error(error.message);
 
-  const payload = buildPushPayload(message, record.id);
-  const options = { vapidDetails: config, TTL: 24 * 60 * 60, urgency: "normal" as const };
-  const result: SendResult = { recipients: subs?.length ?? 0, delivered: 0, failed: 0, removed: 0 };
-  const gone: string[] = [];
-
-  const list = subs || [];
-  for (let i = 0; i < list.length; i += 50) {
-    await Promise.all(
-      list.slice(i, i + 50).map(async (s) => {
-        try {
-          await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, options);
-          result.delivered += 1;
-        } catch (e) {
-          result.failed += 1;
-          // 404/410: the customer unsubscribed or the browser dropped it.
-          if (e instanceof WebPushError && (e.statusCode === 404 || e.statusCode === 410)) gone.push(s.id);
-        }
-      }),
-    );
-  }
-
-  if (gone.length) {
-    await db.from("push_subscriptions").delete().in("id", gone);
-    result.removed = gone.length;
-  }
+  const result = await deliverPush(subs || [], buildPushPayload(message, record.id));
   await db.from("push_notifications").update({ recipients: result.recipients, delivered: result.delivered, failed: result.failed }).eq("id", record.id);
   return { id: record.id, ...result };
 }

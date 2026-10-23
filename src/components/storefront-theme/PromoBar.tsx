@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { countdownLabel } from "@/lib/store/discounts";
-import { announce } from "./StorefrontProvider";
+import { promoCountdownLabel } from "./primitives";
+import { announce, useT } from "./StorefrontProvider";
 
 /**
  * The banner for a discount code that has its countdown switched on: what it
@@ -14,12 +14,13 @@ import { announce } from "./StorefrontProvider";
 export default function PromoBar({ offer, code, endsAt, initialLabel }: { offer: string; code: string; endsAt: string; initialLabel: string }) {
   const [label, setLabel] = useState<string | null>(initialLabel);
   const [copied, setCopied] = useState(false);
+  const t = useT();
 
   useEffect(() => {
-    const update = () => setLabel(countdownLabel(endsAt, new Date()));
+    const update = () => setLabel(promoCountdownLabel(endsAt, new Date(), t));
     const timer = window.setInterval(update, 30_000);
     return () => window.clearInterval(timer);
-  }, [endsAt]);
+  }, [endsAt, t]);
 
   if (!label) return null;
 
@@ -27,7 +28,7 @@ export default function PromoBar({ offer, code, endsAt, initialLabel }: { offer:
     try {
       await navigator.clipboard.writeText(code);
       setCopied(true);
-      announce(`Code ${code} copied`);
+      announce(t("chrome.codeCopied", { code }));
       window.setTimeout(() => setCopied(false), 2500);
     } catch {
       // Copying is not available here; the code is still on the page to type.
@@ -35,14 +36,14 @@ export default function PromoBar({ offer, code, endsAt, initialLabel }: { offer:
   };
 
   return (
-    <aside className="promo-bar" aria-label="Offer">
+    <aside className="promo-bar" aria-label={t("chrome.offer")}>
       <div className="container promo-bar__inner">
         <p>
-          {offer} with code <strong>{code}</strong>
+          {t.rich("chrome.promoWithCode", { offer, code: <strong>{code}</strong> })}
           <span className="promo-bar__time"> · {label}</span>
         </p>
         <button type="button" className="promo-bar__copy" onClick={copy}>
-          {copied ? "Copied" : "Copy code"}
+          {copied ? t("chrome.copied") : t("chrome.copyCode")}
           <span className="visually-hidden"> {code}</span>
         </button>
       </div>

@@ -1,3 +1,4 @@
+import { shopChanged } from "@/lib/store/site/shop-changed";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { resolveEditorRequest } from "@/lib/store/site/editor-api";
@@ -43,6 +44,7 @@ export async function POST(req: Request) {
   if ("defaults" in parsed.data) {
     try {
       const added = await ensureDefaultPages(resolved.access.tenantId);
+      shopChanged(resolved.access.tenantId);
       return NextResponse.json({ added }, { status: added.length ? 201 : 200 });
     } catch (error) {
       console.error("[pages] default pages failed", error);
@@ -76,5 +78,6 @@ export async function POST(req: Request) {
       { status: taken ? 409 : 500 },
     );
   }
+  shopChanged(resolved.access.tenantId);
   return NextResponse.json({ page: mapPage(data as PageRow) }, { status: 201 });
 }

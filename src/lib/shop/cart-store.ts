@@ -1,9 +1,11 @@
 import { createStore, type StoreApi } from "zustand/vanilla";
 import { persist } from "zustand/middleware";
-import { cartLineKey, type CartLine } from "@/lib/shop/cart";
+import { cartLineKey, type CartLine, type LineAvailability } from "@/lib/shop/cart";
 
 export type CartState = {
   lines: CartLine[];
+  /** When the basket last changed on this device (ms), so a newer basket saved on the shopper's account can replace it. */
+  updatedAt: number;
   /** False until something explicitly triggers rehydration (see
    * CartProvider's useEffect) and it completes -- consumers should treat
    * "not yet hydrated" as unknown, not "empty". */
@@ -13,6 +15,10 @@ export type CartState = {
   removeLine: (productId: string, variantId: string | null) => void;
   /** Today's unit prices from the shop (a sale may have started or ended). A changed line drops its fixed prices, which were for the old price. */
   setPrices: (prices: Array<{ productId: string; variantId: string | null; unitPrice: number }>) => void;
+  /** Today's stock limits and availability: quantities are capped, and lines that can't be bought are marked. */
+  setAvailability: (lines: LineAvailability[]) => void;
+  /** The basket from the shopper's account, newer than this device's, in place of it. */
+  replaceLines: (lines: CartLine[], updatedAt: number) => void;
   clear: () => void;
 };
 
@@ -38,8 +44,11 @@ export function createCartStore(slug: string) {
     persist(
       (set) => {
         setState = set;
+        // Every change to what's in the basket records when it happened.
+        const changed = (lines: CartLine[]) => ({ lines, updatedAt: Date.now() });
         return {
           lines: [],
+          updatedAt: 0,
           hasHydrated: false,
           addLine: (line) =>
             set((state) => {
@@ -47,36 +56,39 @@ export function createCartStore(slug: string) {
               const existing = state.lines.find((l) => cartLineKey(l.productId, l.variantId) === key);
 
               if (existing) {
-                return {
-                  lines: state.lines.map((l) =>
+                // The new add has the latest stock limit, so it caps the total.
+                const maxQuantity = line.maxQuantity || existing.maxQuantity;
+                return changed(
+                  state.lines.map((l) =>
                     cartLineKey(l.productId, l.variantId) === key
                       ? // Take the latest prices too, in case they've changed since the first add.
-                        { ...l, unitPrice: line.unitPrice, fixedPrices: line.fixedPrices, deliveryExtra: line.deliveryExtra, quantity: Math.min(l.quantity + line.quantity, l.maxQuantity || Infinity) }
+                        {
+                          ...l,
+                          unitPrice: line.unitPrice,
+                          fixedPrices: line.fixedPrices,
+                          deliveryExtra: line.deliveryExtra,
+                          maxQuantity,
+                          minQuantity: line.minQuantity ?? l.minQuantity,
+                          quantity: Math.min(l.quantity + line.quantity, maxQuantity || Infinity),
+                          problem: undefined,
+                        }
                       : l,
                   ),
-                };
+                );
               }
 
-              return { lines: [...state.lines, line] };
+              return changed([...state.lines, { ...line, quantity: Math.min(line.quantity, line.maxQuantity || Infinity) }]);
             }),
           updateQuantity: (productId, variantId, quantity) =>
             set((state) => {
               const key = cartLineKey(productId, variantId);
               if (quantity <= 0) {
-                return { lines: state.lines.filter((l) => cartLineKey(l.productId, l.variantId) !== key) };
+                return changed(state.lines.filter((l) => cartLineKey(l.productId, l.variantId) !== key));
               }
-              return {
-                lines: state.lines.map((l) =>
-                  cartLineKey(l.productId, l.variantId) === key ? { ...l, quantity } : l,
-                ),
-              };
+              return changed(state.lines.map((l) => (cartLineKey(l.productId, l.variantId) === key ? { ...l, quantity } : l)));
             }),
           removeLine: (productId, variantId) =>
-            set((state) => ({
-              lines: state.lines.filter(
-                (l) => cartLineKey(l.productId, l.variantId) !== cartLineKey(productId, variantId),
-              ),
-            })),
+            set((state) => changed(state.lines.filter((l) => cartLineKey(l.productId, l.variantId) !== cartLineKey(productId, variantId)))),
           setPrices: (prices) =>
             set((state) => {
               const byKey = new Map(prices.map((p) => [cartLineKey(p.productId, p.variantId), p.unitPrice]));
@@ -89,7 +101,24 @@ export function createCartStore(slug: string) {
               });
               return changed ? { lines } : state;
             }),
-          clear: () => set({ lines: [] }),
+          setAvailability: (fresh) =>
+            set((state) => {
+              const byKey = new Map(fresh.map((f) => [cartLineKey(f.productId, f.variantId), f]));
+              let moved = false;
+              const lines = state.lines.map((l) => {
+                const f = byKey.get(cartLineKey(l.productId, l.variantId));
+                if (!f) return l;
+                const problem = f.problem ?? undefined;
+                // Keep what the shopper chose where the shop can supply it; otherwise as many as there are.
+                const quantity = !problem && f.maxQuantity > 0 ? Math.min(l.quantity, f.maxQuantity) : l.quantity;
+                if (l.maxQuantity === f.maxQuantity && (l.minQuantity ?? 1) === f.minQuantity && l.problem === problem && l.quantity === quantity) return l;
+                moved = true;
+                return { ...l, maxQuantity: f.maxQuantity, minQuantity: f.minQuantity, problem, quantity };
+              });
+              return moved ? { lines } : state;
+            }),
+          replaceLines: (lines, updatedAt) => set({ lines, updatedAt }),
+          clear: () => set(changed([])),
         };
       },
       {
@@ -97,7 +126,7 @@ export function createCartStore(slug: string) {
         // Only `lines` is persisted -- hasHydrated must always start false
         // and flip via onRehydrateStorage below, never be restored as a
         // stale `true` from a previous session's saved state.
-        partialize: (state) => ({ lines: state.lines }),
+        partialize: (state) => ({ lines: state.lines, updatedAt: state.updatedAt }),
         // zustand's default persist storage (window.localStorage) resolves
         // SYNCHRONOUSLY, so automatic hydration would complete inside this
         // very createStore() call -- including on the client's hydration

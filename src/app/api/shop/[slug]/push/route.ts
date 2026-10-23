@@ -7,7 +7,8 @@ import { getStoreSite } from "@/lib/store/site/data";
 import { getStorePlan, storeHasFeature } from "@/lib/store/features";
 
 /**
- * POST   /api/shop/<store>/push  { subscription }  turn on a store's notifications
+ * POST   /api/shop/<store>/push  { subscription, marketing? }  turn on a store's notifications
+ *        (marketing false: only updates the shopper asks for, such as their order's)
  * DELETE /api/shop/<store>/push  { endpoint }      turn them off
  * Public (shoppers have no account), so rate-limited per IP address, and only
  * for stores that are live.
@@ -38,7 +39,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
   const parsed = pushSubscriptionSchema.safeParse(body?.subscription);
   if (!parsed.success) return NextResponse.json({ error: "That subscription isn't valid." }, { status: 400 });
 
-  await savePushSubscription(tenant.id, parsed.data, req.headers.get("user-agent"));
+  await savePushSubscription(tenant.id, parsed.data, req.headers.get("user-agent"), body?.marketing !== false);
   return NextResponse.json({ ok: true });
 }
 

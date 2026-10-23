@@ -3,17 +3,20 @@ import { simulatedPaymentsEnabled } from "@/lib/payments/simulated";
 import { cookies, headers } from "next/headers";
 import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { getShopTenantBySlug, type ShopTenant } from "@/lib/shop/tenants";
-import { listShopCategories } from "@/lib/shop/products";
-import { getStorePaymentRoute } from "@/lib/store/payments";
+import type { ShopTenant } from "@/lib/shop/tenants";
 import { currencyForVisitorCountry, parseCurrencySettings, resolveDisplayCurrencies, shopCurrencyCookie, type DisplayCurrency } from "@/lib/store/currencies";
 import { getFxRates } from "@/lib/store/fx-rates";
-import { getStorePlan, storeHasFeature } from "@/lib/store/features";
+import { hasShopFeature } from "@/lib/store/features";
 import { releaseExpiredOrdersSoon } from "@/lib/store/release-orders";
 import type { StoreSocials } from "@/lib/store/socials";
 import { availablePaymentMethods, parseOfflinePayments, type CheckoutPaymentMethod } from "@/lib/store/offline-payments";
 import { STOREFRONT_HOST_HEADER, STOREFRONT_PREVIEW_COOKIE, storefrontUrl } from "@/lib/store/subdomain";
+import { pickShopLanguage, shopLanguageCookie, shopLanguages, STOREFRONT_LANG_HEADER, type ShopLanguage } from "@/lib/store/i18n/languages";
+import { setProductLanguage } from "@/lib/shop/product-translations";
 import { getStoreSite } from "./data";
+import { getCachedShopTenant, getShopSnapshot, type ShopSnapshot } from "./shop-cache";
+
+type StoreSnapshotPage = ShopSnapshot["pages"][number];
 import { menuItemPath } from "./links";
 import { resolveSite, type ResolvedSite } from "./resolve";
 import type { SiteNavigation } from "./schema";
@@ -65,6 +68,10 @@ export type Storefront = {
   currencies: DisplayCurrency[];
   /** The currency this shopper sees: their earlier choice, else their country's, else the home currency. */
   displayCurrency: string;
+  /** Languages the shop is shown in, its main one (what its own words are written in) first. */
+  languages: ShopLanguage[];
+  /** The language this shopper sees: ?lang= in the address, else their earlier choice, else the shop's own. */
+  language: ShopLanguage;
   collections: StoreCollectionSummary[];
   pages: StorePageSummary[];
   categories: string[];
@@ -102,7 +109,7 @@ function pruneNavigation(nav: SiteNavigation, pages: StorePageSummary[], collect
 
   return {
     ...nav,
-    header: nav.header.filter(linkable),
+    header: nav.header.filter(linkable).map((item) => (item.children ? { ...item, children: item.children.filter(linkable) } : item)),
     footer: nav.footer.map((col) => ({ ...col, items: col.items.filter(linkable) })).filter((col) => col.items.length > 0),
   };
 }
@@ -114,44 +121,31 @@ function pruneNavigation(nav: SiteNavigation, pages: StorePageSummary[], collect
 export const getStorefront = cache(async (slug: string): Promise<Storefront | null> => {
   // The slug ends up inside a PostgREST .or() filter, so refuse anything that isn't a plain label.
   if (!/^[a-z0-9-]{1,63}$/i.test(slug)) return null;
-  const tenant = await getShopTenantBySlug(slug);
+  const tenant = await getCachedShopTenant(slug);
   if (!tenant) return null;
   // Puts back stock held by abandoned or failed card payments before the shop is shown.
   releaseExpiredOrdersSoon(tenant.id);
 
-  const db = createServerSupabaseClient().schema("store");
-  const [siteRecord, profileResult, collectionsResult, pagesResult, categoriesResult, requestHeaders, paymentRoute, offlineResult, currenciesResult] = await Promise.all([
-    getStoreSite(tenant.id),
-    db
-      .from("business_profile")
-      .select("business_email, phone, whatsapp, address_line1, address_line2, city, state, country_code, currency_code, socials")
-      .eq("tenant_id", tenant.id)
-      .maybeSingle(),
-    db
-      .from("collections")
-      .select("id, slug, name, description, image_url, image_alt")
-      .eq("tenant_id", tenant.id)
-      .eq("is_visible", true)
-      .order("sort_order"),
-    db.from("pages").select("slug, title, system_key, status").eq("tenant_id", tenant.id).order("sort_order"),
-    listShopCategories(tenant.id),
-    headers(),
-    getStorePaymentRoute(tenant.id),
-    // Separate query: if the offline payments column isn't there yet, only these options are missing.
-    db.from("business_profile").select("offline_payments").eq("tenant_id", tenant.id).maybeSingle(),
-    // Likewise for extra currencies.
-    db.from("business_profile").select("currencies").eq("tenant_id", tenant.id).maybeSingle(),
-  ]);
+  // The shop's shared data comes from the cache (only whether it takes cards, never its payment keys).
+  const [snapshot, requestHeaders] = await Promise.all([getShopSnapshot(tenant.id), headers()]);
 
-  const isLive = siteRecord?.status === "live" && siteRecord.published !== null;
+  const isLive = snapshot.site?.status === "live" && snapshot.site.published !== null;
   // Members see the draft on an unpublished shop, or on a live one when they've
   // opened the editor's preview (which sets the preview cookie).
   const wantsDraft = (await cookies()).get(STOREFRONT_PREVIEW_COOKIE)?.value === "1";
   const isPreview = (!isLive || wantsDraft) && (await isStoreMember(tenant.id));
+  // A merchant previewing sees their draft as it is this moment, never a cached copy.
+  const [siteRecord, pageRows] = isPreview
+    ? await Promise.all([
+        getStoreSite(tenant.id),
+        createServerSupabaseClient().schema("store").from("pages").select("slug, title, system_key, status").eq("tenant_id", tenant.id).order("sort_order").then((r) => r.data || []),
+      ])
+    : [snapshot.site, snapshot.pages];
   const overrides = isPreview ? siteRecord?.draft ?? {} : siteRecord?.published ?? {};
   const storeName = tenant.displayName?.trim() || tenant.name?.trim() || slug;
+  const categoriesResult = snapshot.categories;
 
-  const collections: StoreCollectionSummary[] = (collectionsResult.data || []).map((c) => ({
+  const collections: StoreCollectionSummary[] = snapshot.collections.map((c) => ({
     id: c.id,
     slug: c.slug,
     name: c.name,
@@ -160,21 +154,24 @@ export const getStorefront = cache(async (slug: string): Promise<Storefront | nu
     imageAlt: c.image_alt,
   }));
   // Draft pages only exist for members previewing the shop.
-  const pages: StorePageSummary[] = (pagesResult.data || [])
+  const pages: StorePageSummary[] = (pageRows as StoreSnapshotPage[])
     .filter((p) => p.status === "published" || isPreview)
     .map((p) => ({ slug: p.slug, title: p.title, systemKey: p.system_key }));
   const categories = categoriesResult.map((c) => c.name);
 
   const resolved = resolveSite(siteRecord?.templateSlug, overrides, { storeName, tenantLogoUrl: tenant.logoUrl });
   const now = Date.now();
+  // A promotion with a countdown disappears once it has ended.
+  const current = (list: ResolvedSite["sections"]) => list.filter((s) => !(s.type === "promo" && s.endsAt && new Date(s.endsAt).getTime() < now));
   const site: ResolvedSite = {
     ...resolved,
     navigation: pruneNavigation(resolved.navigation, pages, collections),
-    // A promotion with a countdown disappears once it has ended.
-    sections: resolved.sections.filter((s) => !(s.type === "promo" && s.endsAt && new Date(s.endsAt).getTime() < now)),
+    sections: current(resolved.sections),
+    productSections: current(resolved.productSections),
+    collectionSections: current(resolved.collectionSections),
   };
 
-  const p = profileResult.data;
+  const p = snapshot.profile;
   const profile: StoreBusinessProfile = {
     businessEmail: p?.business_email ?? null,
     phone: p?.phone ?? null,
@@ -192,8 +189,8 @@ export const getStorefront = cache(async (slug: string): Promise<Storefront | nu
   const basePath = onSubdomain ? "" : `/shop/${slug}`;
 
   // Other currencies are a Standard feature: on Free the shop shows only its own (the saved list is kept).
-  const multiCurrency = storeHasFeature(await getStorePlan(tenant.id), "multiCurrency");
-  const currencySettings = multiCurrency ? parseCurrencySettings(currenciesResult.data?.currencies, profile.currencyCode) : { extra: [] };
+  const multiCurrency = await hasShopFeature(tenant.id, "multiCurrency");
+  const currencySettings = multiCurrency ? parseCurrencySettings(p?.currencies, profile.currencyCode) : { extra: [] };
   // Only shops showing other currencies need the exchange rates.
   const rates = currencySettings.extra.length ? (await getFxRates()).rates : {};
   const currencies = resolveDisplayCurrencies(profile.currencyCode, currencySettings, rates);
@@ -201,6 +198,11 @@ export const getStorefront = cache(async (slug: string): Promise<Storefront | nu
   const visitorCurrency = currencyForVisitorCountry(requestHeaders.get("x-vercel-ip-country"));
   const displayCurrency =
     [chosen, visitorCurrency].find((code) => code && currencies.some((c) => c.code === code)) ?? profile.currencyCode;
+
+  const languages = shopLanguages(site.content.language, site.content.languages);
+  const language = pickShopLanguage(languages, requestHeaders.get(STOREFRONT_LANG_HEADER), (await cookies()).get(shopLanguageCookie(slug))?.value);
+  // Products on this page come in that language where the merchant has translated them.
+  setProductLanguage(tenant.id, language, languages[0]);
 
   return {
     slug,
@@ -213,11 +215,13 @@ export const getStorefront = cache(async (slug: string): Promise<Storefront | nu
     siteUrl: storefrontUrl(slug),
     isLive,
     isPreview,
-    acceptsPayments: paymentRoute !== null,
-    paymentMethods: availablePaymentMethods({ acceptsCard: paymentRoute !== null || simulatedPaymentsEnabled(), offline: parseOfflinePayments(offlineResult.data?.offline_payments), whatsappNumber: p?.whatsapp ?? null }),
+    acceptsPayments: snapshot.acceptsCard,
+    paymentMethods: availablePaymentMethods({ acceptsCard: snapshot.acceptsCard || simulatedPaymentsEnabled(), offline: parseOfflinePayments(p?.offline_payments), whatsappNumber: p?.whatsapp ?? null }),
     profile,
     currencies,
     displayCurrency,
+    languages,
+    language,
     collections,
     pages,
     categories,

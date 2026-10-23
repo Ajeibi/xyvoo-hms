@@ -2,17 +2,19 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import type { ShopProduct } from "@/lib/shop/products";
+import { CURRENCY_NAMES, type ShopCurrencyCode } from "@/lib/store/currencies";
 import type { CheckoutPaymentMethod } from "@/lib/store/offline-payments";
-import { useMoney } from "./StorefrontProvider";
+import { useMoney, useT } from "./StorefrontProvider";
 import { useStorefront } from "./StorefrontProvider";
 import { useShopAccount } from "./useShopAccount";
 
-const PAY_LABELS: Record<CheckoutPaymentMethod, string> = {
-  card: "Pay online now (card or bank transfer)",
-  bank_transfer: "Bank transfer (the card is sent once the shop receives your payment)",
-  pay_on_delivery: "Pay on delivery",
-  whatsapp: "Arrange payment on WhatsApp",
-};
+/** The words for each way to pay (keys in the checkout dictionary). */
+const PAY_LABELS = {
+  card: "checkout.giftPayCard",
+  bank_transfer: "checkout.giftPayBank",
+  pay_on_delivery: "checkout.giftPayOnDelivery",
+  whatsapp: "checkout.giftPayWhatsApp",
+} as const satisfies Record<CheckoutPaymentMethod, string>;
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -24,6 +26,7 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export default function GiftCardBuy({ product, storeName, paymentMethods }: { product: ShopProduct; storeName: string; paymentMethods: CheckoutPaymentMethod[] }) {
   const { slug } = useStorefront();
   const money = useMoney();
+  const t = useT();
   const { account } = useShopAccount();
   const id = useId();
   const formRef = useRef<HTMLFormElement>(null);
@@ -39,6 +42,19 @@ export default function GiftCardBuy({ product, storeName, paymentMethods }: { pr
   const [status, setStatus] = useState("");
   const [token] = useState(() => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID().replace(/-/g, "") : String(Date.now())));
   const chosen = amounts.find((a) => a.id === variantId) ?? null;
+  // A gift card holds its value in the shop's own currency, so amounts are always shown in it.
+  const amountText = (amount: number) => money.formatHome(amount);
+  const homeName = (() => {
+    if (t.lang !== "en") {
+      try {
+        const name = new Intl.DisplayNames([t.lang], { type: "currency" }).of(money.homeCurrency ?? "");
+        if (name) return name;
+      } catch {
+        // No name for it in this language: the English one below.
+      }
+    }
+    return CURRENCY_NAMES[money.homeCurrency as ShopCurrencyCode] ?? money.homeCurrency;
+  })();
 
   // A signed-in shopper's own details are filled in as the buyer.
   useEffect(() => {
@@ -57,22 +73,22 @@ export default function GiftCardBuy({ product, storeName, paymentMethods }: { pr
     const form = new FormData(e.currentTarget);
     const get = (n: string) => String(form.get(n) ?? "").trim();
     const problem = !chosen
-      ? "Choose an amount."
+      ? t("checkout.errChooseAmount")
       : !get("recipientName")
-        ? "Enter who the gift card is for."
+        ? t("checkout.errRecipientName")
         : !EMAIL.test(get("recipientEmail"))
-          ? "Enter the email address to send the gift card to."
+          ? t("checkout.errRecipientEmail")
           : !get("buyerName")
-            ? "Enter your name."
+            ? t("checkout.errYourName")
             : !EMAIL.test(get("buyerEmail"))
-              ? "Enter your email address, for your receipt."
+              ? t("checkout.errYourEmail")
               : !method
-                ? "This shop isn't taking payments online at the moment."
+                ? t("checkout.noOnlinePayments")
                 : "";
     if (problem) return setStatus(problem);
 
     setSending(true);
-    setStatus(method === "card" ? "Taking you to secure payment…" : "Placing your order…");
+    setStatus(method === "card" ? t("checkout.toSecurePayment") : t("checkout.placingOrder"));
     try {
       const res = await fetch(`/api/shop/${encodeURIComponent(slug)}/checkout`, {
         method: "POST",
@@ -93,13 +109,13 @@ export default function GiftCardBuy({ product, storeName, paymentMethods }: { pr
       const data = await res.json().catch(() => ({}));
       const next = typeof data.authorizationUrl === "string" ? data.authorizationUrl : typeof data.receivedUrl === "string" ? data.receivedUrl : null;
       if (!res.ok || !next) {
-        setStatus(typeof data.error === "string" ? data.error : "We couldn't place your order. Please try again.");
+        setStatus(typeof data.error === "string" ? data.error : t("checkout.couldntPlaceOrder"));
         setSending(false);
         return;
       }
       window.location.assign(next);
     } catch {
-      setStatus("We couldn't connect. Check your internet connection and try again.");
+      setStatus(t("common.offline"));
       setSending(false);
     }
   };
@@ -108,79 +124,84 @@ export default function GiftCardBuy({ product, storeName, paymentMethods }: { pr
     <div className="giftcard">
       <div className="giftcard__preview" aria-hidden="true">
         <span className="giftcard__shop">{storeName}</span>
-        <span className="giftcard__amount">{chosen ? money.format(money.convert(chosen.amount)) : "Gift card"}</span>
-        <span className="giftcard__label">Gift card</span>
+        <span className="giftcard__amount">{chosen ? amountText(chosen.amount) : t("checkout.giftCard")}</span>
+        <span className="giftcard__label">{t("checkout.giftCard")}</span>
       </div>
 
-      <form ref={formRef} className="giftcard__form account-form" onSubmit={submit} noValidate aria-label="Buy a gift card">
-        <h1 className="h-page">Gift card</h1>
+      <form ref={formRef} className="giftcard__form account-form" onSubmit={submit} noValidate aria-label={t("checkout.buyGiftCard")}>
+        <h1 className="h-page">{t("checkout.giftCard")}</h1>
         <p className="lead">
-          The perfect present: they choose what they love. We email the gift card straight to them, and they can spend it in one go or over several orders.
+          {t("checkout.giftLead")}
         </p>
 
         <fieldset className="option-group">
           <legend>
-            Amount: <span>{chosen ? money.format(money.convert(chosen.amount)) : "choose one"}</span>
+            {t.rich("checkout.amountLegend", { amount: <span>{chosen ? amountText(chosen.amount) : t("checkout.chooseOne")}</span> })}
           </legend>
           <div className="pills">
             {amounts.map((a) => (
               <label className="pill" key={a.id}>
                 <input type="radio" name="amount" value={a.id} checked={variantId === a.id} onChange={() => setVariantId(a.id)} />
-                <span>{money.format(money.convert(a.amount))}</span>
+                <span>{amountText(a.amount)}</span>
               </label>
             ))}
           </div>
+          {!money.isHome && chosen ? (
+            <p className="hint charge-note">
+              {t("checkout.aboutAmount", { amount: money.format(money.convert(chosen.amount)), currency: homeName })}
+            </p>
+          ) : null}
         </fieldset>
 
         <fieldset className="giftcard__group">
-          <legend>Who is it for?</legend>
+          <legend>{t("checkout.whoFor")}</legend>
           <div className="field">
-            <label htmlFor={`${id}-rname`}>Their name</label>
+            <label htmlFor={`${id}-rname`}>{t("checkout.theirName")}</label>
             <input className="input" id={`${id}-rname`} name="recipientName" autoComplete="off" maxLength={120} />
           </div>
           <div className="field">
-            <label htmlFor={`${id}-remail`}>Their email address</label>
+            <label htmlFor={`${id}-remail`}>{t("checkout.theirEmail")}</label>
             <input className="input" id={`${id}-remail`} name="recipientEmail" type="email" inputMode="email" autoComplete="off" maxLength={200} />
-            <p className="hint">We&rsquo;ll send the gift card here as soon as your payment is confirmed.</p>
+            <p className="hint">{t("checkout.sendHereHint")}</p>
           </div>
           <div className="field">
             <label htmlFor={`${id}-message`}>
-              Your message <span className="optional">(optional)</span>
+              {t("checkout.yourMessage")} <span className="optional">{t("common.optional")}</span>
             </label>
             <textarea className="input" id={`${id}-message`} name="message" rows={3} maxLength={300} />
           </div>
         </fieldset>
 
         <fieldset className="giftcard__group">
-          <legend>About you</legend>
+          <legend>{t("checkout.aboutYou")}</legend>
           <div className="field">
-            <label htmlFor={`${id}-bname`}>Your name</label>
+            <label htmlFor={`${id}-bname`}>{t("checkout.yourName")}</label>
             <input className="input" id={`${id}-bname`} name="buyerName" autoComplete="name" maxLength={120} />
-            <p className="hint">Shown on the gift card email, so they know it&rsquo;s from you.</p>
+            <p className="hint">{t("checkout.shownOnEmail")}</p>
           </div>
           <div className="field">
-            <label htmlFor={`${id}-bemail`}>Your email address</label>
+            <label htmlFor={`${id}-bemail`}>{t("checkout.yourEmail")}</label>
             <input className="input" id={`${id}-bemail`} name="buyerEmail" type="email" inputMode="email" autoComplete="email" maxLength={200} />
-            <p className="hint">For your receipt.</p>
+            <p className="hint">{t("checkout.forReceipt")}</p>
           </div>
         </fieldset>
 
         {methods.length > 1 ? (
           <fieldset className="giftcard__group">
-            <legend>How would you like to pay?</legend>
+            <legend>{t("checkout.howToPay")}</legend>
             {methods.map((m) => (
               <label className="check check--top" key={m}>
                 <input type="radio" name="method" value={m} checked={method === m} onChange={() => setMethod(m)} />
-                <span>{PAY_LABELS[m]}</span>
+                <span>{t(PAY_LABELS[m])}</span>
               </label>
             ))}
           </fieldset>
         ) : null}
 
         <button className="btn btn--primary" type="submit" disabled={sending || !methods.length}>
-          {sending ? "Please wait…" : chosen ? `Buy a ${money.format(money.convert(chosen.amount))} gift card` : "Buy a gift card"}
+          {sending ? t("checkout.pleaseWait") : chosen ? t("checkout.buyGiftCardAmount", { amount: amountText(chosen.amount) }) : t("checkout.buyGiftCard")}
         </button>
-        {!methods.length ? <p className="hint">This shop isn&rsquo;t taking payments online at the moment.</p> : null}
+        {!methods.length ? <p className="hint">{t("checkout.noOnlinePayments")}</p> : null}
         <p className="form-status" role="status">
           {status}
         </p>

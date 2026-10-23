@@ -1,3 +1,4 @@
+import { shopChanged } from "@/lib/store/site/shop-changed";
 import { NextResponse } from "next/server";
 import { resolveStoreRequest } from "@/lib/store/api-helpers";
 import { diffFields, logActivity } from "@/lib/store/activity";
@@ -71,5 +72,6 @@ export async function PATCH(req: Request) {
     action: "updated",
     changes: diffFields({ currencies: codes(previous) }, { currencies: codes(settings) }),
   });
+  shopChanged(resolved.access.tenantId);
   return NextResponse.json({ settings });
 }

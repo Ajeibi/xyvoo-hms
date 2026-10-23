@@ -1,7 +1,9 @@
+import EditSectionButton from "./EditSectionButton";
 import Link from "next/link";
 import { STORE_PATHS, storeHref } from "@/lib/store/site/links";
 import { readingMinutes } from "@/lib/store/blog";
 import { listPublishedPosts } from "@/lib/store/blog-server";
+import { getShopT } from "@/lib/store/i18n/server";
 import type { SiteSection } from "@/lib/store/site/schema";
 import type { Storefront } from "@/lib/store/site/storefront";
 import type { StorefrontTemplateSlug } from "@/lib/store/site/templates";
@@ -52,10 +54,11 @@ function Hero({ section, storefront, isFirst }: SectionProps<"hero">) {
   );
 }
 
-function ValueStrip({ section }: SectionProps<"value-strip">) {
+function ValueStrip({ section, storefront }: SectionProps<"value-strip">) {
   if (section.items.length === 0) return null;
+  const t = getShopT(storefront);
   return (
-    <section className="trust" aria-label="Why shop with us">
+    <section className="trust" aria-label={t("listing.whyShopWithUs")}>
       <div className="container">
         <ul className="trust__list">
           {section.items.map((item, i) => (
@@ -73,23 +76,24 @@ function ValueStrip({ section }: SectionProps<"value-strip">) {
   );
 }
 
-function CategoryTiles({ section, storefront }: SectionProps<"category-tiles">) {
+function CategoryTiles({ section, storefront, nearTop }: SectionProps<"category-tiles">) {
   const tiles = buildTiles(storefront, section.collectionIds, 8);
   if (tiles.length === 0) return null;
   const titleId = `${section.id}-title`;
+  const t = getShopT(storefront);
 
   return (
-    <section className="section" aria-labelledby={section.heading ? titleId : undefined} aria-label={section.heading ? undefined : "Shop by category"}>
+    <section className="section" aria-labelledby={section.heading ? titleId : undefined} aria-label={section.heading ? undefined : t("listing.shopByCategory")}>
       <div className="container">
         {section.heading ? (
-          <SectionHead id={titleId} heading={section.heading} link={{ label: "View all products", href: sectionHref(storefront, STORE_PATHS.products) }} />
+          <SectionHead id={titleId} heading={section.heading} link={{ label: t("listing.viewAllProducts"), href: sectionHref(storefront, STORE_PATHS.products) }} />
         ) : null}
         <ul className="categories">
           {tiles.map((tile, i) => (
             <li key={tile.key}>
               <Link className="category" href={sectionHref(storefront, tile.path)}>
                 <span className={`media tone-${(i % 5) + 1}`} aria-hidden="true">
-                  {tile.imageUrl ? <StoreImage src={tile.imageUrl} alt="" sizes="140px" /> : null}
+                  {tile.imageUrl ? <StoreImage src={tile.imageUrl} alt="" sizes="140px" eager={nearTop && i < 4} /> : null}
                 </span>
                 {tile.label}
               </Link>
@@ -101,27 +105,28 @@ function CategoryTiles({ section, storefront }: SectionProps<"category-tiles">) 
   );
 }
 
-function FeaturedCollections({ section, storefront }: SectionProps<"featured-collections">) {
+function FeaturedCollections({ section, storefront, nearTop }: SectionProps<"featured-collections">) {
   const collections = section.collectionIds.length
     ? storefront.collections.filter((c) => section.collectionIds.includes(c.id))
     : storefront.collections.slice(0, 2);
   if (collections.length === 0) return null;
+  const t = getShopT(storefront);
 
   return (
-    <section className="section section--tight-top" aria-label={section.heading || "Featured collections"}>
+    <section className="section section--tight-top" aria-label={section.heading || t("listing.featuredCollections")}>
       <div className="container banners">
         {collections.map((c, i) => (
           <article className="banner" key={c.id}>
             <div className="banner__content">
-              <p className="eyebrow">Featured collection</p>
+              <p className="eyebrow">{t("listing.featuredCollection")}</p>
               <h2 className="h-card">{c.name}</h2>
               {c.description ? <p>{c.description}</p> : null}
               <Link className="btn btn--primary" href={sectionHref(storefront, STORE_PATHS.collection(c.slug))}>
-                Shop {c.name} <Icon name="arrow-right" size="sm" />
+                {t("listing.shopNamed", { name: c.name })} <Icon name="arrow-right" size="sm" />
               </Link>
             </div>
             <MediaLink className={`media tone-${i % 2 ? 4 : 2}`} href={sectionHref(storefront, STORE_PATHS.collection(c.slug))}>
-              {c.imageUrl ? <StoreImage src={c.imageUrl} alt={c.imageAlt || ""} sizes="(min-width: 900px) 25vw, 100vw" /> : null}
+              {c.imageUrl ? <StoreImage src={c.imageUrl} alt={c.imageAlt || ""} sizes="(min-width: 900px) 25vw, 100vw" eager={nearTop} /> : null}
             </MediaLink>
           </article>
         ))}
@@ -130,16 +135,17 @@ function FeaturedCollections({ section, storefront }: SectionProps<"featured-col
   );
 }
 
-async function ProductList({ section, storefront }: SectionProps<"product-list">) {
+async function ProductList({ section, storefront, nearTop }: SectionProps<"product-list">) {
   const products = await loadSectionProducts(section, storefront);
   if (products.length === 0) return null;
 
   const titleId = `${section.id}-title`;
+  const t = getShopT(storefront);
   return (
     <section className="section section--tight-top" aria-labelledby={titleId}>
       <div className="container">
-        <SectionHead id={titleId} heading={section.heading} link={{ label: "View all", href: sectionHref(storefront, STORE_PATHS.products) }} />
-        <ProductGridList products={products} basePath={storefront.basePath} variant={storefront.site.theme.cardVariant} />
+        <SectionHead id={titleId} heading={section.heading} link={{ label: t("listing.viewAll"), href: sectionHref(storefront, STORE_PATHS.products) }} />
+        <ProductGridList products={products} basePath={storefront.basePath} variant={storefront.site.theme.cardVariant} eagerCount={nearTop ? 4 : 0} />
       </div>
     </section>
   );
@@ -199,10 +205,11 @@ async function Journal({ section, storefront }: SectionProps<"journal">) {
   const posts = await listPublishedPosts(storefront.tenant.id, 3).catch(() => []);
   if (posts.length === 0) return null;
   const titleId = `${section.id}-title`;
+  const t = getShopT(storefront);
   return (
     <section className="section" aria-labelledby={titleId}>
       <div className="container">
-        <SectionHead id={titleId} heading={section.heading} link={{ label: "All posts", href: storeHref(storefront.basePath, STORE_PATHS.blog) }} />
+        <SectionHead id={titleId} heading={section.heading} link={{ label: t("listing.allPosts"), href: storeHref(storefront.basePath, STORE_PATHS.blog) }} />
         <ul className="blog-list">
           {posts.map((p) => (
             <li key={p.id} className="blog-card">
@@ -212,7 +219,7 @@ async function Journal({ section, storefront }: SectionProps<"journal">) {
                 </Link>
               ) : null}
               <div className="blog-card__body">
-                <p className="eyebrow">{readingMinutes(p.body)} min read</p>
+                <p className="eyebrow">{t("listing.minRead", { count: readingMinutes(p.body) })}</p>
                 <h3 className="h-card">
                   <Link href={storeHref(storefront.basePath, STORE_PATHS.blogPost(p.slug))}>{p.title}</Link>
                 </h3>
@@ -226,13 +233,14 @@ async function Journal({ section, storefront }: SectionProps<"journal">) {
   );
 }
 
-function Press({ section }: SectionProps<"press">) {
+function Press({ section, storefront }: SectionProps<"press">) {
   if (section.names.length === 0) return null;
+  const t = getShopT(storefront);
   return (
     <section className="press" aria-labelledby={`${section.id}-title`}>
       <div className="container">
         <h2 className="press__title" id={`${section.id}-title`}>
-          {section.heading || "As featured in"}
+          {section.heading || t("listing.asFeaturedIn")}
         </h2>
         <ul className="press__logos">
           {section.names.map((name) => (
@@ -244,11 +252,12 @@ function Press({ section }: SectionProps<"press">) {
   );
 }
 
-function Gallery({ section }: SectionProps<"gallery">) {
+function Gallery({ section, storefront }: SectionProps<"gallery">) {
   if (section.images.length === 0) return null;
   const titleId = `${section.id}-title`;
+  const t = getShopT(storefront);
   return (
-    <section className="section section--tight-top" aria-labelledby={section.heading ? titleId : undefined} aria-label={section.heading ? undefined : "Gallery"}>
+    <section className="section section--tight-top" aria-labelledby={section.heading ? titleId : undefined} aria-label={section.heading ? undefined : t("listing.gallery")}>
       <div className="container">
         {section.heading ? <SectionHead id={titleId} heading={section.heading} /> : null}
         <ul className="gallery">
@@ -305,10 +314,45 @@ const TEMPLATE_SECTIONS: Record<StorefrontTemplateSlug, SectionSet> = {
 
 type RenderableSection = Extract<SiteSection, { type: RenderableType }>;
 
-function renderSection(set: SectionSet, section: RenderableSection, storefront: Storefront, isFirst: boolean) {
+/** What each section is called in the editor (and on its preview "Edit" button). */
+export const SECTION_NAMES: Record<SiteSection["type"], string> = {
+  hero: "main banner",
+  "value-strip": "reasons to buy",
+  "category-tiles": "shop by category",
+  "featured-collections": "featured collections",
+  "product-list": "product row",
+  promo: "promotion",
+  reviews: "customer reviews",
+  journal: "journal",
+  press: "as featured in",
+  gallery: "photo gallery",
+  newsletter: "newsletter sign-up",
+};
+
+/**
+ * One section, in a wrapper that applies its spacing and colour scheme, with
+ * an "Edit" button when the merchant is previewing in the website editor.
+ * `isFirst` gives the page's <h1> to a first banner (the homepage only).
+ */
+function renderSection(set: SectionSet, section: RenderableSection, storefront: Storefront, index: number, isFirstOnPage: boolean) {
   // SectionSet pairs each type with its own component, so this lookup is always the matching one.
-  const Component = set[section.type] as unknown as (props: { section: RenderableSection; storefront: Storefront; isFirst: boolean }) => React.ReactNode;
-  return <Component key={section.id} section={section} storefront={storefront} isFirst={isFirst} />;
+  const Component = set[section.type] as unknown as (props: { section: RenderableSection; storefront: Storefront; isFirst: boolean; nearTop: boolean }) => React.ReactNode;
+  return (
+    <div key={section.id} className={`sf-block sf-block--space-${section.spacing ?? "normal"} sf-block--scheme-${section.scheme ?? "default"}`} data-sf-section={section.id}>
+      {storefront.isPreview ? <EditSectionButton id={section.id} label={SECTION_NAMES[section.type]} /> : null}
+      <Component section={section} storefront={storefront} isFirst={isFirstOnPage && index === 0} nearTop={isFirstOnPage && index === 0} />
+    </div>
+  );
+}
+
+/**
+ * A list of sections anywhere in the shop: under a product's details or a
+ * collection's products. The homepage uses HomeSections (it also owns the <h1>).
+ */
+export function SectionList({ storefront, sections }: { storefront: Storefront; sections: SiteSection[] }) {
+  const set = TEMPLATE_SECTIONS[storefront.site.template.slug];
+  const visible = sections.filter((s): s is RenderableSection => s.enabled);
+  return <>{visible.map((section, i) => renderSection(set, section, storefront, i, false))}</>;
 }
 
 /**
@@ -326,7 +370,7 @@ export default function HomeSections({ storefront }: { storefront: Storefront })
   return (
     <>
       {!firstIsHero ? <h1 className="visually-hidden">{storefront.storeName}</h1> : null}
-      {visible.map((section, i) => renderSection(set, section, storefront, i === 0))}
+      {visible.map((section, i) => renderSection(set, section, storefront, i, true))}
     </>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useStorefront } from "./StorefrontProvider";
+import { useStorefront, useT } from "./StorefrontProvider";
 import { Icon } from "./primitives";
 
 /**
@@ -11,6 +11,7 @@ import { Icon } from "./primitives";
  */
 export default function StopRemindersForm({ reminderKey, shopHref, storeName }: { reminderKey: string; shopHref: string; storeName: string }) {
   const { slug } = useStorefront();
+  const t = useT();
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState(false);
   const [status, setStatus] = useState("");
@@ -27,12 +28,12 @@ export default function StopRemindersForm({ reminderKey, shopHref, storeName }: 
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setStatus(typeof data.error === "string" ? data.error : "We couldn't save that. Please try again.");
+        setStatus(typeof data.error === "string" ? data.error : t("account.couldNotSave"));
         return;
       }
       setDone(true);
     } catch {
-      setStatus("We couldn't connect. Check your internet connection and try again.");
+      setStatus(t("common.offline"));
     } finally {
       setSending(false);
     }
@@ -42,23 +43,20 @@ export default function StopRemindersForm({ reminderKey, shopHref, storeName }: 
     return (
       <div className="review-thanks" role="status">
         <Icon name="check-circle" />
-        <h2 className="h-section">You won&rsquo;t get basket reminders from us again</h2>
-        <p className="body-copy">We&rsquo;ll still email you about any order you place, such as your receipt and delivery updates.</p>
+        <h2 className="h-section">{t("account.remindersStopped")}</h2>
+        <p className="body-copy">{t("account.remindersStoppedBody")}</p>
         <Link className="btn btn--primary" href={shopHref}>
-          Back to the shop
+          {t("account.backToShop")}
         </Link>
       </div>
     );
   }
 
   return (
-    <form onSubmit={submit} noValidate aria-label="Stop basket reminders">
-      <p className="lead">
-        If you leave something in your basket at {storeName}, we may send you a reminder by email. You can stop these at any time. Emails about orders you place, like
-        receipts, will still come.
-      </p>
+    <form onSubmit={submit} noValidate aria-label={t("account.stopReminders")}>
+      <p className="lead">{t("account.remindersLead", { storeName })}</p>
       <button className="btn btn--primary" type="submit" disabled={sending}>
-        {sending ? "Saving…" : "Stop basket reminders"}
+        {sending ? t("common.saving") : t("account.stopReminders")}
       </button>
       <p className="form-status" role="status">
         {status}

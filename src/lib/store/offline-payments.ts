@@ -56,3 +56,14 @@ export function availablePaymentMethods(input: { acceptsCard: boolean; offline: 
   if (input.offline.whatsapp.enabled && input.whatsappNumber) methods.push("whatsapp");
   return methods;
 }
+
+/** What the shopper does next after an offline order: the same words in the order email and the WhatsApp message. */
+export function offlineNextStep(input: { paymentMethod: string | null; offline: OfflinePayments; storeName: string; total: string; reference: string }) {
+  const { offline, storeName, total, reference } = input;
+  const bank = offline.bankTransfer;
+  if (input.paymentMethod === "Bank Transfer" && bank.enabled) {
+    return `Please pay ${total} by bank transfer to ${bank.accountName}, ${bank.bankName}, account number ${bank.accountNumber}. Use ${reference} as the payment reference.${bank.note ? ` ${bank.note}` : ""} ${storeName} will confirm your order when the payment arrives.`;
+  }
+  if (input.paymentMethod === "Pay on Delivery") return `You'll pay ${total} when your order arrives.${offline.payOnDelivery.note ? ` ${offline.payOnDelivery.note}` : ""}`;
+  return `${storeName} will contact you on WhatsApp to arrange payment and delivery.`;
+}

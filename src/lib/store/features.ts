@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { NextResponse } from "next/server";
 import type { StorePlan } from "@/lib/store/site/onboarding";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -29,6 +30,8 @@ export const STORE_FEATURES = {
   /** Inviting staff and choosing their roles. */
   staff: PAID,
   activityLog: PAID,
+  /** Automatic WhatsApp order messages to the shop and its customers (each one costs XYVOO a Meta fee). */
+  whatsappMessages: PAID,
 } as const satisfies Record<string, readonly StorePlan[]>;
 
 export type StoreFeature = keyof typeof STORE_FEATURES;
@@ -52,7 +55,8 @@ export function storeHasFeature(plan: StorePlan | null | undefined, feature: Sto
  * row are on Free, and so is a Standard store that hasn't paid (chosen but
  * unpaid, or lapsed after the grace period), the same rule as the fee.
  */
-export async function getStorePlan(tenantId: string): Promise<StorePlan> {
+// Read once per request: a shop page asks in several places (layout, listing, prices).
+export const getStorePlan = cache(async (tenantId: string): Promise<StorePlan> => {
   const { data } = await createServerSupabaseClient()
     .schema("store")
     .from("subscriptions")
@@ -60,6 +64,15 @@ export async function getStorePlan(tenantId: string): Promise<StorePlan> {
     .eq("tenant_id", tenantId)
     .maybeSingle();
   return planForFeatures(data as SubscriptionState | null);
+});
+
+/**
+ * For pages shoppers see: whether the shop has a feature. While plan gating is
+ * off every shop has every feature, so the plan isn't even read.
+ */
+export async function hasShopFeature(tenantId: string, feature: StoreFeature) {
+  if (!planGatingOn()) return true;
+  return storeHasFeature(await getStorePlan(tenantId), feature);
 }
 
 export function planForFeatures(sub: SubscriptionState | null, now = Date.now()): StorePlan {

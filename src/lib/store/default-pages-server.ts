@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { shopChanged } from "@/lib/store/site/shop-changed";
 import { buildDefaultPages, type DefaultPagesContext } from "./default-pages";
 import { mapDeliveryZone, type DeliveryZoneRow } from "./delivery";
 import { availablePaymentMethods, parseOfflinePayments } from "./offline-payments";
@@ -83,5 +84,6 @@ export async function ensureDefaultPages(tenantId: string): Promise<string[]> {
     })),
   );
   if (insertError) throw new Error(insertError.message);
+  shopChanged(tenantId);
   return toAdd.map((p) => p.title);
 }

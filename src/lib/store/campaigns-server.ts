@@ -1,3 +1,4 @@
+import { allRows } from "@/lib/supabase/all-rows";
 import { badge, escapeHtml, type EmailLayout } from "@/lib/mail/layout";
 import { sendBrandedEmail } from "@/lib/mail/mailtrap";
 import { rateLimitShared } from "@/lib/rate-limit";
@@ -73,9 +74,13 @@ export type Contact = { email: string; name: string | null; key: string };
 
 /** Everyone who agreed and hasn't unsubscribed, narrowed to a customer group when the campaign asks. */
 export async function resolveAudience(tenantId: string, audience: CampaignAudience): Promise<Contact[]> {
-  const { data, error } = await db().from("marketing_contacts").select("email, name, unsubscribe_key").eq("tenant_id", tenantId).is("unsubscribed_at", null).limit(20_000);
+  // Paged: an audience can be bigger than one request returns.
+  const { data, error } = await allRows<{ email: string; name: string | null; unsubscribe_key: string }>(
+    (from, to) => db().from("marketing_contacts").select("email, name, unsubscribe_key").eq("tenant_id", tenantId).is("unsubscribed_at", null).order("id").range(from, to),
+    20_000,
+  );
   if (error) throw new Error(error.message);
-  let contacts: Contact[] = (data || []).map((c) => ({ email: c.email as string, name: (c.name as string | null) ?? null, key: c.unsubscribe_key as string }));
+  let contacts: Contact[] = data.map((c) => ({ email: c.email as string, name: (c.name as string | null) ?? null, key: c.unsubscribe_key as string }));
   if (audience.type === "everyone") return contacts;
 
   const customers = await listCustomers(tenantId);

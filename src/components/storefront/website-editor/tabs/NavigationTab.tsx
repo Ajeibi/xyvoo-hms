@@ -82,12 +82,27 @@ function ItemEditor({ id, item, onChange, state }: { id: string; item: MenuItem;
   );
 }
 
-function ItemList({ prefix, items, onChange, state }: { prefix: string; items: MenuItem[]; onChange: (items: MenuItem[]) => void; state: TabProps["state"] }) {
+function ItemList({
+  prefix,
+  items,
+  onChange,
+  state,
+  dropdowns = false,
+}: {
+  prefix: string;
+  items: MenuItem[];
+  onChange: (items: MenuItem[]) => void;
+  state: TabProps["state"];
+  /** Top menu links can open a dropdown of up to 10 more links. */
+  dropdowns?: boolean;
+}) {
+  const set = (i: number, next: MenuItem) => onChange(items.map((x, j) => (j === i ? next : x)));
   return (
     <ol className="space-y-2">
       {items.map((item, i) => (
-        <li key={i} className="flex items-start gap-2">
-          <ItemEditor id={`${prefix}-${i}`} item={item} state={state} onChange={(next) => onChange(items.map((x, j) => (j === i ? next : x)))} />
+        <li key={i} className="space-y-2">
+          <div className="flex items-start gap-2">
+          <ItemEditor id={`${prefix}-${i}`} item={item} state={state} onChange={(next) => set(i, next)} />
           <div className="flex shrink-0 gap-1 pt-1.5">
             <button type="button" disabled={i === 0} onClick={() => onChange(moveItem(items, i, -1))} className="rounded p-1 text-slate-600 hover:bg-slate-100 disabled:opacity-30">
               <ArrowUp className="h-4 w-4" aria-hidden />
@@ -102,6 +117,22 @@ function ItemList({ prefix, items, onChange, state }: { prefix: string; items: M
               <span className="sr-only">Remove “{item.label}”</span>
             </button>
           </div>
+          </div>
+          {dropdowns && item.children?.length ? (
+            <div className="ml-6 space-y-2 border-l-2 border-slate-200 pl-3">
+              <p className="text-xs font-medium text-slate-600">Dropdown under “{item.label}”</p>
+              <ItemList prefix={`${prefix}-${i}-sub`} items={item.children} state={state} onChange={(children) => set(i, { ...item, children: children.length ? children : undefined })} />
+            </div>
+          ) : null}
+          {dropdowns && (item.children?.length ?? 0) < 10 ? (
+            <button
+              type="button"
+              onClick={() => set(i, { ...item, children: [...(item.children ?? []), { label: "New link", type: "page", target: "" }] })}
+              className="ml-6 inline-flex items-center gap-1 text-xs font-medium text-blue-700 hover:underline"
+            >
+              <Plus className="h-3.5 w-3.5" aria-hidden /> {item.children?.length ? "Add a dropdown link" : `Add a dropdown under “${item.label}”`}
+            </button>
+          ) : null}
         </li>
       ))}
     </ol>
@@ -109,7 +140,7 @@ function ItemList({ prefix, items, onChange, state }: { prefix: string; items: M
 }
 
 function problems(nav: SiteNavigation) {
-  const all = [...nav.header, ...nav.footer.flatMap((c) => c.items)];
+  const all = [...nav.header, ...nav.header.flatMap((i) => i.children ?? []), ...nav.footer.flatMap((c) => c.items)];
   if (all.some((i) => !i.label.trim())) return "Every link needs some text.";
   if (all.some((i) => ["page", "collection", "product"].includes(i.type) && !i.target)) return "Choose where each link goes.";
   if (all.some((i) => i.type === "url" && !i.target.startsWith("/") && !/^https:\/\//.test(i.target))) return "Web addresses must start with https:// or /.";
@@ -138,8 +169,10 @@ export default function NavigationTab({ state, saving, saveDraft }: TabProps) {
         <h2 id="nav-header-title" className="text-base font-semibold text-slate-900">
           Top menu
         </h2>
-        <p className="text-xs text-slate-500">“All products” opens a list of your categories when you have more than one.</p>
-        <ItemList prefix="nav-h" items={nav.header} state={state} onChange={(header) => setNav({ ...nav, header })} />
+        <p className="text-xs text-slate-500">
+          “All products” opens a list of your categories when you have more than one. Any link can open its own dropdown instead; shoppers also get an “All of …” link to the main one.
+        </p>
+        <ItemList prefix="nav-h" items={nav.header} state={state} dropdowns onChange={(header) => setNav({ ...nav, header })} />
         {nav.header.length < 8 ? (
           <button type="button" onClick={() => setNav({ ...nav, header: [...nav.header, { label: "New link", type: "page", target: "" }] })} className="inline-flex items-center gap-1 text-sm font-medium text-blue-700 hover:underline">
             <Plus className="h-4 w-4" aria-hidden /> Add a link

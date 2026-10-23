@@ -1,3 +1,4 @@
+import { isShopLanguage, SHOP_LANGUAGE_PARAM, STOREFRONT_LANG_HEADER } from "@/lib/store/i18n/languages";
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import {
@@ -72,6 +73,10 @@ export async function proxy(request: NextRequest) {
   const headers = new Headers(request.headers);
   headers.delete(STOREFRONT_HOST_HEADER);
   headers.delete(STOREFRONT_PATH_HEADER);
+  headers.delete(STOREFRONT_LANG_HEADER);
+  // ?lang=fr on a shop page: show it in that language (the shop checks it offers it).
+  const langParam = request.nextUrl.searchParams.get(SHOP_LANGUAGE_PARAM);
+  if (isShopLanguage(langParam)) headers.set(STOREFRONT_LANG_HEADER, langParam);
 
   // <store>.getxyvoo.com: serve the store's pages from /shop/<store>. Stores are
   // public, so the pre-launch lock and sign-in checks below don't apply.
@@ -153,5 +158,7 @@ export const config = {
     // Each store subdomain serves its own robots.txt and sitemap.xml.
     "/robots.txt",
     "/sitemap.xml",
+    // And its product feed for Google and Meta.
+    "/feeds/products.xml",
   ],
 };

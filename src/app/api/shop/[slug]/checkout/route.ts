@@ -1,4 +1,6 @@
+import { createHash } from "node:crypto";
 import { after, NextResponse } from "next/server";
+import { parsePhoneNumberFromString } from "libphonenumber-js";
 import { z } from "zod";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getShopTenantBySlug } from "@/lib/shop/tenants";
@@ -44,7 +46,11 @@ const CheckoutSchema = z.object({
       line2: text(200).optional(),
       city: text(100).optional(),
       state: text(100).optional(),
-      country: text(2).optional(),
+      country: z
+        .string()
+        .trim()
+        .regex(/^[A-Z]{2}$/, "Choose the country to deliver to.")
+        .optional(),
       postalCode: text(20).optional(),
     })
     .default({}),
@@ -72,8 +78,12 @@ const CheckoutSchema = z.object({
   giftCard: giftCardPurchaseSchema.optional(),
   /** Ticked the box to hear from the shop by email. Never ticked for them. */
   marketingConsent: z.boolean().optional(),
+  /** Asked for this order's updates on WhatsApp (to the phone number above). */
+  whatsappUpdates: z.boolean().optional(),
   /** Loyalty points the signed-in shopper wants to use; checked and worked out again here. */
   loyaltyPoints: z.number().int().min(0).max(1_000_000).optional(),
+  /** The shopper's note for the shop: delivery instructions, a gift message. */
+  note: text(500).optional(),
 });
 
 const DISCOUNT_CLAIM_ERRORS: Record<string, string> = {
@@ -107,34 +117,18 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     return NextResponse.json({ error: parsed.error.issues[0]?.message || "Invalid checkout details." }, { status: 400 });
   }
 
-  const { customer, shippingAddress, items, deliveryZoneId, checkoutToken, paymentMethod, discountCode, giftCardCode, giftCard, marketingConsent, loyaltyPoints } = parsed.data;
+  const { customer, shippingAddress, items, deliveryZoneId, checkoutToken, paymentMethod, discountCode, giftCardCode, giftCard, marketingConsent, whatsappUpdates, loyaltyPoints, note } = parsed.data;
   const service = createServerSupabaseClient();
   const onStoreSubdomain = getStoreSlugFromHost(req.headers.get("host")) === slug;
   const receivedUrl = (orderId: string) => `${onStoreSubdomain ? "" : `/shop/${slug}`}/checkout/received?order=${orderId}`;
 
   // A double click, or a retry after a dropped connection: hand back the order
-  // this checkout already made instead of reserving the stock twice.
-  if (checkoutToken) {
-    const since = new Date(Date.now() - 15 * 60_000).toISOString();
-    const { data: previous } = await service
-      .schema("store")
-      .from("orders")
-      .select("id, payment_method, payment_status, status, payment_intents(metadata)")
-      .eq("tenant_id", tenant.id)
-      .eq("checkout_token", checkoutToken)
-      .gte("created_at", since)
-      .neq("status", "Cancelled")
-      .neq("payment_status", "failed")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (previous) {
-      const intents = (previous.payment_intents as { metadata: { authorization_url?: string } | null }[] | null) ?? [];
-      const authorizationUrl = intents.find((i) => i.metadata?.authorization_url)?.metadata?.authorization_url;
-      if (previous.payment_method !== "Card") return NextResponse.json({ orderId: previous.id, receivedUrl: receivedUrl(previous.id) });
-      if (authorizationUrl && previous.payment_status === "unpaid") return NextResponse.json({ authorizationUrl, reference: previous.id, orderId: previous.id });
-      if (previous.payment_status === "paid") return NextResponse.json({ error: "This order has already been paid. Check your email for the confirmation." }, { status: 409 });
-    }
+  // this checkout already made instead of reserving the stock twice. The key
+  // covers what's being ordered, so a changed basket makes a new order.
+  const key = checkoutToken ? checkoutKey(checkoutToken, parsed.data) : null;
+  if (key) {
+    const previous = await sameCheckoutReply(tenant.id, key, receivedUrl);
+    if (previous) return previous;
   }
 
   // The chosen way to pay must be one this shop offers right now.
@@ -162,6 +156,20 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
   } else if (giftProductId && items.some((i) => i.productId === giftProductId)) {
     return NextResponse.json({ error: "Gift cards are bought on their own page. Remove the gift card from your basket, then buy it from its page." }, { status: 400 });
   }
+
+  // The shop needs a number to reach the shopper about delivery (a gift card is emailed, so it needs none).
+  if (!buyingGiftCard || customer.phone) {
+    const phone = customer.phone ? parsePhoneNumberFromString(customer.phone) : undefined;
+    if (!phone?.isValid()) {
+      return NextResponse.json({ error: "Enter a phone number with its country code, so the shop can reach you about your order." }, { status: 400 });
+    }
+    customer.phone = phone.number;
+  }
+
+  // Each line must be something the shop still sells: a product with options needs
+  // one of its current options, and a removed (archived) option can't be bought.
+  const variantProblem = await basketVariantProblem(service, tenant.id, items);
+  if (variantProblem) return NextResponse.json({ error: variantProblem }, { status: 409 });
 
   // Delivery: the option must be one of this store's active ones, looked up
   // here rather than trusting any price from the browser.
@@ -252,6 +260,23 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
 
   const created = orderResult as { id: string; total_amount: number };
   let itemsTotal = Number(created.total_amount);
+
+  // Undoes the order (stock, discount, gift card and points go back) when a later step fails.
+  const cancelWith = async (error: string, status: number) => {
+    await service.schema("store").rpc("cancel_order", { p_tenant_id: tenant.id, p_order_id: created.id });
+    return NextResponse.json({ error }, { status });
+  };
+
+  // Claim this checkout for the new order straight away. Only one unpaid order
+  // can hold a key, so if another submit of the same checkout got there first,
+  // this order is undone and the shopper is handed that one instead.
+  if (key) {
+    const claimed = await claimCheckoutKey(tenant.id, created.id, key);
+    if (!claimed) {
+      await service.schema("store").rpc("cancel_order", { p_tenant_id: tenant.id, p_order_id: created.id });
+      return (await sameCheckoutReply(tenant.id, key, receivedUrl)) ?? NextResponse.json({ error: STILL_PLACING }, { status: 409 });
+    }
+  }
 
   const { data: lineData } = await service.schema("store").from("order_items").select("id, product_id, quantity, cost_price, unit_price, line_total").eq("order_id", created.id);
   let lineRows = lineData;
@@ -426,7 +451,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     })
     .eq("id", order.id);
   if (totalsError) {
-    return NextResponse.json({ error: "We couldn't finish your order. Please try again." }, { status: 500 });
+    console.error("[checkout] totals not recorded", { orderId: order.id, error: totalsError });
+    return cancelWith("We couldn't finish your order. Please try again.", 500);
   }
   // Only shops that charge tax write the tax columns, so orders still go through before they exist.
   if (tax.enabled) {
@@ -448,7 +474,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     }
   }
   // Separate write: if the column isn't there yet, the order still goes through.
+  // (The token links the order to its saved checkout; the key above stops repeats.)
   if (checkoutToken) await service.schema("store").from("orders").update({ checkout_token: checkoutToken }).eq("id", order.id);
+  // Likewise for the shopper's note (the column may not be there yet), before the order emails go out.
+  if (note) {
+    const { error: noteError } = await service.schema("store").from("orders").update({ customer_note: note }).eq("id", order.id);
+    if (noteError) console.error("[checkout] note not recorded", { orderId: order.id, error: noteError.message });
+  }
+  // Likewise for WhatsApp updates; set before any order message goes out below.
+  if (whatsappUpdates && customer.phone) await service.schema("store").from("orders").update({ whatsapp_updates: true }).eq("id", order.id);
 
   if (checkoutToken) await linkCheckoutToOrder(tenant.id, checkoutToken, order.id).catch(() => undefined);
 
@@ -469,7 +503,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
   if (order.total_amount <= 0) {
     // Fully covered by a discount or gift card: nothing to collect, so it's paid now.
     const { error: freeError } = await service.schema("store").rpc("mark_order_paid", { p_order_id: order.id, p_paystack_reference: `discount-${order.id}` });
-    if (freeError) return NextResponse.json({ error: "We couldn't place your order. Please try again." }, { status: 500 });
+    if (freeError) {
+      console.error("[checkout] free order not marked paid", { orderId: order.id, error: freeError });
+      return cancelWith("We couldn't place your order. Please try again.", 500);
+    }
     await service
       .schema("store")
       .from("orders")
@@ -486,12 +523,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
       .from("orders")
       .update({ payment_method: PAYMENT_METHOD_LABELS[paymentMethod], expires_at: null })
       .eq("id", order.id);
-    if (offlineError) return NextResponse.json({ error: "We couldn't place your order. Please try again." }, { status: 500 });
+    if (offlineError) {
+      console.error("[checkout] offline order not recorded", { orderId: order.id, error: offlineError });
+      return cancelWith("We couldn't place your order. Please try again.", 500);
+    }
     after(() => sendOrderReceivedEmails(tenant.id, order.id));
     return json({ orderId: order.id, receivedUrl: receivedUrl(order.id) });
   }
   const simulated = simulatedPaymentsEnabled();
-  if (!paymentRoute && !simulated) return NextResponse.json({ error: "Card payments aren't available. Please choose another way to pay." }, { status: 400 });
+  if (!paymentRoute && !simulated) return cancelWith("Card payments aren't available. Please choose another way to pay.", 400);
 
   const origin = new URL(req.url).origin;
   const reference = order.id;
@@ -510,11 +550,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     });
     if (intentError) {
       console.error("[checkout] simulated payment not started", { orderId: order.id, error: intentError.message });
-      return NextResponse.json({ error: "We couldn't start the payment just now. Please try again in a moment." }, { status: 502 });
+      return cancelWith("We couldn't start the payment just now. Please try again in a moment.", 502);
     }
     return json({ authorizationUrl, reference, orderId: order.id });
   }
-  if (!paymentRoute) return NextResponse.json({ error: "Card payments aren't available. Please choose another way to pay." }, { status: 400 });
+  if (!paymentRoute) return cancelWith("Card payments aren't available. Please choose another way to pay.", 400);
   // Send the shopper back to wherever they checked out: the store's own
   // subdomain, or /shop/<slug> on the platform domain.
   const callbackUrl = onStoreSubdomain ? `${origin}/checkout/callback` : `${origin}/shop/${slug}/checkout/callback`;
@@ -566,13 +606,132 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
       orderId: order.id,
     });
   } catch (err) {
-    // The order + stock reservation was already created; if Paystack
-    // initialization fails the reservation simply expires and is reclaimed
-    // like any other abandoned checkout (see create_guest_order) -- no
-    // separate rollback path needed.
+    // The shopper never got a payment page for this order, so it can't be paid:
+    // undo it now rather than hold the stock until it expires, so trying again
+    // makes a fresh order.
     console.error("[checkout] payment not started", { orderId: order.id, err });
-    return NextResponse.json({ error: "We couldn't start the payment just now. Please try again in a moment." }, { status: 502 });
+    return cancelWith("We couldn't start the payment just now. Please try again in a moment.", 502);
   }
+}
+
+/**
+ * Why a basket line can't be ordered as it stands, or null. A basket kept in the
+ * browser can be days old, so options removed since, or a product that has
+ * gained options, are caught here rather than ordered.
+ */
+async function basketVariantProblem(
+  service: ReturnType<typeof createServerSupabaseClient>,
+  tenantId: string,
+  items: { productId: string; variantId?: string | null }[],
+) {
+  const { data, error } = await service
+    .schema("store")
+    .from("product_variants")
+    .select("id, product_id, archived_at, products!inner(tenant_id)")
+    .eq("products.tenant_id", tenantId)
+    .in("product_id", [...new Set(items.map((i) => i.productId))]);
+  if (error) {
+    // The order RPC still checks stock and prices; don't block checkout on this extra check.
+    console.error("[checkout] variants not checked", { error: error.message });
+    return null;
+  }
+  const variants = data || [];
+  for (const item of items) {
+    const own = variants.filter((v) => v.product_id === item.productId);
+    if (item.variantId) {
+      const variant = own.find((v) => v.id === item.variantId);
+      if (!variant || variant.archived_at) return "One of the options in your basket is no longer sold. Remove it from your basket, then choose again.";
+    } else if (own.some((v) => !v.archived_at)) {
+      return "Please choose an option (such as size or colour) for each item in your basket. Remove the item, then add it again from its page.";
+    }
+  }
+  return null;
+}
+
+const STILL_PLACING ="Your order is still being placed. Please wait a moment, then try again.";
+
+/** How long repeating the same checkout gets the same order back. */
+const SAME_CHECKOUT_MS = 15 * 60_000;
+
+/**
+ * The checkout token plus a fingerprint of what's being ordered. The same
+ * submit sent twice matches; changing the basket, address, delivery, way to pay
+ * or any code doesn't, so it makes a new order rather than reusing the old one.
+ */
+function checkoutKey(token: string, data: z.infer<typeof CheckoutSchema>) {
+  const { customer, shippingAddress, deliveryZoneId, paymentMethod, discountCode, giftCardCode, giftCard, loyaltyPoints } = data;
+  const lineKey = (i: (typeof data.items)[number]) => `${i.productId}:${i.variantId ?? ""}`;
+  const items = [...data.items].sort((a, b) => lineKey(a).localeCompare(lineKey(b)));
+  const fingerprint = createHash("sha256")
+    .update(JSON.stringify({ customer, shippingAddress, items, deliveryZoneId, paymentMethod, discountCode, giftCardCode, giftCard, loyaltyPoints }))
+    .digest("hex")
+    .slice(0, 32);
+  return `${token}:${fingerprint}`;
+}
+
+/**
+ * The reply for a checkout that already made an order: the same payment page,
+ * or the same "order received" page. Null means go ahead and make a new order.
+ */
+async function sameCheckoutReply(tenantId: string, key: string, receivedUrl: (orderId: string) => string) {
+  const db = createServerSupabaseClient().schema("store");
+  const { data: previous, error } = await db
+    .from("orders")
+    .select("id, payment_method, payment_status, created_at, payment_intents(metadata)")
+    .eq("tenant_id", tenantId)
+    .eq("checkout_key", key)
+    .gte("created_at", new Date(Date.now() - SAME_CHECKOUT_MS).toISOString())
+    .neq("status", "Cancelled")
+    .neq("payment_status", "failed")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  // Until the checkout_key column is added this lookup fails; each submit is then a new order, as before.
+  if (error || !previous) return null;
+
+  if (previous.payment_method !== "Card") {
+    // Offline, or fully covered by a discount or gift card: show the order that was placed.
+    return NextResponse.json({ orderId: previous.id, receivedUrl: receivedUrl(previous.id) });
+  }
+  // Paid already, perhaps by the webhook after the shopper closed the tab: this is a new purchase.
+  if (previous.payment_status === "paid") return null;
+  const intents = (previous.payment_intents as { metadata: { authorization_url?: string } | null }[] | null) ?? [];
+  const authorizationUrl = intents.find((i) => i.metadata?.authorization_url)?.metadata?.authorization_url;
+  if (authorizationUrl) return NextResponse.json({ authorizationUrl, reference: previous.id, orderId: previous.id });
+  // No payment page yet: the other submit is still working on it.
+  if (Date.now() - new Date(previous.created_at as string).getTime() < 60_000) return NextResponse.json({ error: STILL_PLACING }, { status: 409 });
+  // It never got one, so it can't be paid: undo it and start again.
+  await db.rpc("cancel_order", { p_tenant_id: tenantId, p_order_id: previous.id });
+  return null;
+}
+
+/**
+ * Puts the checkout key on a new order. False when another unpaid order of the
+ * same checkout already holds it, so this one should be undone.
+ */
+async function claimCheckoutKey(tenantId: string, orderId: string, key: string) {
+  const db = createServerSupabaseClient().schema("store");
+  const claim = () => db.from("orders").update({ checkout_key: key }).eq("id", orderId).eq("tenant_id", tenantId);
+  const { error } = await claim();
+  if (!error) return true;
+  if (error.code !== "23505") {
+    // Most likely the column hasn't been added yet: the order still goes through.
+    console.error("[checkout] checkout key not recorded", { orderId, error: error.message });
+    return true;
+  }
+  // Held by an order of this checkout too old to hand back (an offline order, say): let it go, and try once more.
+  const { data: holder } = await db
+    .from("orders")
+    .select("id, created_at")
+    .eq("tenant_id", tenantId)
+    .eq("checkout_key", key)
+    .eq("payment_status", "unpaid")
+    .neq("status", "Cancelled")
+    .neq("id", orderId)
+    .maybeSingle();
+  if (!holder || Date.now() - new Date(holder.created_at as string).getTime() < SAME_CHECKOUT_MS) return false;
+  await db.from("orders").update({ checkout_key: null }).eq("id", holder.id).eq("tenant_id", tenantId);
+  return !(await claim()).error;
 }
 
 /**

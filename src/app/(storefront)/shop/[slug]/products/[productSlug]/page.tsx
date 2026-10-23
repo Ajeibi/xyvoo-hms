@@ -1,19 +1,24 @@
+import { SectionList } from "@/components/storefront-theme/sections";
+import ProductReviews from "@/components/storefront-theme/ProductReviews";
+import { getShopCatalogue } from "@/lib/shop/catalogue-index";
 import { Fragment } from "react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import GiftCardBuy from "@/components/storefront-theme/GiftCardBuy";
 import ProductDetail from "@/components/storefront-theme/ProductDetail";
 import { ProductGridList } from "@/components/storefront-theme/ProductCard";
-import { Breadcrumb, Icon, Rating, SectionHead } from "@/components/storefront-theme/primitives";
+import { Breadcrumb, Icon, SectionHead } from "@/components/storefront-theme/primitives";
 import Link from "next/link";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { formatShopCurrency } from "@/lib/shop/format";
 import { parseReviewImages } from "@/lib/store/reviews";
-import { getShopProductBySlug, listShopProducts, type ShopProduct } from "@/lib/shop/products";
+import { getShopProductBySlug, type ShopProduct } from "@/lib/shop/products";
 import { STORE_PATHS, storeHref } from "@/lib/store/site/links";
 import { getStorefront } from "@/lib/store/site/storefront";
+import { getShopT } from "@/lib/store/i18n/server";
+import type { Translator } from "@/lib/store/i18n/translate";
 
-type Props = { params: Promise<{ slug: string; productSlug: string }> };
+type Props = { params: Promise<{ slug: string; productSlug: string }>; searchParams: Promise<{ variant?: string | string[] }> };
 
 async function load(params: Props["params"]) {
   const { slug, productSlug } = await params;
@@ -47,13 +52,13 @@ function paragraphs(text: string) {
 type BundleItem = { quantity: number; name: string; href: string | null; price: number };
 
 /** "What's in the bundle", and what it would cost bought separately. */
-function BundleContents({ items, price, currency }: { items: BundleItem[]; price: number; currency: string }) {
+function BundleContents({ items, price, currency, t }: { items: BundleItem[]; price: number; currency: string; t: Translator }) {
   const separately = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
   const saving = separately - price;
   return (
     <section className="bundle-contents" aria-labelledby="bundle-contents-title">
       <h2 className="bundle-contents__title" id="bundle-contents-title">
-        What&rsquo;s in the bundle
+        {t("product.whatsInBundle")}
       </h2>
       <ul>
         {items.map((i) => (
@@ -64,24 +69,27 @@ function BundleContents({ items, price, currency }: { items: BundleItem[]; price
       </ul>
       {saving > 0 ? (
         <p className="bundle-contents__saving">
-          Worth {formatShopCurrency(separately, currency)} bought separately. <strong>You save {formatShopCurrency(saving, currency)}.</strong>
+          {t.rich("product.bundleWorth", {
+            worth: formatShopCurrency(separately, currency),
+            saving: <strong>{t("product.youSave", { amount: formatShopCurrency(saving, currency) })}</strong>,
+          })}
         </p>
       ) : null}
     </section>
   );
 }
 
-function Details({ product }: { product: ShopProduct }) {
+function Details({ product, t }: { product: ShopProduct; t: Translator }) {
   const perks = [
     product.returnable
-      ? { icon: "returns" as const, text: product.returnWindowDays ? `${product.returnWindowDays}-day returns` : "Returns accepted" }
-      : { icon: "returns" as const, text: "This item can't be returned" },
+      ? { icon: "returns" as const, text: product.returnWindowDays ? t("product.dayReturns", { days: product.returnWindowDays }) : t("product.returnsAccepted") }
+      : { icon: "returns" as const, text: t("product.notReturnable") },
     ...(product.warrantyText ? [{ icon: "shield-plain" as const, text: product.warrantyText }] : []),
   ];
   const specs = [
-    product.brand ? ["Brand", product.brand] : null,
-    product.sku ? ["Product code", product.sku] : null,
-    product.weightKg ? ["Weight", `${product.weightKg} kg`] : null,
+    product.brand ? [t("product.brand"), product.brand] : null,
+    product.sku ? [t("product.productCode"), product.sku] : null,
+    product.weightKg ? [t("product.weight"), `${product.weightKg} kg`] : null,
   ].filter((s): s is [string, string] => s !== null);
 
   return (
@@ -98,7 +106,7 @@ function Details({ product }: { product: ShopProduct }) {
         {product.description ? (
           <details open>
             <summary>
-              Description
+              {t("product.description")}
               <Icon name="plus" />
             </summary>
             <div className="accordion__body">{paragraphs(product.description)}</div>
@@ -107,7 +115,7 @@ function Details({ product }: { product: ShopProduct }) {
         {specs.length ? (
           <details>
             <summary>
-              Details
+              {t("product.details")}
               <Icon name="plus" />
             </summary>
             <div className="accordion__body">
@@ -127,11 +135,13 @@ function Details({ product }: { product: ShopProduct }) {
   );
 }
 
-export default async function StorefrontProductPage({ params }: Props) {
+export default async function StorefrontProductPage({ params, searchParams }: Props) {
   const found = await load(params);
   if (!found) notFound();
   const { storefront, product } = found;
+  const { variant } = await searchParams;
   const { basePath, site, siteUrl } = storefront;
+  const t = getShopT(storefront);
 
   const reviewsQuery = (withExtras: boolean) => {
     const q = createServerSupabaseClient()
@@ -141,14 +151,14 @@ export default async function StorefrontProductPage({ params }: Props) {
       .eq("tenant_id", storefront.tenant.id)
       .eq("product_id", product.id);
     // Only reviews the shop has approved.
-    return (withExtras ? q.eq("status", "published") : q).order("created_at", { ascending: false }).limit(10);
+    // Enough for the star breakdown and "Show more"; the average and count come from the product itself.
+    return (withExtras ? q.eq("status", "published") : q).order("created_at", { ascending: false }).limit(200);
   };
-  const [reviewsResult, related, { data: giftProfile }, { data: bundleRows }] = await Promise.all([
+  const [reviewsResult, catalogue, { data: pairRows }, { data: giftProfile }, { data: bundleRows }] = await Promise.all([
     // Before the reviews migration there are no photos, replies or approval: fall back to the plain list.
     reviewsQuery(true).then((r) => (r.error?.code === "42703" ? reviewsQuery(false) : r)),
-    product.category
-      ? listShopProducts(storefront.tenant.id, { category: product.category, pageSize: 5 }).then((r) => r.products.filter((p) => p.id !== product.id).slice(0, 4))
-      : Promise.resolve([] as ShopProduct[]),
+    getShopCatalogue(storefront.tenant.id),
+    createServerSupabaseClient().schema("store").from("product_cross_sells").select("related_product_id").eq("product_id", product.id),
     createServerSupabaseClient().schema("store").from("business_profile").select("gift_card_product_id").eq("tenant_id", storefront.tenant.id).maybeSingle(),
     createServerSupabaseClient()
       .schema("store")
@@ -169,6 +179,15 @@ export default async function StorefrontProductPage({ params }: Props) {
       price: Number(r.component!.price) || 0,
       href: r.component!.status === "active" && r.component!.visibility === "visible" ? storeHref(basePath, STORE_PATHS.product(r.component!.slug || r.component!.id)) : null,
     }));
+  // "Goes well with": the merchant's own pairings for this product (in stock). "You may also like": others from its category.
+  const byId = new Map(catalogue.map((p) => [p.id, p]));
+  const pairs = ((pairRows || []) as Array<{ related_product_id: string }>)
+    .map((r) => byId.get(r.related_product_id))
+    .filter((p): p is ShopProduct => Boolean(p && p.inStock && p.id !== product.id))
+    .slice(0, 4);
+  const related = product.category
+    ? catalogue.filter((p) => p.category === product.category && p.id !== product.id && !pairs.some((x) => x.id === p.id)).slice(0, 4)
+    : [];
   // The shop's gift card has its own buying form instead of "Add to basket".
   const isGiftCard = Boolean(giftProfile?.gift_card_product_id) && giftProfile?.gift_card_product_id === product.id;
   const reviews = ((reviewsResult.data || []) as unknown as Array<{
@@ -184,6 +203,19 @@ export default async function StorefrontProductPage({ params }: Props) {
   }>).map((r) => ({ ...r, images: parseReviewImages(r.images) }));
 
   const productUrl = `${siteUrl}${STORE_PATHS.product(product.slug || product.id)}`;
+  // Options with their own prices: a price range for search engines, rather than one price that may not be true.
+  const optionPrices = product.variants.map((v) => v.priceOverride ?? product.price);
+  const lowPrice = optionPrices.length ? Math.min(...optionPrices) : product.price;
+  const highPrice = optionPrices.length ? Math.max(...optionPrices) : product.price;
+  const availability = !product.inStock
+    ? "https://schema.org/OutOfStock"
+    : product.preorder
+      ? "https://schema.org/PreOrder"
+      : product.allowBackorder && product.stock <= 0 && !product.variants.some((v) => v.stock > 0)
+        ? "https://schema.org/BackOrder"
+        : "https://schema.org/InStock";
+  const seller = { "@type": "Organization", name: storefront.storeName };
+  const barcode = product.variants.find((v) => v.barcode)?.barcode ?? null;
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -192,17 +224,34 @@ export default async function StorefrontProductPage({ params }: Props) {
     ...(product.shortDescription || product.description ? { description: product.shortDescription || product.description } : {}),
     ...(product.sku ? { sku: product.sku } : {}),
     ...(product.brand ? { brand: { "@type": "Brand", name: product.brand } } : {}),
-    offers: {
-      "@type": "Offer",
-      url: productUrl,
-      price: product.price.toFixed(2),
-      priceCurrency: product.currency,
-      // A sale price is only good until the sale ends.
-      ...(product.onSale && product.saleEndsAt ? { priceValidUntil: product.saleEndsAt.slice(0, 10) } : {}),
-      availability: product.inStock ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
-    },
+    ...(barcode && /^\d{8,14}$/.test(barcode) ? { gtin: barcode } : {}),
+    offers:
+      highPrice > lowPrice
+        ? { "@type": "AggregateOffer", url: productUrl, lowPrice: lowPrice.toFixed(2), highPrice: highPrice.toFixed(2), offerCount: product.variants.length, priceCurrency: product.currency, availability, seller }
+        : {
+            "@type": "Offer",
+            url: productUrl,
+            price: product.price.toFixed(2),
+            priceCurrency: product.currency,
+            // A sale price is only good until the sale ends.
+            ...(product.onSale && product.saleEndsAt ? { priceValidUntil: product.saleEndsAt.slice(0, 10) } : {}),
+            availability,
+            seller,
+          },
     ...(product.ratingCount > 0
       ? { aggregateRating: { "@type": "AggregateRating", ratingValue: product.ratingAverage.toFixed(1), reviewCount: product.ratingCount } }
+      : {}),
+    // A few of the latest reviews, as search engines show them under the product.
+    ...(reviews.length
+      ? {
+          review: reviews.slice(0, 5).map((r) => ({
+            "@type": "Review",
+            reviewRating: { "@type": "Rating", ratingValue: r.rating, bestRating: 5 },
+            author: { "@type": "Person", name: r.customer_name },
+            datePublished: r.created_at.slice(0, 10),
+            ...(r.comment ? { reviewBody: r.comment } : {}),
+          })),
+        }
       : {}),
   };
 
@@ -210,10 +259,10 @@ export default async function StorefrontProductPage({ params }: Props) {
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       <div className="container section">
-        <Breadcrumb
+        <Breadcrumb t={t}
           items={[
-            { label: "Home", href: storeHref(basePath, "/") },
-            { label: site.content.shop.title || "Shop", href: storeHref(basePath, STORE_PATHS.products) },
+            { label: t("common.home"), href: storeHref(basePath, "/") },
+            { label: site.content.shop.title || t("product.shop"), href: storeHref(basePath, STORE_PATHS.products) },
             ...(product.category ? [{ label: product.category, href: storeHref(basePath, STORE_PATHS.category(product.category)) }] : []),
             { label: product.name },
           ]}
@@ -223,69 +272,26 @@ export default async function StorefrontProductPage({ params }: Props) {
         ) : (
           <ProductDetail
             product={product}
+            initialVariantId={typeof variant === "string" ? variant : undefined}
             details={
               <>
-                {bundleItems.length ? <BundleContents items={bundleItems} price={product.price} currency={product.currency} /> : null}
-                <Details product={product} />
+                {bundleItems.length ? <BundleContents items={bundleItems} price={product.price} currency={product.currency} t={t} /> : null}
+                <Details product={product} t={t} />
               </>
             }
           />
         )}
       </div>
 
-      {reviews.length ? (
-        <section className="section section--tight-top" id="reviews" aria-labelledby="reviews-title">
-          <div className="container reviews-layout">
-            <div className="reviews-summary">
-              <h2 className="h-card" id="reviews-title">
-                Customer reviews
-              </h2>
-              {product.ratingCount > 0 ? (
-                <>
-                  <p>
-                    <span className="score">{product.ratingAverage.toFixed(1)}</span> <span className="muted">out of 5</span>
-                  </p>
-                  <Rating value={product.ratingAverage} count={product.ratingCount} />
-                </>
-              ) : null}
-            </div>
-            <ul className="review-list">
-              {reviews.map((review) => (
-                <li className="review-item" key={review.id}>
-                  <Rating value={review.rating} />
-                  {review.title ? <h3>{review.title}</h3> : null}
-                  {review.comment ? <p>{review.comment}</p> : null}
-                  {review.images.length ? (
-                    <ul className="review-photos" aria-label={`Photos from ${review.customer_name}`}>
-                      {review.images.map((img, j) => (
-                        <li key={img.url}>
-                          <a href={img.url} target="_blank" rel="noopener noreferrer">
-                            <img src={img.url} alt={`Photo ${j + 1} from ${review.customer_name}'s review`} loading="lazy" decoding="async" />
-                            <span className="visually-hidden"> (opens full size in a new tab)</span>
-                          </a>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
-                  <p className="review-meta">
-                    {review.customer_name} ·{" "}
-                    {new Date(review.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
-                    {review.verified ? (
-                      <>
-                        {" "}
-                        · <span className="review-verified">Verified purchase</span>
-                      </>
-                    ) : null}
-                  </p>
-                  {review.reply ? (
-                    <div className="review-reply">
-                      <strong>Reply from {storefront.tenant.displayName || storefront.tenant.name}</strong>
-                      <p>{review.reply}</p>
-                    </div>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
+      {isGiftCard ? null : (
+        <ProductReviews reviews={reviews} ratingAverage={product.ratingAverage} ratingCount={product.ratingCount} storeName={storefront.tenant.displayName || storefront.storeName} />
+      )}
+
+      {pairs.length ? (
+        <section className="section section--tight-top" aria-labelledby="pairs-title">
+          <div className="container">
+            <SectionHead id="pairs-title" heading={t("product.goesWellWith")} />
+            <ProductGridList products={pairs} basePath={basePath} variant={site.theme.cardVariant} />
           </div>
         </section>
       ) : null}
@@ -295,13 +301,15 @@ export default async function StorefrontProductPage({ params }: Props) {
           <div className="container">
             <SectionHead
               id="related-title"
-              heading="You may also like"
-              link={product.category ? { label: `More ${product.category}`, href: storeHref(basePath, STORE_PATHS.category(product.category)) } : undefined}
+              heading={t("product.youMayAlsoLike")}
+              link={product.category ? { label: t("product.moreInCategory", { category: product.category }), href: storeHref(basePath, STORE_PATHS.category(product.category)) } : undefined}
             />
             <ProductGridList products={related} basePath={basePath} variant={site.theme.cardVariant} />
           </div>
         </section>
       ) : null}
+      {/* The merchant's own sections for every product page (Website > Sections > Product pages). */}
+      <SectionList storefront={storefront} sections={site.productSections} />
     </>
   );
 }

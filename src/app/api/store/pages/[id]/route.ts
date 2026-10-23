@@ -1,3 +1,4 @@
+import { shopChanged } from "@/lib/store/site/shop-changed";
 import { NextResponse } from "next/server";
 import { resolveEditorRequest } from "@/lib/store/site/editor-api";
 import { mapPage, pageSchema, toPageRow, type PageRow } from "@/lib/store/pages";
@@ -26,6 +27,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: taken ? "Another page already uses that web address." : error.message }, { status: taken ? 409 : 500 });
   }
   if (!data) return NextResponse.json({ error: "Page not found." }, { status: 404 });
+  shopChanged(resolved.access.tenantId);
   return NextResponse.json({ page: mapPage(data as PageRow) });
 }
 
@@ -35,5 +37,6 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   if (resolved.error) return resolved.error;
   const { error } = await resolved.service.schema("store").from("pages").delete().eq("id", (await params).id).eq("tenant_id", resolved.access.tenantId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  shopChanged(resolved.access.tenantId);
   return NextResponse.json({ ok: true });
 }

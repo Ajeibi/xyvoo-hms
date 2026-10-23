@@ -24,9 +24,11 @@ export type ContrastIssue = { foreground: string; background: string; label: str
 
 export type ResolvedSite = {
   template: StorefrontTemplateDefinition;
-  theme: SiteTheme & { onAccent: string };
+  theme: SiteTheme & { onAccent: string; accentText: string };
   brand: SiteBrand;
   sections: SiteSection[];
+  productSections: SiteSection[];
+  collectionSections: SiteSection[];
   navigation: SiteNavigation;
   content: SiteContent;
   seo: SiteSeo;
@@ -56,7 +58,19 @@ function resolveTheme(template: StorefrontTemplateDefinition, overrides: SiteOve
     ...overrides,
     colours,
     onAccent,
+    accentText: readableAccent(colours.accent, colours.bg, colours.ink),
   };
+}
+
+/**
+ * The accent colour for text and outlines on the page background: the
+ * merchant's own if it's readable there, else darkened step by step until it
+ * is, else the text colour. Keeps the brand while every shopper can read it.
+ */
+function readableAccent(accent: string, bg: string, ink: string) {
+  let colour = accent;
+  for (let step = 0; step < 10 && contrastRatio(colour, bg) < MIN_TEXT_CONTRAST; step++) colour = darken(colour, 0.12);
+  return contrastRatio(colour, bg) >= MIN_TEXT_CONTRAST ? colour : ink;
 }
 
 function checkContrast(theme: ResolvedSite["theme"]): ContrastIssue[] {
@@ -89,6 +103,7 @@ function toCssVariables(theme: ResolvedSite["theme"]): ResolvedSite["cssVariable
     "--accent": colours.accent,
     "--accent-hover": colours.accentHover,
     "--on-accent": theme.onAccent,
+    "--accent-text": theme.accentText,
     "--dark": colours.dark,
     "--on-dark": colours.onDark,
     "--font-display": custom ? customFontStack(custom, fonts.display.fallback) : fontStack(fonts.display),
@@ -168,6 +183,8 @@ export function resolveSite(templateSlug: string | null | undefined, overrides: 
     theme,
     brand,
     sections: overrides.sections ?? template.sections,
+    productSections: overrides.productSections ?? [],
+    collectionSections: overrides.collectionSections ?? [],
     navigation: { ...defaultNavigation(), ...overrides.navigation },
     content,
     seo,
