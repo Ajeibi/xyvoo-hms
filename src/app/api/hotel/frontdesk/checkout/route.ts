@@ -14,8 +14,7 @@ import { notifyCheckoutCompleted, notifyCommissionDue, notifyOverdueCheckout } f
 import { openOrEscalateHousekeepingTask } from "@/lib/hms/housekeeping-tasks";
 import { setRoomStatus } from "@/lib/hms/room-status";
 import { executeKeyRevoke } from "@/lib/hms/integrations/smart-lock";
-import { buildCheckoutReceiptEmail } from "@/lib/hms/receipts";
-import { sendCheckoutReceiptEmail } from "@/lib/mail/mailtrap";
+import { assignInvoiceNumber, sendInvoiceEmail } from "@/lib/hms/folio-invoice";
 
 const CheckoutSchema = z
   .object({
@@ -222,24 +221,13 @@ export async function POST(req: Request) {
     const guest = Array.isArray(raw) ? raw[0] : raw;
     const guestName = guest ? `${guest.first_name} ${guest.last_name}`.trim() : "Guest";
 
+    // The final invoice: numbered now, and emailed to the guest as a PDF (it is also the receipt).
+    const invoiceNumber = await assignInvoiceNumber(auth.service, auth.tenant.id, reservation.id);
     let receiptSent = false;
     if (guest?.email) {
-      try {
-        const { subject, text, html } = buildCheckoutReceiptEmail({
-          hotelName: auth.tenant.display_name || auth.tenant.name || "Your hotel",
-          guestName,
-          confirmationCode: reservation.confirmation_code,
-          roomCode: roomCode === "—" ? null : roomCode,
-          folioNumber: reservation.folio_number,
-          currency,
-          lines: folio.lines,
-          checkedOutAt: nowIso,
-        });
-        await sendCheckoutReceiptEmail({ to: guest.email, subject, text, html });
-        receiptSent = true;
-      } catch (e) {
-        console.warn("[checkout] receipt email failed", e);
-      }
+      const sent = await sendInvoiceEmail(auth.service, { tenantId: auth.tenant.id, reservationId: reservation.id });
+      receiptSent = sent.ok;
+      if (!sent.ok) console.warn("[checkout] invoice email failed", sent.error);
     }
 
     await writeAuditLog({
@@ -289,6 +277,7 @@ export async function POST(req: Request) {
       // Nights past the automatic limit that staff chose not to confirm, so weren't charged.
       unchargedNights: extraNights.waitingNights.length > 0 ? extraNights.waitingNights.length : undefined,
       receiptSent,
+      invoiceNumber: invoiceNumber ?? undefined,
       receiptEmail: receiptSent ? guest?.email : undefined,
     });
   } catch (e) {

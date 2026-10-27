@@ -10,6 +10,8 @@ const PatchSchema = z.object({
   allowCheckoutWithBalance: z.boolean().optional(),
   largeChargeThreshold: z.number().positive().optional(),
   discountLimitPercent: z.number().min(0).max(100).optional(),
+  invoicePrefix: z.string().trim().min(1).max(10).regex(/^[A-Za-z0-9-]+$/, "Use letters, numbers and dashes only.").optional(),
+  taxId: z.string().max(40).optional(),
   managerPin: z.string().min(4).max(12).optional(),
 });
 
@@ -41,6 +43,8 @@ export async function PATCH(req: Request) {
       allowCheckoutWithBalance: body.allowCheckoutWithBalance,
       largeChargeThreshold: body.largeChargeThreshold,
       discountLimitPercent: body.discountLimitPercent,
+      invoicePrefix: body.invoicePrefix,
+      taxId: body.taxId,
       managerPin: body.managerPin,
     });
     if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });

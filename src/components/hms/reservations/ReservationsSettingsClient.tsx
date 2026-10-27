@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Banknote, KeyRound, Lock, LogOut, Percent } from "lucide-react";
+import { Banknote, FileText, KeyRound, Lock, LogOut, Percent } from "lucide-react";
 import { HmsCard, HmsField, HmsPage, HmsPageHeader, hmsButton, hmsInput } from "@/components/hms/hms-ui";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
@@ -13,6 +13,9 @@ type Settings = {
   largeChargeThreshold: number;
   hasManagerPin: boolean;
   discountLimitPercent: number;
+  invoicePrefix: string;
+  nextInvoiceNumber: number;
+  taxId: string;
 };
 
 export function ReservationsSettingsClient({
@@ -29,6 +32,8 @@ export function ReservationsSettingsClient({
   const [settings, setSettings] = useState(initial);
   const [threshold, setThreshold] = useState(String(initial.largeChargeThreshold));
   const [discountLimit, setDiscountLimit] = useState(String(initial.discountLimitPercent ?? 0));
+  const [invoicePrefix, setInvoicePrefix] = useState(initial.invoicePrefix ?? "INV");
+  const [taxId, setTaxId] = useState(initial.taxId ?? "");
   const [pin, setPin] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -37,6 +42,8 @@ export function ReservationsSettingsClient({
     largeChargeThreshold?: number;
     managerPin?: string;
     discountLimitPercent?: number;
+    invoicePrefix?: string;
+    taxId?: string;
   }) => {
     setSaving(true);
     try {
@@ -167,6 +174,61 @@ export function ReservationsSettingsClient({
             </button>
           </div>
         </HmsField>
+      </HmsCard>
+
+      <HmsCard id="invoice-settings" icon={FileText} meaning="money" title="Invoices">
+        <div className="space-y-4">
+          <HmsField
+            id="invoice-prefix"
+            label="Invoice number starts with"
+            hint={`The next invoice will be ${(settings.invoicePrefix || "INV").toUpperCase()}-${String(settings.nextInvoiceNumber ?? 1).padStart(5, "0")}. Each stay gets its number at check-out.`}
+          >
+            <div className="flex flex-wrap gap-2">
+              <input
+                id="invoice-prefix"
+                maxLength={10}
+                value={invoicePrefix}
+                disabled={!canManage}
+                aria-describedby="invoice-prefix-hint"
+                onChange={(e) => setInvoicePrefix(e.target.value)}
+                className={`${hmsInput} max-w-[10rem] uppercase`}
+              />
+              <button
+                type="button"
+                className={`${hmsButton.secondary} ${focusRing}`}
+                disabled={!canManage || saving || !/^[A-Za-z0-9-]{1,10}$/.test(invoicePrefix.trim())}
+                onClick={() => void save({ invoicePrefix: invoicePrefix.trim() })}
+              >
+                Save
+              </button>
+            </div>
+          </HmsField>
+          <HmsField
+            id="invoice-tax-id"
+            label="Tax number (TIN)"
+            hint="Printed on every invoice. Leave it empty if you don't have one."
+          >
+            <div className="flex flex-wrap gap-2">
+              <input
+                id="invoice-tax-id"
+                maxLength={40}
+                value={taxId}
+                disabled={!canManage}
+                aria-describedby="invoice-tax-id-hint"
+                onChange={(e) => setTaxId(e.target.value)}
+                className={`${hmsInput} max-w-xs`}
+              />
+              <button
+                type="button"
+                className={`${hmsButton.secondary} ${focusRing}`}
+                disabled={!canManage || saving}
+                onClick={() => void save({ taxId: taxId.trim() })}
+              >
+                Save
+              </button>
+            </div>
+          </HmsField>
+        </div>
       </HmsCard>
 
       <HmsCard id="manager-pin" icon={KeyRound} meaning="team" title="Manager PIN">

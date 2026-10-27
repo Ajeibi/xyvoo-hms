@@ -10,6 +10,7 @@ import { requestNotificationsRefresh } from "@/lib/hms/notifications-bus";
 import { ExtraNightsNotice, type ExtraNightsInfo } from "@/components/hms/frontdesk/folio/ExtraNightsNotice";
 import { CheckoutStayBill } from "@/components/hms/frontdesk/checkout/CheckoutStayBill";
 import { CheckoutDiscountForm } from "@/components/hms/frontdesk/checkout/CheckoutDiscountForm";
+import { InvoiceActions } from "@/components/hms/frontdesk/folio/InvoiceActions";
 import type { StaySummary } from "@/lib/hms/folio-stay-summary";
 import {
   Dialog,
@@ -111,6 +112,7 @@ export function FrontDeskCheckoutDialog({
   const [confirmOverrideOpen, setConfirmOverrideOpen] = useState(false);
   const [extraNights, setExtraNights] = useState<ExtraNightsInfo | null>(null);
   const [stay, setStay] = useState<StaySummary | null>(null);
+  const [guestEmail, setGuestEmail] = useState<string | null>(null);
 
   const reset = useCallback(() => {
     setExtraNights(null);
@@ -183,6 +185,7 @@ export function FrontDeskCheckoutDialog({
         setBalance(due);
         setExtraNights(data.extraNights ?? null);
         setStay(data.stay ?? null);
+        setGuestEmail(data.reservation.guestEmail ?? null);
         setManualPayAmount(due > 0 ? String(due.toFixed(2)) : "");
         setStep("settle");
 
@@ -306,8 +309,8 @@ export function FrontDeskCheckoutDialog({
         roomCode ? `Room ${roomCode} checked out` : "Guest checked out successfully",
         `${
           data.receiptSent
-            ? `Room released, marked for housekeeping, and a receipt was emailed to ${data.receiptEmail}.`
-            : "Room released and marked for housekeeping."
+            ? `Room released, marked for housekeeping, and ${data.invoiceNumber ? `invoice ${data.invoiceNumber}` : "the invoice"} was emailed to ${data.receiptEmail}.`
+            : `Room released and marked for housekeeping.${data.invoiceNumber ? ` Invoice ${data.invoiceNumber} is ready to print from the guest's bill.` : ""}`
         }${
           data.extraNights
             ? ` ${data.extraNights} extra night${data.extraNights === 1 ? " was" : "s were"} charged for staying past departure.`
@@ -434,6 +437,8 @@ export function FrontDeskCheckoutDialog({
               />
 
               {stay ? <CheckoutStayBill stay={stay} currency={currency} /> : null}
+
+              <InvoiceActions slug={slug} reservationId={reservationId} isFinal={false} guestEmail={guestEmail} />
 
               <CheckoutDiscountForm
                 slug={slug}

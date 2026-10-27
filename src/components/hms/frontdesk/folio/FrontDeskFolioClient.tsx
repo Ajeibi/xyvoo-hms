@@ -24,6 +24,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExtraNightsNotice, type ExtraNightsInfo } from "@/components/hms/frontdesk/folio/ExtraNightsNotice";
+import { InvoiceActions } from "@/components/hms/frontdesk/folio/InvoiceActions";
 
 type FolioPayload = {
   reservation: {
@@ -37,6 +38,7 @@ type FolioPayload = {
     folioSplitNotes: string | null;
     commissionPlan: string | null;
     commissionValue: number | null;
+    guestEmail?: string | null;
   };
   folio: {
     lines: FolioLineRow[];
@@ -433,6 +435,12 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
                 currency={currency}
                 info={payload.extraNights}
                 onConfirmed={() => void loadFolio(payload.reservation.id)}
+              />
+              <InvoiceActions
+                slug={slug}
+                reservationId={payload.reservation.id}
+                isFinal={payload.reservation.status === "checked_out"}
+                guestEmail={payload.reservation.guestEmail}
               />
               <HmsStatStrip label={`Bill ${payload.reservation.folioNumber} in figures`}>
                 <HmsStatTile label="Charges" value={formatPricingAmount(payload.folio.charges, currency)} icon={Receipt} meaning="money" hint="Everything added to the bill" />

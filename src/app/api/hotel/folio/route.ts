@@ -36,6 +36,7 @@ export async function GET(req: Request) {
         roomTypeName: payload.roomTypeName,
         nights: payload.reservation.nights,
         guestName: payload.guestName,
+        guestEmail: payload.guestEmail,
       },
       folio: {
         lines: payload.folio.lines,

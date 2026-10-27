@@ -15,10 +15,17 @@ export type FolioAuth = Exclude<Awaited<ReturnType<typeof requireHotelApiMember>
 type ReservationGuestEmbed = {
   is_primary: boolean;
   guests:
-    | { first_name: string; last_name: string }
-    | { first_name: string; last_name: string }[]
+    | { first_name: string; last_name: string; email?: string | null }
+    | { first_name: string; last_name: string; email?: string | null }[]
     | null;
 }[] | null;
+
+function guestEmailFrom(reservationGuests: ReservationGuestEmbed) {
+  const primary = reservationGuests?.find((e) => e.is_primary) ?? reservationGuests?.[0];
+  const g = primary?.guests;
+  const guest = Array.isArray(g) ? g[0] : g;
+  return guest?.email ?? null;
+}
 
 function guestNameFrom(reservationGuests: ReservationGuestEmbed) {
   const primary = reservationGuests?.find((e) => e.is_primary) ?? reservationGuests?.[0];
@@ -35,7 +42,7 @@ export async function loadReservation(
     .schema("hotel")
     .from("reservations")
     .select(
-      "id,confirmation_code,folio_number,status,settlement_method,preauth_amount,total_room_charges,rate_per_night,room_type_code,nights,departure_at,arrival_at,checked_in_at,rate_overridden,rate_override_reason,vat_applicable,tax_exempt,pricing_snapshot,extra_nights_confirmed_on,bill_to_account,po_number,folio_split_notes,commission_plan,commission_value,reservation_guests(is_primary,guests(first_name,last_name))",
+      "id,confirmation_code,folio_number,status,settlement_method,preauth_amount,total_room_charges,rate_per_night,room_type_code,nights,departure_at,arrival_at,checked_in_at,rate_overridden,rate_override_reason,vat_applicable,tax_exempt,pricing_snapshot,extra_nights_confirmed_on,bill_to_account,po_number,folio_split_notes,commission_plan,commission_value,reservation_guests(is_primary,guests(first_name,last_name,email))",
     )
     .eq("id", reservationId)
     .eq("tenant_id", auth.tenant.id)
@@ -65,6 +72,7 @@ export async function loadFolioPayload(auth: FolioAuth, reservationId: string) {
   const roomTypes = normalizeRoomTypes(auth.tenant.room_types);
   const roomTypeName = roomTypes.find((rt) => rt.id === reservation.room_type_code)?.name ?? null;
   const guestName = guestNameFrom(reservation.reservation_guests as ReservationGuestEmbed);
+  const guestEmail = guestEmailFrom(reservation.reservation_guests as ReservationGuestEmbed);
   const charged = summariseExtraNights(folio.lines);
   const extraNights = {
     charged: charged.nights,
@@ -76,5 +84,5 @@ export async function loadFolioPayload(auth: FolioAuth, reservationId: string) {
     autoLimit: AUTO_EXTRA_NIGHTS,
   };
   const stay = buildStaySummary(reservation as StayReservation, folio.lines);
-  return { reservation, folio, settings, roomTypeName, guestName, extraNights, stay };
+  return { reservation, folio, settings, roomTypeName, guestName, guestEmail, extraNights, stay };
 }
