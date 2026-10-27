@@ -4,6 +4,7 @@ import type { PaymentDisplayStatus } from "@/lib/hms/front-desk-board";
 import { isAdminLikeRole } from "@/lib/hms/department-access";
 import type { WalkInRoomPricingResult } from "@/lib/hms/walk-in-pricing";
 import { calendarNightsBetween } from "@/lib/hms/walk-in-pricing";
+import { isExtraNightLine } from "@/lib/hms/folio-extra-nights";
 
 export const EARLY_CHECKOUT_ADJUSTMENT_REF = "early_checkout_adjustment";
 
@@ -483,7 +484,7 @@ export async function adjustFolioForEarlyCheckout(
   }
 
   const stayCharges = active.filter(
-    (l) => l.kind === "charge" && l.method === "system" && l.department === "rooms",
+    (l) => l.kind === "charge" && l.method === "system" && l.department === "rooms" && !isExtraNightLine(l),
   );
   if (stayCharges.length === 0) {
     return { adjusted: false, unusedNights, creditAmount: 0, actualNights };

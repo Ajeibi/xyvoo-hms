@@ -23,6 +23,7 @@ import { HmsFilterChips, HmsSectionIntro } from "@/components/hms/hms-ui-client"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ExtraNightsNotice, type ExtraNightsInfo } from "@/components/hms/frontdesk/folio/ExtraNightsNotice";
 
 type FolioPayload = {
   reservation: {
@@ -47,6 +48,7 @@ type FolioPayload = {
     companyLegBalance: number;
   };
   settings: { allowCheckoutWithBalance: boolean; hasManagerPin: boolean };
+  extraNights?: ExtraNightsInfo;
 };
 
 type SearchHit = {
@@ -425,6 +427,13 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
 
           {payload ? (
             <div className="space-y-6">
+              <ExtraNightsNotice
+                slug={slug}
+                reservationId={payload.reservation.id}
+                currency={currency}
+                info={payload.extraNights}
+                onConfirmed={() => void loadFolio(payload.reservation.id)}
+              />
               <HmsStatStrip label={`Bill ${payload.reservation.folioNumber} in figures`}>
                 <HmsStatTile label="Charges" value={formatPricingAmount(payload.folio.charges, currency)} icon={Receipt} meaning="money" hint="Everything added to the bill" />
                 <HmsStatTile label="Paid and credited" value={formatPricingAmount(payload.folio.credits, currency)} icon={Banknote} meaning="money" hint="Taken off the bill so far" />

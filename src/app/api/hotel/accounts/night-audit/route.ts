@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
 import { getAccountsCapabilities } from "@/lib/hms/accounts-rbac";
 import { computeNightAuditBreakdown, listNightAuditRuns, runNightAudit } from "@/lib/hms/night-audit";
+import { postExtraNightsForTenant } from "@/lib/hms/folio-extra-nights";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -47,6 +48,13 @@ export async function POST(req: Request) {
 
     const caps = getAccountsCapabilities({ membershipRole: auth.role, departmentRole: auth.departmentRole });
     if (!caps.canRunNightAudit) return NextResponse.json({ error: "Not allowed." }, { status: 403 });
+
+    // Overdue stays owe tonight's room before the day is closed.
+    await postExtraNightsForTenant(auth.service, {
+      tenantId: auth.tenant.id,
+      pricingSetup: auth.tenant.pricing_setup,
+      postedBy: auth.user.id,
+    });
 
     const result = await runNightAudit(auth.service, {
       tenantId: auth.tenant.id,

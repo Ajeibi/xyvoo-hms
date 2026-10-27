@@ -47,6 +47,7 @@ export async function GET(req: Request) {
         companyLegBalance: payload.folio.companyLegBalance,
       },
       settings: payload.settings,
+      extraNights: payload.extraNights,
     });
   } catch (e) {
     if (e instanceof z.ZodError) {

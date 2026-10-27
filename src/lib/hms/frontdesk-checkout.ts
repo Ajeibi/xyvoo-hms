@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { postExtraNightsForTenant } from "@/lib/hms/folio-extra-nights";
 
 export type CheckoutDueRow = {
   reservationId: string;
@@ -10,6 +11,8 @@ export type CheckoutDueRow = {
   departureAt: string;
   isOverdue: boolean;
   balance: number;
+  /** Extra nights past the automatic limit, waiting for staff to confirm the guest is still here. */
+  extraNightsWaiting: number;
 };
 
 type ReservationRow = {
@@ -36,8 +39,10 @@ function guestNameFor(r: ReservationRow) {
 }
 
 /** Every in-house stay whose departure date is today or earlier (overdue), for the Checkout landing page. */
-export async function getCheckoutDueList(tenantId: string): Promise<CheckoutDueRow[]> {
+export async function getCheckoutDueList(tenantId: string, pricingSetup: unknown): Promise<CheckoutDueRow[]> {
   const supabase = createServerSupabaseClient();
+  // Overdue stays owe their extra nights before their balances are shown.
+  const { waitingByReservation } = await postExtraNightsForTenant(supabase, { tenantId, pricingSetup, postedBy: null });
   const endOfToday = new Date();
   endOfToday.setUTCHours(23, 59, 59, 999);
 
@@ -92,6 +97,7 @@ export async function getCheckoutDueList(tenantId: string): Promise<CheckoutDueR
     departureAt: r.departure_at,
     isOverdue: new Date(r.departure_at).getTime() < now,
     balance: balanceById.get(r.id) ?? 0,
+    extraNightsWaiting: waitingByReservation.get(r.id) ?? 0,
   }));
 
   return results.sort((a, b) => {

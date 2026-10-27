@@ -7,6 +7,7 @@ import type { FbOrderWithItems } from "@/lib/hms/fb-types";
 import { formatCurrencySymbol, formatPricingAmount } from "@/lib/hms/room-pricing";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { requestNotificationsRefresh } from "@/lib/hms/notifications-bus";
+import { ExtraNightsNotice, type ExtraNightsInfo } from "@/components/hms/frontdesk/folio/ExtraNightsNotice";
 import {
   Dialog,
   DialogContent,
@@ -105,8 +106,10 @@ export function FrontDeskCheckoutDialog({
   const [overrideBalance, setOverrideBalance] = useState(false);
   const [cashFloatActive, setCashFloatActive] = useState<boolean | null>(null);
   const [confirmOverrideOpen, setConfirmOverrideOpen] = useState(false);
+  const [extraNights, setExtraNights] = useState<ExtraNightsInfo | null>(null);
 
   const reset = useCallback(() => {
+    setExtraNights(null);
     setStep("find");
     setQuery("");
     setHits([]);
@@ -170,6 +173,7 @@ export function FrontDeskCheckoutDialog({
         setRoomTypeName(data.reservation.roomTypeName ?? null);
         setLines(data.folio.lines);
         setBalance(data.folio.balance);
+        setExtraNights(data.extraNights ?? null);
         setManualPayAmount(data.folio.balance > 0 ? String(data.folio.balance.toFixed(2)) : "");
         setStep("settle");
 
@@ -303,9 +307,19 @@ export function FrontDeskCheckoutDialog({
       }
       toastSuccess(
         roomCode ? `Room ${roomCode} checked out` : "Guest checked out successfully",
-        data.receiptSent
-          ? `Room released, marked for housekeeping, and a receipt was emailed to ${data.receiptEmail}.`
-          : "Room released and marked for housekeeping.",
+        `${
+          data.receiptSent
+            ? `Room released, marked for housekeeping, and a receipt was emailed to ${data.receiptEmail}.`
+            : "Room released and marked for housekeeping."
+        }${
+          data.extraNights
+            ? ` ${data.extraNights} extra night${data.extraNights === 1 ? " was" : "s were"} charged for staying past departure.`
+            : ""
+        }${
+          data.unchargedNights
+            ? ` ${data.unchargedNights} later night${data.unchargedNights === 1 ? " was" : "s were"} not charged.`
+            : ""
+        }`,
       );
       onOpenChange(false);
       router.refresh();
@@ -413,6 +427,14 @@ export function FrontDeskCheckoutDialog({
                   {formatPricingAmount(balance, currency)}
                 </p>
               </div>
+
+              <ExtraNightsNotice
+                slug={slug}
+                reservationId={reservationId}
+                currency={currency}
+                info={extraNights}
+                onConfirmed={() => void loadFolio(reservationId)}
+              />
 
               {(() => {
                 const activeLines = lines.filter((l) => !l.voided_at);

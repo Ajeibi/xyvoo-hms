@@ -5,6 +5,11 @@ import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { isAdminLikeRole } from "@/lib/hms/department-access";
 import { getFolioForReservation, getTenantFolioSettings, adjustFolioForEarlyCheckout } from "@/lib/hms/folio";
 import { normalizePricingSetup } from "@/lib/hms/room-pricing";
+import {
+  postExtraNightCharges,
+  summariseExtraNights,
+  type ExtraNightReservation,
+} from "@/lib/hms/folio-extra-nights";
 import { notifyCheckoutCompleted, notifyCommissionDue, notifyOverdueCheckout } from "@/lib/hms/notification-rules";
 import { openOrEscalateHousekeepingTask } from "@/lib/hms/housekeeping-tasks";
 import { setRoomStatus } from "@/lib/hms/room-status";
@@ -34,7 +39,7 @@ export async function POST(req: Request) {
       .schema("hotel")
       .from("reservations")
       .select(
-        "id,confirmation_code,arrival_at,departure_at,nights,checked_in_at,rate_per_night,total_room_charges,room_unit_id,status,tenant_id,commission_plan,commission_value,folio_number",
+        "id,confirmation_code,arrival_at,departure_at,nights,checked_in_at,rate_per_night,total_room_charges,room_unit_id,status,tenant_id,commission_plan,commission_value,folio_number,vat_applicable,tax_exempt,pricing_snapshot,extra_nights_confirmed_on",
       )
       .eq("tenant_id", auth.tenant.id)
       .eq("status", "checked_in");
@@ -60,7 +65,26 @@ export async function POST(req: Request) {
 
     const nowIso = new Date().toISOString();
     const checkoutAt = new Date(nowIso);
-    const currency = normalizePricingSetup(auth.tenant.pricing_setup).currency;
+    const pricing = normalizePricingSetup(auth.tenant.pricing_setup);
+    const currency = pricing.currency;
+
+    const extraNights = await postExtraNightCharges(auth.service, {
+      tenantId: auth.tenant.id,
+      reservation: reservation as ExtraNightReservation,
+      pricing,
+      postedBy: auth.user.id,
+      now: checkoutAt,
+    });
+    if (extraNights.postedNights.length > 0) {
+      await writeAuditLog({
+        tenantId: auth.tenant.id,
+        actorUserId: auth.user.id,
+        action: "folio_extra_nights_charged",
+        entityType: "reservation",
+        entityId: reservation.id,
+        after: { nights: extraNights.postedNights, amount: extraNights.postedAmount },
+      });
+    }
 
     let earlyCheckoutCredit = 0;
     let actualStayNights: number | null = null;
@@ -115,6 +139,7 @@ export async function POST(req: Request) {
       earlyCheckoutCredit > 0 && actualStayNights != null
         ? Math.round(bookedTotal * (actualStayNights / bookedNights) * 100) / 100
         : bookedTotal;
+    const extra = summariseExtraNights(folio.lines);
 
     const { error: resError } = await auth.service
       .schema("hotel")
@@ -128,7 +153,12 @@ export async function POST(req: Request) {
               nights: actualStayNights,
               total_room_charges: adjustedRoomTotal,
             }
-          : {}),
+          : extra.nights > 0
+            ? {
+                nights: bookedNights + extra.nights,
+                total_room_charges: Math.round((bookedTotal + extra.roomTotal) * 100) / 100,
+              }
+            : {}),
       })
       .eq("id", reservation.id);
 
@@ -254,6 +284,10 @@ export async function POST(req: Request) {
       roomCode,
       earlyCheckoutCredit: earlyCheckoutCredit > 0 ? earlyCheckoutCredit : undefined,
       actualNights: actualStayNights ?? undefined,
+      extraNights: extra.nights > 0 ? extra.nights : undefined,
+      extraNightsTotal: extra.nights > 0 ? extra.total : undefined,
+      // Nights past the automatic limit that staff chose not to confirm, so weren't charged.
+      unchargedNights: extraNights.waitingNights.length > 0 ? extraNights.waitingNights.length : undefined,
       receiptSent,
       receiptEmail: receiptSent ? guest?.email : undefined,
     });

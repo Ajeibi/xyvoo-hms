@@ -1,6 +1,13 @@
 import type { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
 import { getFolioForReservation, getTenantFolioSettings } from "@/lib/hms/folio";
-import { normalizeRoomTypes } from "@/lib/hms/room-pricing";
+import { normalizePricingSetup, normalizeRoomTypes } from "@/lib/hms/room-pricing";
+import {
+  AUTO_EXTRA_NIGHTS,
+  extraNightPricing,
+  postExtraNightCharges,
+  summariseExtraNights,
+  type ExtraNightReservation,
+} from "@/lib/hms/folio-extra-nights";
 
 export type FolioAuth = Exclude<Awaited<ReturnType<typeof requireHotelApiMember>>, { error: string }>;
 
@@ -27,7 +34,7 @@ export async function loadReservation(
     .schema("hotel")
     .from("reservations")
     .select(
-      "id,confirmation_code,folio_number,status,settlement_method,preauth_amount,total_room_charges,rate_per_night,room_type_code,nights,bill_to_account,po_number,folio_split_notes,commission_plan,commission_value,reservation_guests(is_primary,guests(first_name,last_name))",
+      "id,confirmation_code,folio_number,status,settlement_method,preauth_amount,total_room_charges,rate_per_night,room_type_code,nights,departure_at,vat_applicable,tax_exempt,pricing_snapshot,extra_nights_confirmed_on,bill_to_account,po_number,folio_split_notes,commission_plan,commission_value,reservation_guests(is_primary,guests(first_name,last_name))",
     )
     .eq("id", reservationId)
     .eq("tenant_id", auth.tenant.id)
@@ -39,6 +46,14 @@ export async function loadReservation(
 export async function loadFolioPayload(auth: FolioAuth, reservationId: string) {
   const reservation = await loadReservation(auth, reservationId);
   if (!reservation) return null;
+  // An overdue stay's bill keeps growing: charge any extra nights before showing it.
+  const pricing = normalizePricingSetup(auth.tenant.pricing_setup);
+  const extra = await postExtraNightCharges(auth.service, {
+    tenantId: auth.tenant.id,
+    reservation: reservation as ExtraNightReservation,
+    pricing,
+    postedBy: auth.user.id,
+  });
   const folio = await getFolioForReservation(auth.service, auth.tenant.id, reservationId, {
     settlementMethod: reservation.settlement_method,
     preauthAmount: reservation.preauth_amount != null ? Number(reservation.preauth_amount) : null,
@@ -49,5 +64,15 @@ export async function loadFolioPayload(auth: FolioAuth, reservationId: string) {
   const roomTypes = normalizeRoomTypes(auth.tenant.room_types);
   const roomTypeName = roomTypes.find((rt) => rt.id === reservation.room_type_code)?.name ?? null;
   const guestName = guestNameFrom(reservation.reservation_guests as ReservationGuestEmbed);
-  return { reservation, folio, settings, roomTypeName, guestName };
+  const charged = summariseExtraNights(folio.lines);
+  const extraNights = {
+    charged: charged.nights,
+    chargedTotal: charged.total,
+    waiting: extra.waitingNights.length,
+    waitingFrom: extra.waitingNights[0] ?? null,
+    waitingTo: extra.waitingNights[extra.waitingNights.length - 1] ?? null,
+    nightlyRate: extraNightPricing(reservation as ExtraNightReservation, pricing).nightlyRate,
+    autoLimit: AUTO_EXTRA_NIGHTS,
+  };
+  return { reservation, folio, settings, roomTypeName, guestName, extraNights };
 }
