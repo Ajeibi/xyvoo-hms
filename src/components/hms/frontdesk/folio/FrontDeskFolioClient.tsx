@@ -25,6 +25,9 @@ import { toastError, toastSuccess } from "@/lib/app-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExtraNightsNotice, type ExtraNightsInfo } from "@/components/hms/frontdesk/folio/ExtraNightsNotice";
 import { InvoiceActions } from "@/components/hms/frontdesk/folio/InvoiceActions";
+import { FolioWindowsPanel } from "@/components/hms/frontdesk/folio/FolioWindowsPanel";
+import { WINDOW_LABEL, type WindowSummary } from "@/lib/hms/folio-windows-shared";
+import type { FolioSplitLeg } from "@/lib/hms/folio";
 
 type FolioPayload = {
   reservation: {
@@ -51,6 +54,7 @@ type FolioPayload = {
   };
   settings: { allowCheckoutWithBalance: boolean; hasManagerPin: boolean };
   extraNights?: ExtraNightsInfo;
+  billing?: { windows: WindowSummary[]; dueNow: number };
 };
 
 type SearchHit = {
@@ -79,7 +83,7 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [reservationId, setReservationId] = useState(initialId ?? "");
   const [payload, setPayload] = useState<FolioPayload | null>(null);
-  const [legFilter, setLegFilter] = useState<"all" | "guest" | "company">("all");
+  const [legFilter, setLegFilter] = useState<"all" | FolioSplitLeg>("all");
   const [tab, setTab] = useState<"folio" | "cash-float">("folio");
   const [cashSession, setCashSession] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(false);
@@ -308,7 +312,7 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
     router.refresh();
   };
 
-  const reassignSplitLeg = async (lineIds: string[], splitLeg: "guest" | "company") => {
+  const reassignSplitLeg = async (lineIds: string[], splitLeg: FolioSplitLeg) => {
     if (!reservationId || lineIds.length === 0) return;
     const res = await fetch("/api/hotel/folio/lines/split-leg", {
       method: "PATCH",
@@ -456,15 +460,20 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
                   }
                 />
                 <HmsStatTile
-                  label="Guest / company"
+                  label="Who owes what"
                   value={
-                    <span className="text-lg">
-                      {formatPricingAmount(payload.folio.guestLegBalance, currency)} / {formatPricingAmount(payload.folio.companyLegBalance, currency)}
+                    <span className="block space-y-0.5 text-sm font-medium">
+                      {(payload.billing?.windows ?? []).map((w) => (
+                        <span key={w.window} className="flex justify-between gap-2">
+                          <span className="truncate">{w.window === "guest" ? "Guest" : w.payerName}</span>
+                          <span className="tabular-nums">{formatPricingAmount(w.balance, currency)}</span>
+                        </span>
+                      ))}
                     </span>
                   }
                   icon={Building2}
                   meaning="money"
-                  hint="What each side still owes"
+                  hint="What each payer still owes"
                 />
               </HmsStatStrip>
 
@@ -490,9 +499,12 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
                   label="Show lines for"
                   meaning="money"
                   options={[
-                    { value: "all", label: "Whole bill", count: payload.folio.lines.length },
-                    { value: "guest", label: "Guest", count: payload.folio.lines.filter((l) => l.split_leg === "guest").length },
-                    { value: "company", label: "Company", count: payload.folio.lines.filter((l) => l.split_leg === "company").length },
+                    { value: "all" as const, label: "Whole bill", count: payload.folio.lines.length },
+                    ...(payload.billing?.windows ?? []).map((w) => ({
+                      value: w.window,
+                      label: w.window === "guest" ? "Guest" : `${WINDOW_LABEL[w.window]}: ${w.payerName}`,
+                      count: payload.folio.lines.filter((l) => l.split_leg === w.window).length,
+                    })),
                   ]}
                   value={legFilter}
                   onChange={setLegFilter}
@@ -504,8 +516,18 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
                   onVoid={() => void loadFolio(reservationId)}
                   onTransfer={(lineId) => void transferCharge(lineId)}
                   onReassignSplitLeg={(lineIds, leg) => void reassignSplitLeg(lineIds, leg)}
+                  windows={payload.billing?.windows ?? []}
                 />
               </HmsCard>
+
+              <FolioWindowsPanel
+                slug={slug}
+                reservationId={payload.reservation.id}
+                currency={currency}
+                windows={payload.billing?.windows ?? []}
+                editable={payload.reservation.status === "checked_in" || payload.reservation.status === "confirmed"}
+                onChanged={() => void loadFolio(payload.reservation.id)}
+              />
 
               <div className="grid gap-6 lg:grid-cols-2">
                 <div className="space-y-6">
@@ -520,7 +542,7 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
                       <F id="charge-department" label="Department" optional hint="For example: restaurant, spa or laundry.">
                         <input id="charge-department" name="department" aria-describedby="charge-department-hint" className={hmsInput} />
                       </F>
-                      <LegSelect id="charge-leg" />
+                      <LegSelect id="charge-leg" windows={payload.billing?.windows ?? []} />
                       <button type="submit" className={`${hmsButton.primary} ${focusRing}`}>
                         Add charge
                       </button>
@@ -534,7 +556,7 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
                       <F id="discount-amount" label={`Amount (${currency})`}>
                         <input id="discount-amount" name="amount" type="number" step="0.01" min="0.01" required className={hmsInput} />
                       </F>
-                      <LegSelect id="discount-leg" />
+                      <LegSelect id="discount-leg" windows={payload.billing?.windows ?? []} />
                       <F id="discount-pin" label="Manager PIN" optional hint="Needed if you're not a manager or admin.">
                         <input id="discount-pin" name="managerPin" type="password" autoComplete="off" aria-describedby="discount-pin-hint" className={hmsInput} />
                       </F>
@@ -559,7 +581,7 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
                           <option value="direct_bill">Direct bill</option>
                         </select>
                       </F>
-                      <LegSelect id="payment-leg" paying />
+                      <LegSelect id="payment-leg" paying windows={payload.billing?.windows ?? []} />
                       <F id="payment-reference" label="Receipt or reference" optional>
                         <input id="payment-reference" name="reference" className={hmsInput} />
                       </F>
@@ -589,7 +611,7 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
                           <option value="direct_bill">Direct bill</option>
                         </select>
                       </F>
-                      <LegSelect id="fx-leg" paying />
+                      <LegSelect id="fx-leg" paying windows={payload.billing?.windows ?? []} />
                       <F id="fx-reference" label="Receipt or reference" optional>
                         <input id="fx-reference" name="reference" className={hmsInput} />
                       </F>
@@ -624,12 +646,21 @@ function F(props: { id: string; label: string; hint?: string; optional?: boolean
   return <HmsField {...props} />;
 }
 
-function LegSelect({ id, paying = false }: { id: string; paying?: boolean }) {
+function LegSelect({ id, paying = false, windows }: { id: string; paying?: boolean; windows: WindowSummary[] }) {
+  const options = windows.length ? windows : [{ window: "guest" as const, payerName: "the guest" }];
   return (
-    <F id={id} label={paying ? "Pays off the part owed by" : "Who pays this"} hint="Only matters if the bill is split between the guest and a company.">
+    <F
+      id={id}
+      label={paying ? "Pays off the part owed by" : "Who pays this"}
+      hint={paying ? "Which payer's part this payment settles." : "Leave it to the bill's rules, or pick a payer for this one line."}
+    >
       <select id={id} name="splitLeg" aria-describedby={`${id}-hint`} className={hmsInput}>
-        <option value="guest">The guest</option>
-        <option value="company">The company</option>
+        {paying ? null : <option value="">As the bill&apos;s rules say</option>}
+        {options.map((w) => (
+          <option key={w.window} value={w.window}>
+            {w.window === "guest" ? "The guest" : `${WINDOW_LABEL[w.window]}: ${w.payerName}`}
+          </option>
+        ))}
       </select>
     </F>
   );
@@ -841,13 +872,15 @@ function FolioLineTable({
   onVoid,
   onTransfer,
   onReassignSplitLeg,
+  windows,
 }: {
   lines: FolioLineRow[];
   currency: string;
   slug: string;
   onVoid: () => void;
   onTransfer: (lineId: string) => void;
-  onReassignSplitLeg: (lineIds: string[], splitLeg: "guest" | "company") => void;
+  onReassignSplitLeg: (lineIds: string[], splitLeg: FolioSplitLeg) => void;
+  windows: WindowSummary[];
 }) {
   const [voidTarget, setVoidTarget] = useState<FolioLineRow | null>(null);
   const [voidReason, setVoidReason] = useState("");
@@ -863,7 +896,7 @@ function FolioLineTable({
       else next.add(id);
       return next;
     });
-  const moveSelected = (leg: "guest" | "company") => {
+  const moveSelected = (leg: FolioSplitLeg) => {
     onReassignSplitLeg([...selectedIds], leg);
     setSelectedIds(new Set());
   };
@@ -903,20 +936,19 @@ function FolioLineTable({
         <span className="font-medium text-emerald-900">
           {selectedIds.size} line{selectedIds.size === 1 ? "" : "s"} selected
         </span>
-        <button type="button" className={`${hmsButton.secondary} px-3 py-1.5 ${focusRing}`} onClick={() => moveSelected("guest")}>
-          Guest pays these
-        </button>
-        <button type="button" className={`${hmsButton.secondary} px-3 py-1.5 ${focusRing}`} onClick={() => moveSelected("company")}>
-          Company pays these
-        </button>
+        {(windows.length ? windows : [{ window: "guest" as const, payerName: "Guest" }]).map((w) => (
+          <button key={w.window} type="button" className={`${hmsButton.secondary} px-3 py-1.5 ${focusRing}`} onClick={() => moveSelected(w.window)}>
+            {w.window === "guest" ? "Guest" : w.payerName} pays these
+          </button>
+        ))}
         <button type="button" className={`${hmsButton.quiet} ml-auto ${focusRing}`} onClick={() => setSelectedIds(new Set())}>
           Clear selection
         </button>
       </div>
     ) : movable.length > 0 ? (
       <p className="mt-4 text-sm text-slate-600">
-        To split the bill, tick charges and choose who pays them. For example, the company pays for the room while the
-        guest pays for extras.
+        To move charges to another payer by hand, tick them and choose who pays. To split the bill for good, add a payer
+        under Who pays and choose where charges go.
       </p>
     ) : null}
     {lines.length === 0 ? (

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { FOLIO_WINDOWS } from "@/lib/hms/folio";
 import { z } from "zod";
 import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
@@ -9,7 +10,7 @@ const BodySchema = z.object({
   slug: z.string().min(1),
   reservationId: z.string().uuid(),
   lineIds: z.array(z.string().uuid()).min(1),
-  splitLeg: z.enum(["guest", "company"]),
+  splitLeg: z.enum(FOLIO_WINDOWS),
 });
 
 export async function PATCH(req: Request) {

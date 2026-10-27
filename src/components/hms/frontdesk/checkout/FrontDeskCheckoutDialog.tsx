@@ -113,10 +113,12 @@ export function FrontDeskCheckoutDialog({
   const [extraNights, setExtraNights] = useState<ExtraNightsInfo | null>(null);
   const [stay, setStay] = useState<StaySummary | null>(null);
   const [guestEmail, setGuestEmail] = useState<string | null>(null);
+  const [toAccounts, setToAccounts] = useState<{ window: string; payerName: string; accountName: string | null; amount: number }[]>([]);
 
   const reset = useCallback(() => {
     setExtraNights(null);
     setStay(null);
+    setToAccounts([]);
     setStep("find");
     setQuery("");
     setHits([]);
@@ -181,7 +183,9 @@ export function FrontDeskCheckoutDialog({
         setLines(data.folio.lines);
         // What the guest pays: the balance once any early check-out credit is taken off. The
         // credit itself is only posted when the check-out completes.
-        const due = Number(data.stay?.balanceAtCheckout ?? data.folio.balance) || 0;
+        // Parts billed to a company account at check-out aren't the guest's to pay.
+        const due = Number(data.billing?.dueNow ?? data.stay?.balanceAtCheckout ?? data.folio.balance) || 0;
+        setToAccounts(data.billing?.toAccounts ?? []);
         setBalance(due);
         setExtraNights(data.extraNights ?? null);
         setStay(data.stay ?? null);
@@ -428,6 +432,24 @@ export function FrontDeskCheckoutDialog({
                 </p>
               </div>
 
+              {toAccounts.length > 0 ? (
+                <div role="note" className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-950">
+                  <p className="font-semibold">Billed to company accounts at check-out</p>
+                  <ul className="mt-1 space-y-0.5">
+                    {toAccounts.map((a) => (
+                      <li key={a.window} className="flex justify-between gap-2">
+                        <span>
+                          {a.payerName}
+                          {a.accountName && a.accountName !== a.payerName ? ` (${a.accountName} account)` : ""}
+                        </span>
+                        <span className="tabular-nums">{formatPricingAmount(a.amount, currency)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-1 text-xs">These go to Accounts as invoices. The guest only pays the balance above.</p>
+                </div>
+              ) : null}
+
               <ExtraNightsNotice
                 slug={slug}
                 reservationId={reservationId}
@@ -436,7 +458,7 @@ export function FrontDeskCheckoutDialog({
                 onConfirmed={() => void loadFolio(reservationId)}
               />
 
-              {stay ? <CheckoutStayBill stay={stay} currency={currency} /> : null}
+              {stay ? <CheckoutStayBill stay={stay} currency={currency} toAccounts={toAccounts} /> : null}
 
               <InvoiceActions slug={slug} reservationId={reservationId} isFinal={false} guestEmail={guestEmail} />
 

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { FOLIO_WINDOWS } from "@/lib/hms/folio";
 import { z } from "zod";
 import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
@@ -12,7 +13,7 @@ const BodySchema = z.object({
   amount: z.coerce.number().positive(),
   method: z.enum(["cash", "card", "pos", "split", "direct_bill"]),
   reference: z.string().max(120).optional(),
-  splitLeg: z.enum(["guest", "company"]).optional(),
+  splitLeg: z.enum(FOLIO_WINDOWS).optional(),
 });
 
 export async function POST(req: Request) {

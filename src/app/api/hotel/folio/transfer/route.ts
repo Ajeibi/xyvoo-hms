@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { FolioSplitLeg } from "@/lib/hms/folio";
 import { z } from "zod";
 import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
@@ -54,7 +55,7 @@ export async function POST(req: Request) {
       method: line.method as string,
       description: (line.description as string) ?? "Transferred charge",
       postedBy: auth.user.id,
-      splitLeg: (line.split_leg as "guest" | "company") ?? "guest",
+      splitLeg: (line.split_leg as FolioSplitLeg) ?? "guest",
       relatedReservationId: line.reservation_id as string,
     });
     if (error || !newLine) {

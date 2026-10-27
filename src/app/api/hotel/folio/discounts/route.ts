@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { FOLIO_WINDOWS } from "@/lib/hms/folio";
 import { z } from "zod";
 import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
@@ -21,7 +22,7 @@ const BodySchema = z
     amount: z.coerce.number().positive().optional(),
     description: z.string().max(200).optional(),
     managerPin: z.string().optional(),
-    splitLeg: z.enum(["guest", "company"]).optional(),
+    splitLeg: z.enum(FOLIO_WINDOWS).optional(),
     source: z.enum(["checkout", "folio"]).optional(),
     /** Work out what would come off, without posting anything. */
     preview: z.boolean().optional(),
@@ -74,6 +75,7 @@ export async function POST(req: Request) {
       postedBy: auth.user.id,
       currency: pricing.currency,
       splitLeg: body.splitLeg ?? "guest",
+      windowSet: Boolean(body.splitLeg),
       request,
       source: body.source ?? "folio",
     });

@@ -117,7 +117,8 @@ async function nextInvoiceNumber(service: SupabaseClient, tenantId: string): Pro
     .from("customer_invoices")
     .select("id", { count: "exact", head: true })
     .eq("tenant_id", tenantId);
-  return `INV-${String((count ?? 0) + 1).padStart(5, "0")}`;
+  // "AR-" so a company's account invoice can't be mistaken for a guest's bill invoice (INV-…).
+  return `AR-${String((count ?? 0) + 1).padStart(5, "0")}`;
 }
 
 /**
@@ -142,6 +143,12 @@ export async function createCustomerInvoice(
     tax?: number;
     notes?: string | null;
     createdBy: string;
+    /**
+     * Don't post the invoice's journal. For a company billed from a guest's bill at check-out: the
+     * night audit already booked the revenue from the bill and moves the billed amount to City
+     * Ledger, so posting here would count it twice. The invoice still tracks what is owed.
+     */
+    skipJournal?: boolean;
   },
 ): Promise<{ ok: true; id: string; invoiceNumber: string } | { ok: false; error: string }> {
   const { data: customer } = await service
@@ -202,7 +209,9 @@ export async function createCustomerInvoice(
   // to the tenant's base currency using the rate captured on the invoice, same fix and same
   // reasoning as vendor bills' postBillToLedger.
   const baseAmount = round2(total * (params.fxRate ?? 1));
-  const posted = await postJournalEntry(service, {
+  const posted = params.skipJournal
+    ? ({ ok: false } as const)
+    : await postJournalEntry(service, {
     tenantId: params.tenantId,
     entryDate: params.invoiceDate,
     memo: `Customer invoice ${invoiceNumber}`,

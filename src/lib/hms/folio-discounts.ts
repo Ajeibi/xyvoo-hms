@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import type { FolioLineRow } from "@/lib/hms/folio";
+import { isBookedStayLine, type FolioLineRow, type FolioSplitLeg } from "@/lib/hms/folio";
 import { stayTaxRules, type ExtraNightReservation } from "@/lib/hms/folio-extra-nights";
 import { computeNigeriaHospitalityTaxes } from "@/lib/hms/nigeria-hospitality-taxes";
 import { formatPricingAmount, type HotelPricingSetup } from "@/lib/hms/room-pricing";
@@ -59,7 +59,8 @@ export function discountBases(lines: FolioLineRow[]) {
     const part = partOf(l);
     if (l.kind === "charge") {
       billCharges += l.amount;
-      if (l.department === "rooms" && l.method === "system") {
+      // Room nights booked at check-in and extra nights, with their taxes; not extras added later.
+      if (isBookedStayLine(l) || (l.reference ?? "").startsWith("extra_night:")) {
         const tax = TAX_PARTS.find((p) => part === p || (!part && TAX_WORDING[p].test(l.description ?? "")));
         if (tax) taxed.add(tax);
         else if (!part || part === "room") room += l.amount;
@@ -156,7 +157,9 @@ export function discountRows(
     reservationId: string;
     postedBy: string;
     currency: string;
-    splitLeg: "guest" | "company";
+    splitLeg: FolioSplitLeg;
+    /** True when staff picked the window; otherwise the stay's routing rules decide. */
+    windowSet?: boolean;
     request: DiscountRequest;
     source: "checkout" | "folio";
   },
@@ -186,6 +189,7 @@ export function discountRows(
       value: params.request.value,
       reason: params.request.reason.trim(),
       source: params.source,
+      ...(params.windowSet ? { window_set: true } : {}),
     },
   }));
 }

@@ -11,7 +11,9 @@ import type { HotelPricingSetup } from "@/lib/hms/room-pricing";
 export const EARLY_CHECKOUT_ADJUSTMENT_REF = "early_checkout_adjustment";
 
 export type FolioLineKind = "charge" | "payment" | "discount" | "refund" | "transfer";
-export type FolioSplitLeg = "guest" | "company";
+/** The windows a bill can have: who pays each line. */
+export const FOLIO_WINDOWS = ["guest", "company", "agent", "other"] as const;
+export type FolioSplitLeg = (typeof FOLIO_WINDOWS)[number];
 
 export type FolioLineRow = {
   id: string;
@@ -49,6 +51,8 @@ export type FolioSummary = FolioBalance & {
   lines: FolioLineRow[];
   guestLegBalance: number;
   companyLegBalance: number;
+  /** What each window still owes. */
+  windowBalances: Record<FolioSplitLeg, number>;
 };
 
 function num(v: string | number | null | undefined) {
@@ -209,6 +213,9 @@ export async function getFolioForReservation(
     lines,
     guestLegBalance: computeLegBalance(lines, "guest"),
     companyLegBalance: computeLegBalance(lines, "company"),
+    windowBalances: Object.fromEntries(
+      FOLIO_WINDOWS.map((w) => [w, Math.round(computeLegBalance(lines, w) * 100) / 100]),
+    ) as Record<FolioSplitLeg, number>,
   };
 }
 
@@ -496,6 +503,21 @@ const STAY_TAX_WORDING: [string, RegExp][] = [
   ["stamp_levy", /^Stamp/i],
 ];
 
+// "Room charges (2 nights)", "Room (3 nights) — after 10% discount", and the seed data's "Room charges — 2 nights".
+const LEGACY_ROOM_STAY = /^Room( charges)?\s*(\(|—|-)\s*\d+ nights?/i;
+
+/**
+ * A line posted at check-in for the booked stay (the room or a tax on it), as opposed to a charge
+ * added to the rooms department later, such as a late check-out fee. Newer lines say so in their
+ * metadata; older ones are read from their wording.
+ */
+export function isBookedStayLine(l: Pick<FolioLineRow, "kind" | "department" | "method" | "metadata" | "reference" | "description">) {
+  if (l.kind !== "charge" || l.department !== "rooms" || l.method !== "system" || isExtraNightLine(l)) return false;
+  if (l.metadata?.stayCharge === true) return true;
+  const d = l.description ?? "";
+  return LEGACY_ROOM_STAY.test(d) || STAY_TAX_WORDING.some(([, re]) => re.test(d));
+}
+
 /** What a room-stay line is: "room", or the tax it is. Older lines are read from their wording. */
 export function stayLinePart(line: Pick<FolioLineRow, "metadata" | "reference" | "description">): string {
   if (typeof line.metadata?.part === "string") return line.metadata.part;
@@ -523,10 +545,8 @@ export function computeEarlyCheckoutCredit(
   // discount isn't given twice: once on every night, then again on the nights credited back.
   const stayCharges = active.filter(
     (l) =>
-      l.department === "rooms" &&
-      !isExtraNightLine(l) &&
-      ((l.kind === "charge" && l.method === "system") ||
-        (l.kind === "discount" && (l.reference ?? "").startsWith("discount:"))),
+      isBookedStayLine(l) ||
+      (l.department === "rooms" && l.kind === "discount" && (l.reference ?? "").startsWith("discount:")),
   );
   let creditAmount = 0;
   // The credit split by what it comes off (room, service charge, levy, VAT), so the tax on the

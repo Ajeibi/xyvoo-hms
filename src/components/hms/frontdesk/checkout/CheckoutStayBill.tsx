@@ -60,9 +60,19 @@ function Row({ label, detail, amount, currency, credit }: { label: string; detai
   );
 }
 
-export function CheckoutStayBill({ stay, currency }: { stay: StaySummary; currency: string }) {
+export function CheckoutStayBill({
+  stay,
+  currency,
+  toAccounts = [],
+}: {
+  stay: StaySummary;
+  currency: string;
+  /** Parts of the bill sent to company accounts at check-out. */
+  toAccounts?: { window: string; payerName: string; amount: number }[];
+}) {
   const leaving = leavingText(stay);
   const discount = stay.checkInDiscount;
+  const leftToPay = Math.round((stay.balanceAtCheckout - toAccounts.reduce((s, a) => s + a.amount, 0)) * 100) / 100;
 
   return (
     <div className="space-y-4">
@@ -160,6 +170,9 @@ export function CheckoutStayBill({ stay, currency }: { stay: StaySummary; curren
             {stay.payments.map((p) => (
               <Row key={p.id} label={`Paid, ${p.method.toLowerCase()}`} detail={dayAndTime(p.createdAt)} amount={p.amount} currency={currency} credit />
             ))}
+            {toAccounts.map((a) => (
+              <Row key={`account-${a.window}`} label={`Billed to ${a.payerName}`} detail="Sent to their company account at check-out" amount={a.amount} currency={currency} credit />
+            ))}
             {stay.refunds.map((r) => (
               <Row key={r.id} label={`Refunded: ${r.description}`} detail={day(r.createdAt)} amount={r.amount} currency={currency} credit />
             ))}
@@ -167,10 +180,10 @@ export function CheckoutStayBill({ stay, currency }: { stay: StaySummary; curren
           <tfoot>
             <tr className="border-t-2 border-slate-200 bg-slate-50">
               <th scope="row" className="px-3 py-2 text-left font-semibold text-slate-900">
-                {stay.balanceAtCheckout > 0.01 ? "Left to pay" : stay.balanceAtCheckout < -0.01 ? "Owed back to the guest" : "Left to pay"}
+                {leftToPay < -0.01 ? "Owed back to the guest" : "Left to pay"}
               </th>
               <td className="px-3 py-2 text-right font-semibold tabular-nums text-slate-900">
-                {formatPricingAmount(Math.abs(stay.balanceAtCheckout), currency)}
+                {formatPricingAmount(Math.abs(leftToPay), currency)}
               </td>
             </tr>
           </tfoot>

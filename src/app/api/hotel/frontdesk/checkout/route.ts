@@ -15,6 +15,7 @@ import { openOrEscalateHousekeepingTask } from "@/lib/hms/housekeeping-tasks";
 import { setRoomStatus } from "@/lib/hms/room-status";
 import { executeKeyRevoke } from "@/lib/hms/integrations/smart-lock";
 import { assignInvoiceNumber, sendInvoiceEmail } from "@/lib/hms/folio-invoice";
+import { billWindowsToAccounts, loadWindows, planWindowBilling, summariseWindows } from "@/lib/hms/folio-windows";
 
 const CheckoutSchema = z
   .object({
@@ -118,16 +119,48 @@ export async function POST(req: Request) {
 
     const folio = await getFolioForReservation(auth.service, auth.tenant.id, reservation.id);
     const settings = await getTenantFolioSettings(auth.service, auth.tenant.id);
+
+    // Windows linked to a company account are billed to it; the guest settles the rest.
+    const { payers } = await loadWindows(auth.service, auth.tenant.id, reservation.id);
+    const windows = summariseWindows(folio.lines, payers, "Guest");
+    const { dueNow } = planWindowBilling(windows);
     if (
-      folio.balance > 0.01 &&
+      dueNow > 0.01 &&
       !settings.allowCheckoutWithBalance &&
       !body.overrideBalance &&
       !isAdminLikeRole(auth.role)
     ) {
       return NextResponse.json(
-        { error: "Outstanding folio balance must be settled before checkout.", balance: folio.balance },
+        { error: "Outstanding folio balance must be settled before checkout.", balance: dueNow },
         { status: 409 },
       );
+    }
+
+    let unitCode: string | null = null;
+    if (reservation.room_unit_id) {
+      const { data: unit } = await auth.service.schema("hotel").from("room_units").select("room_code").eq("id", reservation.room_unit_id).maybeSingle();
+      unitCode = (unit?.room_code as string | undefined) ?? null;
+    }
+    const billing = await billWindowsToAccounts(auth.service, {
+      tenantId: auth.tenant.id,
+      reservationId: reservation.id,
+      confirmationCode: reservation.confirmation_code,
+      folioNumber: reservation.folio_number,
+      roomCode: unitCode,
+      windows,
+      currency,
+      userId: auth.user.id,
+    });
+    if (!billing.ok) return NextResponse.json({ error: billing.error }, { status: 409 });
+    for (const b of billing.billed) {
+      await writeAuditLog({
+        tenantId: auth.tenant.id,
+        actorUserId: auth.user.id,
+        action: "folio_window_billed_to_account",
+        entityType: "reservation",
+        entityId: reservation.id,
+        after: b,
+      });
     }
 
     const wasOverdue = new Date(reservation.departure_at).getTime() < Date.now();
@@ -277,6 +310,7 @@ export async function POST(req: Request) {
       // Nights past the automatic limit that staff chose not to confirm, so weren't charged.
       unchargedNights: extraNights.waitingNights.length > 0 ? extraNights.waitingNights.length : undefined,
       receiptSent,
+      billedToAccounts: billing.billed.length ? billing.billed : undefined,
       invoiceNumber: invoiceNumber ?? undefined,
       receiptEmail: receiptSent ? guest?.email : undefined,
     });

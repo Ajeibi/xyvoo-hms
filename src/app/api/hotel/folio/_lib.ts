@@ -9,6 +9,7 @@ import {
   type ExtraNightReservation,
 } from "@/lib/hms/folio-extra-nights";
 import { buildStaySummary, type StayReservation } from "@/lib/hms/folio-stay-summary";
+import { loadWindows, planWindowBilling, routeFor, summariseWindows } from "@/lib/hms/folio-windows";
 
 export type FolioAuth = Exclude<Awaited<ReturnType<typeof requireHotelApiMember>>, { error: string }>;
 
@@ -84,5 +85,38 @@ export async function loadFolioPayload(auth: FolioAuth, reservationId: string) {
     autoLimit: AUTO_EXTRA_NIGHTS,
   };
   const stay = buildStaySummary(reservation as StayReservation, folio.lines);
-  return { reservation, folio, settings, roomTypeName, guestName, guestEmail, extraNights, stay };
+  const billing = await buildBilling(auth, reservationId, folio.lines, guestName, stay);
+  return { reservation, folio, settings, roomTypeName, guestName, guestEmail, extraNights, stay, billing };
+}
+
+/**
+ * Who pays what: each window's payer and balance, and what check-out will do. A window linked
+ * to a company account is billed to it; everything else is due from the guest now. The early
+ * check-out credit (posted at check-out) lands on whichever window the room charges go to.
+ */
+async function buildBilling(
+  auth: FolioAuth,
+  reservationId: string,
+  lines: Parameters<typeof summariseWindows>[0],
+  guestName: string,
+  stay: ReturnType<typeof buildStaySummary>,
+) {
+  const { payers, rules } = await loadWindows(auth.service, auth.tenant.id, reservationId);
+  const windows = summariseWindows(lines, payers, guestName);
+  const plan = planWindowBilling(windows);
+  const credit = stay.earlyCheckout && !stay.earlyCheckout.applied ? stay.earlyCheckout.credit : 0;
+  const creditWindow = routeFor(rules, "rooms") ?? "guest";
+  const creditOnAccount = plan.toAccounts.some((w) => w.window === creditWindow);
+  const round = (n: number) => Math.round(n * 100) / 100;
+  return {
+    windows,
+    rules,
+    toAccounts: plan.toAccounts.map((w) => ({
+      window: w.window,
+      payerName: w.payerName,
+      accountName: w.arCustomerName,
+      amount: round(w.balance - (creditOnAccount && w.window === creditWindow ? credit : 0)),
+    })),
+    dueNow: round(plan.dueNow - (creditOnAccount ? 0 : credit)),
+  };
 }

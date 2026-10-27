@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { EARLY_CHECKOUT_ADJUSTMENT_REF, fetchFolioLines, stayLinePart, type FolioLineRow } from "@/lib/hms/folio";
+import { EARLY_CHECKOUT_ADJUSTMENT_REF, fetchFolioLines, isBookedStayLine, stayLinePart, type FolioLineRow } from "@/lib/hms/folio";
 import { EXTRA_NIGHT_REF_PREFIX } from "@/lib/hms/folio-extra-nights";
 import { DISCOUNT_REF_PREFIX } from "@/lib/hms/folio-discounts";
 import { normalizePricingSetup } from "@/lib/hms/room-pricing";
@@ -83,7 +83,7 @@ export function buildInvoiceBody(lines: FolioLineRow[]): InvoiceBody {
     const ref = l.reference ?? "";
     const isStayLine =
       l.department === "rooms" &&
-      ((l.kind === "charge" && l.method === "system") ||
+      (isBookedStayLine(l) ||
         ref.startsWith(DISCOUNT_REF_PREFIX) ||
         ref === EARLY_CHECKOUT_ADJUSTMENT_REF);
     const part = isStayLine || ref.startsWith(EXTRA_NIGHT_REF_PREFIX) ? stayLinePart(l) : null;

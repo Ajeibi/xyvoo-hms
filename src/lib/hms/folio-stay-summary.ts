@@ -2,6 +2,7 @@ import {
   EARLY_CHECKOUT_ADJUSTMENT_REF,
   computeEarlyCheckoutCredit,
   computeStayedNights,
+  isBookedStayLine,
   type FolioLineRow,
 } from "@/lib/hms/folio";
 import { EXTRA_NIGHT_REF_PREFIX, isExtraNightLine } from "@/lib/hms/folio-extra-nights";
@@ -23,6 +24,7 @@ const DISCOUNT_SCOPE_LABEL: Record<string, string> = {
 const TAX_DESCRIPTION = /^(Service charge|State \/ local levy|VAT|Stamp)/i;
 
 const DEPARTMENT_LABEL: Record<string, string> = {
+  rooms: "Room extras",
   food_beverage: "Food and drink",
   housekeeping: "Housekeeping and laundry",
   guest_services: "Guest services",
@@ -131,7 +133,7 @@ export function buildStaySummary(
       earlyApplied += -l.amount;
       continue;
     }
-    if (l.kind === "charge" && l.method === "system" && l.department === "rooms") {
+    if (isBookedStayLine(l)) {
       const part = typeof l.metadata?.part === "string" ? l.metadata.part : null;
       const isTax = part ? part !== "room" : TAX_DESCRIPTION.test(l.description ?? "");
       if (isTax) bookedTaxes += l.amount;
