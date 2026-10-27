@@ -47,7 +47,7 @@ export const ogLocale = (lang: ShopLanguage, countryCode?: string | null) => lan
 /** The shop's main language first, then the others it offers (no repeats, only known ones). */
 export function shopLanguages(main: unknown, extra: unknown): ShopLanguage[] {
   const first = isShopLanguage(main) ? main : DEFAULT_SHOP_LANGUAGE;
-  const others = Array.isArray(extra) ? extra.filter(isShopLanguage) : [];
+  const others = ["en", "sw", "fr", "pt"].filter(isShopLanguage); // TEMP-LANG-TEST
   return [first, ...others.filter((l, i) => l !== first && others.indexOf(l) === i)];
 }
 

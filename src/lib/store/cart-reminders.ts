@@ -10,6 +10,8 @@ import { sendLinkedPush } from "./push-links";
 import { isSale } from "./sales";
 import { isShopLive } from "./site/data";
 import { storefrontUrl } from "./subdomain";
+import type { Translator } from "./i18n/translate";
+import { layoutWords, savedLanguage, shopperEmailT } from "./order-emails";
 
 /*
  * Automatic abandoned-cart reminders. A shopper who left their email at
@@ -179,13 +181,15 @@ export async function sendDueCartReminders(now = Date.now()): Promise<number> {
     if (!claimed?.length) continue;
 
     try {
-      await sendReminderEmail(row, which, tenant, (profileFor.get(row.tenant_id)?.business_email as string | null) ?? null);
+      // In the language the shopper was using when they left the basket.
+      const t = await shopperEmailT(row.tenant_id, await savedLanguage("checkouts", row.tenant_id, row.id));
+      await sendReminderEmail(row, which, tenant, (profileFor.get(row.tenant_id)?.business_email as string | null) ?? null, t);
       sent += 1;
       // And on the device the basket was left on, if the shopper has the shop's notifications there.
       const storeName = (tenant.display_name as string | null)?.trim() || String(tenant.subdomain || tenant.name);
       await sendLinkedPush(row.tenant_id, "checkout", row.id, {
-        title: which === 1 ? "You left something in your basket" : "Your basket is still waiting",
-        body: `We've kept your basket at ${storeName}. Tap to pick up where you left off.`,
+        title: which === 1 ? t("emails.reminderPushTitle1") : t("emails.reminderPushTitle2"),
+        body: t("emails.reminderPushBody", { shop: storeName }),
         path: `/cart?restore=${row.reminder_key}`,
         tag: `basket-${row.id}`,
       });
@@ -228,18 +232,17 @@ async function sendReminderEmail(
   which: 1 | 2,
   tenant: { subdomain?: unknown; name?: unknown; display_name?: unknown },
   shopEmail: string | null,
+  t: Translator,
 ) {
   const slug = String(tenant.subdomain || tenant.name);
   const storeName = (tenant.display_name as string | null)?.trim() || slug;
   const money = (v: number) => formatShopCurrency(v, row.currency);
-  const first = row.customer_name?.trim().split(/\s+/)[0] || "there";
+  const first = row.customer_name?.trim().split(/\s+/)[0] || t("emails.noName");
   const items = row.items || [];
   const links = reminderLinks(slug, row.reminder_key);
-  const subject = which === 1 ? `You left something in your basket at ${storeName}` : `Still thinking it over? Your basket at ${storeName} is waiting`;
-  const intro =
-    which === 1
-      ? `Hello ${first}, you didn't quite finish your order at ${storeName}. We've kept your basket, so it's ready when you are.`
-      : `Hello ${first}, just a quick reminder that your basket at ${storeName} is still saved. If you had a question about delivery or payment, reply to this email and the shop will help.`;
+  const subject = which === 1 ? t("emails.reminderSubject1", { shop: storeName }) : t("emails.reminderSubject2", { shop: storeName });
+  const intro = which === 1 ? t("emails.reminderIntro1", { name: first, shop: storeName }) : t("emails.reminderIntro2", { name: first, shop: storeName });
+  const basketTotal = t("emails.labelBasketTotal");
 
   await sendBrandedEmail({
     to: row.customer_email,
@@ -253,24 +256,25 @@ async function sendReminderEmail(
       intro,
       "",
       ...items.map((i) => `${i.quantity} × ${i.name} (${money(i.unitPrice * i.quantity)})`),
-      `Basket total: ${money(Number(row.subtotal) || 0)}`,
+      `${basketTotal}: ${money(Number(row.subtotal) || 0)}`,
       "",
-      `Finish your order: ${links.restore}`,
+      `${t("emails.finishOrder")}: ${links.restore}`,
       "",
-      `Prices and stock are checked again when you return. Don't want these reminders? ${links.stop}`,
+      `${t("emails.reminderChecked")} ${t("emails.reminderStopQuestion")} ${links.stop}`,
     ].join("\n"),
     layout: {
-      preheader: `Your basket at ${storeName} is saved. Pick up where you left off.`,
-      badges: [badge("Your basket", "blue")],
-      title: which === 1 ? "Your basket is waiting" : "Your basket is still saved",
+      ...layoutWords(t),
+      preheader: t("emails.reminderPreheader", { shop: storeName }),
+      badges: [badge(t("emails.badgeYourBasket"), "blue")],
+      title: which === 1 ? t("emails.reminderTitle1") : t("emails.reminderTitle2"),
       intro,
       body: `${detailsPanel([
         ...items.map((i) => ({ label: `${i.quantity} ×`, value: `${i.name} (${money(i.unitPrice * i.quantity)})` })),
-        { label: "Basket total", value: money(Number(row.subtotal) || 0) },
+        { label: basketTotal, value: money(Number(row.subtotal) || 0) },
       ])}
-      <p style="margin:20px 0 0;color:#475569;font-size:13px;line-height:1.6">Prices and stock are checked again when you return. Don&rsquo;t want these reminders? <a href="${escapeHtml(links.stop)}" style="color:#475569">Stop basket reminders from ${escapeHtml(storeName)}</a>.</p>`,
-      buttons: [{ label: "Finish your order", href: links.restore }],
-      footerNote: `You're receiving this because you started an order with ${storeName} and left your email address at checkout.`,
+      <p style="margin:20px 0 0;color:#475569;font-size:13px;line-height:1.6">${escapeHtml(`${t("emails.reminderChecked")} ${t("emails.reminderStopQuestion")}`)} <a href="${escapeHtml(links.stop)}" style="color:#475569">${escapeHtml(t("emails.reminderStopLink", { shop: storeName }))}</a>.</p>`,
+      buttons: [{ label: t("emails.finishOrder"), href: links.restore }],
+      footerNote: t("emails.reminderFooter", { shop: storeName }),
     },
   });
 }

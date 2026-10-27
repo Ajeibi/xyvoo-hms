@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { formatShopCurrency } from "@/lib/shop/format";
 import { getCustomerSession } from "@/lib/store/customer-accounts";
-import { resolveShopForAccount } from "@/lib/store/customer-api";
+import { issueMessage, resolveShopForAccount, shopperMessage } from "@/lib/store/customer-api";
+import { shopperT } from "@/lib/store/i18n/shopper";
 import { storeCurrency } from "@/lib/store/payout-routes";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { tradeApplicationSchema, tradePriceText } from "@/lib/store/wholesale";
+import { tradeApplicationSchema } from "@/lib/store/wholesale";
 import { activeTrade, applyForTrade, getWholesaleSettings, tradeInfo, tradePricing, TradeError } from "@/lib/store/wholesale-server";
 
 /**
@@ -14,7 +15,8 @@ import { activeTrade, applyForTrade, getWholesaleSettings, tradeInfo, tradePrici
  * product, only for a shopper with an approved trade account.
  */
 export async function GET(req: Request, { params }: { params: Promise<{ slug: string }> }) {
-  const shop = await resolveShopForAccount(req, (await params).slug, "trade", 120);
+  const slug = (await params).slug;
+  const shop = await resolveShopForAccount(req, slug, "trade", 120);
   if (shop.error) return shop.error;
   const noStore = { "Cache-Control": "no-store" };
   try {
@@ -25,8 +27,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
       const pricing = (await tradePricing(shop.tenant.id, [productId])).get(productId);
       if (!pricing?.wholesalePrice) return NextResponse.json({ trade: null }, { headers: noStore });
       const currency = await storeCurrency(shop.tenant.id, createServerSupabaseClient());
+      const t = await shopperT(req, slug, shop.tenant.id);
+      // As tradePriceText, in the shopper's words.
+      const price = formatShopCurrency(pricing.wholesalePrice, currency);
+      const text = pricing.minQty > 1 ? t("errors.acTradePriceFrom", { price, qty: pricing.minQty }) : t("errors.acTradePrice", { price });
       return NextResponse.json(
-        { trade: { price: pricing.wholesalePrice, minQty: pricing.minQty, text: tradePriceText(pricing.wholesalePrice, pricing.minQty, (n) => formatShopCurrency(n, currency)) } },
+        { trade: { price: pricing.wholesalePrice, minQty: pricing.minQty, text } },
         { headers: noStore },
       );
     }
@@ -42,18 +48,20 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
 
 /** POST /api/shop/<store>/account/trade { business, about } — apply for a trade account. */
 export async function POST(req: Request, { params }: { params: Promise<{ slug: string }> }) {
-  const shop = await resolveShopForAccount(req, (await params).slug, "trade-apply", 6);
+  const slug = (await params).slug;
+  const shop = await resolveShopForAccount(req, slug, "trade-apply", 6);
   if (shop.error) return shop.error;
+  const t = await shopperT(req, slug, shop.tenant.id);
   const session = await getCustomerSession(shop.tenant.id);
-  if (!session?.verified) return NextResponse.json({ error: "Please confirm your email with the code we send you first." }, { status: 401 });
+  if (!session?.verified) return NextResponse.json({ error: t("errors.acConfirmEmailFirst") }, { status: 401 });
   const parsed = tradeApplicationSchema.safeParse(await req.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message || "Check your details." }, { status: 400 });
+  if (!parsed.success) return NextResponse.json({ error: issueMessage(t, parsed.error.issues[0], "errors.acCheckDetails") }, { status: 400 });
   try {
     await applyForTrade(shop.tenant.id, session.account, parsed.data);
     return NextResponse.json({ ok: true }, { status: 201 });
   } catch (error) {
-    if (error instanceof TradeError) return NextResponse.json({ error: error.message }, { status: 409 });
+    if (error instanceof TradeError) return NextResponse.json({ error: shopperMessage(t, error.message) }, { status: 409 });
     console.error("[trade] apply failed", error);
-    return NextResponse.json({ error: "We couldn't send your application just now. Please try again." }, { status: 500 });
+    return NextResponse.json({ error: t("errors.acTradeFailed") }, { status: 500 });
   }
 }

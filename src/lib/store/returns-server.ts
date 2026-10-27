@@ -5,6 +5,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { CustomerAccount } from "./customer-accounts";
 import { DEFAULT_RETURN_DAYS, nextReturnStatus, RETURN_REASON_LABELS, returnableQuantity, type ReturnAction, type ReturnReason, type ReturnStatus } from "./returns";
 import { storefrontUrl } from "./subdomain";
+import { layoutWords, savedLanguage, shopperEmailT } from "./order-emails";
 
 const db = () => createServerSupabaseClient().schema("store");
 const missing = (error: { code?: string } | null) => Boolean(error && ["42P01", "42703", "PGRST205", "PGRST204", "PGRST202"].includes(error.code ?? ""));
@@ -241,25 +242,30 @@ export async function decideReturn(tenantId: string, id: string, action: ReturnA
 
 async function emailCustomer(tenantId: string, ret: ReturnRow, status: "approved" | "declined" | "received", message: string | null) {
   const shop = await getShop(tenantId);
+  // In the language the shopper placed the order in.
+  const t = await shopperEmailT(tenantId, await savedLanguage("orders", tenantId, ret.orderId));
   const items = ret.items.map((i) => `${i.quantity} × ${i.name}`);
+  const words = { shop: shop.storeName, ref: ret.orderRef };
   const copy = {
-    approved: { title: "Your return has been approved", intro: `${shop.storeName} has approved your return for order ${ret.orderRef}. Please send the items back as the shop describes below, and they'll let you know once they arrive.`, badgeLabel: "Return approved", tone: "green" as const },
-    declined: { title: "We can't accept this return", intro: `${shop.storeName} isn't able to accept your return for order ${ret.orderRef}. The shop's message is below. If you have questions, reply to this email.`, badgeLabel: "Return not accepted", tone: "amber" as const },
-    received: { title: "We've received your return", intro: `${shop.storeName} has received what you sent back for order ${ret.orderRef}. Any refund will be made to the way you paid, and the shop will be in touch if they need anything.`, badgeLabel: "Return received", tone: "blue" as const },
+    approved: { title: t("emails.returnApprovedTitle"), intro: t("emails.returnApprovedIntro", words), badgeLabel: t("emails.badgeReturnApproved"), tone: "green" as const },
+    declined: { title: t("emails.returnDeclinedTitle"), intro: t("emails.returnDeclinedIntro", words), badgeLabel: t("emails.badgeReturnDeclined"), tone: "amber" as const },
+    received: { title: t("emails.returnReceivedTitle"), intro: t("emails.returnReceivedIntro", words), badgeLabel: t("emails.badgeReturnReceived"), tone: "blue" as const },
   }[status];
+  const fromShop = t("emails.labelMessageFromShop");
   await sendBrandedEmail({
     to: ret.customerEmail,
-    subject: `${copy.title}: order ${ret.orderRef}`,
+    subject: t("emails.returnSubject", { title: copy.title, ref: ret.orderRef }),
     replyTo: shop.shopEmail,
-    text: [copy.intro, "", ...items, message ? `\nMessage from the shop: ${message}` : "", `\n${storefrontUrl(shop.slug)}/account`].filter(Boolean).join("\n"),
+    text: [copy.intro, "", ...items, message ? `\n${fromShop}: ${message}` : "", `\n${storefrontUrl(shop.slug)}/account`].filter(Boolean).join("\n"),
     layout: {
+      ...layoutWords(t),
       preheader: copy.title,
       badges: [badge(copy.badgeLabel, copy.tone)],
       title: copy.title,
       intro: copy.intro,
-      body: `${detailsPanel([{ label: "Items", value: items.join(", ") }, ...(message ? [{ label: "Message from the shop", value: message }] : [])])}`,
-      buttons: [{ label: "Go to your account", href: `${storefrontUrl(shop.slug)}/account` }],
-      footerNote: `You're receiving this because you asked to return something to ${shop.storeName}.`,
+      body: `${detailsPanel([{ label: t("emails.labelItems"), value: items.join(", ") }, ...(message ? [{ label: fromShop, value: message }] : [])])}`,
+      buttons: [{ label: t("emails.goToAccount"), href: `${storefrontUrl(shop.slug)}/account` }],
+      footerNote: t("emails.returnFooter", { shop: shop.storeName }),
     },
   });
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getShopTenantBySlug } from "@/lib/shop/tenants";
+import { shopperT } from "@/lib/store/i18n/shopper";
 import { isSimulatedIntent, SIMULATED_OUTCOMES, simulatedPaymentsEnabled } from "@/lib/payments/simulated";
 
 const BodySchema = z.object({ reference: z.string().regex(/^[0-9a-f-]{36}$/i), outcome: z.enum(SIMULATED_OUTCOMES) });
@@ -23,13 +24,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     /^[a-z0-9-]{1,63}$/i.test(slug) ? getShopTenantBySlug(slug) : Promise.resolve(null),
     db.from("payment_intents").select("tenant_id, metadata").eq("paystack_reference", parsed.data.reference).maybeSingle(),
   ]);
-  if (!tenant || !intent || intent.tenant_id !== tenant.id || !isSimulatedIntent(intent.metadata)) {
-    return NextResponse.json({ error: "Payment reference not found." }, { status: 404 });
+  if (!tenant) return NextResponse.json({ error: "Payment reference not found." }, { status: 404 });
+  const t = await shopperT(req, slug, tenant.id);
+  if (!intent || intent.tenant_id !== tenant.id || !isSimulatedIntent(intent.metadata)) {
+    return NextResponse.json({ error: t("errors.coPaymentNotFound") }, { status: 404 });
   }
   const { error } = await db
     .from("payment_intents")
     .update({ metadata: { ...(intent.metadata as object), simulated_outcome: parsed.data.outcome } })
     .eq("paystack_reference", parsed.data.reference);
-  if (error) return NextResponse.json({ error: "Couldn't record the payment." }, { status: 500 });
+  if (error) return NextResponse.json({ error: t("errors.coPaymentNotRecorded") }, { status: 500 });
   return NextResponse.json({ ok: true });
 }

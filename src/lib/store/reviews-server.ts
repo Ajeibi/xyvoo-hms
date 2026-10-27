@@ -5,6 +5,7 @@ import { sendBrandedEmail } from "@/lib/mail/mailtrap";
 import { badge, detailsPanel, EMAIL_SITE_URL } from "@/lib/mail/layout";
 import { claimOrderEmail, releaseOrderEmail } from "./order-events";
 import { reviewerName } from "./reviews";
+import { layoutWords, savedLanguage, shopperEmailT } from "./order-emails";
 
 const store = () => createServerSupabaseClient().schema("store");
 
@@ -60,21 +61,35 @@ export async function sendReviewRequest(tenantId: string, orderId: string) {
     const claim = await claimOrderEmail(tenantId, orderId, "review_request", `Email sent to ${order.customer_email}: asked for a review`);
     if (!claim) return;
     const url = reviewPageUrl(slug, token);
-    const firstName = String(order.customer_name || "").trim().split(/\s+/)[0] || "there";
+    // In the language the shopper placed the order in.
+    const t = await shopperEmailT(tenantId, await savedLanguage("orders", tenantId, orderId));
+    const firstName = String(order.customer_name || "").trim().split(/\s+/)[0] || t("emails.noName");
+    const shop = storeName;
     try {
       await sendBrandedEmail({
         to: order.customer_email as string,
         replyTo: (profile?.business_email as string | null) || null,
-        subject: `How did we do? Rate your order from ${storeName}`,
-        text: [`Hello ${firstName},`, "", `Your order from ${storeName} has been delivered. We'd love to know what you think.`, "", ...items.map((i) => `• ${i}`), "", `Rate your items and add a comment or photos: ${url}`, "", "It only takes a minute, and it helps other shoppers."].join("\n"),
+        subject: t("emails.reviewSubject", { shop }),
+        text: [
+          t("emails.hello", { name: firstName }),
+          "",
+          t("emails.reviewDelivered", { shop }),
+          "",
+          ...items.map((i) => `• ${i}`),
+          "",
+          t("emails.reviewRateLine", { url }),
+          "",
+          t("emails.reviewMinute"),
+        ].join("\n"),
         layout: {
-          preheader: `Tell ${storeName} what you think of your order. It takes a minute.`,
-          badges: [badge("Delivered", "green")],
-          title: "How did we do?",
-          intro: `Hello ${firstName}. Your order from ${storeName} has been delivered. We'd love to hear what you think: rate each item, leave a comment, and add a photo if you like.`,
-          body: detailsPanel(items.slice(0, 8).map((name) => ({ label: "Item", value: name }))),
-          buttons: [{ label: "Rate your order", href: url }],
-          footerNote: `You're receiving this because you ordered from ${storeName}. Only people who bought an item can review it.`,
+          ...layoutWords(t),
+          preheader: t("emails.reviewPreheader", { shop }),
+          badges: [badge(t("emails.badgeDelivered"), "green")],
+          title: t("emails.reviewTitle"),
+          intro: t("emails.reviewIntro", { name: firstName, shop }),
+          body: detailsPanel(items.slice(0, 8).map((name) => ({ label: t("emails.labelItem"), value: name }))),
+          buttons: [{ label: t("emails.reviewButton"), href: url }],
+          footerNote: t("emails.reviewFooter", { shop }),
         },
       });
       await store().from("orders").update({ review_requested_at: new Date().toISOString() }).eq("tenant_id", tenantId).eq("id", orderId);

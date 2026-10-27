@@ -1,6 +1,7 @@
+import { requestLanguage, saveShopperLanguage, shopperT } from "@/lib/store/i18n/shopper";
 import { NextResponse } from "next/server";
 import { getCustomerSession } from "@/lib/store/customer-accounts";
-import { resolveShopForAccount } from "@/lib/store/customer-api";
+import { issueMessage, resolveShopForAccount } from "@/lib/store/customer-api";
 import { pushSubscriptionSchema } from "@/lib/store/push";
 import { linkPushDevice } from "@/lib/store/push-links";
 import { requestStockAlert, stockAlertSchema } from "@/lib/store/stock-alerts";
@@ -12,17 +13,19 @@ import { requestStockAlert, stockAlertSchema } from "@/lib/store/stock-alerts";
  * notification on that device instead, and no email is needed.
  */
 export async function POST(req: Request, { params }: { params: Promise<{ slug: string }> }) {
-  const shop = await resolveShopForAccount(req, (await params).slug, "stock-alert", 20);
+  const slugParam = (await params).slug;
+  const shop = await resolveShopForAccount(req, slugParam, "stock-alert", 20);
   if (shop.error) return shop.error;
+  const t = await shopperT(req, slugParam, shop.tenant.id);
   const body = await req.json().catch(() => null);
   const parsed = stockAlertSchema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message || "Check your email address." }, { status: 400 });
+  if (!parsed.success) return NextResponse.json({ error: issueMessage(t, parsed.error.issues[0], "errors.acCheckEmail") }, { status: 400 });
   const endpoint = pushSubscriptionSchema.shape.endpoint.safeParse(body?.pushEndpoint);
   const pushEndpoint = endpoint.success ? endpoint.data : null;
 
   const session = await getCustomerSession(shop.tenant.id);
   const email = pushEndpoint ? null : parsed.data.email || session?.account.email;
-  if (!email && !pushEndpoint) return NextResponse.json({ error: "Enter your email address." }, { status: 400 });
+  if (!email && !pushEndpoint) return NextResponse.json({ error: t("errors.acEnterEmail") }, { status: 400 });
 
   try {
     const saved = await requestStockAlert(shop.tenant.id, {
@@ -32,13 +35,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
       name: email && session?.account.email === email ? session.account.name : null,
       accountId: session?.account.id ?? null,
     });
-    if (!saved) return NextResponse.json({ error: "We couldn't find that product." }, { status: 404 });
+    if (!saved) return NextResponse.json({ error: t("errors.acProductNotFound") }, { status: 404 });
+    // The "it's back" email or notification comes in the shopper's language.
+    await saveShopperLanguage("stock_alerts", shop.tenant.id, { id: saved }, await requestLanguage(req, slugParam, shop.tenant.id));
     if (pushEndpoint && !(await linkPushDevice(shop.tenant.id, pushEndpoint, "stock_alert", saved))) {
-      return NextResponse.json({ error: "Turn on notifications for this shop first." }, { status: 409 });
+      return NextResponse.json({ error: t("errors.acPushTurnOnShop") }, { status: 409 });
     }
     return NextResponse.json({ ok: true, email, push: Boolean(pushEndpoint) });
   } catch (error) {
     console.error("[stock alert] not saved", error);
-    return NextResponse.json({ error: "We couldn't save that just now. Please try again." }, { status: 500 });
+    return NextResponse.json({ error: t("errors.acSaveFailed") }, { status: 500 });
   }
 }

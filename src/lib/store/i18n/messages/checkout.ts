@@ -277,6 +277,15 @@ export const checkout = defineMessages({
     restoreSame: "Welcome back. Your basket is just as you left it.",
     restoreUnavailable: "Sorry, the items in your saved basket are no longer available.",
     restoreFailed: "We couldn't load your saved basket. Check your internet connection and refresh the page.",
+    // Discount offers (describeDiscount)
+    offerFree: "Free delivery",
+    offerFreeSelected: "Free delivery with selected products",
+    offerFreeOver: "Free delivery on orders over {min}",
+    offerFreeSelectedOver: "Free delivery with selected products on orders over {min}",
+    offerAll: "{amount} off everything",
+    offerSelected: "{amount} off selected products",
+    offerAllOver: "{amount} off everything, on orders over {min}",
+    offerSelectedOver: "{amount} off selected products, on orders over {min}",
   },
   sw: {
     basket: "Kikapu",
@@ -542,6 +551,15 @@ export const checkout = defineMessages({
     restoreSame: "Karibu tena. Kikapu chako kiko kama ulivyokiacha.",
     restoreUnavailable: "Samahani, bidhaa zilizo kwenye kikapu chako kilichohifadhiwa hazipatikani tena.",
     restoreFailed: "Hatukuweza kupakia kikapu chako kilichohifadhiwa. Angalia muunganisho wako wa intaneti kisha uonyeshe upya ukurasa.",
+    // Discount offers (describeDiscount)
+    offerFree: "Usafirishaji bila malipo",
+    offerFreeSelected: "Usafirishaji bila malipo kwa bidhaa zilizochaguliwa",
+    offerFreeOver: "Usafirishaji bila malipo kwa maagizo ya zaidi ya {min}",
+    offerFreeSelectedOver: "Usafirishaji bila malipo kwa bidhaa zilizochaguliwa, kwa maagizo ya zaidi ya {min}",
+    offerAll: "Punguzo la {amount} kwa kila kitu",
+    offerSelected: "Punguzo la {amount} kwa bidhaa zilizochaguliwa",
+    offerAllOver: "Punguzo la {amount} kwa kila kitu, kwa maagizo ya zaidi ya {min}",
+    offerSelectedOver: "Punguzo la {amount} kwa bidhaa zilizochaguliwa, kwa maagizo ya zaidi ya {min}",
   },
   fr: {
     basket: "Panier",
@@ -807,6 +825,15 @@ export const checkout = defineMessages({
     restoreSame: "Bon retour parmi nous. Votre panier est tel que vous l’avez laissé.",
     restoreUnavailable: "Désolés, les articles de votre panier enregistré ne sont plus disponibles.",
     restoreFailed: "Nous n’avons pas pu charger votre panier enregistré. Vérifiez votre connexion Internet et actualisez la page.",
+    // Discount offers (describeDiscount)
+    offerFree: "Livraison gratuite",
+    offerFreeSelected: "Livraison gratuite sur une sélection de produits",
+    offerFreeOver: "Livraison gratuite dès {min} d’achat",
+    offerFreeSelectedOver: "Livraison gratuite sur une sélection de produits dès {min} d’achat",
+    offerAll: "{amount} de réduction sur tout",
+    offerSelected: "{amount} de réduction sur une sélection de produits",
+    offerAllOver: "{amount} de réduction sur tout, dès {min} d’achat",
+    offerSelectedOver: "{amount} de réduction sur une sélection de produits, dès {min} d’achat",
   },
   pt: {
     basket: "Cesto",
@@ -1072,5 +1099,14 @@ export const checkout = defineMessages({
     restoreSame: "Bem-vindo de volta. O seu cesto está tal como o deixou.",
     restoreUnavailable: "Lamentamos, os artigos do seu cesto guardado já não estão disponíveis.",
     restoreFailed: "Não foi possível carregar o seu cesto guardado. Verifique a sua ligação à Internet e atualize a página.",
+    // Discount offers (describeDiscount)
+    offerFree: "Entrega grátis",
+    offerFreeSelected: "Entrega grátis em produtos selecionados",
+    offerFreeOver: "Entrega grátis em encomendas acima de {min}",
+    offerFreeSelectedOver: "Entrega grátis em produtos selecionados, em encomendas acima de {min}",
+    offerAll: "{amount} de desconto em tudo",
+    offerSelected: "{amount} de desconto em produtos selecionados",
+    offerAllOver: "{amount} de desconto em tudo, em encomendas acima de {min}",
+    offerSelectedOver: "{amount} de desconto em produtos selecionados, em encomendas acima de {min}",
   },
 });

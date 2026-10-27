@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { clientIp, rateLimitShared } from "@/lib/rate-limit";
 import { getShopTenantBySlug } from "@/lib/shop/tenants";
 import { unsubscribeByKey } from "@/lib/store/campaigns-server";
+import { requestT } from "@/lib/store/customer-api";
+import { shopperT } from "@/lib/store/i18n/shopper";
 
 /**
  * POST /api/shop/<store>/marketing/unsubscribe?k=<key>&r=<token> — stop marketing
@@ -9,11 +11,13 @@ import { unsubscribeByKey } from "@/lib/store/campaigns-server";
  * (List-Unsubscribe-Post), which posts a form with no other details.
  */
 export async function POST(req: Request, { params }: { params: Promise<{ slug: string }> }) {
+  const slug = (await params).slug;
   if (!(await rateLimitShared(`unsubscribe:${clientIp(req)}`, 20, 60_000)).ok) {
-    return NextResponse.json({ error: "Too many requests." }, { status: 429 });
+    return NextResponse.json({ error: (await requestT(req, slug))("errors.acTooManyRequests") }, { status: 429 });
   }
-  const tenant = await getShopTenantBySlug((await params).slug);
-  if (!tenant) return NextResponse.json({ error: "Shop not found." }, { status: 404 });
+  const tenant = await getShopTenantBySlug(slug);
+  if (!tenant) return NextResponse.json({ error: (await requestT(req, slug))("errors.acShopNotFound") }, { status: 404 });
+  const t = await shopperT(req, slug, tenant.id);
 
   const url = new URL(req.url);
   let key = url.searchParams.get("k") || "";
@@ -24,10 +28,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     token = typeof body?.token === "string" ? body.token : token;
   }
   try {
-    if (!(await unsubscribeByKey(tenant.id, key, token))) return NextResponse.json({ error: "We couldn't find that sign-up." }, { status: 404 });
+    if (!(await unsubscribeByKey(tenant.id, key, token))) return NextResponse.json({ error: t("errors.acSignupNotFound") }, { status: 404 });
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("[unsubscribe] failed", error);
-    return NextResponse.json({ error: "We couldn't save that just now. Please try again." }, { status: 500 });
+    return NextResponse.json({ error: t("errors.acSaveFailed") }, { status: 500 });
   }
 }

@@ -3,6 +3,7 @@
  * code, so the dashboard and checkout can both use it. How many times a code
  * has been used is checked on the server when the order is placed.
  */
+import type { Translator } from "@/lib/store/i18n/translate";
 import { z } from "zod";
 
 /** free_delivery waives the delivery charge and takes nothing off the items. */
@@ -188,11 +189,25 @@ export function checkDiscount(
 /**
  * A one-line summary, e.g. "10% off everything", "₦2,000 off selected
  * products, on orders over ₦10,000" or "Free delivery on orders over ₦10,000".
+ * With `t`, in the shopper's language (whole sentences, so each language keeps
+ * its own word order); without it, English (the dashboard).
  */
 export function describeDiscount(
   code: Pick<DiscountCode, "kind" | "value" | "productIds" | "collectionIds" | "minSubtotal">,
   formatMoney: (amount: number) => string,
+  t?: Translator,
 ) {
+  if (t) {
+    const selected = Boolean(code.productIds.length || code.collectionIds.length);
+    const min = code.minSubtotal != null ? formatMoney(code.minSubtotal) : null;
+    if (code.kind === "free_delivery") {
+      const key = selected ? (min ? "checkout.offerFreeSelectedOver" : "checkout.offerFreeSelected") : min ? "checkout.offerFreeOver" : "checkout.offerFree";
+      return t(key, min ? { min } : undefined);
+    }
+    const amount = code.kind === "percent" ? `${trimNumber(code.value)}%` : formatMoney(code.value);
+    const key = selected ? (min ? "checkout.offerSelectedOver" : "checkout.offerSelected") : min ? "checkout.offerAllOver" : "checkout.offerAll";
+    return t(key, min ? { amount, min } : { amount });
+  }
   if (code.kind === "free_delivery") {
     const withSome = code.productIds.length || code.collectionIds.length ? " with selected products" : "";
     const over = code.minSubtotal != null ? ` on orders over ${formatMoney(code.minSubtotal)}` : "";

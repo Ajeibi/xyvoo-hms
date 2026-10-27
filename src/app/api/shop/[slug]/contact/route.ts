@@ -6,6 +6,8 @@ import { clientIp, rateLimitShared } from "@/lib/rate-limit";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { sendBrandedEmail } from "@/lib/mail/mailtrap";
 import { badge, detailsPanel, escapeHtml } from "@/lib/mail/layout";
+import { issueMessage, requestT } from "@/lib/store/customer-api";
+import { shopperT } from "@/lib/store/i18n/shopper";
 
 const text = (max: number) => z.string().trim().max(max, "That's longer than we can take. Please shorten it.");
 
@@ -38,21 +40,23 @@ async function shopInbox(tenantId: string) {
 export async function POST(req: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const tenant = await getShopTenantBySlug(slug);
-  if (!tenant || !(await isShopLive(tenant.id))) return NextResponse.json({ error: "Shop not found." }, { status: 404 });
+  if (!tenant || !(await isShopLive(tenant.id))) return NextResponse.json({ error: (await requestT(req, slug))("errors.acShopNotFound") }, { status: 404 });
+  // Only the replies to the shopper are in their language; the email to the shop stays in English.
+  const t = await shopperT(req, slug, tenant.id);
   const limit = await rateLimitShared(`contact:${tenant.id}:${clientIp(req)}`, 5, 10 * 60_000);
-  if (!limit.ok) return NextResponse.json({ error: "You've sent a few messages already. Please wait a few minutes and try again." }, { status: 429 });
+  if (!limit.ok) return NextResponse.json({ error: t("errors.acContactTooMany") }, { status: 429 });
 
   const parsed = MessageSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
-    return NextResponse.json({ error: issue?.message || "Please check the form.", field: issue?.path[0] }, { status: 400 });
+    return NextResponse.json({ error: issueMessage(t, issue, "errors.acCheckForm"), field: issue?.path[0] }, { status: 400 });
   }
   const m = parsed.data;
   // Looks sent to the bot; nothing is delivered.
   if (m.website) return NextResponse.json({ ok: true });
 
   const to = await shopInbox(tenant.id);
-  if (!to) return NextResponse.json({ error: "This shop can't receive messages just now. Please try WhatsApp or phone instead." }, { status: 503 });
+  if (!to) return NextResponse.json({ error: t("errors.acContactUnavailable") }, { status: 503 });
   const storeName = tenant.displayName?.trim() || tenant.name || slug;
   const rows = [
     { label: "From", value: `${m.name} <${m.email}>` },
@@ -78,7 +82,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     });
   } catch (error) {
     console.error("[contact form] not sent", { tenantId: tenant.id, error });
-    return NextResponse.json({ error: "We couldn't send your message just now. Please try again in a moment." }, { status: 502 });
+    return NextResponse.json({ error: t("errors.acContactFailed") }, { status: 502 });
   }
   return NextResponse.json({ ok: true });
 }

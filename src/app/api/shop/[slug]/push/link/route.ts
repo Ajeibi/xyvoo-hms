@@ -5,6 +5,8 @@ import { clientIp, rateLimitShared } from "@/lib/rate-limit";
 import { pushSubscriptionSchema } from "@/lib/store/push";
 import { linkPushDevice } from "@/lib/store/push-links";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { requestT } from "@/lib/store/customer-api";
+import { shopperT } from "@/lib/store/i18n/shopper";
 
 /** Updates are offered for orders this recent. */
 const ORDER_DAYS = 30;
@@ -22,15 +24,16 @@ const Schema = z.discriminatedUnion("kind", [
  * when the order moves on, or gets a reminder about the basket.
  */
 export async function POST(req: Request, { params }: { params: Promise<{ slug: string }> }) {
-  if (!(await rateLimitShared(`push-link:${clientIp(req)}`, 30, 10 * 60_000)).ok) {
-    return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
-  }
   const slug = (await params).slug;
+  if (!(await rateLimitShared(`push-link:${clientIp(req)}`, 30, 10 * 60_000)).ok) {
+    return NextResponse.json({ error: (await requestT(req, slug))("errors.acTooManyRequestsLater") }, { status: 429 });
+  }
   const tenant = /^[a-z0-9-]{1,63}$/i.test(slug) ? await getShopTenantBySlug(slug) : null;
-  if (!tenant) return NextResponse.json({ error: "Shop not found." }, { status: 404 });
+  if (!tenant) return NextResponse.json({ error: (await requestT(req, slug))("errors.acShopNotFound") }, { status: 404 });
+  const t = await shopperT(req, slug, tenant.id);
 
   const parsed = Schema.safeParse(await req.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: "That request isn't valid." }, { status: 400 });
+  if (!parsed.success) return NextResponse.json({ error: t("errors.acRequestInvalid") }, { status: 400 });
 
   const db = createServerSupabaseClient().schema("store");
   let refId: string | null = null;
@@ -41,8 +44,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     const { data: checkout } = await db.from("checkouts").select("id").eq("tenant_id", tenant.id).eq("token", parsed.data.token).maybeSingle();
     refId = (checkout?.id as string | undefined) ?? null;
   }
-  if (!refId) return NextResponse.json({ error: "Not found." }, { status: 404 });
+  if (!refId) return NextResponse.json({ error: t("errors.acNotFound") }, { status: 404 });
 
   const linked = await linkPushDevice(tenant.id, parsed.data.endpoint, parsed.data.kind, refId);
-  return linked ? NextResponse.json({ ok: true }) : NextResponse.json({ error: "Turn on notifications first." }, { status: 409 });
+  return linked ? NextResponse.json({ ok: true }) : NextResponse.json({ error: t("errors.acPushTurnOn") }, { status: 409 });
 }

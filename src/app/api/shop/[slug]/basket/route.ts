@@ -12,6 +12,7 @@ import { tradeUnitPrice } from "@/lib/store/wholesale";
 import { activeTrade, tradePricing } from "@/lib/store/wholesale-server";
 import { getShopProductsByIds } from "@/lib/shop/products";
 import type { LineAvailability } from "@/lib/shop/cart";
+import { shopperT } from "@/lib/store/i18n/shopper";
 
 const BodySchema = z.object({
   items: z
@@ -30,12 +31,14 @@ const BodySchema = z.object({
 export async function POST(req: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const tenant = await getShopTenantBySlug(slug);
-  if (!tenant || !(await isShopLive(tenant.id))) return NextResponse.json({ error: "Shop not found." }, { status: 404 });
+  if (!tenant) return NextResponse.json({ error: "Shop not found." }, { status: 404 });
+  const t = await shopperT(req, slug, tenant.id);
+  if (!(await isShopLive(tenant.id))) return NextResponse.json({ error: t("errors.coShopNotFound") }, { status: 404 });
   const limit = await rateLimitShared(`basket:${tenant.id}:${clientIp(req)}`, 60, 10 * 60_000);
-  if (!limit.ok) return NextResponse.json({ error: "Too many requests. Please wait a moment." }, { status: 429 });
+  if (!limit.ok) return NextResponse.json({ error: t("errors.coTooManyRequestsWait") }, { status: 429 });
 
   const parsed = BodySchema.safeParse(await req.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: "Your basket couldn't be read." }, { status: 400 });
+  if (!parsed.success) return NextResponse.json({ error: t("errors.coBasketUnreadable") }, { status: 400 });
 
   const [lines, tax, { data: weights }, products] = await Promise.all([
     priceBasketLines(tenant.id, parsed.data.items),
