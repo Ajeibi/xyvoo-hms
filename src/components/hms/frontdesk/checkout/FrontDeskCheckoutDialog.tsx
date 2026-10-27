@@ -8,6 +8,8 @@ import { formatCurrencySymbol, formatPricingAmount } from "@/lib/hms/room-pricin
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { requestNotificationsRefresh } from "@/lib/hms/notifications-bus";
 import { ExtraNightsNotice, type ExtraNightsInfo } from "@/components/hms/frontdesk/folio/ExtraNightsNotice";
+import { CheckoutStayBill } from "@/components/hms/frontdesk/checkout/CheckoutStayBill";
+import type { StaySummary } from "@/lib/hms/folio-stay-summary";
 import {
   Dialog,
   DialogContent,
@@ -107,9 +109,11 @@ export function FrontDeskCheckoutDialog({
   const [cashFloatActive, setCashFloatActive] = useState<boolean | null>(null);
   const [confirmOverrideOpen, setConfirmOverrideOpen] = useState(false);
   const [extraNights, setExtraNights] = useState<ExtraNightsInfo | null>(null);
+  const [stay, setStay] = useState<StaySummary | null>(null);
 
   const reset = useCallback(() => {
     setExtraNights(null);
+    setStay(null);
     setStep("find");
     setQuery("");
     setHits([]);
@@ -172,9 +176,13 @@ export function FrontDeskCheckoutDialog({
         setFolioNumber(data.reservation.folioNumber);
         setRoomTypeName(data.reservation.roomTypeName ?? null);
         setLines(data.folio.lines);
-        setBalance(data.folio.balance);
+        // What the guest pays: the balance once any early check-out credit is taken off. The
+        // credit itself is only posted when the check-out completes.
+        const due = Number(data.stay?.balanceAtCheckout ?? data.folio.balance) || 0;
+        setBalance(due);
         setExtraNights(data.extraNights ?? null);
-        setManualPayAmount(data.folio.balance > 0 ? String(data.folio.balance.toFixed(2)) : "");
+        setStay(data.stay ?? null);
+        setManualPayAmount(due > 0 ? String(due.toFixed(2)) : "");
         setStep("settle");
 
         const fbData = await fbRes.json().catch(() => ({}));
@@ -186,18 +194,6 @@ export function FrontDeskCheckoutDialog({
           setFbOrdersByNumber(map);
         }
 
-        const adjRes = await fetch("/api/hotel/folio/early-checkout-adjustment", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ slug, reservationId: id }),
-        });
-        const adjData = await adjRes.json().catch(() => ({}));
-        if (adjRes.ok && adjData.folio) {
-          setLines(adjData.folio.lines ?? data.folio.lines);
-          const bal = Number(adjData.folio.balance) || 0;
-          setBalance(bal);
-          setManualPayAmount(bal > 0 ? String(bal.toFixed(2)) : "");
-        }
       } finally {
         setLoading(false);
       }
@@ -436,109 +432,118 @@ export function FrontDeskCheckoutDialog({
                 onConfirmed={() => void loadFolio(reservationId)}
               />
 
-              {(() => {
-                const activeLines = lines.filter((l) => !l.voided_at);
-                const roomLines = activeLines.filter((l) => l.department === "rooms");
-                const fbLines = activeLines.filter((l) => l.department === "food_beverage");
-                const otherLines = activeLines.filter(
-                  (l) => l.department !== "rooms" && l.department !== "food_beverage",
-                );
+              {stay ? <CheckoutStayBill stay={stay} currency={currency} /> : null}
 
-                return (
-                  <>
-                    {roomLines.length > 0 ? (
-                      <div className="overflow-hidden rounded-xl border border-slate-100 text-sm">
-                        <p className="border-b border-slate-100 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800">
-                          Room{roomTypeName ? ` — ${roomTypeName}` : ""}
-                        </p>
-                        <table className="w-full">
-                          <tbody>
-                            {roomLines.map((l) => (
-                              <tr key={l.id} className="border-t border-slate-50 first:border-0">
-                                <td className="px-3 py-2 text-slate-700">{l.description ?? l.kind}</td>
-                                <td className="px-3 py-2 text-right tabular-nums">
-                                  {formatPricingAmount(l.amount, currency)}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : null}
+              <details className="group rounded-xl border border-slate-200 text-sm">
+                <summary className="cursor-pointer select-none rounded-xl px-3 py-2 font-medium text-slate-800 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+                  See every line on the bill
+                </summary>
+                <div className="space-y-3 border-t border-slate-100 p-3">
+                {(() => {
+                  const activeLines = lines.filter((l) => !l.voided_at);
+                  const roomLines = activeLines.filter((l) => l.department === "rooms");
+                  const fbLines = activeLines.filter((l) => l.department === "food_beverage");
+                  const otherLines = activeLines.filter(
+                    (l) => l.department !== "rooms" && l.department !== "food_beverage",
+                  );
 
-                    {fbLines.length > 0 ? (
-                      <div className="overflow-hidden rounded-xl border border-slate-100 text-sm">
-                        <p className="border-b border-slate-100 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800">
-                          Food and drink
-                        </p>
-                        <Accordion type="multiple" className="px-2">
-                          {fbLines.map((l) => {
-                            const orderNumber = extractFbOrderNumber(l);
-                            const order = orderNumber ? fbOrdersByNumber.get(orderNumber) : undefined;
-                            return (
-                              <AccordionItem key={l.id} value={l.id} className="border-slate-100">
-                                <AccordionTrigger className="py-2 hover:no-underline">
-                                  <span className="flex min-w-0 flex-1 items-center justify-between gap-2 pr-2">
-                                    <span className="truncate text-slate-700">
-                                      {l.description ?? l.kind}
+                  return (
+                    <>
+                      {roomLines.length > 0 ? (
+                        <div className="overflow-hidden rounded-xl border border-slate-100 text-sm">
+                          <p className="border-b border-slate-100 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800">
+                            Room{roomTypeName ? ` — ${roomTypeName}` : ""}
+                          </p>
+                          <table className="w-full">
+                            <tbody>
+                              {roomLines.map((l) => (
+                                <tr key={l.id} className="border-t border-slate-50 first:border-0">
+                                  <td className="px-3 py-2 text-slate-700">{l.description ?? l.kind}</td>
+                                  <td className="px-3 py-2 text-right tabular-nums">
+                                    {formatPricingAmount(l.amount, currency)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : null}
+
+                      {fbLines.length > 0 ? (
+                        <div className="overflow-hidden rounded-xl border border-slate-100 text-sm">
+                          <p className="border-b border-slate-100 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800">
+                            Food and drink
+                          </p>
+                          <Accordion type="multiple" className="px-2">
+                            {fbLines.map((l) => {
+                              const orderNumber = extractFbOrderNumber(l);
+                              const order = orderNumber ? fbOrdersByNumber.get(orderNumber) : undefined;
+                              return (
+                                <AccordionItem key={l.id} value={l.id} className="border-slate-100">
+                                  <AccordionTrigger className="py-2 hover:no-underline">
+                                    <span className="flex min-w-0 flex-1 items-center justify-between gap-2 pr-2">
+                                      <span className="truncate text-slate-700">
+                                        {l.description ?? l.kind}
+                                      </span>
+                                      <span className="shrink-0 tabular-nums text-slate-900">
+                                        {formatPricingAmount(l.amount, currency)}
+                                      </span>
                                     </span>
-                                    <span className="shrink-0 tabular-nums text-slate-900">
-                                      {formatPricingAmount(l.amount, currency)}
-                                    </span>
-                                  </span>
-                                </AccordionTrigger>
-                                <AccordionContent>
-                                  {order && order.items.length > 0 ? (
-                                    <ul className="space-y-1 text-xs text-slate-600">
-                                      {order.items
-                                        .filter((item) => item.kitchen_status !== "voided")
-                                        .map((item) => (
-                                          <li key={item.id} className="flex justify-between gap-2">
-                                            <span className="min-w-0 truncate">
-                                              {item.quantity}× {item.name_snapshot}
-                                            </span>
-                                            <span className="shrink-0 tabular-nums">
-                                              {formatPricingAmount(
-                                                item.price_snapshot * item.quantity,
-                                                currency,
-                                              )}
-                                            </span>
-                                          </li>
-                                        ))}
-                                    </ul>
-                                  ) : (
-                                    <p className="text-xs text-slate-600">The order details aren&apos;t available.</p>
-                                  )}
-                                </AccordionContent>
-                              </AccordionItem>
-                            );
-                          })}
-                        </Accordion>
-                      </div>
-                    ) : null}
+                                  </AccordionTrigger>
+                                  <AccordionContent>
+                                    {order && order.items.length > 0 ? (
+                                      <ul className="space-y-1 text-xs text-slate-600">
+                                        {order.items
+                                          .filter((item) => item.kitchen_status !== "voided")
+                                          .map((item) => (
+                                            <li key={item.id} className="flex justify-between gap-2">
+                                              <span className="min-w-0 truncate">
+                                                {item.quantity}× {item.name_snapshot}
+                                              </span>
+                                              <span className="shrink-0 tabular-nums">
+                                                {formatPricingAmount(
+                                                  item.price_snapshot * item.quantity,
+                                                  currency,
+                                                )}
+                                              </span>
+                                            </li>
+                                          ))}
+                                      </ul>
+                                    ) : (
+                                      <p className="text-xs text-slate-600">The order details aren&apos;t available.</p>
+                                    )}
+                                  </AccordionContent>
+                                </AccordionItem>
+                              );
+                            })}
+                          </Accordion>
+                        </div>
+                      ) : null}
 
-                    {otherLines.length > 0 ? (
-                      <div className="overflow-hidden rounded-xl border border-slate-100 text-sm">
-                        <p className="border-b border-slate-100 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800">
-                          Other
-                        </p>
-                        <table className="w-full">
-                          <tbody>
-                            {otherLines.map((l) => (
-                              <tr key={l.id} className="border-t border-slate-50 first:border-0">
-                                <td className="px-3 py-2 text-slate-700">{l.description ?? l.kind}</td>
-                                <td className="px-3 py-2 text-right tabular-nums">
-                                  {formatPricingAmount(l.amount, currency)}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : null}
-                  </>
-                );
-              })()}
+                      {otherLines.length > 0 ? (
+                        <div className="overflow-hidden rounded-xl border border-slate-100 text-sm">
+                          <p className="border-b border-slate-100 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800">
+                            Other
+                          </p>
+                          <table className="w-full">
+                            <tbody>
+                              {otherLines.map((l) => (
+                                <tr key={l.id} className="border-t border-slate-50 first:border-0">
+                                  <td className="px-3 py-2 text-slate-700">{l.description ?? l.kind}</td>
+                                  <td className="px-3 py-2 text-right tabular-nums">
+                                    {formatPricingAmount(l.amount, currency)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : null}
+                    </>
+                  );
+                })()}
+                </div>
+              </details>
 
               {balance > 0.01 ? (
                 <fieldset className="space-y-3 rounded-2xl border border-slate-200 p-4">

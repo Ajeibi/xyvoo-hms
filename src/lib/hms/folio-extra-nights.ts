@@ -133,12 +133,18 @@ export function extraNightPricing(reservation: ExtraNightReservation, pricing: H
       ? roundMoney(nightlyBar * (1 - discountPercent / 100))
       : roundMoney(bookedAverage);
 
+  return { nightlyRate, nightlyBar: roundMoney(nightlyBar), discountPercent, ...stayTaxRules(reservation, pricing) };
+}
+
+/** The service charge and levy rates and the tax exemptions a stay was priced with. */
+export function stayTaxRules(
+  reservation: Pick<ExtraNightReservation, "pricing_snapshot" | "tax_exempt" | "vat_applicable">,
+  pricing: HotelPricingSetup,
+) {
+  const snap = asSnapshot(reservation.pricing_snapshot);
   const ex = snap.taxExemptions;
   const blanket = reservation.tax_exempt === true;
   return {
-    nightlyRate,
-    nightlyBar: roundMoney(nightlyBar),
-    discountPercent,
     serviceChargeRatePercent: snap.taxes?.serviceChargeRatePercent ?? pricing.serviceChargeRate,
     stateLevyRatePercent: snap.taxes?.stateLevyRatePercent ?? pricing.taxRate,
     exemptions: {
@@ -146,7 +152,7 @@ export function extraNightPricing(reservation: ExtraNightReservation, pricing: H
       exemptServiceCharge: ex?.serviceCharge ?? blanket,
       exemptStateLevy: ex?.stateLevy ?? blanket,
       exemptStampLevy: true,
-    },
+    } satisfies NigeriaTaxExemptions,
   };
 }
 

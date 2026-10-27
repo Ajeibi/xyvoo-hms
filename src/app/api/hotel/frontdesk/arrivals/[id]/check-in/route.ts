@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
 import { assertRoomAssignable } from "@/lib/hms/arrivals-room";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
-import { postRoomChargeOnCheckIn, verifyManagerPin } from "@/lib/hms/folio";
+import { postBookedStayCharges, verifyManagerPin } from "@/lib/hms/folio";
 import { maybeEmitArrivalAlerts } from "@/lib/hms/arrivals-alerts";
 import { mapRoomReadiness } from "@/lib/hms/arrivals-room";
 import { getFolioForReservation } from "@/lib/hms/folio";
@@ -56,7 +56,7 @@ export async function POST(
       .schema("hotel")
       .from("reservations")
       .select(
-        `id,confirmation_code,status,arrival_at,departure_at,nights,room_unit_id,room_type_code,total_room_charges,settlement_method,vip_flag,source,booking_channel,guest_remarks,reservation_guests(is_primary,guests(${guestSelect}))`,
+        `id,confirmation_code,status,arrival_at,departure_at,nights,room_unit_id,room_type_code,total_room_charges,pricing_snapshot,vat_applicable,tax_exempt,settlement_method,vip_flag,source,booking_channel,guest_remarks,reservation_guests(is_primary,guests(${guestSelect}))`,
       )
       .eq("tenant_id", auth.tenant.id)
       .eq("id", id)
@@ -186,11 +186,11 @@ export async function POST(
       .limit(1);
 
     if (!existingLines?.length) {
-      await postRoomChargeOnCheckIn(auth.service, {
+      await postBookedStayCharges(auth.service, {
         tenantId: auth.tenant.id,
         reservationId: id,
-        totalRoomCharges: totalCharges,
-        nights: reservation.nights,
+        reservation,
+        pricing: normalizePricingSetup(auth.tenant.pricing_setup),
         postedBy: auth.user.id,
       });
     }

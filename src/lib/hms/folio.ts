@@ -4,7 +4,9 @@ import type { PaymentDisplayStatus } from "@/lib/hms/front-desk-board";
 import { isAdminLikeRole } from "@/lib/hms/department-access";
 import type { WalkInRoomPricingResult } from "@/lib/hms/walk-in-pricing";
 import { calendarNightsBetween } from "@/lib/hms/walk-in-pricing";
-import { isExtraNightLine } from "@/lib/hms/folio-extra-nights";
+import { isExtraNightLine, stayTaxRules, type ExtraNightReservation } from "@/lib/hms/folio-extra-nights";
+import { computeNigeriaHospitalityTaxes } from "@/lib/hms/nigeria-hospitality-taxes";
+import type { HotelPricingSetup } from "@/lib/hms/room-pricing";
 
 export const EARLY_CHECKOUT_ADJUSTMENT_REF = "early_checkout_adjustment";
 
@@ -329,30 +331,6 @@ export async function insertFolioLine(
   return { line: mapFolioLineRow(data as Record<string, unknown>), error: null };
 }
 
-export async function postRoomChargeOnCheckIn(
-  supabase: SupabaseClient,
-  params: {
-    tenantId: string;
-    reservationId: string;
-    totalRoomCharges: number;
-    nights: number;
-    postedBy: string;
-    currencyCode?: string;
-  },
-) {
-  return insertFolioLine(supabase, {
-    tenantId: params.tenantId,
-    reservationId: params.reservationId,
-    kind: "charge",
-    amount: params.totalRoomCharges,
-    method: "system",
-    description: `Room charges (${params.nights} night${params.nights === 1 ? "" : "s"})`,
-    department: "rooms",
-    postedBy: params.postedBy,
-    currencyCode: params.currencyCode ?? "NGN",
-  });
-}
-
 /** Posts room + Nigeria-modelled tax / levy folio lines at walk-in check-in. */
 export async function postWalkInFolioBundle(
   supabase: SupabaseClient,
@@ -362,13 +340,15 @@ export async function postWalkInFolioBundle(
     nights: number;
     postedBy: string;
     currencyCode: string;
-    pricing: WalkInRoomPricingResult;
+    pricing: Pick<WalkInRoomPricingResult, "taxes" | "roomSubtotalAfterDiscount" | "roomDiscountAmount">;
     discountPercent: number;
     discountScope: string;
   },
 ) {
   const { nights, pricing, discountPercent, discountScope } = params;
   const { taxes, roomSubtotalAfterDiscount, roomDiscountAmount } = pricing;
+  // `part` says what each line is, so bills can show room and taxes apart without reading wording.
+  const stay = { stayCharge: true, nights };
 
   const scopeLabel = discountScope.replace(/_/g, " ");
   const roomDescription =
@@ -383,6 +363,7 @@ export async function postWalkInFolioBundle(
     amount: roomSubtotalAfterDiscount,
     method: "system",
     description: roomDescription,
+    metadata: { ...stay, part: "room", discountPercent, discountScope, discountAmount: roomDiscountAmount },
     department: "rooms",
     postedBy: params.postedBy,
     currencyCode: params.currencyCode,
@@ -396,6 +377,7 @@ export async function postWalkInFolioBundle(
       amount: taxes.serviceChargeAmount,
       method: "system",
       description: `Service charge (${taxes.serviceChargeRatePercent}% of room)`,
+      metadata: { ...stay, part: "service_charge" },
       department: "rooms",
       postedBy: params.postedBy,
       currencyCode: params.currencyCode,
@@ -409,7 +391,8 @@ export async function postWalkInFolioBundle(
       kind: "charge",
       amount: taxes.stateLevyAmount,
       method: "system",
-      description: `State / local levy (${taxes.stateLevyRatePercent}% of room — configure rate in settings)`,
+      description: `State / local levy (${taxes.stateLevyRatePercent}% of room)`,
+      metadata: { ...stay, part: "state_levy" },
       department: "rooms",
       postedBy: params.postedBy,
       currencyCode: params.currencyCode,
@@ -423,7 +406,8 @@ export async function postWalkInFolioBundle(
       kind: "charge",
       amount: taxes.vatAmount,
       method: "system",
-      description: `VAT (${taxes.vatRatePercent}% — Nigeria standard rate on taxable base)`,
+      description: `VAT (${taxes.vatRatePercent}%)`,
+      metadata: { ...stay, part: "vat" },
       department: "rooms",
       postedBy: params.postedBy,
       currencyCode: params.currencyCode,
@@ -438,6 +422,7 @@ export async function postWalkInFolioBundle(
       amount: taxes.stampLevyAmount,
       method: "system",
       description: "Stamp / processing levy",
+      metadata: { ...stay, part: "stamp_levy" },
       department: "rooms",
       postedBy: params.postedBy,
       currencyCode: params.currencyCode,
@@ -445,11 +430,83 @@ export async function postWalkInFolioBundle(
   }
 }
 
+/**
+ * Posts a booked stay's room charge and its taxes when the guest arrives (the Arrivals
+ * check-in). Uses the price and discount saved when the booking was made, and the service
+ * charge, levy and VAT rules the stay was priced with, so it bills the same as a walk-in.
+ */
+export async function postBookedStayCharges(
+  supabase: SupabaseClient,
+  params: {
+    tenantId: string;
+    reservationId: string;
+    reservation: Pick<ExtraNightReservation, "pricing_snapshot" | "tax_exempt" | "vat_applicable"> & {
+      nights: number;
+      total_room_charges: number | string | null;
+    };
+    pricing: HotelPricingSetup;
+    postedBy: string;
+  },
+) {
+  const { reservation, pricing } = params;
+  const snap = (reservation.pricing_snapshot ?? {}) as {
+    discountPercent?: number;
+    discountScope?: string;
+    roomDiscountAmount?: number;
+  };
+  const roomSubtotalAfterDiscount = Number(reservation.total_room_charges) || 0;
+  const rules = stayTaxRules(reservation, pricing);
+  const taxes = computeNigeriaHospitalityTaxes({
+    roomTaxableBase: roomSubtotalAfterDiscount,
+    serviceChargeRatePercent: rules.serviceChargeRatePercent,
+    stateLevyRatePercent: rules.stateLevyRatePercent,
+    exemptions: rules.exemptions,
+  });
+  return postWalkInFolioBundle(supabase, {
+    tenantId: params.tenantId,
+    reservationId: params.reservationId,
+    nights: Math.max(1, reservation.nights),
+    postedBy: params.postedBy,
+    currencyCode: pricing.currency,
+    pricing: { taxes, roomSubtotalAfterDiscount, roomDiscountAmount: Number(snap.roomDiscountAmount) || 0 },
+    discountPercent: Number(snap.discountPercent) || 0,
+    discountScope: snap.discountScope ?? "none",
+  });
+}
+
 /** Calendar nights from check-in date through checkout date (minimum 1). */
 export function computeStayedNights(checkedInAt: string, checkoutAt: Date): number {
   const from = checkedInAt.slice(0, 10);
   const to = checkoutAt.toISOString().slice(0, 10);
   return calendarNightsBetween(from, to);
+}
+
+/**
+ * The credit for unused booked nights if the guest left at `checkoutAt`, without posting it.
+ * Only counts system-posted room-stay charges (room + bundled taxes at check-in), never extra
+ * nights. `alreadyCredited` is true once the credit is on the folio.
+ */
+export function computeEarlyCheckoutCredit(
+  lines: FolioLineRow[],
+  params: { bookedNights: number; checkedInAt: string; checkoutAt: Date },
+) {
+  const bookedNights = Math.max(1, params.bookedNights);
+  const actualNights = computeStayedNights(params.checkedInAt, params.checkoutAt);
+  const unusedNights = Math.max(0, bookedNights - actualNights);
+  const active = lines.filter((l) => !l.voided_at);
+  const alreadyCredited = active.some((l) => l.reference === EARLY_CHECKOUT_ADJUSTMENT_REF);
+
+  const stayCharges = active.filter(
+    (l) => l.kind === "charge" && l.method === "system" && l.department === "rooms" && !isExtraNightLine(l),
+  );
+  let creditAmount = 0;
+  if (unusedNights > 0 && !alreadyCredited && stayCharges.length > 0) {
+    const currentStayTotal = stayCharges.reduce((s, l) => s + l.amount, 0);
+    const targetTotal = Math.round(currentStayTotal * (actualNights / bookedNights) * 100) / 100;
+    creditAmount = Math.round((currentStayTotal - targetTotal) * 100) / 100;
+    if (creditAmount < 0.01) creditAmount = 0;
+  }
+  return { bookedNights, actualNights, unusedNights, creditAmount, alreadyCredited };
 }
 
 /**
@@ -468,34 +525,10 @@ export async function adjustFolioForEarlyCheckout(
     currencyCode?: string;
   },
 ): Promise<{ adjusted: boolean; unusedNights: number; creditAmount: number; actualNights: number }> {
-  const bookedNights = Math.max(1, params.bookedNights);
-  const actualNights = computeStayedNights(params.checkedInAt, params.checkoutAt);
-  const unusedNights = bookedNights - actualNights;
-
-  if (unusedNights <= 0) {
-    return { adjusted: false, unusedNights: 0, creditAmount: 0, actualNights };
-  }
-
   const lines = await fetchFolioLines(supabase, params.tenantId, params.reservationId);
-  const active = lines.filter((l) => !l.voided_at);
+  const { bookedNights, actualNights, unusedNights, creditAmount } = computeEarlyCheckoutCredit(lines, params);
 
-  if (active.some((l) => l.reference === EARLY_CHECKOUT_ADJUSTMENT_REF)) {
-    return { adjusted: false, unusedNights, creditAmount: 0, actualNights };
-  }
-
-  const stayCharges = active.filter(
-    (l) => l.kind === "charge" && l.method === "system" && l.department === "rooms" && !isExtraNightLine(l),
-  );
-  if (stayCharges.length === 0) {
-    return { adjusted: false, unusedNights, creditAmount: 0, actualNights };
-  }
-
-  const currentStayTotal = stayCharges.reduce((s, l) => s + l.amount, 0);
-  const ratio = actualNights / bookedNights;
-  const targetTotal = Math.round(currentStayTotal * ratio * 100) / 100;
-  const creditAmount = Math.round((currentStayTotal - targetTotal) * 100) / 100;
-
-  if (creditAmount < 0.01) {
+  if (creditAmount <= 0) {
     return { adjusted: false, unusedNights, creditAmount: 0, actualNights };
   }
 

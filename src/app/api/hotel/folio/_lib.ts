@@ -8,6 +8,7 @@ import {
   summariseExtraNights,
   type ExtraNightReservation,
 } from "@/lib/hms/folio-extra-nights";
+import { buildStaySummary, type StayReservation } from "@/lib/hms/folio-stay-summary";
 
 export type FolioAuth = Exclude<Awaited<ReturnType<typeof requireHotelApiMember>>, { error: string }>;
 
@@ -34,7 +35,7 @@ export async function loadReservation(
     .schema("hotel")
     .from("reservations")
     .select(
-      "id,confirmation_code,folio_number,status,settlement_method,preauth_amount,total_room_charges,rate_per_night,room_type_code,nights,departure_at,vat_applicable,tax_exempt,pricing_snapshot,extra_nights_confirmed_on,bill_to_account,po_number,folio_split_notes,commission_plan,commission_value,reservation_guests(is_primary,guests(first_name,last_name))",
+      "id,confirmation_code,folio_number,status,settlement_method,preauth_amount,total_room_charges,rate_per_night,room_type_code,nights,departure_at,arrival_at,checked_in_at,rate_overridden,rate_override_reason,vat_applicable,tax_exempt,pricing_snapshot,extra_nights_confirmed_on,bill_to_account,po_number,folio_split_notes,commission_plan,commission_value,reservation_guests(is_primary,guests(first_name,last_name))",
     )
     .eq("id", reservationId)
     .eq("tenant_id", auth.tenant.id)
@@ -74,5 +75,6 @@ export async function loadFolioPayload(auth: FolioAuth, reservationId: string) {
     nightlyRate: extraNightPricing(reservation as ExtraNightReservation, pricing).nightlyRate,
     autoLimit: AUTO_EXTRA_NIGHTS,
   };
-  return { reservation, folio, settings, roomTypeName, guestName, extraNights };
+  const stay = buildStaySummary(reservation as StayReservation, folio.lines);
+  return { reservation, folio, settings, roomTypeName, guestName, extraNights, stay };
 }
