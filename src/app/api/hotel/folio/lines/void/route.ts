@@ -4,6 +4,7 @@ import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { verifyManagerPin } from "@/lib/hms/folio";
 import { EXTRA_NIGHT_REF_PREFIX } from "@/lib/hms/folio-extra-nights";
+import { DISCOUNT_REF_PREFIX } from "@/lib/hms/folio-discounts";
 import { loadFolioPayload } from "../../_lib";
 
 const BodySchema = z.object({
@@ -37,12 +38,12 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Void payments via refund instead." }, { status: 400 });
     }
 
-    // Waiving an extra night's room line waives that night's taxes with it.
+    // Voiding the main line of a group (an extra night's room, or a discount) voids its taxes too.
     const reference = line.reference as string | null;
-    const nightPrefix =
-      reference?.startsWith(EXTRA_NIGHT_REF_PREFIX) && reference.endsWith(":room")
-        ? reference.slice(0, -"room".length)
-        : null;
+    const isGroupMain =
+      (reference?.startsWith(EXTRA_NIGHT_REF_PREFIX) && reference.endsWith(":room")) ||
+      (reference?.startsWith(DISCOUNT_REF_PREFIX) && (reference.endsWith(":room") || reference.endsWith(":bill")));
+    const nightPrefix = isGroupMain && reference ? reference.slice(0, reference.lastIndexOf(":") + 1) : null;
 
     let voidQuery = auth.service
       .schema("hotel")
@@ -69,7 +70,7 @@ export async function PATCH(req: Request) {
       action: "folio_line_voided",
       entityType: "folio_transaction",
       entityId: body.lineId,
-      after: { reason: body.reason, ...(nightPrefix ? { extraNight: nightPrefix.slice(EXTRA_NIGHT_REF_PREFIX.length, -1) } : {}) },
+      after: { reason: body.reason, ...(nightPrefix ? { group: nightPrefix.slice(0, -1) } : {}) },
     });
 
     const payload = await loadFolioPayload(auth, line.reservation_id as string);

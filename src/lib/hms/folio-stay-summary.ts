@@ -5,6 +5,7 @@ import {
   type FolioLineRow,
 } from "@/lib/hms/folio";
 import { EXTRA_NIGHT_REF_PREFIX, isExtraNightLine } from "@/lib/hms/folio-extra-nights";
+import { DISCOUNT_REF_PREFIX } from "@/lib/hms/folio-discounts";
 
 /**
  * One plain-words picture of a stay's bill for the checkout screen: what was booked and at what
@@ -88,7 +89,8 @@ export type StaySummary = {
   extraNights: { nights: number; from: string | null; to: string | null; total: number };
   earlyCheckout: { unusedNights: number; credit: number; applied: boolean } | null;
   extras: { label: string; total: number; count: number }[];
-  discounts: { id: string; description: string; amount: number; createdAt: string }[];
+  /** `withTaxes`: the service charge, levy and VAT on the discounted room came off too. */
+  discounts: { id: string; description: string; amount: number; createdAt: string; withTaxes?: boolean }[];
   payments: { id: string; description: string; method: string; amount: number; createdAt: string }[];
   refunds: { id: string; description: string; amount: number; createdAt: string }[];
   transfers: { id: string; description: string; amount: number }[];
@@ -114,6 +116,7 @@ export function buildStaySummary(
   let earlyApplied = 0;
   const extrasByLabel = new Map<string, { total: number; count: number }>();
   const discounts: StaySummary["discounts"] = [];
+  const discountGroups = new Map<string, StaySummary["discounts"][number]>();
   const payments: StaySummary["payments"] = [];
   const refunds: StaySummary["refunds"] = [];
   const transfers: StaySummary["transfers"] = [];
@@ -142,6 +145,29 @@ export function buildStaySummary(
       continue;
     }
     if (l.kind === "discount") {
+      const ref = l.reference ?? "";
+      if (ref.startsWith(DISCOUNT_REF_PREFIX)) {
+        // One row per discount, with the taxes taken off alongside it.
+        const group = ref.slice(DISCOUNT_REF_PREFIX.length, ref.lastIndexOf(":"));
+        const isMain = ref.endsWith(":room") || ref.endsWith(":bill");
+        const existing = discountGroups.get(group);
+        if (existing) {
+          existing.amount += -l.amount;
+          if (isMain) {
+            existing.description = l.description ?? existing.description;
+            existing.id = l.id;
+          } else existing.withTaxes = true;
+        } else {
+          discountGroups.set(group, {
+            id: l.id,
+            description: isMain ? (l.description ?? "Discount") : "Discount",
+            amount: -l.amount,
+            createdAt: l.created_at,
+            withTaxes: !isMain,
+          });
+        }
+        continue;
+      }
       discounts.push({ id: l.id, description: l.description ?? "Discount", amount: -l.amount, createdAt: l.created_at });
       continue;
     }
@@ -162,6 +188,8 @@ export function buildStaySummary(
     transfers.push({ id: l.id, description: l.description ?? "Transfer", amount: l.amount });
   }
 
+  for (const d of discountGroups.values()) discounts.push({ ...d, amount: roundMoney(d.amount) });
+  discounts.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   const balance = roundMoney(active.reduce((s, l) => s + l.amount, 0));
   const percent = Number(snap.discountPercent) || 0;
   const discountAmount = Number(snap.roomDiscountAmount) || 0;

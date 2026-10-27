@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Banknote, KeyRound, Lock, LogOut } from "lucide-react";
+import { Banknote, KeyRound, Lock, LogOut, Percent } from "lucide-react";
 import { HmsCard, HmsField, HmsPage, HmsPageHeader, hmsButton, hmsInput } from "@/components/hms/hms-ui";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
@@ -12,6 +12,7 @@ type Settings = {
   allowCheckoutWithBalance: boolean;
   largeChargeThreshold: number;
   hasManagerPin: boolean;
+  discountLimitPercent: number;
 };
 
 export function ReservationsSettingsClient({
@@ -27,10 +28,16 @@ export function ReservationsSettingsClient({
 }) {
   const [settings, setSettings] = useState(initial);
   const [threshold, setThreshold] = useState(String(initial.largeChargeThreshold));
+  const [discountLimit, setDiscountLimit] = useState(String(initial.discountLimitPercent ?? 0));
   const [pin, setPin] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const save = async (patch: { allowCheckoutWithBalance?: boolean; largeChargeThreshold?: number; managerPin?: string }) => {
+  const save = async (patch: {
+    allowCheckoutWithBalance?: boolean;
+    largeChargeThreshold?: number;
+    managerPin?: string;
+    discountLimitPercent?: number;
+  }) => {
     setSaving(true);
     try {
       const res = await fetch("/api/hotel/reservations/settings", {
@@ -122,6 +129,41 @@ export function ReservationsSettingsClient({
               onClick={() => void save({ largeChargeThreshold: Number(threshold) })}
             >
               Save amount
+            </button>
+          </div>
+        </HmsField>
+      </HmsCard>
+
+      <HmsCard id="discount-rules" icon={Percent} meaning="money" title="Discounts">
+        <HmsField
+          id="discount-limit"
+          label="Staff can give discounts up to (% of the bill)"
+          hint={
+            settings.discountLimitPercent > 0
+              ? `Currently ${settings.discountLimitPercent}%. Bigger discounts need a manager's PIN. Owners and admins never need it.`
+              : "Currently 0%, so every discount given by staff needs a manager's PIN. Owners and admins never need it."
+          }
+        >
+          <div className="flex flex-wrap gap-2">
+            <input
+              id="discount-limit"
+              type="number"
+              min="0"
+              max="100"
+              step="0.5"
+              value={discountLimit}
+              disabled={!canManage}
+              aria-describedby="discount-limit-hint"
+              onChange={(e) => setDiscountLimit(e.target.value)}
+              className={`${hmsInput} max-w-xs`}
+            />
+            <button
+              type="button"
+              className={`${hmsButton.secondary} ${focusRing}`}
+              disabled={!canManage || saving || discountLimit === "" || Number(discountLimit) < 0 || Number(discountLimit) > 100}
+              onClick={() => void save({ discountLimitPercent: Number(discountLimit) })}
+            >
+              Save limit
             </button>
           </div>
         </HmsField>

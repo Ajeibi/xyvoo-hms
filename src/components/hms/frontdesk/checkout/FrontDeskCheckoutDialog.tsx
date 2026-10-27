@@ -9,6 +9,7 @@ import { toastError, toastSuccess } from "@/lib/app-toast";
 import { requestNotificationsRefresh } from "@/lib/hms/notifications-bus";
 import { ExtraNightsNotice, type ExtraNightsInfo } from "@/components/hms/frontdesk/folio/ExtraNightsNotice";
 import { CheckoutStayBill } from "@/components/hms/frontdesk/checkout/CheckoutStayBill";
+import { CheckoutDiscountForm } from "@/components/hms/frontdesk/checkout/CheckoutDiscountForm";
 import type { StaySummary } from "@/lib/hms/folio-stay-summary";
 import {
   Dialog,
@@ -433,6 +434,13 @@ export function FrontDeskCheckoutDialog({
               />
 
               {stay ? <CheckoutStayBill stay={stay} currency={currency} /> : null}
+
+              <CheckoutDiscountForm
+                slug={slug}
+                reservationId={reservationId}
+                currency={currency}
+                onApplied={() => void loadFolio(reservationId)}
+              />
 
               <details className="group rounded-xl border border-slate-200 text-sm">
                 <summary className="cursor-pointer select-none rounded-xl px-3 py-2 font-medium text-slate-800 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500">

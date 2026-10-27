@@ -148,7 +148,14 @@ export function CheckoutStayBill({ stay, currency }: { stay: StaySummary; curren
               <Row key={t.id} label={t.description} amount={t.amount} currency={currency} credit={t.amount < 0} />
             ))}
             {stay.discounts.map((d) => (
-              <Row key={d.id} label={`Discount: ${d.description}`} detail={`Given ${day(d.createdAt)}`} amount={d.amount} currency={currency} credit />
+              <Row
+                key={d.id}
+                label={d.description.startsWith("Discount") ? d.description : `Discount: ${d.description}`}
+                detail={`Given ${day(d.createdAt)}${d.withTaxes ? ", with the taxes on it" : ""}`}
+                amount={d.amount}
+                currency={currency}
+                credit
+              />
             ))}
             {stay.payments.map((p) => (
               <Row key={p.id} label={`Paid, ${p.method.toLowerCase()}`} detail={dayAndTime(p.createdAt)} amount={p.amount} currency={currency} credit />

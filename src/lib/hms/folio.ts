@@ -238,13 +238,15 @@ export async function getTenantFolioSettings(supabase: SupabaseClient, tenantId:
   const { data } = await supabase
     .schema("hotel")
     .from("tenant_folio_settings")
-    .select("allow_checkout_with_balance,large_charge_threshold,manager_pin_hash")
+    .select("allow_checkout_with_balance,large_charge_threshold,manager_pin_hash,discount_limit_percent")
     .eq("tenant_id", tenantId)
     .maybeSingle();
   return {
     allowCheckoutWithBalance: data?.allow_checkout_with_balance ?? false,
     largeChargeThreshold: num(data?.large_charge_threshold) || 50000,
     hasManagerPin: Boolean(data?.manager_pin_hash),
+    /** Staff can give discounts up to this % of the bill without a manager PIN; 0 means always ask. */
+    discountLimitPercent: num(data?.discount_limit_percent),
   };
 }
 
@@ -257,11 +259,12 @@ export async function getTenantFolioSettings(supabase: SupabaseClient, tenantId:
 export async function updateTenantFolioSettings(
   supabase: SupabaseClient,
   tenantId: string,
-  patch: { allowCheckoutWithBalance?: boolean; largeChargeThreshold?: number; managerPin?: string },
+  patch: { allowCheckoutWithBalance?: boolean; largeChargeThreshold?: number; managerPin?: string; discountLimitPercent?: number },
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const update: Record<string, unknown> = { tenant_id: tenantId, updated_at: new Date().toISOString() };
   if (patch.allowCheckoutWithBalance !== undefined) update.allow_checkout_with_balance = patch.allowCheckoutWithBalance;
   if (patch.largeChargeThreshold !== undefined) update.large_charge_threshold = patch.largeChargeThreshold;
+  if (patch.discountLimitPercent !== undefined) update.discount_limit_percent = patch.discountLimitPercent;
   if (patch.managerPin !== undefined && patch.managerPin.trim()) {
     update.manager_pin_hash = hashManagerPin(patch.managerPin);
   }
@@ -496,8 +499,14 @@ export function computeEarlyCheckoutCredit(
   const active = lines.filter((l) => !l.voided_at);
   const alreadyCredited = active.some((l) => l.reference === EARLY_CHECKOUT_ADJUSTMENT_REF);
 
+  // The booked stay as charged, less any room discounts (and the taxes they took off), so a
+  // discount isn't given twice: once on every night, then again on the nights credited back.
   const stayCharges = active.filter(
-    (l) => l.kind === "charge" && l.method === "system" && l.department === "rooms" && !isExtraNightLine(l),
+    (l) =>
+      l.department === "rooms" &&
+      !isExtraNightLine(l) &&
+      ((l.kind === "charge" && l.method === "system") ||
+        (l.kind === "discount" && (l.reference ?? "").startsWith("discount:"))),
   );
   let creditAmount = 0;
   if (unusedNights > 0 && !alreadyCredited && stayCharges.length > 0) {
