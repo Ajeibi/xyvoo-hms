@@ -34,8 +34,8 @@ export async function POST(req: Request) {
       reservationId: body.reservationId,
       kind: "charge",
       amount: body.amount,
-      // Added by staff, not posted by the system for the booked stay.
-      method: "manual",
+      // The database allows only its listed methods; isBookedStayLine tells this apart from the booked stay.
+      method: "system",
       description: body.description,
       department: body.department,
       postedBy: auth.user.id,

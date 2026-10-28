@@ -4,6 +4,7 @@ import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
 import { assertRoomAssignable } from "@/lib/hms/arrivals-room";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { postBookedStayCharges, verifyManagerPin } from "@/lib/hms/folio";
+import { applyDepositsToFolio } from "@/lib/hms/folio-deposits";
 import { maybeEmitArrivalAlerts } from "@/lib/hms/arrivals-alerts";
 import { mapRoomReadiness } from "@/lib/hms/arrivals-room";
 import { getFolioForReservation } from "@/lib/hms/folio";
@@ -192,6 +193,24 @@ export async function POST(
         reservation,
         pricing: normalizePricingSetup(auth.tenant.pricing_setup),
         postedBy: auth.user.id,
+      });
+    }
+
+    // Deposits taken before arrival now pay towards the bill.
+    const deposits = await applyDepositsToFolio(auth.service, {
+      tenantId: auth.tenant.id,
+      reservationId: id,
+      userId: auth.user.id,
+      currency: normalizePricingSetup(auth.tenant.pricing_setup).currency,
+    });
+    if (deposits.applied > 0) {
+      await writeAuditLog({
+        tenantId: auth.tenant.id,
+        actorUserId: auth.user.id,
+        action: "deposits_moved_to_bill",
+        entityType: "reservation",
+        entityId: id,
+        after: deposits,
       });
     }
 

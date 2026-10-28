@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { applyDepositsToFolio, snapshotDeposit } from "@/lib/hms/folio-deposits";
 import { z } from "zod";
 import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -622,6 +623,13 @@ export async function POST(req: Request) {
         discountPercent: parsed.discountPercent,
         discountScope: parsed.discountScope,
       });
+      // A booking checked in from this form brings its deposits onto the bill.
+      if (existingReservation) {
+        await applyDepositsToFolio(service, { tenantId: tenant.id, reservationId: reservation.id, userId: user.id, currency: pricing.currency });
+      }
+    } else if (!existingReservation) {
+      // A new booking keeps the deposit it was asked for, whatever the policy says later.
+      await snapshotDeposit(service, tenant.id, reservation.id);
     }
 
     const guestName = `${parsed.firstName} ${parsed.lastName}`;

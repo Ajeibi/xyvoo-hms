@@ -30,6 +30,8 @@ export type NightAuditBreakdown = {
   cashTotal: number;
   cardTotal: number;
   cityLedgerTotal: number;
+  /** Deposits taken before arrival and moved onto bills today (out of Advance Guest Deposits). */
+  depositsApplied: number;
   guestLedgerNet: number;
   unmatchedPaymentTotal: number;
   folioLineCount: number;
@@ -77,6 +79,7 @@ export async function computeNightAuditBreakdown(
   let folioPaymentsCash = 0;
   let folioPaymentsCard = 0;
   let folioPaymentsCityLedger = 0;
+  let folioPaymentsDeposit = 0;
   let unmatchedPaymentTotal = 0;
 
   const rows = (folioLines ?? []) as { kind: string; amount: number; method: string; department: string | null }[];
@@ -92,6 +95,7 @@ export async function computeNightAuditBreakdown(
       if (line.method === "cash") folioPaymentsCash += amount;
       else if (line.method === "card" || line.method === "pos") folioPaymentsCard += amount;
       else if (line.method === "direct_bill" || line.method === "split") folioPaymentsCityLedger += amount;
+      else if (line.method === "deposit") folioPaymentsDeposit += amount;
       else unmatchedPaymentTotal += amount;
     }
     // "transfer" kind lines are internal folio-to-folio reclassifications — excluded, since
@@ -124,7 +128,7 @@ export async function computeNightAuditBreakdown(
     folioFbRevenue +
     folioOtherRevenue +
     folioUnclassifiedRevenue -
-    (folioPaymentsCash + folioPaymentsCard + folioPaymentsCityLedger);
+    (folioPaymentsCash + folioPaymentsCard + folioPaymentsCityLedger + folioPaymentsDeposit);
 
   return {
     roomRevenue: folioRoomRevenue,
@@ -134,6 +138,7 @@ export async function computeNightAuditBreakdown(
     cashTotal: folioPaymentsCash + walkInCash,
     cardTotal: folioPaymentsCard + walkInCard,
     cityLedgerTotal: folioPaymentsCityLedger,
+    depositsApplied: folioPaymentsDeposit,
     guestLedgerNet,
     unmatchedPaymentTotal,
     folioLineCount: rows.length,
@@ -143,7 +148,7 @@ export async function computeNightAuditBreakdown(
 
 function buildLines(
   b: NightAuditBreakdown,
-  accts: { room: string; fb: string; other: string; misc: string; cash: string; card: string; cityLedger: string; guestLedger: string },
+  accts: { room: string; fb: string; other: string; misc: string; cash: string; card: string; cityLedger: string; guestLedger: string; deposits: string | null },
 ): JournalEntryLineInput[] {
   const lines: JournalEntryLineInput[] = [];
   const revenueLine = (amount: number, accountId: string, department: string) => {
@@ -160,6 +165,8 @@ function buildLines(
   if (b.cashTotal > 0) lines.push({ accountId: accts.cash, department: "Front Desk", debit: b.cashTotal, credit: 0 });
   if (b.cardTotal > 0) lines.push({ accountId: accts.card, department: "Front Desk", debit: b.cardTotal, credit: 0 });
   if (b.cityLedgerTotal > 0) lines.push({ accountId: accts.cityLedger, department: "Front Desk", debit: b.cityLedgerTotal, credit: 0 });
+  // A deposit moved onto a bill: the hotel no longer holds it for the guest, it pays their bill.
+  if (b.depositsApplied > 0 && accts.deposits) lines.push({ accountId: accts.deposits, department: "Front Desk", debit: b.depositsApplied, credit: 0 });
 
   if (b.guestLedgerNet > 0) lines.push({ accountId: accts.guestLedger, department: "Front Desk", debit: b.guestLedgerNet, credit: 0 });
   else if (b.guestLedgerNet < 0) lines.push({ accountId: accts.guestLedger, department: "Front Desk", debit: 0, credit: -b.guestLedgerNet });
@@ -192,7 +199,7 @@ export async function runNightAudit(
     }
   }
 
-  const [room, fb, other, misc, cash, card, cityLedger, guestLedger] = await Promise.all([
+  const [room, fb, other, misc, cash, card, cityLedger, guestLedger, deposits] = await Promise.all([
     getAccountIdByCode(service, params.tenantId, "4000"),
     getAccountIdByCode(service, params.tenantId, "4100"),
     getAccountIdByCode(service, params.tenantId, "4200"),
@@ -201,6 +208,7 @@ export async function runNightAudit(
     getAccountIdByCode(service, params.tenantId, "1020"),
     getAccountIdByCode(service, params.tenantId, "1300"),
     getAccountIdByCode(service, params.tenantId, "1200"),
+    getAccountIdByCode(service, params.tenantId, "2300"),
   ]);
   const missing = [
     ["Room Revenue (4000)", room],
@@ -226,7 +234,11 @@ export async function runNightAudit(
     card: card as string,
     cityLedger: cityLedger as string,
     guestLedger: guestLedger as string,
+    deposits: (deposits as string | null) ?? null,
   });
+  if (breakdown.depositsApplied > 0 && !deposits) {
+    return { ok: false, error: "Missing required accounts: Advance Guest Deposits (2300), for the deposits moved onto bills today." };
+  }
 
   if (lines.length < 2) {
     return { ok: false, error: `Nothing to post for ${params.auditDate} — no folio or F&B activity found.` };

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, BedDouble, History, NotebookPen, Receipt, UserRound } from "lucide-react";
 import HMSLayout from "@/components/hms/HMSLayout";
+import { ReservationDepositCard } from "@/components/hms/reservations/ReservationDepositCard";
 import { HmsCard, HmsEmptyState, HmsPage, HmsPageHeader, HmsPill, hmsButton } from "@/components/hms/hms-ui";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { getArrivalDetail } from "@/lib/hms/arrivals-workbench";
@@ -146,6 +147,8 @@ export default async function ReservationDetailPage({
               </div>
             </dl>
           </HmsCard>
+
+          <ReservationDepositCard slug={slug} reservationId={r.id} currency={pricing.currency} />
 
           <HmsCard id="reservation-notes" icon={NotebookPen} meaning="guests" title="Notes">
             <dl className="grid gap-4">

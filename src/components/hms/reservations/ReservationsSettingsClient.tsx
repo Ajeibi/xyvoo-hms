@@ -5,6 +5,7 @@ import { Banknote, FileText, KeyRound, Lock, LogOut, Percent } from "lucide-reac
 import { HmsCard, HmsField, HmsPage, HmsPageHeader, hmsButton, hmsInput } from "@/components/hms/hms-ui";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
+import { DepositPoliciesCard } from "@/components/hms/reservations/DepositPoliciesCard";
 
 const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2";
 
@@ -175,6 +176,8 @@ export function ReservationsSettingsClient({
           </div>
         </HmsField>
       </HmsCard>
+
+      <DepositPoliciesCard slug={slug} currency={currency} />
 
       <HmsCard id="invoice-settings" icon={FileText} meaning="money" title="Invoices">
         <div className="space-y-4">
