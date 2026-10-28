@@ -10,6 +10,7 @@ import {
 } from "@/lib/hms/folio-extra-nights";
 import { buildStaySummary, type StayReservation } from "@/lib/hms/folio-stay-summary";
 import { loadWindows, planWindowBilling, routeFor, summariseWindows } from "@/lib/hms/folio-windows";
+import { commissionFor } from "@/lib/hms/folio-commission";
 
 export type FolioAuth = Exclude<Awaited<ReturnType<typeof requireHotelApiMember>>, { error: string }>;
 
@@ -43,7 +44,7 @@ export async function loadReservation(
     .schema("hotel")
     .from("reservations")
     .select(
-      "id,confirmation_code,folio_number,status,settlement_method,preauth_amount,total_room_charges,rate_per_night,room_type_code,nights,departure_at,arrival_at,checked_in_at,rate_overridden,rate_override_reason,vat_applicable,tax_exempt,pricing_snapshot,extra_nights_confirmed_on,bill_to_account,po_number,folio_split_notes,commission_plan,commission_value,reservation_guests(is_primary,guests(first_name,last_name,email))",
+      "id,confirmation_code,folio_number,status,settlement_method,preauth_amount,total_room_charges,rate_per_night,room_type_code,nights,departure_at,arrival_at,checked_in_at,rate_overridden,rate_override_reason,vat_applicable,tax_exempt,pricing_snapshot,extra_nights_confirmed_on,travel_agent_vendor_id,agent_commission_percent,commission_bill_id,bill_to_account,po_number,folio_split_notes,commission_plan,commission_value,reservation_guests(is_primary,guests(first_name,last_name,email))",
     )
     .eq("id", reservationId)
     .eq("tenant_id", auth.tenant.id)
@@ -86,7 +87,28 @@ export async function loadFolioPayload(auth: FolioAuth, reservationId: string) {
   };
   const stay = buildStaySummary(reservation as StayReservation, folio.lines);
   const billing = await buildBilling(auth, reservationId, folio.lines, guestName, stay);
-  return { reservation, folio, settings, roomTypeName, guestName, guestEmail, extraNights, stay, billing };
+  const agent = await buildAgent(auth, reservation, folio.lines);
+  return { reservation, folio, settings, roomTypeName, guestName, guestEmail, extraNights, stay, billing, agent };
+}
+
+/** The stay's travel agent and their commission so far (final at check-out). */
+async function buildAgent(
+  auth: FolioAuth,
+  reservation: { travel_agent_vendor_id?: string | null; agent_commission_percent?: number | string | null; commission_bill_id?: string | null },
+  lines: Parameters<typeof commissionFor>[0],
+) {
+  if (!reservation.travel_agent_vendor_id) return null;
+  const { data: v } = await auth.service.schema("hotel").from("vendors").select("name").eq("tenant_id", auth.tenant.id).eq("id", reservation.travel_agent_vendor_id).maybeSingle();
+  const percent = Number(reservation.agent_commission_percent) || 0;
+  const { base, amount } = commissionFor(lines, percent);
+  return {
+    id: reservation.travel_agent_vendor_id,
+    name: (v?.name as string | undefined) ?? "Travel agent",
+    percent,
+    base,
+    commission: amount,
+    billed: Boolean(reservation.commission_bill_id),
+  };
 }
 
 /**

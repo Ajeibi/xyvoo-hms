@@ -116,6 +116,7 @@ export function FrontDeskCheckoutDialog({
   const [guestEmail, setGuestEmail] = useState<string | null>(null);
   // What the guest has really overpaid so far (not counting the early check-out credit, which is only posted at check-out).
   const [overpaid, setOverpaid] = useState(0);
+  const [agent, setAgent] = useState<{ name: string; percent: number; commission: number; billed: boolean } | null>(null);
   const [toAccounts, setToAccounts] = useState<{ window: string; payerName: string; accountName: string | null; amount: number }[]>([]);
 
   const reset = useCallback(() => {
@@ -192,6 +193,7 @@ export function FrontDeskCheckoutDialog({
         setBalance(due);
         setExtraNights(data.extraNights ?? null);
         setStay(data.stay ?? null);
+        setAgent(data.agent ?? null);
         setOverpaid(Math.max(0, -(data.billing?.windows?.find((w: { window: string; balance: number }) => w.window === "guest")?.balance ?? data.folio.balance)));
         setGuestEmail(data.reservation.guestEmail ?? null);
         setManualPayAmount(due > 0 ? String(due.toFixed(2)) : "");
@@ -324,6 +326,10 @@ export function FrontDeskCheckoutDialog({
             ? ` ${data.extraNights} extra night${data.extraNights === 1 ? " was" : "s were"} charged for staying past departure.`
             : ""
         }${
+          data.commission
+            ? ` Commission of ${formatPricingAmount(data.commission.amount, currency)} for ${data.commission.agent} was sent to Accounts${data.commission.status === "pending_approval" ? " for approval" : ""}.`
+            : ""
+        }${
           data.owedBack
             ? ` The guest is owed ${formatPricingAmount(data.owedBack, currency)} back: record it with Give money back on their bill.`
             : ""
@@ -439,6 +445,12 @@ export function FrontDeskCheckoutDialog({
                   {formatPricingAmount(balance, currency)}
                 </p>
               </div>
+
+              {agent && !agent.billed ? (
+                <p role="note" className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                  {`Travel agent: ${agent.name} earns ${agent.percent}% of the room, about ${formatPricingAmount(agent.commission, currency)}. It's sent to Accounts as a bill to pay when you complete the check-out. The guest doesn't pay it.`}
+                </p>
+              ) : null}
 
               {toAccounts.length > 0 ? (
                 <div role="note" className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-950">

@@ -16,6 +16,7 @@ import { setRoomStatus } from "@/lib/hms/room-status";
 import { executeKeyRevoke } from "@/lib/hms/integrations/smart-lock";
 import { assignInvoiceNumber, sendInvoiceEmail } from "@/lib/hms/folio-invoice";
 import { billWindowsToAccounts, loadWindows, planWindowBilling, summariseWindows } from "@/lib/hms/folio-windows";
+import { postCommissionBill } from "@/lib/hms/folio-commission";
 
 const CheckoutSchema = z
   .object({
@@ -293,14 +294,31 @@ export async function POST(req: Request) {
       });
     }
 
-    const commission = Number(reservation.commission_value);
-    if (reservation.commission_plan && commission > 0) {
+    // The travel agent's commission on the room, posted as a supplier bill the hotel owes them.
+    const commissionResult = await postCommissionBill(auth.service, {
+      tenantId: auth.tenant.id,
+      reservationId: reservation.id,
+      lines: finalLines.lines,
+      currency,
+      userId: auth.user.id,
+    });
+    if (commissionResult.posted) {
+      await writeAuditLog({
+        tenantId: auth.tenant.id,
+        actorUserId: auth.user.id,
+        action: "agent_commission_billed",
+        entityType: "reservation",
+        entityId: reservation.id,
+        after: { billId: commissionResult.billId, amount: commissionResult.amount, agent: commissionResult.agentName, status: commissionResult.status },
+      });
       await notifyCommissionDue({
         tenantId: auth.tenant.id,
         guestName,
-        amount: commission,
+        amount: commissionResult.amount,
         entityId: reservation.id,
       });
+    } else if (commissionResult.reason) {
+      console.warn("[checkout] commission not billed", commissionResult.reason);
     }
 
     return NextResponse.json({
@@ -314,6 +332,7 @@ export async function POST(req: Request) {
       // Nights past the automatic limit that staff chose not to confirm, so weren't charged.
       unchargedNights: extraNights.waitingNights.length > 0 ? extraNights.waitingNights.length : undefined,
       receiptSent,
+      commission: commissionResult.posted ? { agent: commissionResult.agentName, amount: commissionResult.amount, status: commissionResult.status } : undefined,
       owedBack: owedBack > 0.009 ? owedBack : undefined,
       billedToAccounts: billing.billed.length ? billing.billed : undefined,
       invoiceNumber: invoiceNumber ?? undefined,

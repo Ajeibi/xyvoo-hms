@@ -27,6 +27,7 @@ import { ExtraNightsNotice, type ExtraNightsInfo } from "@/components/hms/frontd
 import { InvoiceActions } from "@/components/hms/frontdesk/folio/InvoiceActions";
 import { FolioWindowsPanel } from "@/components/hms/frontdesk/folio/FolioWindowsPanel";
 import { RefundForm } from "@/components/hms/frontdesk/folio/RefundForm";
+import { TravelAgentCard, type StayAgent } from "@/components/hms/frontdesk/folio/TravelAgentCard";
 import { WINDOW_LABEL, type WindowSummary } from "@/lib/hms/folio-windows-shared";
 import type { FolioSplitLeg } from "@/lib/hms/folio";
 
@@ -56,6 +57,7 @@ type FolioPayload = {
   settings: { allowCheckoutWithBalance: boolean; hasManagerPin: boolean };
   extraNights?: ExtraNightsInfo;
   billing?: { windows: WindowSummary[]; dueNow: number };
+  agent?: StayAgent;
 };
 
 type SearchHit = {
@@ -493,13 +495,6 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
                 description={
                   <>
                     Booking {payload.reservation.confirmationCode} · {words(payload.reservation.status)}
-                    {payload.reservation.commissionPlan ? (
-                      <>
-                        {" "}
-                        · Commission: {payload.reservation.commissionPlan},{" "}
-                        {formatPricingAmount(Number(payload.reservation.commissionValue ?? 0), currency)}
-                      </>
-                    ) : null}
                   </>
                 }
               >
@@ -527,6 +522,16 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
                   windows={payload.billing?.windows ?? []}
                 />
               </HmsCard>
+
+              <TravelAgentCard
+                key={`${payload.reservation.id}-${payload.agent?.id ?? "none"}`}
+                slug={slug}
+                reservationId={payload.reservation.id}
+                currency={currency}
+                agent={payload.agent ?? null}
+                editable={payload.reservation.status === "checked_in" || payload.reservation.status === "confirmed"}
+                onChanged={() => void loadFolio(payload.reservation.id)}
+              />
 
               <FolioWindowsPanel
                 slug={slug}
@@ -1100,8 +1105,6 @@ function CorporateBillingForm({
         billToAccount: fd.get("billToAccount") || null,
         poNumber: fd.get("poNumber") || null,
         folioSplitNotes: fd.get("folioSplitNotes") || null,
-        commissionPlan: fd.get("commissionPlan") || null,
-        commissionValue: fd.get("commissionValue") ? Number(fd.get("commissionValue")) : null,
       }),
     });
     const data = await res.json().catch(() => ({}));
@@ -1114,7 +1117,7 @@ function CorporateBillingForm({
   };
 
   return (
-    <HmsCard id="folio-company-billing" icon={Building2} meaning="money" title="Company billing" description="Fill this in when a company or travel agent is paying for some or all of the stay.">
+    <HmsCard id="folio-company-billing" icon={Building2} meaning="money" title="Company billing" description="Fill this in when a company is paying for some or all of the stay. Travel agents have their own card.">
       <form onSubmit={submit} className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <F id="bill-to-account" label="Company account" optional>
@@ -1127,22 +1130,6 @@ function CorporateBillingForm({
         <F id="split-notes" label="Notes on splitting the bill" optional>
           <input id="split-notes" name="folioSplitNotes" defaultValue={payload.reservation.folioSplitNotes ?? ""} className={hmsInput} />
         </F>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <F id="commission-plan" label="Travel agent or commission plan" optional>
-            <input id="commission-plan" name="commissionPlan" defaultValue={payload.reservation.commissionPlan ?? ""} className={hmsInput} />
-          </F>
-          <F id="commission-value" label="Commission amount" optional>
-            <input
-              id="commission-value"
-              name="commissionValue"
-              type="number"
-              min="0"
-              step="0.01"
-              defaultValue={payload.reservation.commissionValue ?? ""}
-              className={hmsInput}
-            />
-          </F>
-        </div>
         <button type="submit" className={`${hmsButton.secondary} ${focusRing}`}>
           Save company billing
         </button>

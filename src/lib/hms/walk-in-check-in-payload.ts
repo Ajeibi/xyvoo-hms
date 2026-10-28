@@ -115,6 +115,8 @@ export const walkInCheckInPayloadSchema = z
     source: z.enum(["walk_in", "phone", "referral", "ota", "website", "travel_agent"]).default("walk_in"),
     bookingChannel: z.string().max(120).optional().nullable(),
     travelAgentName: z.string().max(120).optional().nullable(),
+    /** A travel agent from the hotel's list; they earn commission on this stay. */
+    travelAgentId: z.string().uuid().optional().nullable(),
     commissionPlan: z.string().max(120).optional().nullable(),
     commissionValue: z.coerce.number().min(0).optional().nullable(),
 

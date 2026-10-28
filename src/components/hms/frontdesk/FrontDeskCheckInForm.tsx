@@ -545,6 +545,7 @@ export function FrontDeskCheckInForm({
       marketSegment: marketSegmentField,
       source: sourceField,
       bookingChannel: String(form.get("bookingChannel") ?? "").trim() || null,
+      travelAgentId: String(form.get("travelAgentId") ?? "").trim() || null,
       travelAgentName: String(form.get("travelAgentName") ?? "").trim() || null,
       commissionPlan: String(form.get("commissionPlan") ?? "").trim() || null,
       commissionValue: (() => {
@@ -760,11 +761,9 @@ export function FrontDeskCheckInForm({
             setMarketSegment={setMarketSegmentField}
             source={sourceField}
             setSource={setSourceField}
-            currency={pricing.currency}
             bookingChannel={initialData?.bookingChannel}
-            travelAgentName={initialData?.travelAgentName}
-            commissionPlan={initialData?.commissionPlan}
-            commissionValue={initialData?.commissionValue}
+            slug={slug}
+            travelAgentId={initialData?.travelAgentId}
           />
 
           <DocumentationFieldset voucherNumber={initialData?.voucherNumber} />

@@ -51,6 +51,7 @@ export async function GET(req: Request) {
       extraNights: payload.extraNights,
       stay: payload.stay,
       billing: payload.billing,
+      agent: payload.agent,
     });
   } catch (e) {
     if (e instanceof z.ZodError) {

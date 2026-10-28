@@ -6,6 +6,7 @@ import { HmsCard, HmsField, HmsPage, HmsPageHeader, hmsButton, hmsInput } from "
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import { DepositPoliciesCard } from "@/components/hms/reservations/DepositPoliciesCard";
+import { TravelAgentsCard } from "@/components/hms/reservations/TravelAgentsCard";
 
 const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2";
 
@@ -178,6 +179,8 @@ export function ReservationsSettingsClient({
       </HmsCard>
 
       <DepositPoliciesCard slug={slug} currency={currency} />
+
+      <TravelAgentsCard slug={slug} />
 
       <HmsCard id="invoice-settings" icon={FileText} meaning="money" title="Invoices">
         <div className="space-y-4">
