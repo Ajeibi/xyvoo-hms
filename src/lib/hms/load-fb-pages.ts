@@ -20,7 +20,9 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type {
   FbKitchenTicket,
   FbMenuCategoryRow,
+  FbMenuItemModifierLink,
   FbMenuItemRow,
+  FbModifierGroupRow,
   FbOrderSettlementMethod,
   FbOrderWithItems,
   FbOutletRow,
@@ -28,6 +30,7 @@ import type {
   FbTableRow,
 } from "@/lib/hms/fb-types";
 import type { PublicMenuOutlet } from "@/lib/hms/fb-menu";
+import type { FbBillRates } from "@/lib/hms/fb-bill-rules";
 
 export type FbConfigPayload = {
   outlets: FbOutletRow[];
@@ -35,6 +38,10 @@ export type FbConfigPayload = {
   categories: FbMenuCategoryRow[];
   items: FbMenuItemRow[];
   tables: FbTableRow[];
+  modifierGroups: FbModifierGroupRow[];
+  modifierLinks: FbMenuItemModifierLink[];
+  /** Service charge, levy and VAT for new bills (POS estimate). */
+  billRates: FbBillRates;
 };
 
 export type FbOrderHistoryRow = {
@@ -308,6 +315,7 @@ export function filterKitchenTicketsByStation(
   stationCode: string,
 ): FbKitchenTicket[] {
   if (stationCode === "all") return tickets;
+  // Held look-ahead is per order, so a station view keeps only tickets with its own fired work.
   return tickets
     .map((ticket) => ({
       ...ticket,

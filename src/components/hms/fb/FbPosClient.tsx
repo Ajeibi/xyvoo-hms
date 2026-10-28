@@ -2,8 +2,25 @@
 
 import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
-import { Flame, Loader2, Minus, Plus, Receipt, Send, Settings, Trash2 } from "lucide-react";
+import { Flame, Loader2, Minus, Pencil, Plus, Receipt, Send, Settings, Trash2 } from "lucide-react";
+import {
+  draftLineKey,
+  groupsForMenuItem,
+  modifierLabel,
+  needsChoices,
+  normaliseItemNote,
+  resolveModifierSelection,
+} from "@/lib/hms/fb-modifier-rules";
+import {
+  defaultCourseFor,
+  FB_COURSES,
+  type FbFireMode,
+  hasSeveralCourses,
+} from "@/lib/hms/fb-course-rules";
+import { computeBillTotals, NO_BILL_CHARGES } from "@/lib/hms/fb-bill-rules";
+import { kitchenTicketPrintUrl, reservePrintWindow, useDevicePrintSetting } from "@/lib/hms/fb-print-links";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
+import { FbItemChoicesDialog, type FbItemChoices } from "@/components/hms/fb/FbItemChoicesDialog";
 import { useFbRealtime } from "@/hooks/useFbRealtime";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { cn } from "@/lib/utils";
@@ -17,15 +34,36 @@ type FbConfig = {
   categories: FbConfigPayload["categories"];
   items: FbConfigPayload["items"];
   tables: FbConfigPayload["tables"];
+  modifierGroups: FbConfigPayload["modifierGroups"];
+  modifierLinks: FbConfigPayload["modifierLinks"];
+  billRates?: FbConfigPayload["billRates"];
 };
 
 type DraftLine = {
+  /** Item + choices + note: the same dish made two ways is two lines. */
+  key: string;
   menuItemId: string;
   outletId: string;
   name: string;
+  /** Unit price including choices. */
   price: number;
   quantity: number;
+  optionIds: string[];
+  choiceLabels: string[];
+  note: string | null;
+  course: number;
+  /** Seat at the table, for splitting by seat later. */
+  seat: number | null;
 };
+
+const FIRE_MODES: { value: FbFireMode; label: string; hint: string }[] = [
+  { value: "first_course", label: "First course now", hint: "Later courses wait until you fire them from Open orders." },
+  { value: "all", label: "Everything now", hint: "Every course goes to the kitchen at once." },
+  { value: "hold", label: "Hold all courses", hint: "Only straight-away items go now. Fire the food from Open orders." },
+];
+
+/** The choices dialog is open for a new item, or to change a line already on the ticket. */
+type ChoicesTarget = { menuItemId: string; editKey: string | null };
 
 function pickDefaultOutletId(outlets: FbConfigPayload["outlets"]) {
   const restaurant = outlets.find((o) => o.outlet_type === "restaurant" && o.is_active);
@@ -33,7 +71,11 @@ function pickDefaultOutletId(outlets: FbConfigPayload["outlets"]) {
 }
 
 function emptyDraft() {
-  return { lines: [] as DraftLine[], rush: false };
+  return { lines: [] as DraftLine[], rush: false, fireMode: "first_course" as FbFireMode };
+}
+
+function lineKey(menuItemId: string, optionIds: string[], note: string | null, course: number, seat: number | null) {
+  return `${draftLineKey(menuItemId, optionIds, note)}|c${course}|s${seat ?? ""}`;
 }
 
 export function FbPosClient({
@@ -52,7 +94,12 @@ export function FbPosClient({
     categories: initial.config.categories,
     items: initial.config.items,
     tables: initial.config.tables,
+    modifierGroups: initial.config.modifierGroups ?? [],
+    modifierLinks: initial.config.modifierLinks ?? [],
+    billRates: initial.config.billRates,
   });
+  const [choicesTarget, setChoicesTarget] = useState<ChoicesTarget | null>(null);
+  const [printTickets, setPrintTickets] = useDevicePrintSetting("kitchen-ticket-on-send");
   const [outletId, setOutletId] = useState<string>(() => pickDefaultOutletId(initial.config.outlets));
   const [tableId, setTableId] = useState<string | null>(null);
   const [tabLabel, setTabLabel] = useState("");
@@ -70,6 +117,9 @@ export function FbPosClient({
         categories: cfg.categories,
         items: cfg.items,
         tables: cfg.tables ?? [],
+        modifierGroups: cfg.modifierGroups ?? [],
+        modifierLinks: cfg.modifierLinks ?? [],
+        billRates: cfg.billRates,
       });
       setOutletId((prev) => {
         if (prev && cfg.outlets?.some((o: { id: string }) => o.id === prev)) return prev;
@@ -115,10 +165,50 @@ export function FbPosClient({
     () => draft.lines.reduce((sum, line) => sum + line.price * line.quantity, 0),
     [draft.lines],
   );
+  // An estimate with the hotel's current rates; the bill keeps the rates it opens with.
+  const draftTotals = useMemo(
+    () => computeBillTotals(draftSubtotal, config.billRates ?? NO_BILL_CHARGES),
+    [draftSubtotal, config.billRates],
+  );
 
-  const draftQtyByItemId = useMemo(
-    () => new Map(draft.lines.map((line) => [line.menuItemId, line.quantity])),
+  const draftQtyByItemId = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const line of draft.lines) map.set(line.menuItemId, (map.get(line.menuItemId) ?? 0) + line.quantity);
+    return map;
+  }, [draft.lines]);
+
+  const defaultCourseForItem = useCallback(
+    (item: { category_id: string | null; outlet_id: string }) =>
+      defaultCourseFor(
+        config.categories.find((c) => c.id === item.category_id)?.default_course ?? null,
+        config.outlets.find((o) => o.id === item.outlet_id)?.outlet_type ?? null,
+      ),
+    [config.categories, config.outlets],
+  );
+
+  const ticketHasCourses = useMemo(
+    () => hasSeveralCourses(draft.lines.map((l) => l.course)),
     [draft.lines],
+  );
+
+  /** Moves a ticket line to another course (merging with an identical line there). */
+  const changeLineCourse = (key: string, course: number) => {
+    const line = draft.lines.find((l) => l.key === key);
+    if (!line || line.course === course) return;
+    putLine(line.menuItemId, { optionIds: line.optionIds, note: line.note ?? "" }, key, { course });
+  };
+
+  /** Moves a ticket line to another seat (merging with an identical line there). */
+  const changeLineSeat = (key: string, seat: number | null) => {
+    const line = draft.lines.find((l) => l.key === key);
+    if (!line || line.seat === seat) return;
+    putLine(line.menuItemId, { optionIds: line.optionIds, note: line.note ?? "" }, key, { seat });
+  };
+
+  const itemGroups = useCallback(
+    (menuItemId: string) =>
+      groupsForMenuItem(menuItemId, { groups: config.modifierGroups, links: config.modifierLinks }),
+    [config.modifierGroups, config.modifierLinks],
   );
 
   const outletNameById = useMemo(
@@ -133,6 +223,61 @@ export function FbPosClient({
     setOutletId(id);
   };
 
+  /**
+   * Puts an item on the ticket with the given choices and note. If the same
+   * item, choices and note are already there, that line's quantity goes up.
+   * `replaceKey` swaps out a line being edited (keeping its quantity).
+   */
+  const putLine = (
+    menuItemId: string,
+    choices: FbItemChoices,
+    replaceKey: string | null = null,
+    overrides: { course?: number; seat?: number | null } = {},
+  ) => {
+    const menuItem = config.items.find((i) => i.id === menuItemId);
+    if (!menuItem) return;
+    const groups = itemGroups(menuItemId);
+    const check = resolveModifierSelection(groups, choices.optionIds, menuItem.price);
+    if (!check.ok) {
+      toastError("Check the choices", check.error);
+      return;
+    }
+    const note = normaliseItemNote(choices.note);
+    const editing = replaceKey ? draft.lines.find((l) => l.key === replaceKey) : undefined;
+    const course = overrides.course ?? editing?.course ?? defaultCourseForItem(menuItem);
+    const seat = overrides.seat !== undefined ? overrides.seat : (editing?.seat ?? null);
+    const key = lineKey(menuItemId, choices.optionIds, note, course, seat);
+    const fresh: Omit<DraftLine, "quantity"> = {
+      course,
+      seat,
+      key,
+      menuItemId,
+      outletId: menuItem.outlet_id,
+      name: menuItem.name,
+      price: menuItem.price + check.priceDelta,
+      optionIds: check.chosen.map((c) => c.optionId),
+      choiceLabels: check.chosen.map((c) => modifierLabel({ name: c.optionName, price_delta: c.priceDelta }, (n) => formatPricingAmount(n, currency))),
+      note,
+    };
+
+    setDraft((prev) => {
+      const replaced = replaceKey ? prev.lines.find((l) => l.key === replaceKey) : undefined;
+      const addQty = replaced?.quantity ?? 1;
+      let lines = replaceKey ? prev.lines.filter((l) => l.key !== replaceKey) : prev.lines;
+      const existing = lines.find((l) => l.key === key);
+      if (existing) {
+        lines = lines.map((l) => (l.key === key ? { ...l, quantity: l.quantity + addQty } : l));
+      } else if (replaced) {
+        // Keep the edited line where it was on the ticket.
+        const at = prev.lines.findIndex((l) => l.key === replaceKey);
+        lines = [...lines.slice(0, at), { ...fresh, quantity: addQty }, ...lines.slice(at)];
+      } else {
+        lines = [...lines, { ...fresh, quantity: 1 }];
+      }
+      return { ...prev, lines };
+    });
+  };
+
   const addItem = (menuItemId: string) => {
     const menuItem = allMenuItems.find((i) => i.id === menuItemId);
     if (!menuItem) return;
@@ -140,57 +285,39 @@ export function FbPosClient({
       toastError("Sold out", `${menuItem.name} is off the menu until marked back in stock.`);
       return;
     }
-    setDraft((prev) => {
-      const existing = prev.lines.find((line) => line.menuItemId === menuItemId);
-      if (existing) {
-        return {
-          ...prev,
-          lines: prev.lines.map((line) =>
-            line.menuItemId === menuItemId
-              ? { ...line, quantity: line.quantity + 1 }
-              : line,
-          ),
-        };
-      }
-      return {
-        ...prev,
-        lines: [
-          ...prev.lines,
-          {
-            menuItemId,
-            outletId: menuItem.outlet_id,
-            name: menuItem.name,
-            price: menuItem.price,
-            quantity: 1,
-          },
-        ],
-      };
-    });
+    if (needsChoices(itemGroups(menuItemId))) {
+      setChoicesTarget({ menuItemId, editKey: null });
+      return;
+    }
+    putLine(menuItemId, { optionIds: [], note: "" });
   };
 
-  const adjustDraftQuantity = (menuItemId: string, delta: number) => {
+  const adjustDraftQuantity = (key: string, delta: number) => {
     setDraft((prev) => {
-      const line = prev.lines.find((l) => l.menuItemId === menuItemId);
+      const line = prev.lines.find((l) => l.key === key);
       if (!line) return prev;
       const nextQty = line.quantity + delta;
       if (nextQty <= 0) {
-        return { ...prev, lines: prev.lines.filter((l) => l.menuItemId !== menuItemId) };
+        return { ...prev, lines: prev.lines.filter((l) => l.key !== key) };
       }
       return {
         ...prev,
-        lines: prev.lines.map((l) =>
-          l.menuItemId === menuItemId ? { ...l, quantity: nextQty } : l,
-        ),
+        lines: prev.lines.map((l) => (l.key === key ? { ...l, quantity: nextQty } : l)),
       };
     });
   };
 
-  const removeDraftLine = (menuItemId: string) => {
+  const removeDraftLine = (key: string) => {
     setDraft((prev) => ({
       ...prev,
-      lines: prev.lines.filter((l) => l.menuItemId !== menuItemId),
+      lines: prev.lines.filter((l) => l.key !== key),
     }));
   };
+
+  const choicesItem = choicesTarget ? config.items.find((i) => i.id === choicesTarget.menuItemId) : undefined;
+  const choicesLine = choicesTarget?.editKey
+    ? draft.lines.find((l) => l.key === choicesTarget.editKey)
+    : undefined;
 
   const sendToKitchen = async () => {
     if (!draft.lines.length || sending) return;
@@ -199,6 +326,8 @@ export function FbPosClient({
     // use whichever outlet the first item came from rather than whichever
     // menu happens to be on screen right now.
     const primaryOutletId = draft.lines[0]?.outletId ?? outletId;
+    // Opened during the click so the browser doesn't block it as a pop-up.
+    const printWindow = printTickets ? reservePrintWindow() : null;
 
     setSending(true);
     try {
@@ -213,16 +342,24 @@ export function FbPosClient({
           items: draft.lines.map((line) => ({
             menuItemId: line.menuItemId,
             quantity: line.quantity,
+            modifierOptionIds: line.optionIds,
+            notes: line.note,
+            course: line.course,
+            seat: line.seat,
           })),
           rush: draft.rush,
           sendToKitchen: true,
+          fireMode: ticketHasCourses ? draft.fireMode : "all",
         }),
       });
       const data = await res.json();
       if (!res.ok) {
+        printWindow?.cancel();
         toastError("Send failed", data.error ?? "Try again.");
         return;
       }
+      if (printWindow && data.order?.id) printWindow.go(kitchenTicketPrintUrl(slug, data.order.id));
+      else printWindow?.cancel();
       toastSuccess("Sent to kitchen", data.order?.order_number ? `#${data.order.order_number}` : undefined);
       setDraft(emptyDraft());
       setTableId(null);
@@ -456,14 +593,55 @@ export function FbPosClient({
               <div className="mt-3 space-y-3">
                 <HmsPill tone="amber">Draft, not sent yet</HmsPill>
                 <ul className="space-y-2 text-sm">
-                  {draft.lines.map((line) => (
+                  {[...draft.lines].sort((a, b) => a.course - b.course).map((line) => (
                     <li
-                      key={line.menuItemId}
+                      key={line.key}
                       className="rounded-xl border border-orange-100 bg-orange-50/50 p-2.5"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
                           <p className="font-medium text-slate-900">{line.name}</p>
+                          {line.choiceLabels.length ? (
+                            <p className="text-sm text-slate-700">{line.choiceLabels.join(", ")}</p>
+                          ) : null}
+                          {line.note ? (
+                            <p className="text-sm italic text-amber-900">Note: {line.note}</p>
+                          ) : null}
+                          <div className="mt-1 flex flex-wrap items-center gap-3">
+                          <label className="flex items-center gap-1.5 text-xs text-slate-700">
+                            Course
+                            <select
+                              value={line.course}
+                              disabled={sending}
+                              onChange={(e) => changeLineCourse(line.key, Number(e.target.value))}
+                              className="min-h-8 rounded-md border border-slate-300 bg-white px-1.5 py-0.5 text-xs font-medium text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                              aria-label={`Course for ${line.name}`}
+                            >
+                              {FB_COURSES.map((c) => (
+                                <option key={c.value} value={c.value}>
+                                  {c.label}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="flex items-center gap-1.5 text-xs text-slate-700">
+                            Seat
+                            <select
+                              value={line.seat ?? ""}
+                              disabled={sending}
+                              onChange={(e) => changeLineSeat(line.key, e.target.value ? Number(e.target.value) : null)}
+                              className="min-h-8 rounded-md border border-slate-300 bg-white px-1.5 py-0.5 text-xs font-medium text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                              aria-label={`Seat for ${line.name}`}
+                            >
+                              <option value="">Shared</option>
+                              {Array.from({ length: 12 }, (_, i) => i + 1).map((n) => (
+                                <option key={n} value={n}>
+                                  {n}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          </div>
                           {activeOutlets.length > 1 ? (
                             <p className="text-xs text-slate-600">
                               {outletNameById.get(line.outletId) ?? ""}
@@ -479,7 +657,7 @@ export function FbPosClient({
                           <button
                             type="button"
                             disabled={sending}
-                            onClick={() => adjustDraftQuantity(line.menuItemId, -1)}
+                            onClick={() => adjustDraftQuantity(line.key, -1)}
                             className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-50"
                             aria-label={`Decrease ${line.name}`}
                           >
@@ -491,32 +669,103 @@ export function FbPosClient({
                           <button
                             type="button"
                             disabled={sending}
-                            onClick={() => adjustDraftQuantity(line.menuItemId, 1)}
+                            onClick={() => adjustDraftQuantity(line.key, 1)}
                             className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-50"
                             aria-label={`Increase ${line.name}`}
                           >
                             <Plus className="h-4 w-4" aria-hidden />
                           </button>
                         </div>
-                        <button
-                          type="button"
-                          disabled={sending}
-                          onClick={() => removeDraftLine(line.menuItemId)}
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-red-700 hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-50"
-                          aria-label={`Remove ${line.name}`}
-                        >
-                          <Trash2 className="h-4 w-4" aria-hidden />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            disabled={sending}
+                            onClick={() => setChoicesTarget({ menuItemId: line.menuItemId, editKey: line.key })}
+                            className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2 text-sm font-medium text-blue-700 hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-50"
+                          >
+                            <Pencil className="h-4 w-4" aria-hidden />
+                            {needsChoices(itemGroups(line.menuItemId)) ? "Change" : line.note ? "Note" : "Add note"}
+                            <span className="sr-only"> for {line.name}</span>
+                          </button>
+                          <button
+                            type="button"
+                            disabled={sending}
+                            onClick={() => removeDraftLine(line.key)}
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-red-700 hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-50"
+                            aria-label={`Remove ${line.name}`}
+                          >
+                            <Trash2 className="h-4 w-4" aria-hidden />
+                          </button>
+                        </div>
                       </div>
                     </li>
                   ))}
                 </ul>
-                <div className="flex items-baseline justify-between rounded-xl bg-emerald-50 px-3 py-2.5">
-                  <span className="text-sm font-medium text-emerald-900">Total</span>
-                  <span className="font-heading text-xl font-bold tabular-nums text-slate-900">
-                    {formatPricingAmount(draftSubtotal, currency)}
-                  </span>
+                <div className="rounded-xl bg-emerald-50 px-3 py-2.5">
+                  {draftTotals.total !== draftTotals.itemsTotal || draftTotals.taxIncluded ? (
+                    <dl className="mb-1 space-y-0.5 text-sm text-emerald-950">
+                      <div className="flex justify-between">
+                        <dt>Items</dt>
+                        <dd className="tabular-nums">{formatPricingAmount(draftTotals.itemsTotal, currency)}</dd>
+                      </div>
+                      {draftTotals.serviceCharge > 0 ? (
+                        <div className="flex justify-between">
+                          <dt>Service charge</dt>
+                          <dd className="tabular-nums">{formatPricingAmount(draftTotals.serviceCharge, currency)}</dd>
+                        </div>
+                      ) : null}
+                      {draftTotals.levy > 0 ? (
+                        <div className="flex justify-between">
+                          <dt>State levy{draftTotals.taxIncluded ? " (in prices)" : ""}</dt>
+                          <dd className="tabular-nums">{formatPricingAmount(draftTotals.levy, currency)}</dd>
+                        </div>
+                      ) : null}
+                      {draftTotals.vat > 0 ? (
+                        <div className="flex justify-between">
+                          <dt>
+                            VAT
+                            {draftTotals.taxIncluded
+                              ? draftTotals.serviceCharge > 0
+                                ? " (in prices + on service)"
+                                : " (in prices)"
+                              : ""}
+                          </dt>
+                          <dd className="tabular-nums">{formatPricingAmount(draftTotals.vat, currency)}</dd>
+                        </div>
+                      ) : null}
+                    </dl>
+                  ) : null}
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-sm font-medium text-emerald-900">Total</span>
+                    <span className="font-heading text-xl font-bold tabular-nums text-slate-900">
+                      {formatPricingAmount(draftTotals.total, currency)}
+                    </span>
+                  </div>
                 </div>
+                {ticketHasCourses ? (
+                  <fieldset className="rounded-xl border border-slate-200 p-3">
+                    <legend className="px-1 text-sm font-medium text-slate-800">When should the kitchen start?</legend>
+                    <div className="space-y-1.5">
+                      {FIRE_MODES.map((m) => (
+                        <label key={m.value} className="flex cursor-pointer items-start gap-2 text-sm text-slate-800">
+                          <input
+                            type="radio"
+                            name="fb-pos-fire-mode"
+                            value={m.value}
+                            checked={draft.fireMode === m.value}
+                            disabled={sending}
+                            onChange={() => setDraft((prev) => ({ ...prev, fireMode: m.value }))}
+                            className="mt-0.5 h-4 w-4 accent-orange-600"
+                          />
+                          <span>
+                            <span className="font-medium">{m.label}</span>
+                            <span className="block text-xs text-slate-600">{m.hint}</span>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                ) : null}
                 <div className="flex flex-col gap-2">
                   <button
                     type="button"
@@ -548,6 +797,16 @@ export function FbPosClient({
                   <button type="button" disabled={sending} onClick={clearDraft} className={cn(hmsButton.secondary, "min-h-11 w-full")}>
                     Clear ticket
                   </button>
+                  <label className="flex items-center gap-2 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={printTickets}
+                      onChange={(e) => setPrintTickets(e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-300"
+                    />
+                    Print a kitchen ticket when I send
+                    <span className="sr-only"> (remembered on this device)</span>
+                  </label>
                 </div>
               </div>
             ) : (
@@ -556,6 +815,26 @@ export function FbPosClient({
           </div>
         </aside>
       </div>
+      ) : null}
+
+      {choicesTarget && choicesItem ? (
+        <FbItemChoicesDialog
+          key={`${choicesTarget.menuItemId}:${choicesTarget.editKey ?? "new"}`}
+          open
+          itemName={choicesItem.name}
+          basePrice={choicesItem.price}
+          currency={currency}
+          groups={itemGroups(choicesTarget.menuItemId)}
+          initial={
+            choicesLine ? { optionIds: choicesLine.optionIds, note: choicesLine.note ?? "" } : undefined
+          }
+          confirmLabel={choicesLine ? "Update" : "Add to order"}
+          onCancel={() => setChoicesTarget(null)}
+          onConfirm={(choices) => {
+            putLine(choicesTarget.menuItemId, choices, choicesTarget.editKey);
+            setChoicesTarget(null);
+          }}
+        />
       ) : null}
     </div>
   );

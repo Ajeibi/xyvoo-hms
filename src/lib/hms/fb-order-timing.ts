@@ -218,10 +218,10 @@ export function isOrderFullyServed(items: KitchenItem[]) {
   return active.length > 0 && active.every((item) => item.kitchen_status === "served");
 }
 
+/** Something the kitchen has finished is waiting to go out (a course can go while others are held). */
 export function canMarkOrderServed(order: { status: string; items: KitchenItem[] }) {
   return (
-    order.status === "ready" &&
-    isKitchenWorkComplete(order.items) &&
-    !isOrderFullyServed(order.items)
+    (order.status === "ready" || order.status === "sent_to_kitchen") &&
+    order.items.some((item) => item.kitchen_status === "ready")
   );
 }

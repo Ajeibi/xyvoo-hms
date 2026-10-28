@@ -2,13 +2,37 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { insertFolioLine } from "@/lib/hms/folio";
 import { isKitchenWorkComplete, isOrderFullyServed } from "@/lib/hms/fb-order-timing";
 import { listIngredientsForMenuItems } from "@/lib/hms/fb-menu-ingredients";
+import {
+  type FbChosenModifier,
+  normaliseItemNote,
+  resolveModifierSelection,
+} from "@/lib/hms/fb-modifier-rules";
+import { loadModifierGroupsForMenuItem, loadOrderItemModifiers } from "@/lib/hms/fb-modifiers";
+import { mergeBlockReason, planSplit, splitBlockReason } from "@/lib/hms/fb-split-rules";
+import { computeBillTotals } from "@/lib/hms/fb-bill-rules";
+import { getTenantFbSettings } from "@/lib/hms/fb-settings";
+import {
+  courseLabel,
+  defaultCourseFor,
+  type FbFireMode,
+  itemsToFire,
+  itemsToFireForCourse,
+} from "@/lib/hms/fb-course-rules";
+import {
+  type FbOutletTender,
+  leftToPay,
+  resolvePartPayment,
+  roomChargeBlockReason,
+  roundMoney,
+  settlementBlockReason,
+} from "@/lib/hms/fb-payment-rules";
 import { postStockMovement } from "@/lib/hms/inventory-stock";
 import type {
   FbKitchenStatus,
   FbKitchenTicket,
   FbOrderItemRow,
+  FbOrderPayment,
   FbOrderRow,
-  FbOrderSettlementMethod,
   FbOrderStatus,
   FbOrderWithItems,
 } from "@/lib/hms/fb-types";
@@ -41,6 +65,23 @@ function mapOrder(r: Record<string, unknown>): FbOrderRow {
   closed_at: (r.closed_at as string) ?? null,
     voided_at: (r.voided_at as string) ?? null,
     settlement_method: (r.settlement_method as FbOrderRow["settlement_method"]) ?? null,
+    settled_at: (r.settled_at as string) ?? null,
+    settled_by: (r.settled_by as string) ?? null,
+    amount_tendered: r.amount_tendered == null ? null : num(r.amount_tendered),
+    change_given: r.change_given == null ? null : num(r.change_given),
+    paid_amount: num(r.paid_amount),
+    items_total: num(r.items_total),
+    service_charge_amount: num(r.service_charge_amount),
+    levy_amount: num(r.levy_amount),
+    vat_amount: num(r.vat_amount),
+    service_charge_percent: num(r.service_charge_percent),
+    levy_percent: num(r.levy_percent),
+    vat_percent: num(r.vat_percent),
+    prices_include_tax: r.prices_include_tax !== false,
+    service_charge_waived_reason: (r.service_charge_waived_reason as string) ?? null,
+    split_from_order_id: (r.split_from_order_id as string) ?? null,
+    bill_number: r.bill_number == null ? 1 : Number(r.bill_number),
+    merged_into_order_id: (r.merged_into_order_id as string) ?? null,
     subtotal: num(r.subtotal),
     notes: (r.notes as string) ?? null,
     created_at: r.created_at as string,
@@ -61,6 +102,15 @@ export function mapOrderItem(r: Record<string, unknown>): FbOrderItemRow {
     station_code_snapshot: (r.station_code_snapshot as string) ?? null,
     kitchen_status: r.kitchen_status as FbKitchenStatus,
     notes: (r.notes as string) ?? null,
+    modifiers: [],
+    course: r.course == null ? 1 : Number(r.course),
+    fired_at: (r.fired_at as string) ?? null,
+    seat: r.seat == null ? null : Number(r.seat),
+    void_reason: (r.void_reason as string) ?? null,
+    voided_at: (r.voided_at as string) ?? null,
+    comp_reason: (r.comp_reason as string) ?? null,
+    comped_at: (r.comped_at as string) ?? null,
+    original_price: r.original_price == null ? null : num(r.original_price),
     created_at: r.created_at as string,
   };
 }
@@ -74,14 +124,46 @@ async function loadOrderItems(supabase: SupabaseClient, orderIds: string[]) {
     .in("order_id", orderIds)
     .order("created_at", { ascending: true });
 
+  const modifiersByItem = await loadOrderItemModifiers(
+    supabase,
+    (data ?? []).map((r) => r.id as string),
+  );
+
   const byOrder = new Map<string, FbOrderItemRow[]>();
   for (const row of data ?? []) {
     const item = mapOrderItem(row as Record<string, unknown>);
+    item.modifiers = modifiersByItem.get(item.id) ?? [];
     const list = byOrder.get(item.order_id) ?? [];
     list.push(item);
     byOrder.set(item.order_id, list);
   }
   return byOrder;
+}
+
+/** order_id -> its payments, oldest first. */
+async function loadOrderPayments(supabase: SupabaseClient, orderIds: string[]) {
+  const map = new Map<string, FbOrderPayment[]>();
+  if (!orderIds.length) return map;
+  const { data } = await supabase
+    .schema("hotel")
+    .from("fb_order_payments")
+    .select("id,order_id,method,amount,amount_tendered,change_given,share_label,created_at")
+    .in("order_id", orderIds)
+    .order("created_at", { ascending: true });
+  for (const r of data ?? []) {
+    const list = map.get(r.order_id as string) ?? [];
+    list.push({
+      id: r.id as string,
+      method: r.method as FbOrderPayment["method"],
+      amount: num(r.amount),
+      amount_tendered: r.amount_tendered == null ? null : num(r.amount_tendered),
+      change_given: num(r.change_given),
+      share_label: (r.share_label as string) ?? null,
+      created_at: r.created_at as string,
+    });
+    map.set(r.order_id as string, list);
+  }
+  return map;
 }
 
 export async function recalcOrderSubtotal(supabase: SupabaseClient, orderId: string, tenantId: string) {
@@ -92,14 +174,35 @@ export async function recalcOrderSubtotal(supabase: SupabaseClient, orderId: str
     .eq("order_id", orderId)
     .neq("kitchen_status", "voided");
 
-  const subtotal = (items ?? []).reduce((sum, i) => sum + num(i.price_snapshot) * num(i.quantity), 0);
+  const itemsTotal = (items ?? []).reduce((sum, i) => sum + num(i.price_snapshot) * num(i.quantity), 0);
+  // Service charge and taxes use the rates copied onto this bill when it was opened.
+  const { data: rates } = await supabase
+    .schema("hotel")
+    .from("fb_orders")
+    .select("service_charge_percent,levy_percent,vat_percent,prices_include_tax")
+    .eq("id", orderId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  const totals = computeBillTotals(itemsTotal, {
+    service_charge_percent: num(rates?.service_charge_percent),
+    levy_percent: num(rates?.levy_percent),
+    vat_percent: num(rates?.vat_percent),
+    prices_include_tax: rates?.prices_include_tax !== false,
+  });
   await supabase
     .schema("hotel")
     .from("fb_orders")
-    .update({ subtotal, updated_at: new Date().toISOString() })
+    .update({
+      subtotal: totals.total,
+      items_total: totals.itemsTotal,
+      service_charge_amount: totals.serviceCharge,
+      levy_amount: totals.levy,
+      vat_amount: totals.vat,
+      updated_at: new Date().toISOString(),
+    })
     .eq("id", orderId)
     .eq("tenant_id", tenantId);
-  return Math.round(subtotal * 100) / 100;
+  return totals.total;
 }
 
 export async function loadOrders(
@@ -124,10 +227,16 @@ export async function loadOrders(
 
   const { data: orders } = await q;
   const orderRows = (orders ?? []).map((r) => mapOrder(r as Record<string, unknown>));
-  const itemsByOrder = await loadOrderItems(
-    supabase,
-    orderRows.map((o) => o.id),
-  );
+  const [itemsByOrder, paymentsByOrder] = await Promise.all([
+    loadOrderItems(
+      supabase,
+      orderRows.map((o) => o.id),
+    ),
+    loadOrderPayments(
+      supabase,
+      orderRows.filter((o) => o.paid_amount > 0).map((o) => o.id),
+    ),
+  ]);
 
   const tableIds = [...new Set(orderRows.map((o) => o.table_id).filter(Boolean))] as string[];
   const outletIds = [...new Set(orderRows.map((o) => o.outlet_id))];
@@ -160,6 +269,7 @@ export async function loadOrders(
     return {
       ...order,
       items,
+      payments: paymentsByOrder.get(order.id) ?? [],
       table_code: order.table_id ? (tableById.get(order.table_id) ?? null) : null,
       outlet_name: outletById.get(order.outlet_id)?.name,
       outlet_type: outletById.get(order.outlet_id)?.type as FbOrderWithItems["outlet_type"],
@@ -242,7 +352,10 @@ export async function loadOrderById(
   if (!data) return null;
 
   const order = mapOrder(data as Record<string, unknown>);
-  const itemsByOrder = await loadOrderItems(supabase, [orderId]);
+  const [itemsByOrder, paymentsByOrder] = await Promise.all([
+    loadOrderItems(supabase, [orderId]),
+    loadOrderPayments(supabase, order.paid_amount > 0 ? [orderId] : []),
+  ]);
   const items = itemsByOrder.get(orderId) ?? [];
 
   const [{ data: table }, { data: outlet }] = await Promise.all([
@@ -265,6 +378,7 @@ export async function loadOrderById(
   return {
     ...order,
     items,
+    payments: paymentsByOrder.get(orderId) ?? [],
     table_code: table ? (table.table_code as string) : null,
     outlet_name: outlet ? (outlet.name as string) : undefined,
     outlet_type: outlet ? (outlet.outlet_type as FbOrderWithItems["outlet_type"]) : undefined,
@@ -284,10 +398,12 @@ export async function createFbOrder(
     rush?: boolean;
   },
 ) {
+  const { billRates } = await getTenantFbSettings(supabase, params.tenantId);
   const { data, error } = await supabase
     .schema("hotel")
     .from("fb_orders")
     .insert({
+      ...billRates,
       tenant_id: params.tenantId,
       outlet_id: params.outletId,
       order_number: orderNumber(),
@@ -306,78 +422,462 @@ export async function createFbOrder(
   return { order: mapOrder(data as Record<string, unknown>), error: null };
 }
 
+export type FbOrderLineInput = {
+  menuItemId: string;
+  modifierOptionIds?: string[];
+  notes?: string | null;
+  /** Leave out to use the category's default course. */
+  course?: number | null;
+  seat?: number | null;
+};
+
+export type ResolvedOrderLine = {
+  menuItemId: string;
+  name: string;
+  unitPrice: number;
+  stationId: string | null;
+  stationCode: string | null;
+  notes: string | null;
+  modifiers: FbChosenModifier[];
+  course: number;
+  seat: number | null;
+};
+
+/**
+ * Checks one line (item, choices, note) and prices it, without writing
+ * anything — so a whole ticket can be checked before the order is created.
+ */
+export async function resolveOrderLine(
+  supabase: SupabaseClient,
+  tenantId: string,
+  line: FbOrderLineInput,
+): Promise<{ line: ResolvedOrderLine | null; error: string | null }> {
+  const { data: menuItem } = await supabase
+    .schema("hotel")
+    .from("fb_menu_items")
+    .select("*")
+    .eq("id", line.menuItemId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+
+  if (!menuItem || !menuItem.is_available) {
+    return { line: null, error: menuItem ? `${menuItem.name} is sold out.` : "Menu item unavailable." };
+  }
+
+  const groups = await loadModifierGroupsForMenuItem(supabase, tenantId, line.menuItemId);
+  const basePrice = num(menuItem.price);
+  const selection = resolveModifierSelection(groups, line.modifierOptionIds ?? [], basePrice);
+  if (!selection.ok) return { line: null, error: `${menuItem.name}: ${selection.error}` };
+
+  const [{ data: station }, { data: category }, { data: outlet }] = await Promise.all([
+    menuItem.station_id
+      ? supabase.schema("hotel").from("fb_stations").select("code").eq("id", menuItem.station_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    menuItem.category_id
+      ? supabase.schema("hotel").from("fb_menu_categories").select("default_course").eq("id", menuItem.category_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    supabase.schema("hotel").from("fb_outlets").select("outlet_type").eq("id", menuItem.outlet_id).maybeSingle(),
+  ]);
+
+  const course =
+    line.course != null
+      ? line.course
+      : defaultCourseFor(
+          (category?.default_course as number | null | undefined) ?? null,
+          (outlet?.outlet_type as string | undefined) ?? null,
+        );
+
+  return {
+    line: {
+      menuItemId: line.menuItemId,
+      name: menuItem.name as string,
+      unitPrice: roundMoney(basePrice + selection.priceDelta),
+      stationId: (menuItem.station_id as string) ?? null,
+      stationCode: (station?.code as string) ?? null,
+      notes: normaliseItemNote(line.notes),
+      modifiers: selection.chosen,
+      course,
+      seat: line.seat ?? null,
+    },
+    error: null,
+  };
+}
+
 export async function addOrderItem(
   supabase: SupabaseClient,
   params: {
     tenantId: string;
     orderId: string;
-    menuItemId: string;
-  },
+  } & FbOrderLineInput,
 ) {
   const { data: order } = await supabase
     .schema("hotel")
     .from("fb_orders")
-    .select("id,status,tenant_id")
+    .select("id,status,tenant_id,settlement_method,paid_amount")
     .eq("id", params.orderId)
     .eq("tenant_id", params.tenantId)
     .maybeSingle();
 
   if (!order) return { item: null, error: "Order not found." };
+  if (order.settlement_method || num(order.paid_amount) > 0) {
+    return { item: null, error: "This order has been paid. Start a new order for extra items." };
+  }
   if (!["open", "sent_to_kitchen"].includes(order.status as string)) {
     return { item: null, error: "Order cannot be modified." };
   }
 
-  const { data: menuItem } = await supabase
+  const resolved = await resolveOrderLine(supabase, params.tenantId, params);
+  if (!resolved.line) return { item: null, error: resolved.error ?? "Menu item unavailable." };
+  const added = await insertResolvedOrderLine(supabase, params.tenantId, params.orderId, resolved.line);
+
+  // Added to an order already in the kitchen: it goes now if its course is
+  // straight away or already fired; otherwise it waits with its course.
+  if (added.item && order.status !== "open") {
+    await fireOrderItems(supabase, params.tenantId, params.orderId, "first_course", true);
+  }
+  return added;
+}
+
+/** Releases the lines chosen by the fire rules. Returns how many were fired. */
+async function fireOrderItems(
+  supabase: SupabaseClient,
+  tenantId: string,
+  orderId: string,
+  mode: FbFireMode,
+  alreadySent: boolean,
+) {
+  const items = (await loadOrderItems(supabase, [orderId])).get(orderId) ?? [];
+  return fireItemIds(supabase, tenantId, orderId, itemsToFire(items, mode, alreadySent));
+}
+
+async function fireItemIds(supabase: SupabaseClient, tenantId: string, orderId: string, ids: string[]) {
+  if (!ids.length) return 0;
+  const now = new Date().toISOString();
+  const { data } = await supabase
     .schema("hotel")
-    .from("fb_menu_items")
-    .select("*")
-    .eq("id", params.menuItemId)
-    .eq("tenant_id", params.tenantId)
-    .maybeSingle();
-
-  if (!menuItem || !menuItem.is_available) {
-    return { item: null, error: "Menu item unavailable." };
-  }
-
-  let stationCode: string | null = null;
-  if (menuItem.station_id) {
-    const { data: station } = await supabase
+    .from("fb_order_items")
+    .update({ fired_at: now, updated_at: now })
+    .in("id", ids)
+    .eq("tenant_id", tenantId)
+    .is("fired_at", null)
+    .select("id");
+  const fired = data?.length ?? 0;
+  if (fired) {
+    // New work for the kitchen: the order is no longer "ready".
+    await supabase
       .schema("hotel")
-      .from("fb_stations")
-      .select("code")
-      .eq("id", menuItem.station_id)
-      .maybeSingle();
-    stationCode = (station?.code as string) ?? null;
+      .from("fb_orders")
+      .update({ status: "sent_to_kitchen", updated_at: now })
+      .eq("id", orderId)
+      .eq("tenant_id", tenantId)
+      .eq("status", "ready");
+  }
+  return fired;
+}
+
+/** Fires one held course (or every held course) of an order already in the kitchen. */
+export async function fireOrderCourse(
+  supabase: SupabaseClient,
+  tenantId: string,
+  orderId: string,
+  course: number | "all",
+) {
+  const order = await loadOrderById(supabase, tenantId, orderId);
+  if (!order) return { order: null, fired: 0, error: "Order not found." };
+  if (!["sent_to_kitchen", "ready"].includes(order.status)) {
+    return { order: null, fired: 0, error: "Send the order to the kitchen first." };
   }
 
+  // A split table is still one sitting: firing mains fires them on every bill.
+  const group = await loadBillGroup(supabase, tenantId, order);
+  let fired = 0;
+  let found = false;
+  for (const bill of group) {
+    if (!["sent_to_kitchen", "ready"].includes(bill.status)) continue;
+    const ids = itemsToFireForCourse(bill.items, course);
+    if (!ids.length) continue;
+    found = true;
+    fired += await fireItemIds(supabase, tenantId, bill.id, ids);
+  }
+  if (!found) {
+    return { order: null, fired: 0, error: "Nothing is waiting to be fired for that course." };
+  }
+  return { order: await loadOrderById(supabase, tenantId, orderId), fired, error: null };
+}
+
+/** Every open bill of the table this order belongs to (just the order itself when it was never split). */
+async function loadBillGroup(supabase: SupabaseClient, tenantId: string, order: FbOrderWithItems) {
+  const rootId = order.split_from_order_id ?? order.id;
+  const { data } = await supabase
+    .schema("hotel")
+    .from("fb_orders")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .or(`id.eq.${rootId},split_from_order_id.eq.${rootId}`)
+    .in("status", ["open", "sent_to_kitchen", "ready"]);
+  const ids = (data ?? []).map((r) => r.id as string);
+  if (!ids.includes(order.id)) ids.push(order.id);
+  const bills = await Promise.all(ids.map((id) => loadOrderById(supabase, tenantId, id)));
+  return bills.filter((b): b is FbOrderWithItems => Boolean(b));
+}
+
+/**
+ * Re-works an in-kitchen order's status from its lines after lines moved in
+ * or out: "ready" when everything fired is ready and something is still to serve.
+ */
+async function refreshKitchenStatus(supabase: SupabaseClient, tenantId: string, orderId: string) {
+  const order = await loadOrderById(supabase, tenantId, orderId);
+  if (!order || !["sent_to_kitchen", "ready"].includes(order.status)) return;
+  const fired = order.items.filter((i) => i.fired_at && i.kitchen_status !== "voided");
+  const ready =
+    fired.length > 0 &&
+    fired.every((i) => i.kitchen_status === "ready" || i.kitchen_status === "served") &&
+    fired.some((i) => i.kitchen_status === "ready");
+  const status = ready ? "ready" : "sent_to_kitchen";
+  if (status === order.status) return;
+  const now = new Date().toISOString();
+  await supabase
+    .schema("hotel")
+    .from("fb_orders")
+    .update({ status, updated_at: now, ...(ready && !order.kitchen_ready_at ? { kitchen_ready_at: now } : {}) })
+    .eq("id", orderId)
+    .eq("tenant_id", tenantId);
+}
+
+/**
+ * Splits an order into separate bills. `billOf` maps each line to bill 1, 2, 3…;
+ * bill 1 stays as this order and the others become new orders on the same
+ * table, numbered after the first bill (e.g. FB-ABC123-2). Lines keep their
+ * kitchen progress, course and choices. Each bill is then paid on its own.
+ */
+export async function splitFbOrder(
+  supabase: SupabaseClient,
+  tenantId: string,
+  orderId: string,
+  billOf: Record<string, number>,
+) {
+  const order = await loadOrderById(supabase, tenantId, orderId);
+  if (!order) return { orders: [], error: "Order not found." };
+  const blocked = splitBlockReason(order);
+  if (blocked) return { orders: [], error: blocked };
+  const plan = planSplit(order.items, billOf);
+  if (!plan.ok) return { orders: [], error: plan.error };
+
+  const rootId = order.split_from_order_id ?? order.id;
+  const root = rootId === order.id ? order : await loadOrderById(supabase, tenantId, rootId);
+  const rootNumber = (root ?? order).order_number.replace(/-\d+$/, "");
+  const { data: group } = await supabase
+    .schema("hotel")
+    .from("fb_orders")
+    .select("bill_number")
+    .eq("tenant_id", tenantId)
+    .or(`id.eq.${rootId},split_from_order_id.eq.${rootId}`);
+  let nextBill = Math.max(1, ...(group ?? []).map((r) => Number(r.bill_number) || 1)) + 1;
+
+  const created: FbOrderWithItems[] = [];
+  for (const itemIds of plan.bills.slice(1)) {
+    const billNumber = nextBill;
+    nextBill += 1;
+    const { data: bill, error } = await supabase
+      .schema("hotel")
+      .from("fb_orders")
+      .insert({
+        tenant_id: tenantId,
+        outlet_id: order.outlet_id,
+        order_number: `${rootNumber}-${billNumber}`,
+        table_id: order.table_id,
+        tab_label: order.tab_label,
+        reservation_id: order.reservation_id,
+        status: order.status,
+        rush: order.rush,
+        placed_by: order.placed_by,
+        sent_to_kitchen_at: order.sent_to_kitchen_at,
+        ready_acknowledged_at: order.ready_acknowledged_at,
+        kitchen_ready_at: order.kitchen_ready_at,
+        served_at: order.served_at,
+        notes: order.notes,
+        split_from_order_id: rootId,
+        bill_number: billNumber,
+        service_charge_percent: order.service_charge_percent,
+        levy_percent: order.levy_percent,
+        vat_percent: order.vat_percent,
+        prices_include_tax: order.prices_include_tax,
+        service_charge_waived_reason: order.service_charge_waived_reason,
+      })
+      .select("id")
+      .single();
+    if (error || !bill) return { orders: created, error: error?.message ?? "Could not create the new bill." };
+
+    const { error: moveError } = await supabase
+      .schema("hotel")
+      .from("fb_order_items")
+      .update({ order_id: bill.id, updated_at: new Date().toISOString() })
+      .in("id", itemIds)
+      .eq("order_id", orderId)
+      .eq("tenant_id", tenantId);
+    if (moveError) {
+      await supabase.schema("hotel").from("fb_orders").delete().eq("id", bill.id);
+      return { orders: created, error: moveError.message };
+    }
+    await recalcOrderSubtotal(supabase, bill.id as string, tenantId);
+    await refreshKitchenStatus(supabase, tenantId, bill.id as string);
+    const full = await loadOrderById(supabase, tenantId, bill.id as string);
+    if (full) created.push(full);
+  }
+
+  await recalcOrderSubtotal(supabase, orderId, tenantId);
+  await refreshKitchenStatus(supabase, tenantId, orderId);
+  const first = await loadOrderById(supabase, tenantId, orderId);
+  return { orders: first ? [first, ...created] : created, error: null };
+}
+
+/**
+ * Combines `sourceId` into `targetId`: every line moves across and the source
+ * is marked "merged". Works across tables (a party moving tables); the
+ * source's table is freed if nothing else is open on it.
+ */
+export async function mergeFbOrders(
+  supabase: SupabaseClient,
+  tenantId: string,
+  targetId: string,
+  sourceId: string,
+) {
+  const [target, source] = await Promise.all([
+    loadOrderById(supabase, tenantId, targetId),
+    loadOrderById(supabase, tenantId, sourceId),
+  ]);
+  if (!target || !source) return { order: null, error: "Order not found." };
+  const blocked = mergeBlockReason(target, source);
+  if (blocked) return { order: null, error: blocked };
+
+  const now = new Date().toISOString();
+  const { error: moveError } = await supabase
+    .schema("hotel")
+    .from("fb_order_items")
+    .update({ order_id: targetId, updated_at: now })
+    .eq("order_id", sourceId)
+    .eq("tenant_id", tenantId);
+  if (moveError) return { order: null, error: moveError.message };
+
+  // Bills split from the source now hang off the target's group instead.
+  const newRoot = target.split_from_order_id === sourceId ? targetId : (target.split_from_order_id ?? targetId);
+  if (target.split_from_order_id === sourceId) {
+    await supabase.schema("hotel").from("fb_orders").update({ split_from_order_id: null }).eq("id", targetId);
+  }
+  await supabase
+    .schema("hotel")
+    .from("fb_orders")
+    .update({ split_from_order_id: newRoot })
+    .eq("tenant_id", tenantId)
+    .eq("split_from_order_id", sourceId)
+    .neq("id", newRoot);
+
+  await supabase
+    .schema("hotel")
+    .from("fb_orders")
+    .update({ status: "merged", merged_into_order_id: targetId, subtotal: 0, updated_at: now })
+    .eq("id", sourceId)
+    .eq("tenant_id", tenantId);
+
+  // Combining a bill already in the kitchen into one that wasn't sent yet sends it.
+  if (target.status === "open" && source.sent_to_kitchen_at) {
+    await supabase
+      .schema("hotel")
+      .from("fb_orders")
+      .update({ status: "sent_to_kitchen", sent_to_kitchen_at: source.sent_to_kitchen_at, updated_at: now })
+      .eq("id", targetId)
+      .eq("tenant_id", tenantId);
+  }
+
+  await recalcOrderSubtotal(supabase, targetId, tenantId);
+  await refreshKitchenStatus(supabase, tenantId, targetId);
+
+  if (source.table_id && source.table_id !== target.table_id) {
+    if (!(await tableHasOpenBills(supabase, tenantId, source.table_id))) {
+      await supabase.schema("hotel").from("fb_tables").update({ status: "available" }).eq("id", source.table_id);
+    }
+  }
+
+  return { order: await loadOrderById(supabase, tenantId, targetId), error: null };
+}
+
+/** Writes a line already checked by resolveOrderLine, with its choices, and updates the bill. */
+export async function insertResolvedOrderLine(
+  supabase: SupabaseClient,
+  tenantId: string,
+  orderId: string,
+  line: ResolvedOrderLine,
+) {
   const { data, error } = await supabase
     .schema("hotel")
     .from("fb_order_items")
     .insert({
-      tenant_id: params.tenantId,
-      order_id: params.orderId,
-      menu_item_id: params.menuItemId,
-      name_snapshot: menuItem.name,
-      price_snapshot: num(menuItem.price),
+      tenant_id: tenantId,
+      order_id: orderId,
+      menu_item_id: line.menuItemId,
+      name_snapshot: line.name,
+      price_snapshot: line.unitPrice,
       quantity: 1,
-      station_id: menuItem.station_id,
-      station_code_snapshot: stationCode ?? null,
+      station_id: line.stationId,
+      station_code_snapshot: line.stationCode,
       kitchen_status: "pending",
+      notes: line.notes,
+      course: line.course,
+      seat: line.seat,
     })
     .select("*")
     .single();
 
   if (error || !data) return { item: null, error: error?.message ?? "Could not add item." };
-  await recalcOrderSubtotal(supabase, params.orderId, params.tenantId);
-  return { item: mapOrderItem(data as Record<string, unknown>), error: null };
+
+  if (line.modifiers.length) {
+    const { error: modError } = await supabase
+      .schema("hotel")
+      .from("fb_order_item_modifiers")
+      .insert(
+        line.modifiers.map((m, index) => ({
+          tenant_id: tenantId,
+          order_item_id: data.id,
+          option_id: m.optionId,
+          group_name: m.groupName,
+          option_name: m.optionName,
+          price_delta: m.priceDelta,
+          sort_order: index,
+        })),
+      );
+    if (modError) {
+      // Never leave a priced line without the choices that explain its price.
+      await supabase.schema("hotel").from("fb_order_items").delete().eq("id", data.id);
+      return { item: null, error: modError.message };
+    }
+  }
+
+  await recalcOrderSubtotal(supabase, orderId, tenantId);
+  const item = mapOrderItem(data as Record<string, unknown>);
+  item.modifiers = line.modifiers.map((m) => ({
+    group_name: m.groupName,
+    option_name: m.optionName,
+    price_delta: m.priceDelta,
+  }));
+  return { item, error: null };
 }
 
 export async function sendOrderToKitchen(
   supabase: SupabaseClient,
   tenantId: string,
   orderId: string,
+  mode: FbFireMode = "first_course",
 ) {
   const now = new Date().toISOString();
+  const { data: before } = await supabase
+    .schema("hotel")
+    .from("fb_orders")
+    .select("sent_to_kitchen_at")
+    .eq("id", orderId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  const alreadySent = Boolean(before?.sent_to_kitchen_at);
+
   const { data, error } = await supabase
     .schema("hotel")
     .from("fb_orders")
@@ -393,6 +893,8 @@ export async function sendOrderToKitchen(
     .maybeSingle();
 
   if (error || !data) return { order: null, error: error?.message ?? "Could not send to kitchen." };
+
+  await fireOrderItems(supabase, tenantId, orderId, mode, alreadySent);
 
   const { data: table } = data.table_id
     ? await supabase
@@ -509,7 +1011,8 @@ export async function markFbOrderServed(
 ) {
   const order = await loadOrderById(supabase, tenantId, orderId);
   if (!order) return { order: null, error: "Order not found." };
-  if (order.status !== "ready") {
+  // A course can be served while later courses are held or still cooking.
+  if (!["ready", "sent_to_kitchen"].includes(order.status)) {
     return { order: null, error: "Order is not ready for service." };
   }
 
@@ -559,7 +1062,7 @@ export async function markFbOrderServed(
 
   // Already paid before the kitchen finished — now that it's fully served,
   // there is nothing left to collect, so close it out automatically.
-  if (full && full.settlement_method && isOrderFullyServed(full.items)) {
+  if (full && full.settled_at && isOrderFullyServed(full.items)) {
     const { data: closedRow } = await supabase
       .schema("hotel")
       .from("fb_orders")
@@ -569,11 +1072,7 @@ export async function markFbOrderServed(
       .select("table_id")
       .maybeSingle();
     if (closedRow?.table_id) {
-      await supabase
-        .schema("hotel")
-        .from("fb_tables")
-        .update({ status: "dirty" })
-        .eq("id", closedRow.table_id as string);
+      await markTableDirtyIfFree(supabase, tenantId, closedRow.table_id as string);
     }
     full = await loadOrderById(supabase, tenantId, orderId);
   }
@@ -587,6 +1086,27 @@ export async function updateOrderItemKitchenStatus(
   itemId: string,
   kitchenStatus: FbKitchenStatus,
 ) {
+  if (kitchenStatus === "voided") {
+    const { data: item } = await supabase
+      .schema("hotel")
+      .from("fb_order_items")
+      .select("order_id")
+      .eq("id", itemId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (item) {
+      const { data: order } = await supabase
+        .schema("hotel")
+        .from("fb_orders")
+        .select("settlement_method,paid_amount")
+        .eq("id", item.order_id as string)
+        .maybeSingle();
+      if (order?.settlement_method || num(order?.paid_amount) > 0) {
+        return { item: null, error: "This order has been paid, so its items cannot be voided." };
+      }
+    }
+  }
+
   const { data, error } = await supabase
     .schema("hotel")
     .from("fb_order_items")
@@ -600,7 +1120,8 @@ export async function updateOrderItemKitchenStatus(
 
   const orderId = data.order_id as string;
   const itemsByOrder = await loadOrderItems(supabase, [orderId]);
-  const items = itemsByOrder.get(orderId) ?? [];
+  // Held courses aren't the kitchen's work yet: "ready" means everything fired is ready.
+  const items = (itemsByOrder.get(orderId) ?? []).filter((i) => i.fired_at || i.kitchen_status === "voided");
   const allReady = items.every((i) =>
     ["ready", "served", "voided"].includes(i.kitchen_status),
   );
@@ -645,46 +1166,28 @@ export async function setOrderRush(
   return { order: mapOrder(data as Record<string, unknown>), error: null };
 }
 
-export async function closeFbOrder(
-  supabase: SupabaseClient,
-  tenantId: string,
-  orderId: string,
-  options?: { settlementMethod?: FbOrderSettlementMethod },
-) {
+/**
+ * Closes a settled order once the kitchen has finished it. An order paid
+ * before the kitchen finished (pay-first walk-ins) stays on the kitchen board
+ * and closes itself when it is marked served (see markFbOrderServed).
+ * Settling is done by settleFbOrderAtOutlet / chargeFbOrderToRoom.
+ */
+export async function closeFbOrder(supabase: SupabaseClient, tenantId: string, orderId: string) {
   const now = new Date().toISOString();
 
   const current = await loadOrderById(supabase, tenantId, orderId);
   if (!current) return { order: null, error: "Order not found." };
   if (current.status === "voided") return { order: null, error: "Could not close order." };
-
-  // Paid before the kitchen finished (e.g. pay-first walk-ins) — record the
-  // settlement but leave the order on the kitchen board. It isn't served yet,
-  // so it must not disappear from "awaiting kitchen" just because it's paid.
-  // It auto-closes once the kitchen finishes and the order is marked served
-  // (see markFbOrderServed).
-  if (!isKitchenWorkComplete(current.items)) {
-    if (!options?.settlementMethod) return { order: current, error: null };
-    const { data, error } = await supabase
-      .schema("hotel")
-      .from("fb_orders")
-      .update({ settlement_method: options.settlementMethod, updated_at: now })
-      .eq("id", orderId)
-      .eq("tenant_id", tenantId)
-      .neq("status", "voided")
-      .select("*")
-      .maybeSingle();
-    if (error || !data) return { order: null, error: error?.message ?? "Could not record payment." };
-    return { order: mapOrder(data as Record<string, unknown>), error: null };
+  if (current.status === "closed") return { order: current, error: null };
+  if (!current.settled_at) {
+    return { order: null, error: "Take payment or charge it to a room before closing the order." };
   }
+  if (!isKitchenWorkComplete(current.items)) return { order: current, error: null };
 
-  const patch: Record<string, unknown> = { status: "closed", closed_at: now, updated_at: now };
-  if (options?.settlementMethod) {
-    patch.settlement_method = options.settlementMethod;
-  }
   const { data, error } = await supabase
     .schema("hotel")
     .from("fb_orders")
-    .update(patch)
+    .update({ status: "closed", closed_at: now, updated_at: now })
     .eq("id", orderId)
     .eq("tenant_id", tenantId)
     .neq("status", "voided")
@@ -710,14 +1213,27 @@ export async function closeFbOrder(
     .is("served_at", null);
 
   if (data.table_id) {
-    await supabase
-      .schema("hotel")
-      .from("fb_tables")
-      .update({ status: "dirty" })
-      .eq("id", data.table_id);
+    await markTableDirtyIfFree(supabase, tenantId, data.table_id as string);
   }
 
   return { order: mapOrder(data as Record<string, unknown>), error: null };
+}
+
+async function tableHasOpenBills(supabase: SupabaseClient, tenantId: string, tableId: string) {
+  const { count } = await supabase
+    .schema("hotel")
+    .from("fb_orders")
+    .select("id", { count: "exact", head: true })
+    .eq("tenant_id", tenantId)
+    .eq("table_id", tableId)
+    .in("status", ["open", "sent_to_kitchen", "ready"]);
+  return (count ?? 0) > 0;
+}
+
+/** A table only needs clearing once every bill on it is finished. */
+async function markTableDirtyIfFree(supabase: SupabaseClient, tenantId: string, tableId: string) {
+  if (await tableHasOpenBills(supabase, tenantId, tableId)) return;
+  await supabase.schema("hotel").from("fb_tables").update({ status: "dirty" }).eq("id", tableId);
 }
 
 export async function voidFbOrder(
@@ -725,6 +1241,7 @@ export async function voidFbOrder(
   tenantId: string,
   orderId: string,
   reason?: string,
+  voidedBy?: string,
 ) {
   const now = new Date().toISOString();
   const { data, error } = await supabase
@@ -734,13 +1251,29 @@ export async function voidFbOrder(
       status: "voided",
       voided_at: now,
       void_reason: reason ?? null,
+      voided_by: voidedBy ?? null,
       updated_at: now,
     })
     .eq("id", orderId)
     .eq("tenant_id", tenantId)
     .in("status", ["open", "sent_to_kitchen", "ready"])
+    .is("settlement_method", null)
+    .eq("paid_amount", 0)
     .select("*")
     .maybeSingle();
+
+  if (!error && !data) {
+    const { data: existing } = await supabase
+      .schema("hotel")
+      .from("fb_orders")
+      .select("settlement_method,paid_amount")
+      .eq("id", orderId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (existing?.settlement_method || num(existing?.paid_amount) > 0) {
+      return { order: null, error: "This order has been paid, so it cannot be cancelled." };
+    }
+  }
 
   if (error || !data) return { order: null, error: error?.message ?? "Could not cancel order." };
 
@@ -751,7 +1284,7 @@ export async function voidFbOrder(
     .eq("order_id", orderId)
     .eq("tenant_id", tenantId);
 
-  if (data.table_id) {
+  if (data.table_id && !(await tableHasOpenBills(supabase, tenantId, data.table_id as string))) {
     await supabase
       .schema("hotel")
       .from("fb_tables")
@@ -845,7 +1378,30 @@ export async function loadKitchenBoard(
 
   const tickets: FbKitchenTicket[] = [];
 
+  // The kitchen cooks for the table, not the bill: bills split from one order
+  // show as one ticket under the first bill's number.
+  const groups = new Map<string, FbOrderWithItems[]>();
   for (const order of orders) {
+    const root = order.split_from_order_id ?? order.id;
+    groups.set(root, [...(groups.get(root) ?? []), order]);
+  }
+  const grouped = [...groups.entries()].map(([rootId, bills]) => {
+    const first = bills.find((b) => b.id === rootId) ?? [...bills].sort((a, b) => a.bill_number - b.bill_number)[0];
+    return {
+      ...first,
+      id: rootId,
+      order_number: first.order_number.replace(/-\d+$/, ""),
+      rush: bills.some((b) => b.rush),
+      status: bills.every((b) => b.status === "ready") ? first.status : ("sent_to_kitchen" as const),
+      category_overdue_minutes: bills.reduce<number | null>(
+        (max, b) => (b.category_overdue_minutes != null && (max == null || b.category_overdue_minutes > max) ? b.category_overdue_minutes : max),
+        null,
+      ),
+      items: bills.flatMap((b) => b.items),
+    };
+  });
+
+  for (const order of grouped) {
     if (isOrderFullyServed(order.items)) continue;
 
     const activeItems = order.items.filter(
@@ -853,11 +1409,19 @@ export async function loadKitchenBoard(
     );
     if (!activeItems.length) continue;
 
-    let items = activeItems;
-    if (stationCode && stationCode !== "all") {
-      items = items.filter((i) => i.station_code_snapshot === stationCode);
-    }
-    if (!items.length) continue;
+    const byStation = (list: FbOrderItemRow[]) =>
+      stationCode && stationCode !== "all"
+        ? list.filter((i) => i.station_code_snapshot === stationCode)
+        : list;
+    const items = byStation(activeItems.filter((i) => i.fired_at)).sort((a, b) => a.course - b.course);
+    const heldItems = byStation(activeItems.filter((i) => !i.fired_at));
+    if (!items.length && !heldItems.length) continue;
+
+    const heldByCourse = new Map<number, number>();
+    for (const i of heldItems) heldByCourse.set(i.course, (heldByCourse.get(i.course) ?? 0) + 1);
+
+    // Time the ticket from when its current work was fired, not when the order was first sent.
+    const firedTimes = items.map((i) => i.fired_at as string).sort();
 
     const tableLabel =
       order.table_code ?? order.tab_label ?? order.outlet_name ?? "Order";
@@ -868,9 +1432,12 @@ export async function loadKitchenBoard(
       table_label: tableLabel,
       rush: order.rush,
       created_at: order.created_at,
-      sent_to_kitchen_at: order.sent_to_kitchen_at,
+      sent_to_kitchen_at: firedTimes[0] ?? order.sent_to_kitchen_at,
       status: order.status,
       overdue_minutes: order.category_overdue_minutes ?? null,
+      held: [...heldByCourse.entries()]
+        .sort((a, b) => a[0] - b[0])
+        .map(([course, count]) => ({ course, label: courseLabel(course), count })),
       items: items.map((i) => ({
         id: i.id,
         name: i.name_snapshot,
@@ -878,6 +1445,10 @@ export async function loadKitchenBoard(
         kitchen_status: i.kitchen_status,
         station_code: i.station_code_snapshot,
         menu_item_id: i.menu_item_id,
+        modifiers: i.modifiers.map((m) => `${m.group_name}: ${m.option_name}`),
+        notes: i.notes,
+        course: i.course,
+        seat: i.seat,
       })),
     });
   }
@@ -1041,7 +1612,94 @@ export async function loadKitchenHistory(
   return loadKitchenOrderHistory(supabase, tenantId, range);
 }
 
-export async function postOrderToFolio(
+/** Why a settle claim found nothing to update: someone else settled it, or the bill changed. */
+async function lostClaimReason(supabase: SupabaseClient, tenantId: string, orderId: string) {
+  const latest = await loadOrderById(supabase, tenantId, orderId);
+  return (
+    (latest && settlementBlockReason(latest)) ??
+    "The bill changed while you were settling it. Check the total and try again."
+  );
+}
+
+/**
+ * Takes a payment at the outlet (cash, card or terminal): the whole bill, or a
+ * part of it (`amount`), e.g. one share of an even split. The bill is final
+ * once the payments add up to it. The money rules live in the SQL function
+ * hotel.fb_take_payment, which locks the bill so two tills can't overpay it.
+ * Nothing is written to a guest folio: the night audit reads these payments.
+ * `reservationId` only links the guest.
+ */
+export async function settleFbOrderAtOutlet(
+  supabase: SupabaseClient,
+  params: {
+    tenantId: string;
+    orderId: string;
+    method: FbOutletTender;
+    /** Leave out to pay everything that is left. */
+    amount?: number | null;
+    tendered?: number | null;
+    shareLabel?: string | null;
+    reservationId?: string | null;
+    settledBy: string;
+  },
+) {
+  const order = await loadOrderById(supabase, params.tenantId, params.orderId);
+  if (!order) return { order: null, error: "Order not found." };
+  const blocked = settlementBlockReason(order);
+  if (blocked) return { order: null, error: blocked };
+
+  const left = leftToPay(order);
+  const amount = params.amount ?? left;
+  const check = resolvePartPayment({ left, amount, method: params.method, tendered: params.tendered });
+  if (!check.ok) return { order: null, error: check.error };
+
+  if (params.reservationId && !order.reservation_id) {
+    const { data: reservation } = await supabase
+      .schema("hotel")
+      .from("reservations")
+      .select("id")
+      .eq("id", params.reservationId)
+      .eq("tenant_id", params.tenantId)
+      .maybeSingle();
+    if (!reservation) return { order: null, error: "Reservation not found." };
+    await supabase
+      .schema("hotel")
+      .from("fb_orders")
+      .update({ reservation_id: params.reservationId })
+      .eq("id", params.orderId)
+      .eq("tenant_id", params.tenantId)
+      .eq("paid_amount", 0);
+  }
+
+  const { data, error } = await supabase.schema("hotel").rpc("fb_take_payment", {
+    p_tenant_id: params.tenantId,
+    p_order_id: params.orderId,
+    p_method: params.method,
+    p_amount: amount,
+    p_tendered: params.tendered ?? null,
+    p_share_label: params.shareLabel ?? null,
+    p_taken_by: params.settledBy,
+    p_expected_subtotal: order.subtotal,
+  });
+  if (error) return { order: null, error: error.message };
+  const result = data as { settled: boolean; remaining: number; change_given: number };
+
+  const closed = result.settled ? await closeFbOrder(supabase, params.tenantId, params.orderId) : null;
+  return {
+    order: closed?.order ?? (await loadOrderById(supabase, params.tenantId, params.orderId)),
+    changeGiven: Number(result.change_given) || 0,
+    remaining: Number(result.remaining) || 0,
+    settled: Boolean(result.settled),
+    error: null,
+  };
+}
+
+/**
+ * Charges an order to an in-house guest's folio, once. The order is claimed
+ * first so a second press (or a payment at the till) can't also settle it;
+ * if the folio post fails, the claim is released.
+ */
+export async function chargeFbOrderToRoom(
   supabase: SupabaseClient,
   params: {
     tenantId: string;
@@ -1050,17 +1708,10 @@ export async function postOrderToFolio(
     postedBy: string;
   },
 ) {
-  const { data: order } = await supabase
-    .schema("hotel")
-    .from("fb_orders")
-    .select("*")
-    .eq("id", params.orderId)
-    .eq("tenant_id", params.tenantId)
-    .maybeSingle();
-
-  if (!order) return { error: "Order not found." };
-  const amount = num(order.subtotal);
-  if (amount <= 0) return { error: "Order has no charges." };
+  const order = await loadOrderById(supabase, params.tenantId, params.orderId);
+  if (!order) return { order: null, line: null, error: "Order not found." };
+  const blocked = roomChargeBlockReason(order);
+  if (blocked) return { order: null, line: null, error: blocked };
 
   const { data: reservation } = await supabase
     .schema("hotel")
@@ -1069,17 +1720,41 @@ export async function postOrderToFolio(
     .eq("id", params.reservationId)
     .eq("tenant_id", params.tenantId)
     .maybeSingle();
-
-  if (!reservation) return { error: "Reservation not found." };
+  if (!reservation) return { order: null, line: null, error: "Reservation not found." };
   if (reservation.status !== "checked_in") {
-    return { error: "That guest is not currently checked in — cannot charge to room." };
+    return {
+      order: null,
+      line: null,
+      error: "That guest is not currently checked in — cannot charge to room.",
+    };
+  }
+
+  const { data: claimed, error: claimError } = await supabase
+    .schema("hotel")
+    .from("fb_orders")
+    .update({
+      settlement_method: "room_charge",
+      reservation_id: params.reservationId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", params.orderId)
+    .eq("tenant_id", params.tenantId)
+    .is("settlement_method", null)
+    .eq("paid_amount", 0)
+    .neq("status", "voided")
+    .eq("subtotal", order.subtotal)
+    .select("id")
+    .maybeSingle();
+  if (claimError) return { order: null, line: null, error: claimError.message };
+  if (!claimed) {
+    return { order: null, line: null, error: await lostClaimReason(supabase, params.tenantId, params.orderId) };
   }
 
   const { line, error } = await insertFolioLine(supabase, {
     tenantId: params.tenantId,
     reservationId: params.reservationId,
     kind: "charge",
-    amount,
+    amount: roundMoney(order.subtotal),
     method: "system",
     description: `F&B order ${order.order_number}`,
     department: "food_beverage",
@@ -1087,34 +1762,184 @@ export async function postOrderToFolio(
     reference: order.order_number,
   });
 
-  if (error || !line) return { error: error ?? "Could not post to folio." };
-  return { error: null, line };
+  if (error || !line) {
+    await supabase
+      .schema("hotel")
+      .from("fb_orders")
+      .update({ settlement_method: null, reservation_id: order.reservation_id })
+      .eq("id", params.orderId)
+      .eq("tenant_id", params.tenantId)
+      .eq("settlement_method", "room_charge")
+      .is("settled_at", null);
+    return { order: null, line: null, error: error ?? "Could not post to folio." };
+  }
+
+  const now = new Date().toISOString();
+  await supabase.schema("hotel").from("fb_order_payments").insert({
+    tenant_id: params.tenantId,
+    order_id: params.orderId,
+    method: "room_charge",
+    amount: roundMoney(order.subtotal),
+    amount_tendered: roundMoney(order.subtotal),
+    reservation_id: params.reservationId,
+    taken_by: params.postedBy,
+  });
+  await supabase
+    .schema("hotel")
+    .from("fb_orders")
+    .update({
+      settled_at: now,
+      settled_by: params.postedBy,
+      paid_amount: roundMoney(order.subtotal),
+      updated_at: now,
+    })
+    .eq("id", params.orderId)
+    .eq("tenant_id", params.tenantId)
+    .is("settled_at", null);
+
+  const closed = await closeFbOrder(supabase, params.tenantId, params.orderId);
+  return {
+    order: closed.order ?? (await loadOrderById(supabase, params.tenantId, params.orderId)),
+    line,
+    error: null,
+  };
 }
 
-export async function postOrderPayment(
+/**
+ * Takes a line off an unpaid bill, with the reason. The route decides whether a
+ * manager is needed (see voidNeeds). Paid bills are refused by the database.
+ */
+export async function voidOrderItem(
   supabase: SupabaseClient,
-  params: {
-    tenantId: string;
-    orderId: string;
-    reservationId: string;
-    amount: number;
-    method: "cash" | "card" | "pos";
-    postedBy: string;
-    cashFloatSessionId?: string;
-  },
+  tenantId: string,
+  itemId: string,
+  params: { reason: string | null; by: string },
 ) {
-  const { line, error } = await insertFolioLine(supabase, {
-    tenantId: params.tenantId,
-    reservationId: params.reservationId,
-    kind: "payment",
-    amount: params.amount,
-    method: params.method,
-    description: `F&B payment (${params.method})`,
-    department: "food_beverage",
-    postedBy: params.postedBy,
-    cashFloatSessionId: params.cashFloatSessionId,
-  });
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .schema("hotel")
+    .from("fb_order_items")
+    .update({
+      kitchen_status: "voided",
+      void_reason: params.reason,
+      voided_by: params.by,
+      voided_at: now,
+      updated_at: now,
+    })
+    .eq("id", itemId)
+    .eq("tenant_id", tenantId)
+    .neq("kitchen_status", "voided")
+    .select("*")
+    .maybeSingle();
+  if (error) return { item: null, error: error.message };
+  if (!data) return { item: null, error: "That item is already off the bill." };
+  const orderId = data.order_id as string;
+  await recalcOrderSubtotal(supabase, orderId, tenantId);
+  await refreshKitchenStatus(supabase, tenantId, orderId);
+  return { item: mapOrderItem(data as Record<string, unknown>), error: null };
+}
 
-  if (error || !line) return { error: error ?? "Could not post payment." };
-  return { error: null, line };
+/** Gives a line free: it stays on the ticket for the kitchen, at no charge. */
+export async function compOrderItem(
+  supabase: SupabaseClient,
+  tenantId: string,
+  itemId: string,
+  params: { reason: string; by: string },
+) {
+  const { data: current } = await supabase
+    .schema("hotel")
+    .from("fb_order_items")
+    .select("price_snapshot,comped_at,kitchen_status")
+    .eq("id", itemId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  if (!current) return { item: null, error: "Item not found." };
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .schema("hotel")
+    .from("fb_order_items")
+    .update({
+      original_price: num(current.price_snapshot),
+      price_snapshot: 0,
+      comp_reason: params.reason,
+      comped_by: params.by,
+      comped_at: now,
+      updated_at: now,
+    })
+    .eq("id", itemId)
+    .eq("tenant_id", tenantId)
+    .is("comped_at", null)
+    .neq("kitchen_status", "voided")
+    .select("*")
+    .maybeSingle();
+  if (error) return { item: null, error: error.message };
+  if (!data) return { item: null, error: "That item is already free or off the bill." };
+  await recalcOrderSubtotal(supabase, data.order_id as string, tenantId);
+  return { item: mapOrderItem(data as Record<string, unknown>), error: null };
+}
+
+/**
+ * Moves a party to another table: every open bill of the sitting goes with it.
+ * The old table is freed once nothing is open on it.
+ */
+export async function moveOrderToTable(
+  supabase: SupabaseClient,
+  tenantId: string,
+  orderId: string,
+  tableId: string,
+) {
+  const order = await loadOrderById(supabase, tenantId, orderId);
+  if (!order) return { order: null, error: "Order not found." };
+  if (!["open", "sent_to_kitchen", "ready"].includes(order.status)) {
+    return { order: null, error: "Only open bills can move table." };
+  }
+  if (order.table_id === tableId) return { order: null, error: "The bill is already at that table." };
+  const { data: table } = await supabase
+    .schema("hotel")
+    .from("fb_tables")
+    .select("id,table_code")
+    .eq("id", tableId)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+  if (!table) return { order: null, error: "Table not found." };
+
+  const group = await loadBillGroup(supabase, tenantId, order);
+  const ids = group.filter((b) => b.table_id === order.table_id).map((b) => b.id);
+  const { error } = await supabase
+    .schema("hotel")
+    .from("fb_orders")
+    .update({ table_id: tableId, updated_at: new Date().toISOString() })
+    .in("id", ids)
+    .eq("tenant_id", tenantId);
+  if (error) return { order: null, error: error.message };
+
+  await supabase.schema("hotel").from("fb_tables").update({ status: "seated" }).eq("id", tableId);
+  if (order.table_id && !(await tableHasOpenBills(supabase, tenantId, order.table_id))) {
+    await supabase.schema("hotel").from("fb_tables").update({ status: "available" }).eq("id", order.table_id);
+  }
+  return { order: await loadOrderById(supabase, tenantId, orderId), moved: ids.length, error: null };
+}
+
+/** A manager takes the service charge off one unpaid bill. */
+export async function waiveServiceCharge(
+  supabase: SupabaseClient,
+  tenantId: string,
+  orderId: string,
+  reason: string,
+) {
+  const { data, error } = await supabase
+    .schema("hotel")
+    .from("fb_orders")
+    .update({ service_charge_percent: 0, service_charge_waived_reason: reason, updated_at: new Date().toISOString() })
+    .eq("id", orderId)
+    .eq("tenant_id", tenantId)
+    .is("settlement_method", null)
+    .eq("paid_amount", 0)
+    .gt("service_charge_percent", 0)
+    .select("id")
+    .maybeSingle();
+  if (error) return { order: null, error: error.message };
+  if (!data) return { order: null, error: "There is no service charge to take off, or the bill has been paid." };
+  await recalcOrderSubtotal(supabase, orderId, tenantId);
+  return { order: await loadOrderById(supabase, tenantId, orderId), error: null };
 }

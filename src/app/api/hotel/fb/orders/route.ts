@@ -1,6 +1,16 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { addOrderItem, createFbOrder, loadOrderById, loadOrders, sendOrderToKitchen } from "@/lib/hms/fb-orders";
+import {
+  createFbOrder,
+  insertResolvedOrderLine,
+  loadOrderById,
+  loadOrders,
+  type ResolvedOrderLine,
+  resolveOrderLine,
+  sendOrderToKitchen,
+} from "@/lib/hms/fb-orders";
+import { FB_COURSE_MAX } from "@/lib/hms/fb-course-rules";
+import { FB_ITEM_NOTE_MAX } from "@/lib/hms/fb-modifier-rules";
 import type { FbOrderStatus } from "@/lib/hms/fb-types";
 import { getTenantFbSettings } from "@/lib/hms/fb-settings";
 import { fbForbidden, requireFbApi } from "../_lib";
@@ -24,11 +34,28 @@ const CreateSchema = z.object({
       z.object({
         menuItemId: z.string().uuid(),
         quantity: z.coerce.number().int().min(1).max(99).default(1),
+        modifierOptionIds: z.array(z.string().uuid()).max(40).optional(),
+        notes: z
+          .string()
+          .max(FB_ITEM_NOTE_MAX, `Keep kitchen notes to ${FB_ITEM_NOTE_MAX} characters.`)
+          .optional()
+          .nullable(),
+        course: z.coerce
+          .number()
+          .int()
+          .min(0)
+          .max(FB_COURSE_MAX, "Choose a course: straight away, starters, mains or desserts.")
+          .optional()
+          .nullable(),
+        seat: z.coerce.number().int().min(1).max(99, "Seats go from 1 to 99.").optional().nullable(),
       }),
     )
+    .max(100)
     .optional(),
   rush: z.boolean().optional(),
   sendToKitchen: z.boolean().optional(),
+  /** first_course (default): drinks and the first course now, the rest held. */
+  fireMode: z.enum(["first_course", "all", "hold"]).optional(),
 });
 
 export async function GET(req: Request) {
@@ -73,6 +100,21 @@ export async function POST(req: Request) {
     const denied = fbForbidden(auth.capabilities, "canUsePos");
     if (denied) return NextResponse.json({ error: denied.error }, { status: denied.status });
 
+    const lines =
+      body.items ??
+      (body.menuItemId ? [{ menuItemId: body.menuItemId, quantity: 1 }] : []);
+
+    // Check and price every line first, so a bad choice or a sold-out item
+    // never leaves a half-made order behind.
+    const resolved: { line: ResolvedOrderLine; quantity: number }[] = [];
+    for (const line of lines) {
+      const result = await resolveOrderLine(auth.service, auth.tenant.id, line);
+      if (!result.line) {
+        return NextResponse.json({ error: result.error ?? "Menu item unavailable." }, { status: 400 });
+      }
+      resolved.push({ line: result.line, quantity: line.quantity });
+    }
+
     const created = await createFbOrder(auth.service, {
       tenantId: auth.tenant.id,
       outletId: body.outletId,
@@ -89,17 +131,9 @@ export async function POST(req: Request) {
 
     let order = created.order;
 
-    const lines =
-      body.items ??
-      (body.menuItemId ? [{ menuItemId: body.menuItemId, quantity: 1 }] : []);
-
-    for (const line of lines) {
-      for (let i = 0; i < line.quantity; i += 1) {
-        const added = await addOrderItem(auth.service, {
-          tenantId: auth.tenant.id,
-          orderId: order.id,
-          menuItemId: line.menuItemId,
-        });
+    for (const { line, quantity } of resolved) {
+      for (let i = 0; i < quantity; i += 1) {
+        const added = await insertResolvedOrderLine(auth.service, auth.tenant.id, order.id, line);
         if (added.error) {
           return NextResponse.json({ error: added.error }, { status: 400 });
         }
@@ -107,7 +141,7 @@ export async function POST(req: Request) {
     }
 
     if (body.sendToKitchen) {
-      const sent = await sendOrderToKitchen(auth.service, auth.tenant.id, order.id);
+      const sent = await sendOrderToKitchen(auth.service, auth.tenant.id, order.id, body.fireMode);
       if (sent.error) return NextResponse.json({ error: sent.error }, { status: 400 });
       order = sent.order ?? order;
     }

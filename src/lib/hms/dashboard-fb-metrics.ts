@@ -82,8 +82,9 @@ function num(value: string | number): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+/** Paid at the outlet. "split" bills mix cash, card and terminal (room charges are always whole-bill). */
 function isPosSettlement(method: string | null) {
-  return method === "pos" || method === "cash" || method === "card";
+  return method === "pos" || method === "cash" || method === "card" || method === "split";
 }
 
 /** Counter / PoS collections from closed F&B tickets today (not on guest folios). */

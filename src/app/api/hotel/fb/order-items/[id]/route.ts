@@ -6,7 +6,8 @@ import { fbForbidden, requireFbApi } from "../../_lib";
 
 const PatchSchema = z.object({
   slug: z.string().min(1),
-  kitchenStatus: z.enum(["pending", "preparing", "ready", "served", "voided"]),
+  // "voided" is not allowed here: use POST /order-items/[id]/void, which asks for a reason.
+  kitchenStatus: z.enum(["pending", "preparing", "ready", "served"]),
 });
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {

@@ -1,4 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { loadModifierSetup } from "@/lib/hms/fb-modifiers";
+import { getTenantFbSettings } from "@/lib/hms/fb-settings";
 import type { FbMenuCategoryRow, FbMenuItemRow, FbOutletRow, FbStationRow, FbTableRow } from "@/lib/hms/fb-types";
 
 function num(v: unknown): number {
@@ -79,13 +81,15 @@ export async function loadFbConfig(
     await ensureFbDefaults(supabase, tenantId);
   }
 
-  const [outletsRes, stationsRes, categoriesRes, itemsRes, tablesRes] = await Promise.all([
+  const [outletsRes, stationsRes, categoriesRes, itemsRes, tablesRes, modifiers] = await Promise.all([
     supabase.schema("hotel").from("fb_outlets").select("*").eq("tenant_id", tenantId).order("code"),
     supabase.schema("hotel").from("fb_stations").select("*").eq("tenant_id", tenantId).order("sort_order"),
     supabase.schema("hotel").from("fb_menu_categories").select("*").eq("tenant_id", tenantId).order("sort_order"),
     supabase.schema("hotel").from("fb_menu_items").select("*").eq("tenant_id", tenantId).order("sort_order"),
     supabase.schema("hotel").from("fb_tables").select("*").eq("tenant_id", tenantId).order("table_code"),
+    loadModifierSetup(supabase, tenantId),
   ]);
+  const settings = await getTenantFbSettings(supabase, tenantId);
 
   return {
     outlets: (outletsRes.data ?? []).map(mapOutlet),
@@ -93,6 +97,9 @@ export async function loadFbConfig(
     categories: (categoriesRes.data ?? []).map(mapCategory),
     items: (itemsRes.data ?? []).map(mapMenuItem),
     tables: (tablesRes.data ?? []).map(mapTable),
+    modifierGroups: modifiers.groups,
+    modifierLinks: modifiers.links,
+    billRates: settings.billRates,
   };
 }
 
@@ -130,6 +137,10 @@ function mapCategory(r: Record<string, unknown>): FbMenuCategoryRow {
       r.prep_minutes == null || !Number.isFinite(Number(r.prep_minutes))
         ? null
         : Number(r.prep_minutes),
+    default_course:
+      r.default_course == null || !Number.isFinite(Number(r.default_course))
+        ? null
+        : Number(r.default_course),
   };
 }
 
