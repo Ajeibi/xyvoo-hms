@@ -167,7 +167,7 @@ export function HmsExtraLanding({ page }: { page: HmsExtraPage }) {
             transition={{ duration: 0.55, delay: 0.1, ease: "easeOut" }}
             className="border-t border-white/10"
           >
-            {siblings.map((link) => (
+            {siblings.slice(0, 3).map((link) => (
               <Link key={link.id} href={link.href} className="group block border-b border-white/10 py-7 first:pt-0">
                 <div className="flex items-baseline justify-between gap-4">
                   <h3 className="text-lg font-bold text-white">{link.title}</h3>
