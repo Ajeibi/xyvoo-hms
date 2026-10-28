@@ -174,7 +174,7 @@ export function CheckoutStayBill({
               <Row key={`account-${a.window}`} label={`Billed to ${a.payerName}`} detail="Sent to their company account at check-out" amount={a.amount} currency={currency} credit />
             ))}
             {stay.refunds.map((r) => (
-              <Row key={r.id} label={`Refunded: ${r.description}`} detail={day(r.createdAt)} amount={r.amount} currency={currency} credit />
+              <Row key={r.id} label={r.description} detail={`Handed back ${day(r.createdAt)}`} amount={r.amount} currency={currency} />
             ))}
           </tbody>
           <tfoot>

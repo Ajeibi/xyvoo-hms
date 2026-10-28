@@ -41,6 +41,12 @@ export function ReservationDepositCard({ slug, reservationId, currency }: { slug
   const [reference, setReference] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [settling, setSettling] = useState<{ id: string; action: "refund" | "keep" } | null>(null);
+  const [settleMethod, setSettleMethod] = useState<"cash" | "pos">("cash");
+  const [settleSlip, setSettleSlip] = useState("");
+  const [settleReason, setSettleReason] = useState("");
+  const [settlePin, setSettlePin] = useState("");
+  const [settleError, setSettleError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -60,6 +66,48 @@ export function ReservationDepositCard({ slug, reservationId, currency }: { slug
   if (!deposit) return null;
   const remaining = Math.max(0, Math.round((deposit.required - deposit.paid) * 100) / 100);
   const canTake = bookingStatus === "confirmed";
+  // A deposit can be given back or kept until the guest checks in (then it is on their bill).
+  const canSettle = bookingStatus !== "checked_in" && bookingStatus !== "checked_out";
+
+  function startSettle(id: string, action: "refund" | "keep") {
+    setSettling({ id, action });
+    setSettleMethod("cash");
+    setSettleSlip("");
+    setSettleReason("");
+    setSettlePin("");
+    setSettleError(null);
+  }
+
+  const settle = async () => {
+    if (!settling) return;
+    setBusy(true);
+    setSettleError(null);
+    try {
+      const res = await fetch("/api/hotel/reservations/deposits/settle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slug,
+          depositId: settling.id,
+          action: settling.action,
+          method: settling.action === "refund" ? settleMethod : undefined,
+          posReference: settling.action === "refund" && settleMethod === "pos" ? settleSlip.trim() : undefined,
+          reason: settleReason.trim(),
+          managerPin: settlePin.trim() || undefined,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setSettleError(data.error ?? "That couldn't be saved.");
+        return;
+      }
+      if (data.deposit) setDeposit(data.deposit);
+      toastSuccess(settling.action === "refund" ? "Deposit refunded" : "Deposit kept", settling.action === "refund" ? "Recorded and booked." : "Booked as a cancellation fee.");
+      setSettling(null);
+    } finally {
+      setBusy(false);
+    }
+  };
   const status = STATUS[deposit.status];
 
   const take = async () => {
@@ -110,13 +158,90 @@ export function ReservationDepositCard({ slug, reservationId, currency }: { slug
                   {DEPOSIT_METHOD_LABEL[p.method]}, {day(p.receivedAt)}
                   {p.reference ? <span className="text-slate-600"> · {p.reference}</span> : null}
                   <span className="block text-xs text-slate-600">
-                    {p.status === "applied" && p.appliedAt ? `On the guest's bill since ${day(p.appliedAt)}` : p.status === "refunded" ? "Refunded" : "Held until check-in"}
+                    {p.status === "applied" && p.appliedAt
+                      ? `On the guest's bill since ${day(p.appliedAt)}`
+                      : p.status === "refunded"
+                        ? `Refunded${p.settleReason ? `: ${p.settleReason}` : ""}`
+                        : p.status === "kept"
+                          ? `Kept as a cancellation fee${p.settleReason ? `: ${p.settleReason}` : ""}`
+                          : "Held until check-in"}
                   </span>
+                  {p.status === "held" && canSettle ? (
+                    <span className="mt-1 flex flex-wrap gap-1">
+                      <button type="button" className={hmsButton.quiet} onClick={() => startSettle(p.id, "refund")}>
+                        Refund<span className="sr-only"> this deposit</span>
+                      </button>
+                      <button type="button" className={hmsButton.quiet} onClick={() => startSettle(p.id, "keep")}>
+                        Keep as a cancellation fee<span className="sr-only"> for this deposit</span>
+                      </button>
+                    </span>
+                  ) : null}
                 </span>
                 <span className="tabular-nums text-slate-900">{formatPricingAmount(p.amount, currency)}</span>
               </li>
             ))}
           </ul>
+        ) : null}
+
+        {settling ? (
+          <fieldset className="space-y-3 rounded-xl border border-slate-200 p-3">
+            <legend className="px-1 font-semibold text-slate-900">
+              {settling.action === "refund" ? "Refund this deposit" : "Keep this deposit as a cancellation fee"}
+            </legend>
+            {settling.action === "refund" ? (
+              <>
+                <p className="text-slate-700">Hand the money back first, then record it here.</p>
+                <div>
+                  <label htmlFor={`${ids}-settle-method`} className="mb-1 block font-medium text-slate-800">
+                    Given back by
+                  </label>
+                  <select id={`${ids}-settle-method`} className={`${hmsInput} cursor-pointer`} value={settleMethod} onChange={(e) => setSettleMethod(e.target.value as "cash" | "pos")}>
+                    <option value="cash">Cash from the till</option>
+                    <option value="pos">Reversal on the card machine</option>
+                  </select>
+                </div>
+                {settleMethod === "pos" ? (
+                  <div>
+                    <label htmlFor={`${ids}-settle-slip`} className="mb-1 block font-medium text-slate-800">
+                      Reversal slip number
+                    </label>
+                    <input id={`${ids}-settle-slip`} className={`${hmsInput} max-w-xs`} maxLength={60} value={settleSlip} onChange={(e) => setSettleSlip(e.target.value)} />
+                  </div>
+                ) : null}
+              </>
+            ) : (
+              <p className="text-slate-700">The deposit becomes room revenue, for example when the guest cancels late or doesn&apos;t arrive.</p>
+            )}
+            <div>
+              <label htmlFor={`${ids}-settle-reason`} className="mb-1 block font-medium text-slate-800">
+                Reason
+              </label>
+              <input id={`${ids}-settle-reason`} className={hmsInput} maxLength={150} value={settleReason} onChange={(e) => setSettleReason(e.target.value)} placeholder={settling.action === "refund" ? "For example: cancelled in good time" : "For example: cancelled the day before arrival"} />
+            </div>
+            <div>
+              <label htmlFor={`${ids}-settle-pin`} className="mb-1 block font-medium text-slate-800">
+                Manager PIN
+              </label>
+              <input id={`${ids}-settle-pin`} type="password" inputMode="numeric" autoComplete="off" className={`${hmsInput} max-w-[12rem]`} aria-describedby={`${ids}-settle-pin-hint`} value={settlePin} onChange={(e) => setSettlePin(e.target.value)} />
+              <p id={`${ids}-settle-pin-hint`} className="mt-1 text-xs text-slate-600">
+                Needed unless you&apos;re a manager or admin.
+              </p>
+            </div>
+            {settleError ? <HmsAlert message={settleError} /> : null}
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                className={hmsButton.primary}
+                disabled={busy || !settleReason.trim() || (settling.action === "refund" && settleMethod === "pos" && !settleSlip.trim())}
+                onClick={() => void settle()}
+              >
+                {busy ? "Saving…" : settling.action === "refund" ? "Record the refund" : "Keep the deposit"}
+              </button>
+              <button type="button" className={hmsButton.secondary} disabled={busy} onClick={() => setSettling(null)}>
+                Cancel
+              </button>
+            </div>
+          </fieldset>
         ) : null}
 
         {canTake && !open ? (

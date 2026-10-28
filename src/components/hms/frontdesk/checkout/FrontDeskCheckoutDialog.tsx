@@ -11,6 +11,7 @@ import { ExtraNightsNotice, type ExtraNightsInfo } from "@/components/hms/frontd
 import { CheckoutStayBill } from "@/components/hms/frontdesk/checkout/CheckoutStayBill";
 import { CheckoutDiscountForm } from "@/components/hms/frontdesk/checkout/CheckoutDiscountForm";
 import { InvoiceActions } from "@/components/hms/frontdesk/folio/InvoiceActions";
+import { RefundForm } from "@/components/hms/frontdesk/folio/RefundForm";
 import type { StaySummary } from "@/lib/hms/folio-stay-summary";
 import {
   Dialog,
@@ -113,6 +114,8 @@ export function FrontDeskCheckoutDialog({
   const [extraNights, setExtraNights] = useState<ExtraNightsInfo | null>(null);
   const [stay, setStay] = useState<StaySummary | null>(null);
   const [guestEmail, setGuestEmail] = useState<string | null>(null);
+  // What the guest has really overpaid so far (not counting the early check-out credit, which is only posted at check-out).
+  const [overpaid, setOverpaid] = useState(0);
   const [toAccounts, setToAccounts] = useState<{ window: string; payerName: string; accountName: string | null; amount: number }[]>([]);
 
   const reset = useCallback(() => {
@@ -189,6 +192,7 @@ export function FrontDeskCheckoutDialog({
         setBalance(due);
         setExtraNights(data.extraNights ?? null);
         setStay(data.stay ?? null);
+        setOverpaid(Math.max(0, -(data.billing?.windows?.find((w: { window: string; balance: number }) => w.window === "guest")?.balance ?? data.folio.balance)));
         setGuestEmail(data.reservation.guestEmail ?? null);
         setManualPayAmount(due > 0 ? String(due.toFixed(2)) : "");
         setStep("settle");
@@ -318,6 +322,10 @@ export function FrontDeskCheckoutDialog({
         }${
           data.extraNights
             ? ` ${data.extraNights} extra night${data.extraNights === 1 ? " was" : "s were"} charged for staying past departure.`
+            : ""
+        }${
+          data.owedBack
+            ? ` The guest is owed ${formatPricingAmount(data.owedBack, currency)} back: record it with Give money back on their bill.`
             : ""
         }${
           data.unchargedNights
@@ -459,6 +467,8 @@ export function FrontDeskCheckoutDialog({
               />
 
               {stay ? <CheckoutStayBill stay={stay} currency={currency} toAccounts={toAccounts} /> : null}
+
+              <RefundForm slug={slug} reservationId={reservationId} currency={currency} refundable={overpaid} onDone={() => void loadFolio(reservationId)} />
 
               <InvoiceActions slug={slug} reservationId={reservationId} isFinal={false} guestEmail={guestEmail} />
 

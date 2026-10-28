@@ -47,7 +47,8 @@ export type DepositState = {
     amount: number;
     method: DepositMethod;
     reference: string | null;
-    status: "held" | "applied" | "refunded";
+    status: "held" | "applied" | "refunded" | "kept";
+    settleReason?: string | null;
     receivedAt: string;
     appliedAt: string | null;
   }[];

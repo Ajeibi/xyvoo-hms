@@ -311,8 +311,9 @@ export async function insertFolioLine(
   supabase: SupabaseClient,
   input: InsertFolioLineInput,
 ): Promise<{ line: FolioLineRow | null; error: string | null }> {
+  // Payments and discounts take money off the bill; charges and refunds (money handed back) add to it.
   const signedAmount =
-    input.kind === "payment" || input.kind === "refund" || input.kind === "discount"
+    input.kind === "payment" || input.kind === "discount"
       ? -Math.abs(input.amount)
       : Math.abs(input.amount);
 

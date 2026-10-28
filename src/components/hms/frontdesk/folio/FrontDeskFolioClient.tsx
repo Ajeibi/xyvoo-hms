@@ -26,6 +26,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ExtraNightsNotice, type ExtraNightsInfo } from "@/components/hms/frontdesk/folio/ExtraNightsNotice";
 import { InvoiceActions } from "@/components/hms/frontdesk/folio/InvoiceActions";
 import { FolioWindowsPanel } from "@/components/hms/frontdesk/folio/FolioWindowsPanel";
+import { RefundForm } from "@/components/hms/frontdesk/folio/RefundForm";
 import { WINDOW_LABEL, type WindowSummary } from "@/lib/hms/folio-windows-shared";
 import type { FolioSplitLeg } from "@/lib/hms/folio";
 
@@ -439,6 +440,13 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
                 currency={currency}
                 info={payload.extraNights}
                 onConfirmed={() => void loadFolio(payload.reservation.id)}
+              />
+              <RefundForm
+                slug={slug}
+                reservationId={payload.reservation.id}
+                currency={currency}
+                refundable={Math.max(0, -(payload.billing?.windows.find((w) => w.window === "guest")?.balance ?? payload.folio.balance))}
+                onDone={() => void loadFolio(payload.reservation.id)}
               />
               <InvoiceActions
                 slug={slug}

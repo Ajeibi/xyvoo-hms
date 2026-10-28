@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { postJournalEntry } from "@/lib/hms/journal-entries";
+import { ensureActiveCashFloatSession } from "@/lib/hms/folio";
 import {
   DEPOSIT_METHOD_LABEL,
   depositFor,
@@ -125,7 +126,7 @@ export async function getDepositState(supabase: SupabaseClient, tenantId: string
     supabase
       .schema("hotel")
       .from("reservation_deposits")
-      .select("id,amount,method,reference,status,received_at,applied_at")
+      .select("id,amount,method,reference,status,received_at,applied_at,settle_reason")
       .eq("tenant_id", tenantId)
       .eq("reservation_id", r.id)
       .order("received_at"),
@@ -141,7 +142,8 @@ export async function getDepositState(supabase: SupabaseClient, tenantId: string
     amount: Number(p.amount) || 0,
     method: p.method as DepositMethod,
     reference: (p.reference as string | null) ?? null,
-    status: p.status as "held" | "applied" | "refunded",
+    status: p.status as "held" | "applied" | "refunded" | "kept",
+    settleReason: (p.settle_reason as string | null) ?? null,
     receivedAt: p.received_at as string,
     appliedAt: (p.applied_at as string | null) ?? null,
   }));
@@ -178,6 +180,14 @@ export async function recordDeposit(
     return { ok: false, error: `Add the ${CASH_ACCOUNT[params.method]} and Advance Guest Deposits (2300) accounts in Chart of accounts first.` };
   }
 
+  // Cash goes into the till, so it belongs to the open cash float (opened now if needed).
+  let cashFloatSessionId: string | null = null;
+  if (params.method === "cash") {
+    const float = await ensureActiveCashFloatSession(supabase, params.tenantId, params.userId);
+    if (!float.session) return { ok: false, error: float.error ?? "Open the cash drawer first." };
+    cashFloatSessionId = (float.session as { id: string }).id;
+  }
+
   const { data: row, error } = await supabase
     .schema("hotel")
     .from("reservation_deposits")
@@ -188,6 +198,7 @@ export async function recordDeposit(
       method: params.method,
       reference: params.reference?.trim() || null,
       received_by: params.userId,
+      cash_float_session_id: cashFloatSessionId,
     })
     .select("id")
     .single();

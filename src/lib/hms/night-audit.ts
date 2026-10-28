@@ -85,7 +85,12 @@ export async function computeNightAuditBreakdown(
   const rows = (folioLines ?? []) as { kind: string; amount: number; method: string; department: string | null }[];
   for (const line of rows) {
     const amount = Math.abs(Number(line.amount) || 0);
-    if (line.kind === "charge" || line.kind === "discount" || line.kind === "refund") {
+    if (line.kind === "refund") {
+      // Money handed back at the desk: out of the till or reversed on the card machine.
+      if (line.method === "cash") folioPaymentsCash -= amount;
+      else if (line.method === "card" || line.method === "pos") folioPaymentsCard -= amount;
+      else unmatchedPaymentTotal -= amount;
+    } else if (line.kind === "charge" || line.kind === "discount") {
       const sign = line.kind === "charge" ? 1 : -1;
       if (line.department === "rooms") folioRoomRevenue += sign * amount;
       else if (line.department === "food_beverage") folioFbRevenue += sign * amount;
@@ -162,8 +167,13 @@ function buildLines(
   revenueLine(b.otherRevenue, accts.other, "Other");
   revenueLine(b.unclassifiedRevenue, accts.misc, "Other");
 
-  if (b.cashTotal > 0) lines.push({ accountId: accts.cash, department: "Front Desk", debit: b.cashTotal, credit: 0 });
-  if (b.cardTotal > 0) lines.push({ accountId: accts.card, department: "Front Desk", debit: b.cardTotal, credit: 0 });
+  // More given back than taken on a day leaves cash or card as a credit.
+  const moneyLine = (amount: number, accountId: string) => {
+    if (amount > 0) lines.push({ accountId, department: "Front Desk", debit: amount, credit: 0 });
+    else if (amount < 0) lines.push({ accountId, department: "Front Desk", debit: 0, credit: -amount });
+  };
+  moneyLine(b.cashTotal, accts.cash);
+  moneyLine(b.cardTotal, accts.card);
   if (b.cityLedgerTotal > 0) lines.push({ accountId: accts.cityLedger, department: "Front Desk", debit: b.cityLedgerTotal, credit: 0 });
   // A deposit moved onto a bill: the hotel no longer holds it for the guest, it pays their bill.
   if (b.depositsApplied > 0 && accts.deposits) lines.push({ accountId: accts.deposits, department: "Front Desk", debit: b.depositsApplied, credit: 0 });

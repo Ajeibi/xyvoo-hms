@@ -4,6 +4,7 @@ import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { getActiveCashFloatSession, openCashFloatSession } from "@/lib/hms/folio";
 import { notifyCashFloatVariance } from "@/lib/hms/notification-rules";
+import { expectedCashInFloat } from "@/lib/hms/folio-refunds";
 
 const OpenSchema = z.object({
   slug: z.string().min(1),
@@ -24,7 +25,8 @@ export async function GET(req: Request) {
   const auth = await requireHotelApiMember(slug);
   if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const session = await getActiveCashFloatSession(auth.service, auth.tenant.id);
-  return NextResponse.json({ session });
+  const expected = session ? await expectedCashInFloat(auth.service, session as { id: string; opening_balance: number }) : null;
+  return NextResponse.json({ session, expected });
 }
 
 export async function POST(req: Request) {
@@ -59,16 +61,8 @@ export async function POST(req: Request) {
     const session = await getActiveCashFloatSession(auth.service, auth.tenant.id);
     if (!session) return NextResponse.json({ error: "No open cash float session." }, { status: 404 });
 
-    const { data: cashLines } = await auth.service
-      .schema("hotel")
-      .from("folio_transactions")
-      .select("amount")
-      .eq("cash_float_session_id", session.id)
-      .eq("kind", "payment")
-      .is("voided_at", null);
-
-    const cashIn = (cashLines ?? []).reduce((s, r) => s + Math.abs(Number(r.amount)), 0);
-    const expected = Number(session.opening_balance) + cashIn;
+    // Opening amount, plus cash taken (bills and deposits), less cash given back (refunds).
+    const expected = await expectedCashInFloat(auth.service, session as { id: string; opening_balance: number });
     const variance = body.closingBalance - expected;
 
     const { error } = await auth.service

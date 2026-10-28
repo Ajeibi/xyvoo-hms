@@ -32,6 +32,7 @@ const METHOD_LABEL: Record<string, string> = {
   card: "Card",
   pos: "Card machine",
   direct_bill: "Direct bill",
+  deposit: "Deposit",
   split: "Split",
   transfer: "Bank transfer",
 };
@@ -74,7 +75,10 @@ export function buildInvoiceBody(lines: FolioLineRow[]): InvoiceBody {
     if (l.kind === "payment" || l.kind === "refund") {
       payments.push({
         date: shortDate(l.created_at),
-        description: l.kind === "refund" ? `Refund${l.description ? `: ${l.description}` : ""}` : `Paid by ${(METHOD_LABEL[l.method] ?? l.method).toLowerCase()}`,
+        description:
+          l.kind === "refund" || l.method === "deposit"
+            ? (l.description ?? "Refund")
+            : `Paid by ${(METHOD_LABEL[l.method] ?? l.method).toLowerCase()}`,
         amount: roundMoney(-l.amount),
       });
       continue;

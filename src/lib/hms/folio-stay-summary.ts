@@ -39,6 +39,7 @@ const METHOD_LABEL: Record<string, string> = {
   card: "Card",
   pos: "Card machine",
   direct_bill: "Direct bill",
+  deposit: "Deposit",
   split: "Split",
   transfer: "Bank transfer",
 };
@@ -183,7 +184,8 @@ export function buildStaySummary(
       continue;
     }
     if (l.kind === "refund") {
-      refunds.push({ id: l.id, description: l.description ?? "Refund", amount: -l.amount, createdAt: l.created_at });
+      // Money handed back: it adds to what the bill shows as owed.
+      refunds.push({ id: l.id, description: l.description ?? "Refund", amount: l.amount, createdAt: l.created_at });
       continue;
     }
     transfers.push({ id: l.id, description: l.description ?? "Transfer", amount: l.amount });

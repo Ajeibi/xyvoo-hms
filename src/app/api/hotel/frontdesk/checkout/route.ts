@@ -254,6 +254,10 @@ export async function POST(req: Request) {
     const guest = Array.isArray(raw) ? raw[0] : raw;
     const guestName = guest ? `${guest.first_name} ${guest.last_name}`.trim() : "Guest";
 
+    // Anything the guest overpaid (say, after the early check-out credit) is shown so it can be refunded.
+    const finalLines = await getFolioForReservation(auth.service, auth.tenant.id, reservation.id);
+    const owedBack = Math.round(Math.max(0, -finalLines.windowBalances.guest) * 100) / 100;
+
     // The final invoice: numbered now, and emailed to the guest as a PDF (it is also the receipt).
     const invoiceNumber = await assignInvoiceNumber(auth.service, auth.tenant.id, reservation.id);
     let receiptSent = false;
@@ -310,6 +314,7 @@ export async function POST(req: Request) {
       // Nights past the automatic limit that staff chose not to confirm, so weren't charged.
       unchargedNights: extraNights.waitingNights.length > 0 ? extraNights.waitingNights.length : undefined,
       receiptSent,
+      owedBack: owedBack > 0.009 ? owedBack : undefined,
       billedToAccounts: billing.billed.length ? billing.billed : undefined,
       invoiceNumber: invoiceNumber ?? undefined,
       receiptEmail: receiptSent ? guest?.email : undefined,
