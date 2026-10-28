@@ -4,6 +4,7 @@ import { sendBrandedEmail } from "@/lib/mail/mailtrap";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { CustomerAccount, CustomerSession } from "./customer-accounts";
 import { storefrontUrl } from "./subdomain";
+import { layoutWords, savedLanguage, shopperEmailT } from "./order-emails";
 import { nextTradeStatus, wholesaleSettings, type TradeAction, type TradeStatus, type WholesaleSettings } from "./wholesale";
 
 const db = () => createServerSupabaseClient().schema("store");
@@ -169,24 +170,26 @@ export async function decideTrade(tenantId: string, accountId: string, action: T
   after(async () => {
     try {
     const shop = await getShop(tenantId);
+    // In the language saved with the shopper's account.
+    const t = await shopperEmailT(tenantId, await savedLanguage("customer_accounts", tenantId, accountId));
     const approved = next === "approved";
-    const title = approved ? "Your trade account is ready" : action === "revoke" ? "Your trade account has ended" : "We can't offer a trade account right now";
-    const intro = approved
-      ? `${shop.storeName} has approved your trade account. Sign in to see trade prices on products, and in your basket.`
-      : `${shop.storeName} isn't able to offer you a trade account at the moment. If you have questions, reply to this email.`;
+    const title = approved ? t("emails.tradeReadyTitle") : action === "revoke" ? t("emails.tradeEndedTitle") : t("emails.tradeDeclinedTitle");
+    const intro = approved ? t("emails.tradeApprovedIntro", { shop: shop.storeName }) : t("emails.tradeDeclinedIntro", { shop: shop.storeName });
+    const fromShop = t("emails.labelMessageFromShop");
     await sendBrandedEmail({
       to: row.email as string,
-      subject: `${title}: ${shop.storeName}`,
+      subject: t("emails.tradeSubject", { title, shop: shop.storeName }),
       replyTo: shop.shopEmail,
-      text: [intro, message ? `\nMessage from the shop: ${message}` : "", `\n${storefrontUrl(shop.slug)}/account`].filter(Boolean).join("\n"),
+      text: [intro, message ? `\n${fromShop}: ${message}` : "", `\n${storefrontUrl(shop.slug)}/account`].filter(Boolean).join("\n"),
       layout: {
+        ...layoutWords(t),
         preheader: title,
-        badges: [badge(approved ? "Trade account" : "Trade account update", approved ? "green" : "amber")],
+        badges: [badge(approved ? t("emails.badgeTradeAccount") : t("emails.badgeTradeUpdate"), approved ? "green" : "amber")],
         title,
         intro,
-        body: message ? detailsPanel([{ label: "Message from the shop", value: message }]) : undefined,
-        buttons: [{ label: approved ? "Sign in and shop" : "Go to your account", href: `${storefrontUrl(shop.slug)}/account` }],
-        footerNote: `You're receiving this because you applied for a trade account at ${shop.storeName}.`,
+        body: message ? detailsPanel([{ label: fromShop, value: message }]) : undefined,
+        buttons: [{ label: approved ? t("emails.tradeSignIn") : t("emails.goToAccount"), href: `${storefrontUrl(shop.slug)}/account` }],
+        footerNote: t("emails.tradeFooter", { shop: shop.storeName }),
       },
     });
     } catch (err) {

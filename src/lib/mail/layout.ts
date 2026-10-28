@@ -117,13 +117,17 @@ export type EmailLayout = {
   meta?: string;
   /** Why the reader got this email (escaped). */
   footerNote: string;
+  /** The email's language, for shopper emails in the shop's languages (default "en"). */
+  lang?: string;
+  /** The footer's "Help centre" link text in that language (escaped). */
+  helpCentre?: string;
 };
 
 export function renderEmail(layout: EmailLayout) {
   const year = new Date().getFullYear();
   const siteHost = EMAIL_SITE_URL.replace(/^https?:\/\//, "");
   return `<!doctype html>
-<html lang="en">
+<html lang="${escapeHtml(layout.lang ?? "en")}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -162,7 +166,7 @@ export function renderEmail(layout: EmailLayout) {
               <p style="margin:0 0 10px">
                 <a href="${EMAIL_SITE_URL}" style="color:#ffffff;font-weight:700;text-decoration:none">${escapeHtml(siteHost)}</a>
                 <span style="color:#475569">&nbsp;&middot;&nbsp;</span>
-                <a href="${EMAIL_SITE_URL}/support" style="color:${BRAND.mint};text-decoration:none">Help centre</a>
+                <a href="${EMAIL_SITE_URL}/support" style="color:${BRAND.mint};text-decoration:none">${escapeHtml(layout.helpCentre ?? "Help centre")}</a>
                 <span style="color:#475569">&nbsp;&middot;&nbsp;</span>
                 <a href="mailto:support@getxyvoo.com" style="color:${BRAND.mint};text-decoration:none">support@getxyvoo.com</a>
               </p>

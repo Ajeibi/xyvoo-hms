@@ -8,6 +8,8 @@ import { sendLinkedPush } from "./push-links";
 import { isShopLive } from "./site/data";
 import { STORE_PATHS } from "./site/links";
 import { storefrontUrl } from "./subdomain";
+import type { Translator } from "./i18n/translate";
+import { layoutWords, savedLanguage, shopperEmailT } from "./order-emails";
 
 /*
  * Back-in-stock alerts (store.stock_alerts). Shoppers ask on a sold-out
@@ -135,12 +137,14 @@ export async function sendDueStockAlerts(tenantId?: string, productIds?: string[
     const { data: claimed } = await store().from("stock_alerts").update({ notified_at: new Date().toISOString() }).eq("id", row.id).is("notified_at", null).select("id");
     if (!claimed?.length) continue;
     try {
-      if (row.email) await sendStockAlertEmail(row, tenant, replyTo.get(row.tenant_id) ?? null);
+      // In the language the shopper asked in.
+      const t = await shopperEmailT(row.tenant_id, await savedLanguage("stock_alerts", row.tenant_id, row.id));
+      if (row.email) await sendStockAlertEmail(row, tenant, replyTo.get(row.tenant_id) ?? null, t);
       const product = row.product!;
       const option = row.variant?.options ? Object.values(row.variant.options).join(" · ") : "";
       const reached = await sendLinkedPush(row.tenant_id, "stock_alert", row.id, {
-        title: "It's back in stock",
-        body: `${option ? `${product.name} (${option})` : product.name} is available again. Have a look before it sells out.`,
+        title: t("emails.stockTitle"),
+        body: t("emails.stockAvailable", { product: option ? `${product.name} (${option})` : product.name }),
         path: STORE_PATHS.product(product.slug || product.id),
         tag: `restock-${row.id}`,
       });
@@ -173,31 +177,32 @@ export async function sendStockAlertsForProducts(tenantId: string, productIds: s
   }
 }
 
-async function sendStockAlertEmail(row: PendingRow, tenant: { subdomain?: unknown; name?: unknown; display_name?: unknown }, shopEmail: string | null) {
+async function sendStockAlertEmail(row: PendingRow, tenant: { subdomain?: unknown; name?: unknown; display_name?: unknown }, shopEmail: string | null, t: Translator) {
   const product = row.product!;
   const slug = String(tenant.subdomain || tenant.name);
   const storeName = (tenant.display_name as string | null)?.trim() || slug;
   const option = row.variant?.options ? Object.values(row.variant.options).join(" · ") : "";
   const what = option ? `${product.name} (${option})` : product.name;
   const url = `${storefrontUrl(slug)}${STORE_PATHS.product(product.slug || product.id)}`;
-  const greeting = row.name ? `Hello ${row.name.split(/\s+/)[0]}, ` : "Hello, ";
-  const intro = `${greeting}good news: ${what} is back in stock at ${storeName}. It may not last long, so have a look while it's available.`;
+  const greeting = row.name ? t("emails.greetingName", { name: row.name.split(/\s+/)[0] }) : t("emails.greetingNone");
+  const intro = t("emails.stockIntro", { greeting, product: what, shop: storeName });
 
   await sendBrandedEmail({
     to: row.email!,
-    subject: `${what} is back in stock at ${storeName}`,
+    subject: t("emails.stockSubject", { product: what, shop: storeName }),
     replyTo: shopEmail,
-    text: [intro, "", `See it here: ${url}`, "", "You asked us to tell you when it was back. This is the only email we'll send about it."].join("\n"),
+    text: [intro, "", t("emails.stockSeeHere", { url }), "", t("emails.stockOnlyEmail")].join("\n"),
     layout: {
-      preheader: `${what} is available again. Have a look before it sells out.`,
-      badges: [badge("Back in stock", "green")],
-      title: "It's back in stock",
+      ...layoutWords(t),
+      preheader: t("emails.stockAvailable", { product: what }),
+      badges: [badge(t("emails.badgeBackInStock"), "green")],
+      title: t("emails.stockTitle"),
       intro,
       body: product.image_url
         ? `<p style="margin:0 0 8px;text-align:center"><img src="${escapeHtml(product.image_url)}" alt="${escapeHtml(product.name)}" width="240" style="max-width:100%;height:auto;border-radius:12px"></p>`
         : undefined,
-      buttons: [{ label: "See it now", href: url }],
-      footerNote: `You asked ${storeName} to tell you when this was back in stock. This is the only email we'll send about it.`,
+      buttons: [{ label: t("emails.stockSeeNow"), href: url }],
+      footerNote: t("emails.stockFooter", { shop: storeName }),
     },
   });
 }

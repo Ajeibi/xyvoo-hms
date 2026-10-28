@@ -11,6 +11,8 @@ import { listCustomerGroups } from "./customer-groups-server";
 import { listCustomers } from "./customers";
 import { STORE_PATHS } from "./site/links";
 import { storefrontUrl } from "./subdomain";
+import { emailLanguage, translatorFor } from "./i18n/shopper";
+import type { ShopLanguage } from "./i18n/languages";
 
 const db = () => createServerSupabaseClient().schema("store");
 
@@ -101,12 +103,14 @@ export async function resolveAudience(tenantId: string, audience: CampaignAudien
 // The email itself.
 // ---------------------------------------------------------------------------
 
-type Shop = { tenantId: string; slug: string; storeName: string; shopEmail: string | null; currency: string; url: string };
+/** `lang`: the shop's main language, for the words around the campaign (a campaign goes to many people at once). */
+type Shop = { tenantId: string; slug: string; storeName: string; shopEmail: string | null; currency: string; url: string; lang: ShopLanguage };
 
 async function getShop(tenantId: string): Promise<Shop> {
-  const [{ data: tenant }, { data: profile }] = await Promise.all([
+  const [{ data: tenant }, { data: profile }, lang] = await Promise.all([
     createServerSupabaseClient().from("tenants").select("subdomain, name, display_name").eq("id", tenantId).maybeSingle(),
     db().from("business_profile").select("business_email, currency_code").eq("tenant_id", tenantId).maybeSingle(),
+    emailLanguage(tenantId, null),
   ]);
   const slug = String(tenant?.subdomain || tenant?.name || "");
   return {
@@ -116,6 +120,7 @@ async function getShop(tenantId: string): Promise<Shop> {
     shopEmail: (profile?.business_email as string | null) ?? null,
     currency: (profile?.currency_code as string | null) || "NGN",
     url: storefrontUrl(slug),
+    lang,
   };
 }
 
@@ -183,6 +188,8 @@ export function renderCampaignEmail(opts: {
   pixelUrl?: string;
 }): { layout: EmailLayout; text: string } {
   const { shop, blocks, href, unsubscribeUrl } = opts;
+  // Only the words around the shop's own content; the campaign itself stays as the shop wrote it.
+  const t = translatorFor(shop.lang);
   const body = blocks
     .map((b) => {
       switch (b.type) {
@@ -198,7 +205,7 @@ export function renderCampaignEmail(opts: {
             <td style="padding:16px;vertical-align:middle">
               <p style="margin:0 0 6px;color:#000d1f;font-size:16px;font-weight:700;line-height:1.4">${escapeHtml(b.name)}</p>
               <p style="margin:0 0 12px;color:#334155;font-size:15px">${b.wasPrice ? `<span style="color:#64748b;text-decoration:line-through">${escapeHtml(b.wasPrice)}</span> ` : ""}<strong>${escapeHtml(b.price)}</strong></p>
-              <a href="${escapeHtml(href(b.link))}" style="color:#007edf;font-size:14px;font-weight:700;text-decoration:none">See it in the shop &rarr;</a>
+              <a href="${escapeHtml(href(b.link))}" style="color:#007edf;font-size:14px;font-weight:700;text-decoration:none">${escapeHtml(t("emails.campaignSeeInShop"))} &rarr;</a>
             </td></tr></table>`;
       }
     })
@@ -208,20 +215,22 @@ export function renderCampaignEmail(opts: {
     ...blocks.map((b) => {
       if (b.type === "heading" || b.type === "text") return b.text;
       if (b.type === "button") return `${b.label}: ${href(b.link)}`;
-      return `${b.name} (${b.wasPrice ? `${b.wasPrice}, now ` : ""}${b.price}): ${href(b.link)}`;
+      return `${b.name} (${b.wasPrice ? t("emails.campaignWasNow", { was: b.wasPrice, price: b.price }) : b.price}): ${href(b.link)}`;
     }),
     "",
-    `You're getting this because you asked to hear from ${shop.storeName}. Unsubscribe: ${unsubscribeUrl}`,
+    `${t("emails.campaignWhy", { shop: shop.storeName })} ${t("emails.campaignUnsubscribe")}: ${unsubscribeUrl}`,
   ].join("\n\n");
 
   return {
     text,
     layout: {
+      lang: t.lang,
+      helpCentre: t("emails.helpCentre"),
       preheader: opts.previewText || opts.subject,
       badges: [badge(shop.storeName, "blue")],
       title: opts.subject,
-      body: `${body}<p style="margin:28px 0 0;color:#64748b;font-size:12px;line-height:1.6">Don&rsquo;t want emails from ${escapeHtml(shop.storeName)}? <a href="${escapeHtml(unsubscribeUrl)}" style="color:#64748b">Unsubscribe</a>.</p>${opts.pixelUrl ? `<img src="${escapeHtml(opts.pixelUrl)}" width="1" height="1" alt="" style="display:block;border:0;width:1px;height:1px">` : ""}`,
-      footerNote: `You're receiving this because you asked to hear from ${shop.storeName}.`,
+      body: `${body}<p style="margin:28px 0 0;color:#64748b;font-size:12px;line-height:1.6">${escapeHtml(t("emails.campaignDontWant", { shop: shop.storeName }))} <a href="${escapeHtml(unsubscribeUrl)}" style="color:#64748b">${escapeHtml(t("emails.campaignUnsubscribe"))}</a>.</p>${opts.pixelUrl ? `<img src="${escapeHtml(opts.pixelUrl)}" width="1" height="1" alt="" style="display:block;border:0;width:1px;height:1px">` : ""}`,
+      footerNote: t("emails.campaignFooter", { shop: shop.storeName }),
     },
   };
 }

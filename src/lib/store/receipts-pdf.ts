@@ -82,14 +82,15 @@ export class TaggedPdf {
     this.addPage();
   }
 
-  static async create(meta: { title: string; subject: string; author: string }) {
+  /** `lang` is the document's language tag (default "en-GB"). */
+  static async create(meta: { title: string; subject: string; author: string; lang?: string }) {
     const doc = await PDFDocument.create();
     doc.setTitle(meta.title, { showInWindowTitleBar: true });
     doc.setSubject(meta.subject);
     doc.setAuthor(meta.author);
     doc.setCreator("XYVOO Storefront");
     doc.setProducer("XYVOO Storefront");
-    doc.setLanguage("en-GB");
+    doc.setLanguage(meta.lang ?? "en-GB");
     const noto = await loadFontBytes();
     if (noto) {
       try {
@@ -268,11 +269,11 @@ export class TaggedPdf {
     this.y = top - height;
   }
 
-  /** Adds page numbers, writes the structure tree and returns the file. */
-  async save(footer?: string) {
+  /** Adds page numbers, writes the structure tree and returns the file. `pageLabel` words them in another language. */
+  async save(footer?: string, pageLabel: (page: number, total: number) => string = (page, total) => `Page ${page} of ${total}`) {
     const total = this.pages.length;
     this.pages.forEach(({ page }, i) => {
-      const label = this.text(`${footer ? `${footer}  ·  ` : ""}Page ${i + 1} of ${total}`);
+      const label = this.text(`${footer ? `${footer}  ·  ` : ""}${pageLabel(i + 1, total)}`);
       this.artifact((p) => p.drawText(label, { x: this.left, y: MARGIN - 20, size: 8, font: this.font, color: MUTED }), page);
     });
     this.writeStructureTree();

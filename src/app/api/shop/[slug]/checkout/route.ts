@@ -1,3 +1,6 @@
+import { requestLanguage, saveShopperLanguage, shopperT } from "@/lib/store/i18n/shopper";
+import type { Translator } from "@/lib/store/i18n/translate";
+import type { MessageKey } from "@/lib/store/i18n/messages";
 import { createHash } from "node:crypto";
 import { after, NextResponse } from "next/server";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
@@ -27,73 +30,113 @@ import { availablePaymentMethods, OFFLINE_METHODS, parseOfflinePayments, PAYMENT
 import { sendOrderPaidEmails, sendOrderReceivedEmails } from "@/lib/store/order-emails";
 import { isShopLive } from "@/lib/store/site/data";
 import { checkDiscount } from "@/lib/store/discounts";
-import { discountProductIds, findDiscountByCode } from "@/lib/store/discounts-server";
+import { discountProblem, discountProductIds, findDiscountByCode } from "@/lib/store/discounts-server";
 import { formatShopCurrency } from "@/lib/shop/format";
 import { GIFT_CARD_PROBLEMS, giftCardPurchaseSchema } from "@/lib/store/gift-cards";
 
-/** Generous limits that no real order reaches, so junk can't fill the database. */
-const text = (max: number) => z.string().trim().max(max, "That's longer than we can take. Please shorten it.");
-
-const CheckoutSchema = z.object({
-  customer: z.object({
-    name: text(120).min(1, "Please enter your name."),
-    email: text(254).email("Enter a valid email address."),
-    phone: text(30).optional(),
-  }),
-  shippingAddress: z
-    .object({
-      line1: text(200).optional(),
-      line2: text(200).optional(),
-      city: text(100).optional(),
-      state: text(100).optional(),
-      country: z
-        .string()
-        .trim()
-        .regex(/^[A-Z]{2}$/, "Choose the country to deliver to.")
-        .optional(),
-      postalCode: text(20).optional(),
-    })
-    .default({}),
-  items: z
-    .array(
-      z.object({
-        productId: z.string().uuid(),
-        variantId: z.string().uuid().nullable().optional(),
-        quantity: z.number().int().positive().max(999, "That's more than we can take in one order. Please contact the shop."),
-      }),
-    )
-    .min(1, "Your cart is empty.")
-    .max(50, "That's more items than we can take in one order. Please split it."),
-  /** One of the store's active delivery options; required when the store has any. */
-  deliveryZoneId: z.string().uuid().nullable().optional(),
-  /** The checkout saved while the shopper typed (abandoned-cart follow-up), if any. Also stops a double click making two orders. */
-  checkoutToken: text(100).optional(),
-  /** Card (Paystack) or one of the shop's offline options. */
-  paymentMethod: z.enum(["card", ...OFFLINE_METHODS]).default("card"),
-  /** A discount code the shopper applied; worked out again here from the order's own lines. */
-  discountCode: text(40).optional(),
-  /** A gift card to pay with: as much of the total as its balance covers. */
-  giftCardCode: text(40).optional(),
-  /** Buying a gift card: who it's for. The basket is then just the gift card, with no delivery. */
-  giftCard: giftCardPurchaseSchema.optional(),
-  /** Ticked the box to hear from the shop by email. Never ticked for them. */
-  marketingConsent: z.boolean().optional(),
-  /** Asked for this order's updates on WhatsApp (to the phone number above). */
-  whatsappUpdates: z.boolean().optional(),
-  /** Loyalty points the signed-in shopper wants to use; checked and worked out again here. */
-  loyaltyPoints: z.number().int().min(0).max(1_000_000).optional(),
-  /** The shopper's note for the shop: delivery instructions, a gift message. */
-  note: text(500).optional(),
-});
-
-const DISCOUNT_CLAIM_ERRORS: Record<string, string> = {
-  inactive: "That discount code is no longer valid. Remove it to continue.",
-  used_up: "Sorry, that discount code has just been used up. Remove it to continue.",
-  customer_limit: "You've already used that discount code. Remove it to continue.",
+/** The checkout's details, with its messages in the shopper's language. */
+const checkoutSchema = (t: Translator) => {
+  /** Generous limits that no real order reaches, so junk can't fill the database. */
+  const text = (max: number) => z.string().trim().max(max, t("errors.coTooLong"));
+  return z.object({
+    customer: z.object({
+      name: text(120).min(1, t("errors.coEnterName")),
+      email: text(254).email(t("errors.coEnterValidEmail")),
+      phone: text(30).optional(),
+    }),
+    shippingAddress: z
+      .object({
+        line1: text(200).optional(),
+        line2: text(200).optional(),
+        city: text(100).optional(),
+        state: text(100).optional(),
+        country: z
+          .string()
+          .trim()
+          .regex(/^[A-Z]{2}$/, t("errors.coChooseCountry"))
+          .optional(),
+        postalCode: text(20).optional(),
+      })
+      .default({}),
+    items: z
+      .array(
+        z.object({
+          productId: z.string().uuid(),
+          variantId: z.string().uuid().nullable().optional(),
+          quantity: z.number().int().positive().max(999, t("errors.coQuantityTooMany")),
+        }),
+      )
+      .min(1, t("errors.coCartEmpty"))
+      .max(50, t("errors.coTooManyItemsSplit")),
+    /** One of the store's active delivery options; required when the store has any. */
+    deliveryZoneId: z.string().uuid().nullable().optional(),
+    /** The checkout saved while the shopper typed (abandoned-cart follow-up), if any. Also stops a double click making two orders. */
+    checkoutToken: text(100).optional(),
+    /** Card (Paystack) or one of the shop's offline options. */
+    paymentMethod: z.enum(["card", ...OFFLINE_METHODS]).default("card"),
+    /** A discount code the shopper applied; worked out again here from the order's own lines. */
+    discountCode: text(40).optional(),
+    /** A gift card to pay with: as much of the total as its balance covers. */
+    giftCardCode: text(40).optional(),
+    /** Buying a gift card: who it's for. The basket is then just the gift card, with no delivery. */
+    giftCard: giftCardPurchaseSchema.optional(),
+    /** Ticked the box to hear from the shop by email. Never ticked for them. */
+    marketingConsent: z.boolean().optional(),
+    /** Asked for this order's updates on WhatsApp (to the phone number above). */
+    whatsappUpdates: z.boolean().optional(),
+    /** Loyalty points the signed-in shopper wants to use; checked and worked out again here. */
+    loyaltyPoints: z.number().int().min(0).max(1_000_000).optional(),
+    /** The shopper's note for the shop: delivery instructions, a gift message. */
+    note: text(500).optional(),
+  });
 };
 
-const tooMany = (retryAfterSeconds: number) =>
-  NextResponse.json({ error: "Too many checkout attempts. Please wait a few minutes and try again." }, { status: 429, headers: { "Retry-After": String(retryAfterSeconds) } });
+type CheckoutData = z.infer<ReturnType<typeof checkoutSchema>>;
+
+/** Why claim_discount turned the code down, by its answer. */
+const DISCOUNT_CLAIM_ERRORS: Record<string, MessageKey> = {
+  inactive: "errors.coClaimInactive",
+  used_up: "errors.coClaimUsedUp",
+  customer_limit: "errors.coClaimCustomerLimit",
+};
+
+/** Why redeem_gift_card turned the card down, by its answer. */
+const GIFT_CARD_ERRORS: Record<string, MessageKey> = {
+  not_found: "errors.coGiftCardNotFound",
+  disabled: "errors.coGiftCardDisabled",
+  expired: "errors.coGiftCardExpired",
+  empty: "errors.coGiftCardEmpty",
+};
+
+/** create_guest_order's errors (e.g. "INSUFFICIENT_STOCK: Wireless Headphones"), worded as mapOrderErrorMessage words them. */
+const ORDER_ERRORS: Record<string, MessageKey> = {
+  ORDER_EMPTY: "errors.coCartEmpty",
+  CUSTOMER_NAME_REQUIRED: "errors.coEnterName",
+  CUSTOMER_EMAIL_REQUIRED: "errors.coEnterEmail",
+  PRODUCT_NOT_FOUND: "errors.coOrderProductNotFound",
+  VARIANT_NOT_FOUND: "errors.coOrderVariantNotFound",
+  INVALID_QUANTITY: "errors.coOrderInvalidQuantity",
+};
+/** The ones that name the product: "{name} is no longer available." */
+const ORDER_PRODUCT_ERRORS: Record<string, MessageKey> = {
+  PRODUCT_UNAVAILABLE: "errors.coOrderProductUnavailable",
+  BELOW_MINIMUM_ORDER_QTY: "errors.coOrderBelowMinimum",
+  INSUFFICIENT_STOCK: "errors.coOrderInsufficientStock",
+};
+
+/** mapOrderErrorMessage in the shopper's language (the same English words). */
+function orderErrorMessage(t: Translator, raw: string) {
+  const [code, detail] = raw.split(":").map((s) => s.trim());
+  const whole = ORDER_ERRORS[code];
+  if (whole) return detail ? `${detail} ${t(whole)}` : t(whole);
+  const named = ORDER_PRODUCT_ERRORS[code];
+  // Without the product's name, the English wording as it was.
+  if (named) return detail ? t(named, { name: detail }) : mapOrderErrorMessage(raw);
+  return t("errors.coOrderFailed");
+}
+
+const tooMany = (retryAfterSeconds: number, error: string) =>
+  NextResponse.json({ error }, { status: 429, headers: { "Retry-After": String(retryAfterSeconds) } });
 
 export async function POST(req: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -103,18 +146,19 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
   // per shop, and a looser cap across shops so a shared mobile network isn't blocked by one shop's traffic.
   const ip = clientIp(req);
   const overall = await rateLimitShared(`checkout:${ip}`, 30, 10 * 60_000);
-  if (!overall.ok) return tooMany(overall.retryAfterSeconds);
+  if (!overall.ok) return tooMany(overall.retryAfterSeconds, "Too many checkout attempts. Please wait a few minutes and try again.");
   const tenant = await getShopTenantBySlug(slug);
   if (!tenant) return NextResponse.json({ error: "Storefront not found." }, { status: 404 });
+  const t = await shopperT(req, slug, tenant.id);
   // A shop that hasn't been published (or is paused) doesn't take orders.
-  if (!(await isShopLive(tenant.id))) return NextResponse.json({ error: "This shop isn't taking orders right now." }, { status: 403 });
+  if (!(await isShopLive(tenant.id))) return NextResponse.json({ error: t("errors.coNotTakingOrders") }, { status: 403 });
   const perShop = await rateLimitShared(`checkout:${tenant.id}:${ip}`, 10, 10 * 60_000);
-  if (!perShop.ok) return tooMany(perShop.retryAfterSeconds);
+  if (!perShop.ok) return tooMany(perShop.retryAfterSeconds, t("errors.coTooManyCheckoutAttempts"));
 
   const body = await req.json().catch(() => null);
-  const parsed = CheckoutSchema.safeParse(body);
+  const parsed = checkoutSchema(t).safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.issues[0]?.message || "Invalid checkout details." }, { status: 400 });
+    return NextResponse.json({ error: parsed.error.issues[0]?.message || t("errors.coInvalidDetails") }, { status: 400 });
   }
 
   const { customer, shippingAddress, items, deliveryZoneId, checkoutToken, paymentMethod, discountCode, giftCardCode, giftCard, marketingConsent, whatsappUpdates, loyaltyPoints, note } = parsed.data;
@@ -127,7 +171,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
   // covers what's being ordered, so a changed basket makes a new order.
   const key = checkoutToken ? checkoutKey(checkoutToken, parsed.data) : null;
   if (key) {
-    const previous = await sameCheckoutReply(tenant.id, key, receivedUrl);
+    const previous = await sameCheckoutReply(tenant.id, key, receivedUrl, t);
     if (previous) return previous;
   }
 
@@ -139,7 +183,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
   const offline = parseOfflinePayments(profile?.offline_payments);
   const methods = availablePaymentMethods({ acceptsCard: paymentRoute !== null || simulatedPaymentsEnabled(), offline, whatsappNumber: (profile?.whatsapp as string | null) ?? null });
   if (!methods.includes(paymentMethod)) {
-    return NextResponse.json({ error: methods.length ? "That way to pay isn't available. Please choose another." : "This store isn't taking orders online yet." }, { status: 400 });
+    return NextResponse.json({ error: methods.length ? t("errors.coPaymentMethodUnavailable") : t("errors.coNotTakingOrdersOnline") }, { status: 400 });
   }
 
   // Gift cards are bought on their own (no delivery, discount or tax), and never paid for with another gift card.
@@ -148,27 +192,27 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
   if (buyingGiftCard) {
     const line = items[0];
     if (!profile?.gift_cards_enabled || !giftProductId || items.length !== 1 || line.productId !== giftProductId || line.quantity !== 1 || !line.variantId) {
-      return NextResponse.json({ error: "Gift cards can't be bought here right now. Please refresh the page and try again." }, { status: 400 });
+      return NextResponse.json({ error: t("errors.coGiftCardNotBuyable") }, { status: 400 });
     }
     if (discountCode || giftCardCode) {
-      return NextResponse.json({ error: "Discount codes and gift cards can't be used to buy a gift card." }, { status: 400 });
+      return NextResponse.json({ error: t("errors.coGiftCardNoCodes") }, { status: 400 });
     }
   } else if (giftProductId && items.some((i) => i.productId === giftProductId)) {
-    return NextResponse.json({ error: "Gift cards are bought on their own page. Remove the gift card from your basket, then buy it from its page." }, { status: 400 });
+    return NextResponse.json({ error: t("errors.coGiftCardOwnPage") }, { status: 400 });
   }
 
   // The shop needs a number to reach the shopper about delivery (a gift card is emailed, so it needs none).
   if (!buyingGiftCard || customer.phone) {
     const phone = customer.phone ? parsePhoneNumberFromString(customer.phone) : undefined;
     if (!phone?.isValid()) {
-      return NextResponse.json({ error: "Enter a phone number with its country code, so the shop can reach you about your order." }, { status: 400 });
+      return NextResponse.json({ error: t("errors.coPhoneNeeded") }, { status: 400 });
     }
     customer.phone = phone.number;
   }
 
   // Each line must be something the shop still sells: a product with options needs
   // one of its current options, and a removed (archived) option can't be bought.
-  const variantProblem = await basketVariantProblem(service, tenant.id, items);
+  const variantProblem = await basketVariantProblem(service, tenant.id, items, t);
   if (variantProblem) return NextResponse.json({ error: variantProblem }, { status: 409 });
 
   // Delivery: the option must be one of this store's active ones, looked up
@@ -182,14 +226,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
   const zones = ((zoneRows || []) as DeliveryZoneRow[]).map(mapDeliveryZone);
   const zone = buyingGiftCard ? null : (zones.find((z) => z.id === deliveryZoneId) ?? null);
   if (!buyingGiftCard && zones.length > 0 && !zone) {
-    return NextResponse.json({ error: "Please choose a delivery option." }, { status: 400 });
+    return NextResponse.json({ error: t("errors.coChooseDelivery") }, { status: 400 });
   }
   if (zone && !zone.isPickup && (!shippingAddress.line1 || !shippingAddress.city)) {
-    return NextResponse.json({ error: "Please enter your delivery address." }, { status: 400 });
+    return NextResponse.json({ error: t("errors.coEnterAddress") }, { status: 400 });
   }
   // An option limited to certain states or towns must cover this address.
   if (zone && !zoneCovers(zone, shippingAddress)) {
-    return NextResponse.json({ error: `${zone.name} doesn't deliver to that address. Please choose another delivery option.` }, { status: 400 });
+    return NextResponse.json({ error: t("errors.coZoneNoAddress", { zone: zone.name }) }, { status: 400 });
   }
 
   // An option that charges by weight can only carry an order up to its heaviest band.
@@ -201,13 +245,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     .in("id", [...new Set(items.map((i) => i.productId))]);
   const weightFor = new Map((weightRows || []).map((r) => [r.id as string, Number(r.weight_kg) || 0]));
   if (zone && !fitsWeight(zone, orderWeightKg(items.map((i) => ({ weightKg: weightFor.get(i.productId), quantity: i.quantity }))))) {
-    return NextResponse.json({ error: `This order is too heavy for ${zone.name}. Please choose another delivery option, or contact the shop to arrange it.` }, { status: 400 });
+    return NextResponse.json({ error: t("errors.coZoneTooHeavy", { zone: zone.name }) }, { status: 400 });
   }
 
   // The discount code must exist before any stock is reserved.
   const discount = discountCode ? await findDiscountByCode(tenant.id, discountCode) : null;
   if (discountCode && !discount) {
-    return NextResponse.json({ error: "That discount code isn't valid. Remove it or check the spelling." }, { status: 400 });
+    return NextResponse.json({ error: t("errors.coDiscountInvalid") }, { status: 400 });
   }
 
   // A confirmed customer with an approved trade account pays trade prices, worked out here
@@ -217,10 +261,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
   if (tradeSettings) {
     const tradeSession = await getCustomerSession(tenant.id);
     if (tradeSession && tradeSession.account.email !== customer.email.trim().toLowerCase()) {
-      return NextResponse.json({ error: "To get your trade prices, please order with the email address on your account." }, { status: 400 });
+      return NextResponse.json({ error: t("errors.coTradeEmail") }, { status: 400 });
     }
     if (discountCode && !tradeSettings.allowDiscounts) {
-      return NextResponse.json({ error: "Discount codes can't be used with trade prices. Remove the code to continue." }, { status: 400 });
+      return NextResponse.json({ error: t("errors.coTradeNoDiscounts") }, { status: 400 });
     }
   }
 
@@ -255,7 +299,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     .single();
 
   if (orderError || !orderResult) {
-    return NextResponse.json({ error: mapOrderErrorMessage(orderError?.message || "") }, { status: 400 });
+    return NextResponse.json({ error: orderErrorMessage(t, orderError?.message || "") }, { status: 400 });
   }
 
   const created = orderResult as { id: string; total_amount: number };
@@ -274,7 +318,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     const claimed = await claimCheckoutKey(tenant.id, created.id, key);
     if (!claimed) {
       await service.schema("store").rpc("cancel_order", { p_tenant_id: tenant.id, p_order_id: created.id });
-      return (await sameCheckoutReply(tenant.id, key, receivedUrl)) ?? NextResponse.json({ error: STILL_PLACING }, { status: 409 });
+      return (await sameCheckoutReply(tenant.id, key, receivedUrl, t)) ?? NextResponse.json({ error: t("errors.coStillPlacing") }, { status: 409 });
     }
   }
 
@@ -300,7 +344,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
       tradeApplied = true;
       if (itemsTotal < tradeSettings.minOrder) {
         await service.schema("store").rpc("cancel_order", { p_tenant_id: tenant.id, p_order_id: created.id });
-        return NextResponse.json({ error: `A trade order needs to come to at least ${formatShopCurrency(tradeSettings.minOrder, currency)} in items. Add a little more to your basket.` }, { status: 400 });
+        return NextResponse.json({ error: t("errors.coTradeMinimum", { amount: formatShopCurrency(tradeSettings.minOrder, currency) }) }, { status: 400 });
       }
     }
   }
@@ -314,14 +358,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
   let freeDeliveryCode = false;
   if (discount) {
     discountEligible = await discountProductIds(discount);
-    const check = checkDiscount(discount, orderLines, discountEligible, new Date(), (amount) => formatShopCurrency(amount, currency));
+    const money = (amount: number) => formatShopCurrency(amount, currency);
+    const check = checkDiscount(discount, orderLines, discountEligible, new Date(), money);
     const claim = check.ok
       ? await service.schema("store").rpc("claim_discount", { p_tenant_id: tenant.id, p_order_id: created.id, p_code_id: discount.id, p_amount: check.amount })
       : null;
     if (!check.ok || claim?.error || claim?.data !== "ok") {
       await service.schema("store").rpc("cancel_order", { p_tenant_id: tenant.id, p_order_id: created.id });
       if (claim?.error) console.error("[checkout] discount claim failed", { orderId: created.id, error: claim.error });
-      const message = !check.ok ? check.message : DISCOUNT_CLAIM_ERRORS[String(claim?.data)] ?? "We couldn't apply that discount code. Please try again.";
+      const claimProblem = DISCOUNT_CLAIM_ERRORS[String(claim?.data)];
+      const message = !check.ok ? discountProblem(t, check, discount.minSubtotal, money) : t(claimProblem ?? "errors.coClaimFailed");
       return NextResponse.json({ error: message }, { status: 409 });
     }
     discountAmount = check.amount;
@@ -400,7 +446,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     if (redeemError || result?.status !== "ok") {
       await service.schema("store").rpc("cancel_order", { p_tenant_id: tenant.id, p_order_id: order.id });
       if (redeemError) console.error("[checkout] gift card not applied", { orderId: order.id, error: redeemError });
-      return NextResponse.json({ error: GIFT_CARD_PROBLEMS[String(result?.status)] ?? "We couldn't use that gift card. Please try again." }, { status: 409 });
+      const giftProblem = GIFT_CARD_ERRORS[String(result?.status)];
+      return NextResponse.json({ error: giftProblem ? t(giftProblem) : (GIFT_CARD_PROBLEMS[String(result?.status)] ?? t("errors.coGiftCardFailed")) }, { status: 409 });
     }
     giftCardAmount = Number(result.amount) || 0;
     order.total_amount = Math.round((order.total_amount - giftCardAmount) * 100) / 100;
@@ -412,7 +459,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     const session = await getCustomerSession(tenant.id);
     const problem =
       !session?.verified || session.account.email !== customer.email.trim().toLowerCase()
-        ? "To use your points, sign in with the code we email you, and order with the email address on your account."
+        ? t("errors.coPointsSignIn")
         : null;
     let redeemFailed = problem;
     let result = null as { status: string; points?: number; amount?: number; minimum?: number } | null;
@@ -425,15 +472,15 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
       if (redeemError || result?.status !== "ok") {
         redeemFailed =
           result?.status === "below_minimum"
-            ? `You need to use at least ${result.minimum} points at once.`
+            ? t("errors.coPointsMinimum", { minimum: String(result.minimum) })
             : result?.status === "no_points"
-              ? "You don't have any points to use on this order."
-              : "We couldn't use your points. Please try again, or untick “Use my points”.";
+              ? t("errors.coPointsNone")
+              : t("errors.coPointsFailedUntick");
       }
     }
     if (redeemFailed || !result) {
       await service.schema("store").rpc("cancel_order", { p_tenant_id: tenant.id, p_order_id: order.id });
-      return NextResponse.json({ error: redeemFailed || "We couldn't use your points. Please try again." }, { status: 409 });
+      return NextResponse.json({ error: redeemFailed || t("errors.coPointsFailed") }, { status: 409 });
     }
     order.total_amount = Math.round((order.total_amount - (Number(result.amount) || 0)) * 100) / 100;
   }
@@ -452,7 +499,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     .eq("id", order.id);
   if (totalsError) {
     console.error("[checkout] totals not recorded", { orderId: order.id, error: totalsError });
-    return cancelWith("We couldn't finish your order. Please try again.", 500);
+    return cancelWith(t("errors.coOrderNotFinished"), 500);
   }
   // Only shops that charge tax write the tax columns, so orders still go through before they exist.
   if (tax.enabled) {
@@ -465,7 +512,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     if (taxError) {
       console.error("[checkout] tax not recorded", { orderId: order.id, error: taxError });
       await service.schema("store").rpc("cancel_order", { p_tenant_id: tenant.id, p_order_id: order.id });
-      return NextResponse.json({ error: "We couldn't finish your order. Please try again." }, { status: 500 });
+      return NextResponse.json({ error: t("errors.coOrderNotFinished") }, { status: 500 });
     }
     // The VAT name and number in force today, for this order's receipt. A separate
     // write, so orders still go through before these columns exist.
@@ -481,6 +528,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     const { error: noteError } = await service.schema("store").from("orders").update({ customer_note: note }).eq("id", order.id);
     if (noteError) console.error("[checkout] note not recorded", { orderId: order.id, error: noteError.message });
   }
+  // The shopper's language, so the order's emails are in it (before any of them go out below).
+  await saveShopperLanguage("orders", tenant.id, { id: order.id }, await requestLanguage(req, slug, tenant.id));
   // Likewise for WhatsApp updates; set before any order message goes out below.
   if (whatsappUpdates && customer.phone) await service.schema("store").from("orders").update({ whatsapp_updates: true }).eq("id", order.id);
 
@@ -505,7 +554,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     const { error: freeError } = await service.schema("store").rpc("mark_order_paid", { p_order_id: order.id, p_paystack_reference: `discount-${order.id}` });
     if (freeError) {
       console.error("[checkout] free order not marked paid", { orderId: order.id, error: freeError });
-      return cancelWith("We couldn't place your order. Please try again.", 500);
+      return cancelWith(t("errors.coOrderNotPlaced"), 500);
     }
     await service
       .schema("store")
@@ -525,13 +574,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
       .eq("id", order.id);
     if (offlineError) {
       console.error("[checkout] offline order not recorded", { orderId: order.id, error: offlineError });
-      return cancelWith("We couldn't place your order. Please try again.", 500);
+      return cancelWith(t("errors.coOrderNotPlaced"), 500);
     }
     after(() => sendOrderReceivedEmails(tenant.id, order.id));
     return json({ orderId: order.id, receivedUrl: receivedUrl(order.id) });
   }
   const simulated = simulatedPaymentsEnabled();
-  if (!paymentRoute && !simulated) return cancelWith("Card payments aren't available. Please choose another way to pay.", 400);
+  if (!paymentRoute && !simulated) return cancelWith(t("errors.coCardUnavailable"), 400);
 
   const origin = new URL(req.url).origin;
   const reference = order.id;
@@ -550,11 +599,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     });
     if (intentError) {
       console.error("[checkout] simulated payment not started", { orderId: order.id, error: intentError.message });
-      return cancelWith("We couldn't start the payment just now. Please try again in a moment.", 502);
+      return cancelWith(t("errors.coPaymentNotStarted"), 502);
     }
     return json({ authorizationUrl, reference, orderId: order.id });
   }
-  if (!paymentRoute) return cancelWith("Card payments aren't available. Please choose another way to pay.", 400);
+  if (!paymentRoute) return cancelWith(t("errors.coCardUnavailable"), 400);
   // Send the shopper back to wherever they checked out: the store's own
   // subdomain, or /shop/<slug> on the platform domain.
   const callbackUrl = onStoreSubdomain ? `${origin}/checkout/callback` : `${origin}/shop/${slug}/checkout/callback`;
@@ -610,7 +659,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     // undo it now rather than hold the stock until it expires, so trying again
     // makes a fresh order.
     console.error("[checkout] payment not started", { orderId: order.id, err });
-    return cancelWith("We couldn't start the payment just now. Please try again in a moment.", 502);
+    return cancelWith(t("errors.coPaymentNotStarted"), 502);
   }
 }
 
@@ -623,6 +672,7 @@ async function basketVariantProblem(
   service: ReturnType<typeof createServerSupabaseClient>,
   tenantId: string,
   items: { productId: string; variantId?: string | null }[],
+  t: Translator,
 ) {
   const { data, error } = await service
     .schema("store")
@@ -640,15 +690,13 @@ async function basketVariantProblem(
     const own = variants.filter((v) => v.product_id === item.productId);
     if (item.variantId) {
       const variant = own.find((v) => v.id === item.variantId);
-      if (!variant || variant.archived_at) return "One of the options in your basket is no longer sold. Remove it from your basket, then choose again.";
+      if (!variant || variant.archived_at) return t("errors.coOptionNoLongerSold");
     } else if (own.some((v) => !v.archived_at)) {
-      return "Please choose an option (such as size or colour) for each item in your basket. Remove the item, then add it again from its page.";
+      return t("errors.coChooseOption");
     }
   }
   return null;
 }
-
-const STILL_PLACING ="Your order is still being placed. Please wait a moment, then try again.";
 
 /** How long repeating the same checkout gets the same order back. */
 const SAME_CHECKOUT_MS = 15 * 60_000;
@@ -658,7 +706,7 @@ const SAME_CHECKOUT_MS = 15 * 60_000;
  * submit sent twice matches; changing the basket, address, delivery, way to pay
  * or any code doesn't, so it makes a new order rather than reusing the old one.
  */
-function checkoutKey(token: string, data: z.infer<typeof CheckoutSchema>) {
+function checkoutKey(token: string, data: CheckoutData) {
   const { customer, shippingAddress, deliveryZoneId, paymentMethod, discountCode, giftCardCode, giftCard, loyaltyPoints } = data;
   const lineKey = (i: (typeof data.items)[number]) => `${i.productId}:${i.variantId ?? ""}`;
   const items = [...data.items].sort((a, b) => lineKey(a).localeCompare(lineKey(b)));
@@ -673,7 +721,7 @@ function checkoutKey(token: string, data: z.infer<typeof CheckoutSchema>) {
  * The reply for a checkout that already made an order: the same payment page,
  * or the same "order received" page. Null means go ahead and make a new order.
  */
-async function sameCheckoutReply(tenantId: string, key: string, receivedUrl: (orderId: string) => string) {
+async function sameCheckoutReply(tenantId: string, key: string, receivedUrl: (orderId: string) => string, t: Translator) {
   const db = createServerSupabaseClient().schema("store");
   const { data: previous, error } = await db
     .from("orders")
@@ -699,7 +747,7 @@ async function sameCheckoutReply(tenantId: string, key: string, receivedUrl: (or
   const authorizationUrl = intents.find((i) => i.metadata?.authorization_url)?.metadata?.authorization_url;
   if (authorizationUrl) return NextResponse.json({ authorizationUrl, reference: previous.id, orderId: previous.id });
   // No payment page yet: the other submit is still working on it.
-  if (Date.now() - new Date(previous.created_at as string).getTime() < 60_000) return NextResponse.json({ error: STILL_PLACING }, { status: 409 });
+  if (Date.now() - new Date(previous.created_at as string).getTime() < 60_000) return NextResponse.json({ error: t("errors.coStillPlacing") }, { status: 409 });
   // It never got one, so it can't be paid: undo it and start again.
   await db.rpc("cancel_order", { p_tenant_id: tenantId, p_order_id: previous.id });
   return null;

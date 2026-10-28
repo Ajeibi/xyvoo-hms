@@ -4,6 +4,7 @@ import { getCheckoutFreeRules } from "@/lib/store/free-delivery-server";
 import { getCachedShopTenant } from "@/lib/store/site/shop-cache";
 import { isShopLive } from "@/lib/store/site/data";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { shopperT } from "@/lib/store/i18n/shopper";
 
 /**
  * GET /api/shop/<store>/delivery-summary — what the basket says about delivery
@@ -11,10 +12,11 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
  * collection is offered, and the smallest order that delivers free anywhere
  * (for "spend X more for free delivery"). Checkout works the real charge out.
  */
-export async function GET(_req: Request, { params }: { params: Promise<{ slug: string }> }) {
+export async function GET(req: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const tenant = /^[a-z0-9-]{1,63}$/i.test(slug) ? await getCachedShopTenant(slug) : null;
-  if (!tenant || !(await isShopLive(tenant.id))) return NextResponse.json({ error: "Shop not found." }, { status: 404 });
+  if (!tenant) return NextResponse.json({ error: "Shop not found." }, { status: 404 });
+  if (!(await isShopLive(tenant.id))) return NextResponse.json({ error: (await shopperT(req, slug, tenant.id))("errors.coShopNotFound") }, { status: 404 });
 
   const [{ data }, rules] = await Promise.all([
     createServerSupabaseClient()

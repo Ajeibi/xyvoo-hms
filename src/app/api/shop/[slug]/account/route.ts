@@ -8,7 +8,8 @@ import {
   lastShippingAddress,
   updateAccount,
 } from "@/lib/store/customer-accounts";
-import { resolveShopForAccount } from "@/lib/store/customer-api";
+import { issueMessage, resolveShopForAccount } from "@/lib/store/customer-api";
+import { shopperT } from "@/lib/store/i18n/shopper";
 import { getLoyaltySettings, loyaltyBalance, loyaltyHistory } from "@/lib/store/loyalty-server";
 
 type Params = { params: Promise<{ slug: string }> };
@@ -59,18 +60,20 @@ export async function GET(req: Request, { params }: Params) {
 
 /** PATCH /api/shop/<store>/account { name?, phone?, consent? } — update your details. */
 export async function PATCH(req: Request, { params }: Params) {
-  const shop = await resolveShopForAccount(req, (await params).slug, "update");
+  const slug = (await params).slug;
+  const shop = await resolveShopForAccount(req, slug, "update");
   if (shop.error) return shop.error;
+  const t = await shopperT(req, slug, shop.tenant.id);
   const session = await getCustomerSession(shop.tenant.id);
-  if (!session) return NextResponse.json({ error: "Please sign in again." }, { status: 401 });
+  if (!session) return NextResponse.json({ error: t("errors.acSignInAgain") }, { status: 401 });
   const parsed = accountUpdateSchema.safeParse(await req.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message || "Check your details." }, { status: 400 });
+  if (!parsed.success) return NextResponse.json({ error: issueMessage(t, parsed.error.issues[0], "errors.acCheckDetails") }, { status: 400 });
   try {
     await updateAccount(shop.tenant.id, session.account.id, parsed.data);
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("[account] not updated", error);
-    return NextResponse.json({ error: "We couldn't save your details just now. Please try again." }, { status: 500 });
+    return NextResponse.json({ error: t("errors.acDetailsNotSaved") }, { status: 500 });
   }
 }
 

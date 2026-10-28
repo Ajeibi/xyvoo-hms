@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { Translator } from "@/lib/store/i18n/translate";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { DISCOUNT_COLUMNS, describeDiscount, mapDiscountCode, normaliseCode, CODE_PATTERN, type DiscountCode, type DiscountCodeRow, type DiscountInput, type DiscountLine } from "./discounts";
@@ -23,7 +24,8 @@ export type PromoBanner = { code: string; offer: string; endsAt: string };
  * The code to show in the banner across the shop: switched on, started, not
  * ended, not used up, and the one ending soonest. Null when there is not one.
  */
-export async function getPromoBanner(tenantId: string, formatMoney: (amount: number) => string): Promise<PromoBanner | null> {
+/** The offer in the shopper's language when `t` is given (the shop's banner), else English. */
+export async function getPromoBanner(tenantId: string, formatMoney: (amount: number) => string, t?: Translator): Promise<PromoBanner | null> {
   const { data, error } = await storeDb()
     .from("discount_codes")
     .select(DISCOUNT_COLUMNS)
@@ -39,7 +41,7 @@ export async function getPromoBanner(tenantId: string, formatMoney: (amount: num
   const uses = await countDiscountUses(tenantId, codes.filter((c) => c.usageLimit != null).map((c) => c.id));
   const live = codes.find((c) => c.usageLimit == null || (uses.get(c.id) ?? 0) < c.usageLimit);
   if (!live?.endsAt) return null;
-  return { code: live.code, offer: describeDiscount(live, formatMoney), endsAt: live.endsAt };
+  return { code: live.code, offer: describeDiscount(live, formatMoney, t), endsAt: live.endsAt };
 }
 
 /** The products a code covers (its own plus those in its collections), or null when it covers everything. */
@@ -173,3 +175,21 @@ export const duplicateCode = () => NextResponse.json({ error: "You already have 
 
 export const noTargetsLeft = () =>
   NextResponse.json({ error: "The products or collections you chose no longer exist. Choose others, or let the code work on everything." }, { status: 400 });
+
+/** Why checkDiscount turned a code down, in the shopper's words (its English message for a reason this doesn't know). */
+export function discountProblem(t: Translator, check: { reason: string; message: string }, minSubtotal: number | null, formatMoney: (amount: number) => string): string {
+  switch (check.reason) {
+    case "inactive":
+      return t("errors.coCodeInactive");
+    case "not_started":
+      return t("errors.coCodeNotStarted");
+    case "ended":
+      return t("errors.coCodeEnded");
+    case "min_spend":
+      return minSubtotal != null ? t("errors.coCodeMinSpend", { amount: formatMoney(minSubtotal) }) : check.message;
+    case "no_eligible_items":
+      return t("errors.coCodeNoItems");
+    default:
+      return check.message;
+  }
+}

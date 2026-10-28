@@ -3,7 +3,8 @@ import type { ShopProduct } from "@/lib/shop/products";
 import { STORE_PATHS, storeHref } from "@/lib/store/site/links";
 import type { SiteTheme } from "@/lib/store/site/schema";
 import AddToBasketButton, { CardText, type BasketProduct } from "./AddToBasketButton";
-import { Icon, Price, Rating, StoreImage } from "./primitives";
+import CardRating from "./CardRating";
+import { Icon, Price, StoreImage } from "./primitives";
 import SaleEnds from "./SaleEnds";
 
 const CARD_SIZES = "(min-width: 1024px) 25vw, (min-width: 600px) 33vw, 50vw";
@@ -141,7 +142,7 @@ export default function ProductCard({
       <div className="card__body">
         {title}
         {price}
-        {product.ratingCount > 0 ? <Rating value={product.ratingAverage} count={product.ratingCount} /> : null}
+        {product.ratingCount > 0 ? <CardRating value={product.ratingAverage} count={product.ratingCount} /> : null}
         <div className="card__action">{needsOptions ? chooseLink : <AddToBasketButton product={toBasketProduct(product)} variant="text" />}</div>
       </div>
     </article>

@@ -124,12 +124,15 @@ export function receiptKindFor(order: { payment_status: string | null; status: s
   return null;
 }
 
-/** "12 October 2026" in the shop's timezone. */
-export function formatDocumentDate(iso: string | null | undefined, timezone: string) {
+/** The locale for dates in a shop language's emails and documents: British English, European Portuguese. */
+export const dateLocale = (lang: string) => (lang === "en" ? "en-GB" : lang === "pt" ? "pt-PT" : lang);
+
+/** "12 October 2026" in the shop's timezone (in the shopper's language when a locale is given). */
+export function formatDocumentDate(iso: string | null | undefined, timezone: string, locale = "en-GB") {
   if (!iso) return "";
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: timezone }).format(date);
+  return new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric", timeZone: timezone }).format(date);
 }
 
 /** A safe file name part: "My Shop!" → "my-shop". */

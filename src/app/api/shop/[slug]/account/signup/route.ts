@@ -1,7 +1,8 @@
+import { requestLanguage, saveShopperLanguage, shopperT } from "@/lib/store/i18n/shopper";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { accountDetailsSchema, createAccount, findAccountByEmail, issueSignInCode, sendSignInCodeEmail, startCustomerSession } from "@/lib/store/customer-accounts";
-import { resolveShopForAccount } from "@/lib/store/customer-api";
+import { issueMessage, resolveShopForAccount } from "@/lib/store/customer-api";
 import { recordMarketingConsent } from "@/lib/store/campaigns-server";
 
 const BodySchema = accountDetailsSchema.extend({ source: z.enum(["prompt", "account_page"]).default("prompt"), marketing: z.boolean().default(false) });
@@ -13,10 +14,12 @@ const BodySchema = accountDetailsSchema.extend({ source: z.enum(["prompt", "acco
  * answer { needsCode: true } so the page can ask for it.
  */
 export async function POST(req: Request, { params }: { params: Promise<{ slug: string }> }) {
-  const shop = await resolveShopForAccount(req, (await params).slug, "signup", 10);
+  const slug = (await params).slug;
+  const shop = await resolveShopForAccount(req, slug, "signup", 10);
   if (shop.error) return shop.error;
+  const t = await shopperT(req, slug, shop.tenant.id);
   const parsed = BodySchema.safeParse(await req.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message || "Check your details." }, { status: 400 });
+  if (!parsed.success) return NextResponse.json({ error: issueMessage(t, parsed.error.issues[0], "errors.acCheckDetails") }, { status: 400 });
 
   try {
     const { source, marketing, ...details } = parsed.data;
@@ -31,12 +34,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
     }
     // Only for a brand-new account, so nobody can sign another person's address up to campaigns.
     if (marketing) await recordMarketingConsent(shop.tenant.id, account.email, account.name, "account");
+    // Emails to the account (sign-in codes, trade decisions) come in the shopper's language.
+    await saveShopperLanguage("customer_accounts", shop.tenant.id, { id: account.id }, await requestLanguage(req, slug, shop.tenant.id));
     const cookie = await startCustomerSession(shop.tenant.id, account.id, false);
     const res = NextResponse.json({ ok: true, account: { name: account.name, email: account.email } });
     res.cookies.set(cookie.name, cookie.value, cookie.options);
     return res;
   } catch (error) {
     console.error("[account signup] failed", error);
-    return NextResponse.json({ error: "We couldn't create your account just now. Please try again." }, { status: 500 });
+    return NextResponse.json({ error: t("errors.acSignupFailed") }, { status: 500 });
   }
 }

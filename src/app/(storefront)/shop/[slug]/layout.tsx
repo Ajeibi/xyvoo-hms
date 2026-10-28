@@ -229,7 +229,7 @@ export default async function StorefrontLayout({ children, params }: LayoutParam
   // The feature check and the promotion banner don't depend on each other, so they're read together.
   const [canPush, promo] = await Promise.all([
     hasShopFeature(storefront.tenant.id, "pushNotifications"),
-    visible ? getPromoBanner(storefront.tenant.id, (n) => formatShopCurrency(n, storefront.profile.currencyCode)).catch(() => null) : null,
+    visible ? getPromoBanner(storefront.tenant.id, (n) => formatShopCurrency(n, storefront.profile.currencyCode), getShopT(storefront)).catch(() => null) : null,
   ]);
   // Published shops are installable apps. Drafts aren't. Only Standard shops offer notifications.
   const appConfig: StoreAppConfig | null =
