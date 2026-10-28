@@ -177,7 +177,14 @@ export function FrontDeskCheckInForm({
   const [taxExemptStamp, setTaxExemptStamp] = useState(initialData?.taxExemptStampLevy ?? false);
   const [settlementMethod, setSettlementMethod] = useState<
     "cash" | "card" | "pos" | "split" | "direct_bill" | "partial_credit"
-  >(initialData?.settlementMethod ?? "cash");
+  >(() => {
+    // Only cash, the card machine and company billing are offered now; older bookings saved with
+    // card, split or part credit open on the nearest of those.
+    const saved = initialData?.settlementMethod ?? "cash";
+    if (saved === "card" || saved === "partial_credit") return "pos";
+    if (saved === "split") return "cash";
+    return saved;
+  });
   const [guestTitle, setGuestTitle] = useState(initialData?.title ?? "");
   const [purposeOfVisit, setPurposeOfVisit] = useState<"leisure" | "business" | "transit">(
     initialData?.purposeOfVisit ?? "leisure",
@@ -593,8 +600,6 @@ export function FrontDeskCheckInForm({
     }
   };
 
-  const showPreauthField =
-    settlementMethod === "card" || settlementMethod === "partial_credit";
 
   const fieldClass =
     "min-h-[88px] w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus-visible:border-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500";
@@ -723,12 +728,7 @@ export function FrontDeskCheckInForm({
           <SettlementBillingFieldset
             settlementMethod={settlementMethod}
             setSettlementMethod={setSettlementMethod}
-            showPreauthField={showPreauthField}
-            currency={pricing.currency}
             settlementType={initialData?.settlementType}
-            preauthAmount={initialData?.preauthAmount}
-            cardLast4={initialData?.cardLast4}
-            cardExpiry={initialData?.cardExpiry}
             billToAccount={initialData?.billToAccount}
             poNumber={initialData?.poNumber}
           />

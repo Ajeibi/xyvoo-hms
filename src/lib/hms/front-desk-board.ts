@@ -721,7 +721,7 @@ function buildKpiTiles(params: {
   overdueCheckouts: number;
   openRequests: number;
   vipArrivalsToday: number;
-  unpreauthedRooms: number;
+  unpaidStays: number;
 }): FrontDeskKpiTile[] {
   const reg = kpiRegistry();
   const pick = (key: string) => reg.get(key);
@@ -775,9 +775,9 @@ function buildKpiTiles(params: {
       accent: "incidents",
     },
     {
-      key: "unpreauthed-rooms",
-      value: String(params.unpreauthedRooms),
-      detail: "Card stays without card auth or payment",
+      key: "unpaid-stays",
+      value: String(params.unpaidStays),
+      detail: params.unpaidStays > 0 ? "Staying with no payment or deposit yet" : "Everyone has paid something",
       accent: "financial",
     },
   ];
@@ -893,7 +893,7 @@ function emptyBoard(currency: string): FrontDeskBoardData {
       overdueCheckouts: 0,
       openRequests: 0,
       vipArrivalsToday: 0,
-      unpreauthedRooms: 0,
+      unpaidStays: 0,
     }),
     occupancy: emptyOccupancy,
     floors: [],
@@ -1009,12 +1009,6 @@ export async function getFrontDeskBoardData(params: {
       )
       .eq("tenant_id", tenantId)
       .neq("status", "ready"),
-    supabase
-      .schema("hotel")
-      .from("payment_intents")
-      .select("reservation_id,purpose,status")
-      .eq("tenant_id", tenantId)
-      .eq("status", "success"),
     // Orders closed today, for today's revenue.
     supabase
       .schema("hotel")
@@ -1052,7 +1046,6 @@ export async function getFrontDeskBoardData(params: {
     { data: auditRows },
     { data: profileRows },
     { data: hkRows },
-    { data: paymentIntentRows },
     { data: fbOrderRows },
     { data: checkoutRows },
     { count: reservationRecordCount },
@@ -1076,19 +1069,11 @@ export async function getFrontDeskBoardData(params: {
     if (r.folio_transactions?.length) folioLinesByReservation.set(r.id, r.folio_transactions.map(mapFolioLineRow));
   }
 
-  const cardSecuredReservationIds = new Set<string>();
-  for (const intent of paymentIntentRows ?? []) {
-    const rid = (intent as { reservation_id: string | null }).reservation_id;
-    if (rid) cardSecuredReservationIds.add(rid);
-  }
+  // Stays with a payment or deposit on their bill. The HMS records cash and card-machine payments
+  // taken at the desk; it never holds or charges a card itself.
+  const paidSomethingReservationIds = new Set<string>();
   for (const row of [...folioLinesByReservation.values()].flat()) {
-    if (
-      row.kind === "payment" &&
-      !row.voided_at &&
-      (row.method === "card" || row.metadata?.provider === "paystack")
-    ) {
-      cardSecuredReservationIds.add(row.reservation_id);
-    }
+    if (row.kind === "payment" && !row.voided_at) paidSomethingReservationIds.add(row.reservation_id);
   }
 
   const flagsByRoom = new Map<string, RoomUnitFlags>();
@@ -1393,12 +1378,8 @@ export async function getFrontDeskBoardData(params: {
     (r) => r.vip_flag && inUtcDay(r.arrival_at, now) && r.status !== "cancelled",
   ).length;
 
-  const unpreauthedRooms = reservations.filter(
-    (r) =>
-      r.status === "checked_in" &&
-      (r.settlement_method === "card" || r.settlement_method === "partial_credit") &&
-      r.preauth_amount == null &&
-      !cardSecuredReservationIds.has(r.id),
+  const unpaidStays = reservations.filter(
+    (r) => r.status === "checked_in" && r.settlement_method !== "direct_bill" && !paidSomethingReservationIds.has(r.id),
   ).length;
 
   const occupancy: FrontDeskOccupancyStats = {
@@ -1421,7 +1402,7 @@ export async function getFrontDeskBoardData(params: {
     overdueCheckouts: summaryCounts.overdueCheckout,
     openRequests: 0,
     vipArrivalsToday,
-    unpreauthedRooms,
+    unpaidStays,
   });
 
   const notifications: FrontDeskNotificationItem[] = (

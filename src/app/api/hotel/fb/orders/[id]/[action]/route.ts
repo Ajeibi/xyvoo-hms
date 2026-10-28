@@ -13,7 +13,7 @@ const PaymentSchema = z.object({
   slug: z.string().min(1),
   reservationId: z.string().uuid(),
   amount: z.coerce.number().positive(),
-  method: z.enum(["cash", "card", "pos"]),
+  method: z.enum(["cash", "pos"]),
 });
 
 export async function POST(

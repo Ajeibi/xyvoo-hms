@@ -11,7 +11,7 @@ const BodySchema = z.object({
   slug: z.string().min(1),
   reservationId: z.string().uuid(),
   amount: z.coerce.number().positive(),
-  method: z.enum(["cash", "card", "pos", "split", "direct_bill"]),
+  method: z.enum(["cash", "pos", "direct_bill"]),
   reference: z.string().max(120).optional(),
   splitLeg: z.enum(FOLIO_WINDOWS).optional(),
 });

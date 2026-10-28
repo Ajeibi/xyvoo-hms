@@ -34,7 +34,6 @@ const METHOD_LABEL: Record<string, string> = {
   direct_bill: "Direct bill",
   split: "Split",
   transfer: "Bank transfer",
-  paystack: "Paystack",
 };
 
 function roundMoney(n: number) {

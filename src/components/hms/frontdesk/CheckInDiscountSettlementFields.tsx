@@ -7,36 +7,25 @@ import type { DiscountScope } from "@/lib/hms/walk-in-pricing";
 
 type SettlementMethod = "cash" | "card" | "pos" | "split" | "direct_bill" | "partial_credit";
 
+/**
+ * How the guest will settle. The HMS only records payments taken at the desk (cash or the card
+ * machine); it never charges a card itself. A company can be billed instead.
+ */
 export const SETTLEMENT_OPTIONS: { value: SettlementMethod; label: string; help: string }[] = [
   {
     value: "cash",
     label: "Cash",
-    help: "Guest settles mainly in cash. Folio balance is typically collected at checkout unless you take deposit upfront.",
-  },
-  {
-    value: "card",
-    label: "Credit card",
-    help: "Card payments are recorded on the guest folio — post at check-in, during the stay, or at checkout.",
+    help: "The guest pays cash at the desk. Record each payment on their bill when you take it.",
   },
   {
     value: "pos",
-    label: "POS (terminal)",
-    help: "Guest pays on your bank POS terminal at the desk. Record the payment on the folio after the receipt is in hand — same workflow as cash.",
-  },
-  {
-    value: "partial_credit",
-    label: "Partial credit",
-    help: "Part of the balance on card or account credit and the remainder by another method (e.g. cash + card).",
-  },
-  {
-    value: "split",
-    label: "Split tender",
-    help: "Multiple payment methods or legs on one folio (e.g. guest pays room, company pays incidentals per your split rules).",
+    label: "Card machine (POS)",
+    help: "The guest pays on your card machine at the desk. Record the payment on their bill once the receipt prints.",
   },
   {
     value: "direct_bill",
-    label: "Direct bill / company",
-    help: "Charges post to a company master account or AR ledger; guest may still have incidentals on guest leg.",
+    label: "Bill a company",
+    help: "A company pays all or part of the stay. Add the company under Who pays on the guest's bill so its part is billed to their account at check-out.",
   },
 ];
 
@@ -133,23 +122,13 @@ export function DiscountFieldset({
 export function SettlementBillingFieldset({
   settlementMethod,
   setSettlementMethod,
-  showPreauthField,
-  currency,
   settlementType,
-  preauthAmount,
-  cardLast4,
-  cardExpiry,
   billToAccount,
   poNumber,
 }: {
   settlementMethod: SettlementMethod;
   setSettlementMethod: (v: SettlementMethod) => void;
-  showPreauthField: boolean;
-  currency: string;
   settlementType?: string | null;
-  preauthAmount?: number | null;
-  cardLast4?: string | null;
-  cardExpiry?: string | null;
   billToAccount?: string | null;
   poNumber?: string | null;
 }) {
@@ -159,7 +138,7 @@ export function SettlementBillingFieldset({
         <span>Settlement &amp; billing</span>
         <CheckInFieldInfo
           label="Settlement & billing"
-          text="How the guest or company will pay or guarantee the folio. Pick one primary method; optional fields below capture card hints, pre-auth, and bill-to details."
+          text="How the guest or a company will settle the bill. Payments are taken at the desk and recorded on the bill; nothing is charged from here."
         />
       </legend>
       <div className="grid gap-3 sm:grid-cols-2">
@@ -203,51 +182,6 @@ export function SettlementBillingFieldset({
             className="h-10 rounded-xl"
           />
         </div>
-        {showPreauthField ? (
-          <div className="space-y-2">
-            <CheckInFieldLabelRow
-              htmlFor="preauthAmount"
-              helpTitle="Deposit / authorization amount"
-              helpText="Optional hold amount for card stays. Post the deposit or full balance on the folio after check-in when ready."
-            >
-              Deposit / auth amount ({currency})
-            </CheckInFieldLabelRow>
-            <Input
-              id="preauthAmount"
-              name="preauthAmount"
-              type="number"
-              min={0}
-              step="0.01"
-              defaultValue={preauthAmount ?? undefined}
-              className="h-10 rounded-xl"
-              placeholder="Optional"
-            />
-          </div>
-        ) : null}
-        {settlementMethod === "partial_credit" ? (
-          <>
-            <div className="space-y-2">
-              <CheckInFieldLabelRow
-                htmlFor="cardLast4"
-                helpTitle="Card last 4 digits"
-                helpText="Last four digits only — for staff reference on the folio. Never store full PAN in plain text; use your PCI-compliant capture flow for full numbers."
-              >
-                Card last 4 digits
-              </CheckInFieldLabelRow>
-              <Input id="cardLast4" name="cardLast4" maxLength={4} defaultValue={cardLast4 ?? undefined} className="h-10 rounded-xl" />
-            </div>
-            <div className="space-y-2">
-              <CheckInFieldLabelRow
-                htmlFor="cardExpiry"
-                helpTitle="Card expiry (MM/YY)"
-                helpText="Expiry as shown on the card. Helps match receipts and chargebacks; still not full card data."
-              >
-                Card expiry (MM/YY)
-              </CheckInFieldLabelRow>
-              <Input id="cardExpiry" name="cardExpiry" placeholder="MM/YY" defaultValue={cardExpiry ?? undefined} className="h-10 rounded-xl" />
-            </div>
-          </>
-        ) : null}
         <div className="space-y-2">
           <CheckInFieldLabelRow
             htmlFor="billToAccount"

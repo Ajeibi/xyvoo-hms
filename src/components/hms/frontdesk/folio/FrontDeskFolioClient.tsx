@@ -575,9 +575,7 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
                       <F id="payment-method" label="How they paid">
                         <select id="payment-method" name="method" required className={hmsInput}>
                           <option value="cash">Cash</option>
-                          <option value="card">Card (enter the reference)</option>
-                          <option value="pos">Card machine</option>
-                          <option value="split">Split</option>
+                          <option value="pos">Card machine (POS)</option>
                           <option value="direct_bill">Direct bill</option>
                         </select>
                       </F>
@@ -606,8 +604,7 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
                       <F id="fx-method" label="How they paid">
                         <select id="fx-method" name="method" required className={hmsInput}>
                           <option value="cash">Cash</option>
-                          <option value="card">Card (enter the reference)</option>
-                          <option value="split">Split</option>
+                          <option value="pos">Card machine (POS)</option>
                           <option value="direct_bill">Direct bill</option>
                         </select>
                       </F>

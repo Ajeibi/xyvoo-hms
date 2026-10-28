@@ -14,7 +14,7 @@ const BodySchema = z.object({
   originalAmount: z.coerce.number().positive(),
   originalCurrency: z.string().length(3),
   fxRate: z.coerce.number().positive(),
-  method: z.enum(["cash", "card", "split", "direct_bill"]).default("cash"),
+  method: z.enum(["cash", "pos", "direct_bill"]).default("cash"),
   reference: z.string().max(120).optional(),
   splitLeg: z.enum(FOLIO_WINDOWS).optional(),
 });

@@ -131,9 +131,9 @@ export const FRONT_DESK_PAGE_BLOCKS: FrontDeskPageBlock[] = [
         accent: "incidents",
       },
       {
-        key: "unpreauthed-rooms",
-        title: "Unpre-auth'd rooms",
-        subtitle: "Payment not captured",
+        key: "unpaid-stays",
+        title: "Nothing paid yet",
+        subtitle: "Guests staying with no payment or deposit",
         accent: "financial",
       },
     ],

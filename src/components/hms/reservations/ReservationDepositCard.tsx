@@ -37,7 +37,7 @@ export function ReservationDepositCard({ slug, reservationId, currency }: { slug
   const [bookingStatus, setBookingStatus] = useState<string>("");
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState("");
-  const [method, setMethod] = useState<DepositMethod>("transfer");
+  const [method, setMethod] = useState<DepositMethod>("cash");
   const [reference, setReference] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -13,12 +13,14 @@ export const DEPOSIT_KIND_LABEL: Record<DepositKind, string> = {
   first_night: "The first night",
 };
 
-export const DEPOSIT_METHODS = ["cash", "card", "pos", "transfer"] as const;
-export type DepositMethod = (typeof DEPOSIT_METHODS)[number];
+/** Deposits are taken at the desk, in cash or on the card machine; the HMS never charges a card. */
+export const DEPOSIT_METHODS = ["cash", "pos"] as const;
+export type DepositMethod = (typeof DEPOSIT_METHODS)[number] | "card" | "transfer";
 export const DEPOSIT_METHOD_LABEL: Record<DepositMethod, string> = {
   cash: "Cash",
-  card: "Card (online or by phone)",
   pos: "Card machine",
+  // Only on deposits recorded before the HMS settled on cash and the card machine.
+  card: "Card",
   transfer: "Bank transfer",
 };
 
