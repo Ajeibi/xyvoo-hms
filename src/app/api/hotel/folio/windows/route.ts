@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
+import { requireHotelApiSection } from "@/lib/hms/hotel-api-auth";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { FOLIO_WINDOWS, fetchFolioLines } from "@/lib/hms/folio";
 import { listArCustomers } from "@/lib/hms/ar-customers";
@@ -23,7 +23,7 @@ import { loadFolioPayload, loadReservation } from "../_lib";
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const reservationId = url.searchParams.get("reservationId") ?? "";
-  const auth = await requireHotelApiMember(url.searchParams.get("slug") ?? "");
+  const auth = await requireHotelApiSection(url.searchParams.get("slug") ?? "");
   if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
   if (!/^[0-9a-f-]{36}$/i.test(reservationId)) return NextResponse.json({ error: "Reservation not found." }, { status: 404 });
 
@@ -65,7 +65,7 @@ const PostSchema = z.discriminatedUnion("action", [
 export async function POST(req: Request) {
   try {
     const body = PostSchema.parse(await req.json());
-    const auth = await requireHotelApiMember(body.slug);
+    const auth = await requireHotelApiSection(body.slug);
     if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
     const reservation = await loadReservation(auth, body.reservationId);

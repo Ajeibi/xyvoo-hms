@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
+import { FOLIO_SECTIONS, requireHotelApiSection } from "@/lib/hms/hotel-api-auth";
 
 const QuerySchema = z.object({
   slug: z.string().min(1),
@@ -50,7 +50,7 @@ export async function GET(req: Request) {
       q: url.searchParams.get("q") ?? "",
       inHouse: url.searchParams.get("inHouse") === "1" ? "1" : "0",
     });
-    const auth = await requireHotelApiMember(query.slug);
+    const auth = await requireHotelApiSection(query.slug, [...FOLIO_SECTIONS, "restaurant-bar"]); // the restaurant finds in-house guests to charge
     if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
     const q = query.q.trim().replace(/%/g, "");

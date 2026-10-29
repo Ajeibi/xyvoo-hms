@@ -111,14 +111,18 @@ export async function listCustomerInvoices(
   return rows;
 }
 
-async function nextInvoiceNumber(service: SupabaseClient, tenantId: string): Promise<string> {
-  const { count } = await service
-    .schema("hotel")
-    .from("customer_invoices")
-    .select("id", { count: "exact", head: true })
-    .eq("tenant_id", tenantId);
-  // "AR-" so a company's account invoice can't be mistaken for a guest's bill invoice (INV-…).
-  return `AR-${String((count ?? 0) + 1).padStart(5, "0")}`;
+/**
+ * The hotel's next account invoice number, from its counter (hotel.next_ar_invoice_number), so
+ * two invoices made at once never share one. "AR-" so a company's account invoice can't be
+ * mistaken for a guest's bill invoice (INV-…).
+ */
+async function nextInvoiceNumber(service: SupabaseClient, tenantId: string): Promise<string | null> {
+  const { data, error } = await service.schema("hotel").rpc("next_ar_invoice_number", { p_tenant: tenantId });
+  if (error || typeof data !== "string") {
+    console.error("[customer-invoices] no invoice number", error);
+    return null;
+  }
+  return data;
 }
 
 /**
@@ -176,6 +180,7 @@ export async function createCustomerInvoice(
   if (total <= 0) return { ok: false, error: "Invoice total must be greater than zero." };
 
   const invoiceNumber = await nextInvoiceNumber(service, params.tenantId);
+  if (!invoiceNumber) return { ok: false, error: "The invoice couldn't be given a number. Try again." };
 
   const { data: inserted, error } = await service
     .schema("hotel")

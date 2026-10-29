@@ -31,6 +31,7 @@ import { TravelAgentCard, type StayAgent } from "@/components/hms/frontdesk/foli
 import { CreditLimitBanner, CreditLimitCard, type StayCredit } from "@/components/hms/frontdesk/folio/CreditLimitCard";
 import { WINDOW_LABEL, type WindowSummary } from "@/lib/hms/folio-windows-shared";
 import type { FolioSplitLeg } from "@/lib/hms/folio";
+import type { CardTakings } from "@/lib/hms/folio-refunds";
 
 type FolioPayload = {
   reservation: {
@@ -92,6 +93,7 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
   const [legFilter, setLegFilter] = useState<"all" | FolioSplitLeg>("all");
   const [tab, setTab] = useState<"folio" | "cash-float">("folio");
   const [cashSession, setCashSession] = useState<Record<string, unknown> | null>(null);
+  const [cardTakings, setCardTakings] = useState<CardTakings | null>(null);
   const [loading, setLoading] = useState(false);
   const [activeList, setActiveList] = useState<SearchHit[]>([]);
   const [activeListLoading, setActiveListLoading] = useState(true);
@@ -119,8 +121,9 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
   const loadCashFloat = useCallback(async () => {
     const res = await fetch(`/api/hotel/folio/cash-float?slug=${encodeURIComponent(slug)}`);
     if (res.ok) {
-      const data = (await res.json()) as { session: Record<string, unknown> | null };
+      const data = (await res.json()) as { session: Record<string, unknown> | null; card?: CardTakings | null };
       setCashSession(data.session);
+      setCardTakings(data.card ?? null);
     }
   }, [slug]);
 
@@ -365,11 +368,15 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
           { value: "cash-float", label: "Cash float" },
         ]}
         value={tab}
-        onChange={setTab}
+        onChange={(next) => {
+          setTab(next);
+          // Payments may have been taken since the page opened: show the till as it is now.
+          if (next === "cash-float") void loadCashFloat();
+        }}
       />
 
       {tab === "cash-float" ? (
-        <CashFloatPanel slug={slug} session={cashSession} onRefresh={loadCashFloat} />
+        <CashFloatPanel slug={slug} session={cashSession} card={cardTakings} currency={currency} onRefresh={loadCashFloat} />
       ) : (
         <>
           <HmsSectionIntro
@@ -1156,10 +1163,14 @@ function CorporateBillingForm({
 function CashFloatPanel({
   slug,
   session,
+  card,
+  currency,
   onRefresh,
 }: {
   slug: string;
   session: Record<string, unknown> | null;
+  card: CardTakings | null;
+  currency: string;
   onRefresh: () => void;
 }) {
   const open = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -1189,6 +1200,7 @@ function CashFloatPanel({
         slug,
         action: "close",
         closingBalance: Number(fd.get("closingBalance")),
+        cardReported: String(fd.get("cardReported") ?? "").trim() ? Number(fd.get("cardReported")) : undefined,
         notes: fd.get("notes") || undefined,
       }),
     });
@@ -1197,7 +1209,15 @@ function CashFloatPanel({
       toastError("Could not close cash float", data.error ?? "Try again.");
       return;
     }
-    toastSuccess("Cash float closed");
+    const money = (n: number) => formatPricingAmount(Math.abs(n), currency);
+    const cashNote = Math.abs(data.variance ?? 0) < 0.01 ? "The cash matches." : `The cash is ${money(data.variance)} ${data.variance > 0 ? "over" : "short"}.`;
+    const cardNote =
+      data.cardVariance == null
+        ? ""
+        : Math.abs(data.cardVariance) < 0.01
+          ? " The card machine matches."
+          : ` The card machine is ${money(data.cardVariance)} ${data.cardVariance > 0 ? "over" : "short"}.`;
+    toastSuccess("Cash float closed", `${cashNote}${cardNote}`);
     onRefresh();
   };
 
@@ -1219,6 +1239,18 @@ function CashFloatPanel({
             <form onSubmit={close} className="space-y-4">
               <F id="closing-balance" label="Cash counted now" hint="Count every note and coin in the till.">
                 <input id="closing-balance" name="closingBalance" type="number" step="0.01" required aria-describedby="closing-balance-hint" className={hmsInput} />
+              </F>
+              <F
+                id="card-reported"
+                label="Card machine end-of-day total"
+                optional
+                hint={
+                  card
+                    ? `From the machine's end-of-day report. The HMS recorded ${formatPricingAmount(card.total, currency)} since the float was opened: ${formatPricingAmount(card.bills, currency)} on bills, ${formatPricingAmount(card.deposits, currency)} in deposits and ${formatPricingAmount(card.restaurant, currency)} at the restaurant, less ${formatPricingAmount(card.refunds, currency)} given back.`
+                    : "From the machine's end-of-day report, to check it against the card payments recorded."
+                }
+              >
+                <input id="card-reported" name="cardReported" type="number" step="0.01" min="0" aria-describedby="card-reported-hint" className={hmsInput} />
               </F>
               <F id="float-notes" label="Notes" optional>
                 <input id="float-notes" name="notes" className={hmsInput} />

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
+import { requireHotelApiSection } from "@/lib/hms/hotel-api-auth";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { loadInvoiceData } from "@/lib/hms/folio-invoice";
 import { invoiceWhatsAppLink, invoiceWhatsAppMessage, signInvoiceToken } from "@/lib/hms/folio-invoice-link";
@@ -20,7 +20,7 @@ const BodySchema = z.object({
 export async function POST(req: Request) {
   try {
     const body = BodySchema.parse(await req.json());
-    const auth = await requireHotelApiMember(body.slug);
+    const auth = await requireHotelApiSection(body.slug);
     if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
     const d = await loadInvoiceData(auth.service, auth.tenant.id, body.reservationId);

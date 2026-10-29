@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
+import { requireHotelApiSection } from "@/lib/hms/hotel-api-auth";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { isAdminLikeRole } from "@/lib/hms/department-access";
 import { normalizeRoomTypes } from "@/lib/hms/room-pricing";
@@ -14,7 +14,7 @@ import { DEPOSIT_KINDS, listDepositPolicies, removeDepositPolicy, saveDepositPol
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
-  const auth = await requireHotelApiMember(url.searchParams.get("slug") ?? "");
+  const auth = await requireHotelApiSection(url.searchParams.get("slug") ?? "");
   if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
   return NextResponse.json({
     policies: await listDepositPolicies(auth.service, auth.tenant.id),
@@ -38,7 +38,7 @@ const PostSchema = z.discriminatedUnion("action", [
 export async function POST(req: Request) {
   try {
     const body = PostSchema.parse(await req.json());
-    const auth = await requireHotelApiMember(body.slug);
+    const auth = await requireHotelApiSection(body.slug);
     if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
     if (!isAdminLikeRole(auth.role)) return NextResponse.json({ error: "Only an owner or admin can change this." }, { status: 403 });
 

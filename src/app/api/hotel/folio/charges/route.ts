@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { FOLIO_WINDOWS } from "@/lib/hms/folio";
 import { z } from "zod";
-import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
+import { requireHotelApiSection } from "@/lib/hms/hotel-api-auth";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { getTenantFolioSettings, insertFolioLine } from "@/lib/hms/folio";
 import { notifyLargeChargePosted } from "@/lib/hms/notification-rules";
@@ -19,7 +19,7 @@ const BodySchema = z.object({
 export async function POST(req: Request) {
   try {
     const body = BodySchema.parse(await req.json());
-    const auth = await requireHotelApiMember(body.slug);
+    const auth = await requireHotelApiSection(body.slug);
     if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
     const reservation = await loadReservation(auth, body.reservationId);

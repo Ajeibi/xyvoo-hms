@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { FOLIO_WINDOWS, computeLegBalance, type FolioLineRow, type FolioSplitLeg } from "@/lib/hms/folio";
+import { FOLIO_WINDOWS, computeLegBalance, fetchFolioLines, type FolioLineRow, type FolioSplitLeg } from "@/lib/hms/folio";
 import { createCustomerInvoice } from "@/lib/hms/customer-invoices";
+import { formatPricingAmount } from "@/lib/hms/room-pricing";
 
 /*
  * Billing windows: a stay's bill split between up to four payers (the guest, a company, a travel
@@ -245,4 +246,59 @@ export async function billWindowsToAccounts(
     billed.push({ window: w.window, payerName: w.payerName, amount: w.balance, invoiceNumber: invoice.invoiceNumber });
   }
   return { ok: true, billed };
+}
+
+/** Which window an account invoice for a stay comes off: the company's, when it owes enough; otherwise the guest's. */
+export function windowToBill(lines: FolioLineRow[], amount: number): FolioSplitLeg {
+  return computeLegBalance(lines, "company") >= amount - 0.005 ? "company" : "guest";
+}
+
+/**
+ * An invoice raised in Accounts for part or all of a stay's bill. The charges are already on the
+ * bill, and the night audit books them as revenue, so the invoice isn't booked as revenue again:
+ * the bill records it as "billed to <customer>" (a direct-bill payment), which the night audit
+ * moves from Guest Ledger (1200) to City Ledger (1300), the same as billing a company at check-out.
+ */
+export async function billStayAmountToAccount(
+  supabase: SupabaseClient,
+  params: Omit<Parameters<typeof createCustomerInvoice>[1], "skipJournal" | "reservationId"> & { reservationId: string; customerName: string },
+): Promise<{ ok: true; id: string; invoiceNumber: string } | { ok: false; error: string }> {
+  const { data: res } = await supabase
+    .schema("hotel")
+    .from("reservations")
+    .select("status")
+    .eq("tenant_id", params.tenantId)
+    .eq("id", params.reservationId)
+    .maybeSingle();
+  if (!res) return { ok: false, error: "Stay not found." };
+  if (res.status === "cancelled") return { ok: false, error: "This stay was cancelled, so there's no bill to invoice." };
+
+  const lines = await fetchFolioLines(supabase, params.tenantId, params.reservationId);
+  const owed = roundMoney(lines.filter((l) => !l.voided_at).reduce((s, l) => s + l.amount, 0));
+  const amount = roundMoney((Number(params.subtotal) || 0) + (Number(params.tax) || 0));
+  if (amount > owed + 0.005) {
+    return { ok: false, error: `That's more than the stay's bill still owes (${formatPricingAmount(owed, params.currency)}). Taxes on the bill are already included in it.` };
+  }
+
+  const invoice = await createCustomerInvoice(supabase, { ...params, skipJournal: true });
+  if (!invoice.ok) return invoice;
+
+  const window = windowToBill(lines, amount);
+  const { error } = await supabase.schema("hotel").from("folio_transactions").insert({
+    tenant_id: params.tenantId,
+    reservation_id: params.reservationId,
+    kind: "payment",
+    amount: -amount,
+    method: "direct_bill",
+    status: "posted",
+    description: `Billed to ${params.customerName} (account invoice ${invoice.invoiceNumber})`,
+    department: null,
+    posted_by: params.createdBy,
+    reference: `ar_invoice:${invoice.id}`,
+    split_leg: window,
+    currency_code: params.currency,
+    metadata: { arInvoiceId: invoice.id, arCustomerId: params.customerId, window_set: true },
+  });
+  if (error) return { ok: false, error: `Invoice ${invoice.invoiceNumber} was made, but the stay's bill couldn't be updated: ${error.message}` };
+  return invoice;
 }

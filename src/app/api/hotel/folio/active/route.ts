@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
+import { requireHotelApiSection } from "@/lib/hms/hotel-api-auth";
 
 const QuerySchema = z.object({
   slug: z.string().min(1),
@@ -37,7 +37,7 @@ export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
     const query = QuerySchema.parse({ slug: url.searchParams.get("slug") });
-    const auth = await requireHotelApiMember(query.slug);
+    const auth = await requireHotelApiSection(query.slug);
     if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
     const [{ data: inHouseRows }, { data: checkedOutRows }] = await Promise.all([

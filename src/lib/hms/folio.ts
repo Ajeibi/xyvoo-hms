@@ -550,7 +550,8 @@ export function computeEarlyCheckoutCredit(
   const stayCharges = active.filter(
     (l) =>
       isBookedStayLine(l) ||
-      (l.department === "rooms" && l.kind === "discount" && (l.reference ?? "").startsWith("discount:")),
+      // Not a whole-bill discount's VAT and levy lines: that discount is a set amount off the bill.
+      (l.department === "rooms" && l.kind === "discount" && (l.reference ?? "").startsWith("discount:") && l.metadata?.target !== "bill"),
   );
   let creditAmount = 0;
   // The credit split by what it comes off (room, service charge, levy, VAT), so the tax on the

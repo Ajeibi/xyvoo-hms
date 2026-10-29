@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
+import { requireHotelApiSection } from "@/lib/hms/hotel-api-auth";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { verifyManagerPin } from "@/lib/hms/folio";
 import { setStayCreditLimit } from "@/lib/hms/folio-credit-limits";
@@ -21,12 +21,13 @@ const BodySchema = z.object({
 export async function POST(req: Request) {
   try {
     const body = BodySchema.parse(await req.json());
-    const auth = await requireHotelApiMember(body.slug);
+    const auth = await requireHotelApiSection(body.slug);
     if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
     const pinOk = await verifyManagerPin(auth.service, auth.tenant.id, body.managerPin, auth.role);
     if (!pinOk) {
-      return NextResponse.json({ error: "A manager's PIN is needed to change a stay's credit limit.", needsPin: true }, { status: 403 });
+      const error = body.managerPin?.trim() ? "That manager PIN isn't right." : "A manager's PIN is needed to change a stay's credit limit.";
+      return NextResponse.json({ error, needsPin: true }, { status: 403 });
     }
 
     const result = await setStayCreditLimit(auth.service, { tenantId: auth.tenant.id, reservationId: body.reservationId, limit: body.limit });

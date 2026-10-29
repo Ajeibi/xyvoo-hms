@@ -109,9 +109,11 @@ export function AccountsCustomerInvoicesClient({
         `/api/hotel/accounts/customer-invoices/folio-balance?${new URLSearchParams({ slug, reservationId })}`,
       );
       const data = await res.json().catch(() => ({}));
-      if (res.ok && typeof data.companyLegBalance === "number" && data.companyLegBalance > 0) {
-        setForm((s) => ({ ...s, subtotal: String(data.companyLegBalance) }));
-        toastSuccess(`Pre-filled ${data.companyLegBalance.toFixed(2)} from this stay's city-ledger balance.`);
+      // The company's share of the bill if it has one, otherwise what the whole bill still owes.
+      const owed = res.ok ? (Number(data.companyLegBalance) > 0 ? Number(data.companyLegBalance) : Number(data.balance)) : 0;
+      if (owed > 0) {
+        setForm((s) => ({ ...s, subtotal: String(owed), tax: "" }));
+        toastSuccess(`Filled in ${owed.toFixed(2)}, what this stay's bill still owes${Number(data.companyLegBalance) > 0 ? " on the company's part" : ""}.`);
       }
     } finally {
       setBalanceLoading(false);
@@ -160,7 +162,11 @@ export function AccountsCustomerInvoicesClient({
         toastError("Could not create invoice", data.error ?? "Try again.");
         return;
       }
-      toastSuccess(`Invoice ${data.invoiceNumber} created and posted to the ledger.`);
+      toastSuccess(
+        data.billedFromStay
+          ? `Invoice ${data.invoiceNumber} made. The stay's bill shows it as billed to the account; tonight's audit moves it to City Ledger.`
+          : `Invoice ${data.invoiceNumber} created and posted to the ledger.`,
+      );
       setCreateOpen(false);
       setForm(emptyInvoiceForm(ACCOUNTS_DEPARTMENTS[0], defaultCurrency));
       router.refresh();
@@ -448,7 +454,7 @@ export function AccountsCustomerInvoicesClient({
                 </select>
               )}
             </div>
-            <HmsField id="inv-stay" label="Related stay" optional hint="Linking a stay fills in its city-ledger balance.">
+            <HmsField id="inv-stay" label="Related stay" optional hint="Linking a stay bills part or all of its bill to this customer. The bill's charges, taxes included, are already booked, so the amount comes off the stay's bill instead of being booked as new revenue.">
               <select
                 id="inv-stay"
                 className={hmsInput}

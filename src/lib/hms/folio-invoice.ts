@@ -76,8 +76,8 @@ export function buildInvoiceBody(lines: FolioLineRow[]): InvoiceBody {
       payments.push({
         date: shortDate(l.created_at),
         description:
-          l.kind === "refund" || l.method === "deposit"
-            ? (l.description ?? "Refund")
+          l.kind === "refund" || l.method === "deposit" || l.method === "direct_bill"
+            ? (l.description ?? (l.kind === "refund" ? "Refund" : "Billed to an account"))
             : `Paid by ${(METHOD_LABEL[l.method] ?? l.method).toLowerCase()}`,
         amount: roundMoney(-l.amount),
       });

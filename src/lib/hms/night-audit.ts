@@ -98,6 +98,18 @@ export function summariseNightAudit(rows: NightAuditFolioRow[], fbRows: NightAud
       else unmatchedPaymentTotal -= amount;
     } else if (line.kind === "charge" || line.kind === "discount") {
       const sign = line.kind === "charge" ? 1 : -1;
+      // A whole-bill discount says how it splits across departments; take each share off its revenue.
+      const allocation = line.metadata?.allocation;
+      if (line.kind === "discount" && Array.isArray(allocation) && allocation.length > 0) {
+        for (const a of allocation as { department: string | null; amount: number }[]) {
+          const share = Math.abs(Number(a.amount) || 0);
+          if (a.department === "rooms") folioRoomRevenue -= share;
+          else if (a.department === "food_beverage") folioFbRevenue -= share;
+          else if (a.department) folioOtherRevenue -= share;
+          else folioUnclassifiedRevenue -= share;
+        }
+        continue;
+      }
       if (line.department === "rooms") {
         const part = stayLinePart({ metadata: line.metadata ?? {}, reference: line.reference ?? null, description: line.description ?? null });
         if (GOVERNMENT_TAX_PARTS.has(part)) taxesCollected += sign * amount;

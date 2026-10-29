@@ -3,6 +3,7 @@ import { computeLegBalance, ensureActiveCashFloatSession, type FolioLineRow, typ
 import { postJournalEntry } from "@/lib/hms/journal-entries";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import { GUEST_DEPOSITS_ACCOUNT } from "@/lib/hms/folio-deposits";
+import { NIGERIA_VAT_RATE_PERCENT } from "@/lib/hms/nigeria-hospitality-taxes";
 
 /*
  * Refunds, recorded. The HMS never sends money back itself: staff hand back cash from the till or
@@ -104,6 +105,15 @@ export async function recordFolioRefund(
 export type DepositSettleAction = "refund" | "keep";
 
 /**
+ * A kept deposit is a cancellation fee, and VAT is due on it like on the room it was for: the
+ * fee includes VAT (7.5%), which goes to Taxes Payable. No VAT when the stay was VAT-exempt.
+ */
+export function keptDepositSplit(amount: number, vatApplies: boolean) {
+  const vat = vatApplies ? roundMoney((amount * NIGERIA_VAT_RATE_PERCENT) / (100 + NIGERIA_VAT_RATE_PERCENT)) : 0;
+  return { revenue: roundMoney(amount - vat), vat };
+}
+
+/**
  * Settles a deposit on a booking that won't arrive: refunded to the guest, or kept as a
  * cancellation fee. Only a held deposit on a booking that hasn't checked in.
  */
@@ -128,24 +138,28 @@ export async function settleDeposit(
   const { data: d } = await supabase
     .schema("hotel")
     .from("reservation_deposits")
-    .select("id,amount,status,reservation_id,reservations(confirmation_code,status)")
+    .select("id,amount,status,reservation_id,reservations(confirmation_code,status,vat_applicable,tax_exempt)")
     .eq("tenant_id", params.tenantId)
     .eq("id", params.depositId)
     .maybeSingle();
   if (!d) return { ok: false, error: "That deposit wasn't found." };
   if (d.status !== "held") return { ok: false, error: "This deposit has already been settled." };
-  const resEmbed = d.reservations as { confirmation_code: string; status: string } | { confirmation_code: string; status: string }[] | null;
+  type ResEmbed = { confirmation_code: string; status: string; vat_applicable: boolean | null; tax_exempt: boolean | null };
+  const resEmbed = d.reservations as ResEmbed | ResEmbed[] | null;
   const res = Array.isArray(resEmbed) ? resEmbed[0] : resEmbed;
   if (res?.status === "checked_in" || res?.status === "checked_out") {
     return { ok: false, error: "The guest has checked in, so this deposit is on their bill. Refund it from the bill instead." };
   }
 
   const amount = roundMoney(Number(d.amount));
-  const [deposits, other] = await Promise.all([
+  const split = keptDepositSplit(amount, params.action === "keep" && res?.vat_applicable !== false && res?.tax_exempt !== true);
+  const [deposits, other, taxes] = await Promise.all([
     accountIdByCode(supabase, params.tenantId, GUEST_DEPOSITS_ACCOUNT),
     accountIdByCode(supabase, params.tenantId, params.action === "keep" ? "4000" : params.method === "cash" ? "1000" : "1020"),
+    split.vat > 0 ? accountIdByCode(supabase, params.tenantId, "2200") : Promise.resolve(null),
   ]);
   if (!deposits || !other) return { ok: false, error: "Add the Advance Guest Deposits (2300) and matching accounts in Chart of accounts first." };
+  if (split.vat > 0 && !taxes) return { ok: false, error: "Add the Taxes Payable (2200) account in Chart of accounts first, for the VAT on the fee." };
 
   let cashFloatSessionId: string | null = null;
   if (params.action === "refund" && params.method === "cash") {
@@ -181,10 +195,17 @@ export async function settleDeposit(
         : `Deposit refunded (${REFUND_METHOD_LABEL[params.method!]}), booking ${res?.confirmation_code ?? ""}: ${params.reason.trim()}`,
     reference: d.id as string,
     createdBy: params.userId,
-    lines: [
-      { accountId: deposits, department: "Front Desk", debit: amount, credit: 0 },
-      { accountId: other, department: "Front Desk", debit: 0, credit: amount },
-    ],
+    lines:
+      params.action === "keep" && split.vat > 0
+        ? [
+            { accountId: deposits, department: "Front Desk", debit: amount, credit: 0 },
+            { accountId: other, department: "Front Desk", debit: 0, credit: split.revenue },
+            { accountId: taxes!, department: "Front Desk", debit: 0, credit: split.vat },
+          ]
+        : [
+            { accountId: deposits, department: "Front Desk", debit: amount, credit: 0 },
+            { accountId: other, department: "Front Desk", debit: 0, credit: amount },
+          ],
   });
   if (!posted.ok) {
     // Never record a settlement the books don't show.
@@ -217,4 +238,49 @@ export async function expectedCashInFloat(supabase: SupabaseClient, session: { i
   for (const d of depositsIn ?? []) cash += Number(d.amount) || 0;
   for (const d of depositsOut ?? []) cash -= Number(d.amount) || 0;
   return roundMoney(cash);
+}
+
+export type CardTakings = { bills: number; deposits: number; restaurant: number; refunds: number; total: number };
+
+/** Adds up card-machine money: taken on bills, as deposits and at the restaurant, less given back. Pure, for tests. */
+export function sumCardTakings(input: {
+  folioLines: { kind: string; amount: number | string }[];
+  depositsIn: { amount: number | string }[];
+  depositsOut: { amount: number | string }[];
+  fbOrders: { subtotal: number | string }[];
+}): CardTakings {
+  const abs = (v: number | string) => Math.abs(Number(v) || 0);
+  let bills = 0;
+  let refunds = 0;
+  for (const l of input.folioLines) {
+    if (l.kind === "payment") bills += abs(l.amount);
+    else if (l.kind === "refund") refunds += abs(l.amount);
+  }
+  const depositsOut = input.depositsOut.reduce((s, d) => s + abs(d.amount), 0);
+  const deposits = input.depositsIn.reduce((s, d) => s + abs(d.amount), 0);
+  const restaurant = input.fbOrders.reduce((s, o) => s + abs(o.subtotal), 0);
+  return {
+    bills: roundMoney(bills),
+    deposits: roundMoney(deposits),
+    restaurant: roundMoney(restaurant),
+    refunds: roundMoney(refunds + depositsOut),
+    total: roundMoney(bills + deposits + restaurant - refunds - depositsOut),
+  };
+}
+
+/**
+ * What the card machine's end-of-day report should show for a cash float session: card and POS
+ * payments on bills, card deposits and card sales at the restaurant since the float was opened,
+ * less card-machine refunds. Staff compare it with the machine's own total when they close.
+ */
+export async function expectedCardInFloat(supabase: SupabaseClient, session: { tenant_id: string; opened_at: string }, until = new Date().toISOString()) {
+  const t = session.tenant_id;
+  const from = session.opened_at;
+  const [{ data: folioLines }, { data: depositsIn }, { data: depositsOut }, { data: fbOrders }] = await Promise.all([
+    supabase.schema("hotel").from("folio_transactions").select("kind,amount").eq("tenant_id", t).in("kind", ["payment", "refund"]).in("method", ["card", "pos"]).is("voided_at", null).gte("created_at", from).lt("created_at", until),
+    supabase.schema("hotel").from("reservation_deposits").select("amount").eq("tenant_id", t).in("method", ["card", "pos"]).gte("received_at", from).lt("received_at", until),
+    supabase.schema("hotel").from("reservation_deposits").select("amount").eq("tenant_id", t).eq("status", "refunded").eq("settle_method", "pos").gte("settled_at", from).lt("settled_at", until),
+    supabase.schema("hotel").from("fb_orders").select("subtotal").eq("tenant_id", t).eq("status", "closed").in("settlement_method", ["card", "pos"]).gte("closed_at", from).lt("closed_at", until),
+  ]);
+  return sumCardTakings({ folioLines: folioLines ?? [], depositsIn: depositsIn ?? [], depositsOut: depositsOut ?? [], fbOrders: fbOrders ?? [] });
 }
