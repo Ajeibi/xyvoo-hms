@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ClipboardList, History, LayoutGrid, Settings, ShoppingBasket } from "lucide-react";
+import { Calculator, ClipboardList, HandCoins, History, LayoutGrid, Settings, ShoppingBasket } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TABS = [
@@ -15,6 +15,8 @@ const TABS = [
     icon: History,
     path: (slug: string) => `/hms/${slug}/restaurant-bar/history`,
   },
+  { key: "tips", label: "Tips", icon: HandCoins, path: (slug: string) => `/hms/${slug}/restaurant-bar/tips` },
+  { key: "cash-up", label: "Cash-up", icon: Calculator, path: (slug: string) => `/hms/${slug}/restaurant-bar/cash-up` },
   { key: "settings", label: "Settings", icon: Settings, path: (slug: string) => `/hms/${slug}/restaurant-bar/settings` },
 ] as const;
 

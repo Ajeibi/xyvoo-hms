@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlarmClock, AlertTriangle, Check, Clock, Flame, Loader2 } from "lucide-react";
+import { AlarmClock, AlertTriangle, Check, Clock, Flame, Loader2, Printer } from "lucide-react";
 import type { FbKitchenTicket, FbStationRow } from "@/lib/hms/fb-types";
 import { filterKitchenTicketsByStation } from "@/lib/hms/load-fb-pages";
 import { useFbRealtime } from "@/hooks/useFbRealtime";
@@ -20,6 +20,8 @@ import {
 import { cn } from "@/lib/utils";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { DEFAULT_KITCHEN_OVERDUE_MINUTES } from "@/lib/hms/fb-settings";
+import { courseLabel } from "@/lib/hms/fb-course-rules";
+import { kitchenTicketPrintUrl, openPrint } from "@/lib/hms/fb-print-links";
 import {
   formatWaitMinutes,
   hasOpenKitchenItems,
@@ -134,12 +136,25 @@ export function KitchenKdsClient({
     [tickets, station],
   );
 
+  // Tickets with fired work go on the board; orders whose courses are all held wait in "Coming up".
   const sorted = useMemo(() => {
-    return [...filtered].sort((a, b) => {
-      if (a.rush !== b.rush) return a.rush ? -1 : 1;
-      return ticketStartMs(a) - ticketStartMs(b);
-    });
+    return filtered
+      .filter((t) => t.items.length > 0)
+      .sort((a, b) => {
+        if (a.rush !== b.rush) return a.rush ? -1 : 1;
+        return ticketStartMs(a) - ticketStartMs(b);
+      });
   }, [filtered]);
+
+  const upcoming = useMemo(
+    () => (station === "all" ? tickets.filter((t) => t.items.length === 0 && t.held?.length) : []),
+    [tickets, station],
+  );
+
+  const multiCourse = useMemo(
+    () => new Set(sorted.filter((t) => new Set(t.items.map((i) => i.course)).size > 1).map((t) => t.id)),
+    [sorted],
+  );
 
   const overdueTickets = useMemo(
     () =>
@@ -334,7 +349,7 @@ export function KitchenKdsClient({
           value={station}
           onChange={setStation}
           options={[
-            { value: "all", label: "All", count: tickets.length },
+            { value: "all", label: "All", count: tickets.filter((t) => t.items.length > 0).length },
             ...stations.map((s) => ({
               value: s.code,
               label: s.name,
@@ -386,7 +401,17 @@ export function KitchenKdsClient({
             >
               <div className="flex items-start justify-between gap-2 text-slate-900">
                 <div>
-                  <p className="font-heading text-xl font-bold">#{ticket.order_number}</p>
+                  <p className="flex items-center gap-1.5 font-heading text-xl font-bold">
+                    #{ticket.order_number}
+                    <button
+                      type="button"
+                      onClick={() => openPrint(kitchenTicketPrintUrl(slug, ticket.id))}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-600 hover:bg-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                      aria-label={`Print ticket #${ticket.order_number}`}
+                    >
+                      <Printer className="h-4 w-4" aria-hidden />
+                    </button>
+                  </p>
                   <p className="text-sm font-medium text-slate-700">{ticket.table_label}</p>
                 </div>
                 <span
@@ -420,25 +445,51 @@ export function KitchenKdsClient({
                 </div>
               ) : null}
               <ul className="mt-3 space-y-2">
-                {ticket.items.map((item) => {
+                {ticket.items.map((item, index) => {
                   const preparingLoading = busyKeys.has(busyKey(item.id, "preparing"));
                   const readyLoading = busyKeys.has(busyKey(item.id, "ready"));
                   const soldOutLoading = busyKeys.has(busyKey(item.id, "sold-out"));
                   const itemBusy = preparingLoading || readyLoading || soldOutLoading;
+                  const showCourse =
+                    (multiCourse.has(ticket.id) || ticket.held.length > 0) &&
+                    (index === 0 || ticket.items[index - 1].course !== item.course);
 
                   return (
                   <li
                     key={item.id}
                     className="rounded-xl border border-slate-200 bg-white p-3 text-slate-900"
                   >
+                    {showCourse ? (
+                      <p className="-mt-1 mb-1 text-xs font-bold uppercase tracking-wide text-orange-800">
+                        {courseLabel(item.course)}
+                      </p>
+                    ) : null}
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <p className="text-base font-semibold">
                         {item.quantity}× {item.name}
+                        {item.seat ? <span className="ml-1.5 rounded bg-slate-100 px-1.5 py-0.5 text-xs font-bold text-slate-700">Seat {item.seat}</span> : null}
                       </p>
                       <HmsPill tone={ITEM_STATUS_TONE[item.kitchen_status] ?? "slate"}>
                         {ITEM_STATUS_LABEL[item.kitchen_status] ?? item.kitchen_status}
                       </HmsPill>
                     </div>
+                    {item.modifiers?.length ? (
+                      <ul className="mt-1 space-y-0.5 text-base font-medium text-slate-900">
+                        {item.modifiers.map((m) => (
+                          <li key={m} className="flex gap-1.5">
+                            <span aria-hidden className="text-orange-600">
+                              ›
+                            </span>
+                            {m}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                    {item.notes ? (
+                      <p className="mt-1.5 rounded-lg bg-amber-100 px-2.5 py-1.5 text-base font-semibold text-amber-950 ring-1 ring-amber-300">
+                        Note: {item.notes}
+                      </p>
+                    ) : null}
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {item.kitchen_status === "pending" ? (
                         <button
@@ -490,11 +541,39 @@ export function KitchenKdsClient({
                   );
                 })}
               </ul>
+              {ticket.held.length ? (
+                <p className="mt-2 rounded-lg bg-white/80 px-2.5 py-1.5 text-sm text-slate-700 ring-1 ring-slate-200">
+                  <span className="font-semibold text-slate-900">Coming next, held: </span>
+                  {ticket.held.map((h) => `${h.label} (${h.count})`).join(", ")}
+                </p>
+              ) : null}
             </div>
             );
           })
         )}
       </div>
+
+      {upcoming.length ? (
+        <section aria-labelledby="kds-upcoming-title" className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4">
+          <h2 id="kds-upcoming-title" className="font-heading text-base font-semibold text-slate-900">
+            Coming up
+          </h2>
+          <p className="text-sm text-slate-600">
+            Courses front of house is holding. They appear above when fired.
+          </p>
+          <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {upcoming.map((ticket) => (
+              <li key={ticket.id} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800">
+                <span className="font-semibold text-slate-900">#{ticket.order_number}</span>
+                <span className="text-slate-600"> · {ticket.table_label}</span>
+                <span className="block">
+                  {ticket.held.map((h) => `${h.label} (${h.count})`).join(", ")}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </div>
   );
 }

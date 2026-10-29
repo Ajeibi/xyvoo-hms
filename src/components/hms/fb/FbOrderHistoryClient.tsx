@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { receiptPrintUrl } from "@/lib/hms/fb-print-links";
 import {
   formatDurationMinutes,
   formatKitchenTimeMinutes,
@@ -364,7 +365,21 @@ export function FbOrderHistoryClient({
                   const serviceMins = timeMode === "service" ? fbServiceMinutes(row) : null;
                   return (
                   <tr key={row.id} className="hover:bg-slate-50/70">
-                    <td className="px-4 py-3 font-semibold text-slate-900">#{row.order_number}</td>
+                    <td className="px-4 py-3 font-semibold text-slate-900">
+                      {showAmountState ? (
+                        <a
+                          href={receiptPrintUrl(slug, row.id, false)}
+                          target="_blank"
+                          rel="noopener"
+                          className="text-blue-700 underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                        >
+                          #{row.order_number}
+                          <span className="sr-only"> (open receipt)</span>
+                        </a>
+                      ) : (
+                        <>#{row.order_number}</>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-slate-800">{row.table_label}</td>
                     <td className="px-4 py-3">
                       <HmsPill tone={orderStatusTone(row.status)}>

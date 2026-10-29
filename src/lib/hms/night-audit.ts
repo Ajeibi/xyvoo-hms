@@ -74,10 +74,18 @@ export type NightAuditFolioRow = {
   reference?: string | null;
   description?: string | null;
 };
-export type NightAuditFbOrderRow = { subtotal: number | string; settlement_method: string };
+export type NightAuditFbOrderRow = { id: string; subtotal: number | string; settlement_method: string };
+export type NightAuditFbPayment = { order_id: string; method: string; amount: number | string };
 
-/** Adds up one day's folio lines (not voided) and walk-in F&B orders (closed, not room-charged). */
-export function summariseNightAudit(rows: NightAuditFolioRow[], fbRows: NightAuditFbOrderRow[]): NightAuditBreakdown {
+/**
+ * Adds up one day's folio lines (not voided) and walk-in F&B orders (closed, not room-charged).
+ * An F&B bill can be paid in parts (some cash, some card), so cash and card come from its payment rows when it has them.
+ */
+export function summariseNightAudit(
+  rows: NightAuditFolioRow[],
+  fbRows: NightAuditFbOrderRow[],
+  fbPayments: NightAuditFbPayment[] = [],
+): NightAuditBreakdown {
   let folioRoomRevenue = 0;
   let folioFbRevenue = 0;
   let folioOtherRevenue = 0;
@@ -131,10 +139,21 @@ export function summariseNightAudit(rows: NightAuditFolioRow[], fbRows: NightAud
   let walkInFbRevenue = 0;
   let walkInCash = 0;
   let walkInCard = 0;
+  const paymentsByOrder = new Map<string, NightAuditFbPayment[]>();
+  for (const p of fbPayments) {
+    paymentsByOrder.set(p.order_id, [...(paymentsByOrder.get(p.order_id) ?? []), p]);
+  }
   for (const order of fbRows) {
     const amount = Number(order.subtotal) || 0;
     walkInFbRevenue += amount;
-    if (order.settlement_method === "cash") walkInCash += amount;
+    const payments = paymentsByOrder.get(order.id);
+    if (payments?.length) {
+      for (const p of payments) {
+        const paid = Number(p.amount) || 0;
+        if (p.method === "cash") walkInCash += paid;
+        else if (p.method === "card" || p.method === "pos") walkInCard += paid;
+      }
+    } else if (order.settlement_method === "cash") walkInCash += amount;
     else if (order.settlement_method === "card" || order.settlement_method === "pos") walkInCard += amount;
   }
 
@@ -183,7 +202,7 @@ export async function computeNightAuditBreakdown(
     service
       .schema("hotel")
       .from("fb_orders")
-      .select("subtotal,settlement_method")
+      .select("id,subtotal,settlement_method")
       .eq("tenant_id", tenantId)
       .eq("status", "closed")
       .neq("settlement_method", "room_charge")
@@ -191,7 +210,18 @@ export async function computeNightAuditBreakdown(
       .lt("closed_at", end),
   ]);
 
-  return summariseNightAudit((folioLines ?? []) as NightAuditFolioRow[], (fbOrders ?? []) as NightAuditFbOrderRow[]);
+  const fbRows = (fbOrders ?? []) as NightAuditFbOrderRow[];
+  const fbPayments: NightAuditFbPayment[] = [];
+  for (let i = 0; i < fbRows.length; i += 200) {
+    const { data } = await service
+      .schema("hotel")
+      .from("fb_order_payments")
+      .select("order_id,method,amount")
+      .in("order_id", fbRows.slice(i, i + 200).map((o) => o.id));
+    fbPayments.push(...((data ?? []) as NightAuditFbPayment[]));
+  }
+
+  return summariseNightAudit((folioLines ?? []) as NightAuditFolioRow[], fbRows, fbPayments);
 }
 
 export type NightAuditAccounts = {

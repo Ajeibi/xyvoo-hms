@@ -34,7 +34,7 @@ export function KitchenSettingsClient({
   initial: TenantFbSettings;
   categories?: FbCategoryPrepRow[];
 }) {
-  const [settings, setSettings] = useState(initial);
+  const [settings, setSettings] = useState<Pick<TenantFbSettings, "kitchenOverdueMinutes" | "kitchenOverdueMinutesConfigured">>(initial);
   const [draftMinutes, setDraftMinutes] = useState(String(initial.kitchenOverdueMinutes));
   const [capabilities, setCapabilities] = useState<FbRoleCapabilities | null>(null);
   const [busy, setBusy] = useState(false);
