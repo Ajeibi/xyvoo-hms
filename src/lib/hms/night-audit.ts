@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { getAccountIdByCode } from "@/lib/hms/chart-of-accounts";
 import { postJournalEntry, type JournalEntryLineInput } from "@/lib/hms/journal-entries";
+import { stayLinePart } from "@/lib/hms/folio";
 
 /**
  * Bridges the gap where day-to-day guest folio activity and walk-in F&B POS sales never
@@ -20,13 +21,21 @@ import { postJournalEntry, type JournalEntryLineInput } from "@/lib/hms/journal-
  * "food_beverage") — counting BOTH that folio line and the order's own subtotal would
  * double the revenue, so walk-in aggregation explicitly excludes settlement_method =
  * "room_charge" orders (those are only counted via the folio side).
+ *
+ * VAT and the state and stamp levies on a room are the government's money, not the hotel's:
+ * they go to Taxes Payable (2200) rather than Room Revenue. The service charge is the hotel's.
  */
+
+/** Taxes on a room that the hotel collects for the government. */
+export const GOVERNMENT_TAX_PARTS = new Set(["vat", "state_levy", "stamp_levy"]);
 
 export type NightAuditBreakdown = {
   roomRevenue: number;
   fbRevenue: number;
   otherRevenue: number;
   unclassifiedRevenue: number;
+  /** VAT and levies charged on rooms today (less any taken off), owed to the government. */
+  taxesCollected: number;
   cashTotal: number;
   cardTotal: number;
   cityLedgerTotal: number;
@@ -56,33 +65,30 @@ function dayBoundsUtc(auditDate: string): { start: string; end: string } {
   return { start, end };
 }
 
-export async function computeNightAuditBreakdown(
-  service: SupabaseClient,
-  tenantId: string,
-  auditDate: string,
-): Promise<NightAuditBreakdown> {
-  const { start, end } = dayBoundsUtc(auditDate);
+export type NightAuditFolioRow = {
+  kind: string;
+  amount: number | string;
+  method: string;
+  department: string | null;
+  metadata?: Record<string, unknown> | null;
+  reference?: string | null;
+  description?: string | null;
+};
+export type NightAuditFbOrderRow = { subtotal: number | string; settlement_method: string };
 
-  const { data: folioLines } = await service
-    .schema("hotel")
-    .from("folio_transactions")
-    .select("kind,amount,method,department")
-    .eq("tenant_id", tenantId)
-    .is("voided_at", null)
-    .gte("created_at", start)
-    .lt("created_at", end);
-
+/** Adds up one day's folio lines (not voided) and walk-in F&B orders (closed, not room-charged). */
+export function summariseNightAudit(rows: NightAuditFolioRow[], fbRows: NightAuditFbOrderRow[]): NightAuditBreakdown {
   let folioRoomRevenue = 0;
   let folioFbRevenue = 0;
   let folioOtherRevenue = 0;
   let folioUnclassifiedRevenue = 0;
+  let taxesCollected = 0;
   let folioPaymentsCash = 0;
   let folioPaymentsCard = 0;
   let folioPaymentsCityLedger = 0;
   let folioPaymentsDeposit = 0;
   let unmatchedPaymentTotal = 0;
 
-  const rows = (folioLines ?? []) as { kind: string; amount: number; method: string; department: string | null }[];
   for (const line of rows) {
     const amount = Math.abs(Number(line.amount) || 0);
     if (line.kind === "refund") {
@@ -92,8 +98,11 @@ export async function computeNightAuditBreakdown(
       else unmatchedPaymentTotal -= amount;
     } else if (line.kind === "charge" || line.kind === "discount") {
       const sign = line.kind === "charge" ? 1 : -1;
-      if (line.department === "rooms") folioRoomRevenue += sign * amount;
-      else if (line.department === "food_beverage") folioFbRevenue += sign * amount;
+      if (line.department === "rooms") {
+        const part = stayLinePart({ metadata: line.metadata ?? {}, reference: line.reference ?? null, description: line.description ?? null });
+        if (GOVERNMENT_TAX_PARTS.has(part)) taxesCollected += sign * amount;
+        else folioRoomRevenue += sign * amount;
+      } else if (line.department === "food_beverage") folioFbRevenue += sign * amount;
       else if (line.department) folioOtherRevenue += sign * amount;
       else folioUnclassifiedRevenue += sign * amount;
     } else if (line.kind === "payment") {
@@ -107,20 +116,9 @@ export async function computeNightAuditBreakdown(
     // a correctly paired transfer nets to zero and isn't new revenue or cash movement.
   }
 
-  const { data: fbOrders } = await service
-    .schema("hotel")
-    .from("fb_orders")
-    .select("subtotal,settlement_method")
-    .eq("tenant_id", tenantId)
-    .eq("status", "closed")
-    .neq("settlement_method", "room_charge")
-    .gte("closed_at", start)
-    .lt("closed_at", end);
-
   let walkInFbRevenue = 0;
   let walkInCash = 0;
   let walkInCard = 0;
-  const fbRows = (fbOrders ?? []) as { subtotal: number; settlement_method: string }[];
   for (const order of fbRows) {
     const amount = Number(order.subtotal) || 0;
     walkInFbRevenue += amount;
@@ -128,33 +126,77 @@ export async function computeNightAuditBreakdown(
     else if (order.settlement_method === "card" || order.settlement_method === "pos") walkInCard += amount;
   }
 
+  const round = (n: number) => Math.round(n * 100) / 100;
   const guestLedgerNet =
     folioRoomRevenue +
     folioFbRevenue +
     folioOtherRevenue +
-    folioUnclassifiedRevenue -
+    folioUnclassifiedRevenue +
+    taxesCollected -
     (folioPaymentsCash + folioPaymentsCard + folioPaymentsCityLedger + folioPaymentsDeposit);
 
   return {
-    roomRevenue: folioRoomRevenue,
-    fbRevenue: folioFbRevenue + walkInFbRevenue,
-    otherRevenue: folioOtherRevenue,
-    unclassifiedRevenue: folioUnclassifiedRevenue,
-    cashTotal: folioPaymentsCash + walkInCash,
-    cardTotal: folioPaymentsCard + walkInCard,
-    cityLedgerTotal: folioPaymentsCityLedger,
-    depositsApplied: folioPaymentsDeposit,
-    guestLedgerNet,
-    unmatchedPaymentTotal,
+    roomRevenue: round(folioRoomRevenue),
+    fbRevenue: round(folioFbRevenue + walkInFbRevenue),
+    otherRevenue: round(folioOtherRevenue),
+    unclassifiedRevenue: round(folioUnclassifiedRevenue),
+    taxesCollected: round(taxesCollected),
+    cashTotal: round(folioPaymentsCash + walkInCash),
+    cardTotal: round(folioPaymentsCard + walkInCard),
+    cityLedgerTotal: round(folioPaymentsCityLedger),
+    depositsApplied: round(folioPaymentsDeposit),
+    guestLedgerNet: round(guestLedgerNet),
+    unmatchedPaymentTotal: round(unmatchedPaymentTotal),
     folioLineCount: rows.length,
     walkInFbOrderCount: fbRows.length,
   };
 }
 
-function buildLines(
-  b: NightAuditBreakdown,
-  accts: { room: string; fb: string; other: string; misc: string; cash: string; card: string; cityLedger: string; guestLedger: string; deposits: string | null },
-): JournalEntryLineInput[] {
+export async function computeNightAuditBreakdown(
+  service: SupabaseClient,
+  tenantId: string,
+  auditDate: string,
+): Promise<NightAuditBreakdown> {
+  const { start, end } = dayBoundsUtc(auditDate);
+
+  const [{ data: folioLines }, { data: fbOrders }] = await Promise.all([
+    service
+      .schema("hotel")
+      .from("folio_transactions")
+      .select("kind,amount,method,department,metadata,reference,description")
+      .eq("tenant_id", tenantId)
+      .is("voided_at", null)
+      .gte("created_at", start)
+      .lt("created_at", end),
+    service
+      .schema("hotel")
+      .from("fb_orders")
+      .select("subtotal,settlement_method")
+      .eq("tenant_id", tenantId)
+      .eq("status", "closed")
+      .neq("settlement_method", "room_charge")
+      .gte("closed_at", start)
+      .lt("closed_at", end),
+  ]);
+
+  return summariseNightAudit((folioLines ?? []) as NightAuditFolioRow[], (fbOrders ?? []) as NightAuditFbOrderRow[]);
+}
+
+export type NightAuditAccounts = {
+  room: string;
+  fb: string;
+  other: string;
+  misc: string;
+  cash: string;
+  card: string;
+  cityLedger: string;
+  guestLedger: string;
+  deposits: string | null;
+  taxes: string | null;
+};
+
+/** The night audit's journal lines for a day's figures: one balanced entry. */
+export function buildNightAuditLines(b: NightAuditBreakdown, accts: NightAuditAccounts): JournalEntryLineInput[] {
   const lines: JournalEntryLineInput[] = [];
   const revenueLine = (amount: number, accountId: string, department: string) => {
     if (amount === 0) return;
@@ -166,6 +208,7 @@ function buildLines(
   revenueLine(b.fbRevenue, accts.fb, "Kitchen");
   revenueLine(b.otherRevenue, accts.other, "Other");
   revenueLine(b.unclassifiedRevenue, accts.misc, "Other");
+  if (accts.taxes) revenueLine(b.taxesCollected, accts.taxes, "Front Desk");
 
   // More given back than taken on a day leaves cash or card as a credit.
   const moneyLine = (amount: number, accountId: string) => {
@@ -209,7 +252,7 @@ export async function runNightAudit(
     }
   }
 
-  const [room, fb, other, misc, cash, card, cityLedger, guestLedger, deposits] = await Promise.all([
+  const [room, fb, other, misc, cash, card, cityLedger, guestLedger, deposits, taxes] = await Promise.all([
     getAccountIdByCode(service, params.tenantId, "4000"),
     getAccountIdByCode(service, params.tenantId, "4100"),
     getAccountIdByCode(service, params.tenantId, "4200"),
@@ -219,6 +262,7 @@ export async function runNightAudit(
     getAccountIdByCode(service, params.tenantId, "1300"),
     getAccountIdByCode(service, params.tenantId, "1200"),
     getAccountIdByCode(service, params.tenantId, "2300"),
+    getAccountIdByCode(service, params.tenantId, "2200"),
   ]);
   const missing = [
     ["Room Revenue (4000)", room],
@@ -235,7 +279,7 @@ export async function runNightAudit(
   }
 
   const breakdown = await computeNightAuditBreakdown(service, params.tenantId, params.auditDate);
-  const lines = buildLines(breakdown, {
+  const lines = buildNightAuditLines(breakdown, {
     room: room as string,
     fb: fb as string,
     other: other as string,
@@ -245,7 +289,11 @@ export async function runNightAudit(
     cityLedger: cityLedger as string,
     guestLedger: guestLedger as string,
     deposits: (deposits as string | null) ?? null,
+    taxes: (taxes as string | null) ?? null,
   });
+  if (breakdown.taxesCollected !== 0 && !taxes) {
+    return { ok: false, error: "Missing required accounts: Taxes Payable (2200), for the VAT and levies charged on rooms today." };
+  }
   if (breakdown.depositsApplied > 0 && !deposits) {
     return { ok: false, error: "Missing required accounts: Advance Guest Deposits (2300), for the deposits moved onto bills today." };
   }
