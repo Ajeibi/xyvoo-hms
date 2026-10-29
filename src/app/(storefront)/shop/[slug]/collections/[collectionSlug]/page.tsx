@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import ProductListing, { parseListingQuery, type ListingQuery } from "@/components/storefront-theme/ProductListing";
+import ProductListing, { listingCanonical, listingRobots, parseListingQuery, type ListingQuery } from "@/components/storefront-theme/ProductListing";
 import { STORE_PATHS } from "@/lib/store/site/links";
 import { getStorefront } from "@/lib/store/site/storefront";
+import { getShopT } from "@/lib/store/i18n/server";
+import { SectionList } from "@/components/storefront-theme/sections";
 
 type Props = { params: Promise<{ slug: string; collectionSlug: string }>; searchParams: Promise<ListingQuery> };
 
@@ -13,30 +15,36 @@ async function load(params: Props["params"]) {
   return storefront && collection ? { storefront, collection } : null;
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const found = await load(params);
   if (!found) return {};
+  const query = parseListingQuery(await searchParams, "featured");
   return {
-    title: found.collection.name,
+    title: query.page > 1 ? getShopT(found.storefront)("listing.titleWithPage", { title: found.collection.name, page: query.page }) : found.collection.name,
     description: found.collection.description || undefined,
-    alternates: { canonical: STORE_PATHS.collection(found.collection.slug) },
+    alternates: { canonical: listingCanonical(STORE_PATHS.collection(found.collection.slug), query.page) },
+    robots: listingRobots(query),
   };
 }
 
 export default async function StorefrontCollectionPage({ params, searchParams }: Props) {
   const found = await load(params);
   if (!found) notFound();
-  const query = parseListingQuery(await searchParams);
+  const query = parseListingQuery(await searchParams, "featured");
 
   return (
-    <ProductListing
-      storefront={found.storefront}
-      title={found.collection.name}
-      lead={found.collection.description ?? undefined}
-      listingPath={STORE_PATHS.collection(found.collection.slug)}
-      query={{ ...query, category: undefined }}
-      collectionId={found.collection.id}
-      showCategories={false}
-    />
+    <>
+      <ProductListing
+        storefront={found.storefront}
+        title={found.collection.name}
+        lead={found.collection.description ?? undefined}
+        listingPath={STORE_PATHS.collection(found.collection.slug)}
+        query={{ ...query, category: undefined }}
+        collectionId={found.collection.id}
+        showCategories={false}
+      />
+      {/* The merchant's own sections for every collection page (Website > Sections > Collection pages). */}
+      <SectionList storefront={found.storefront} sections={found.storefront.site.collectionSections} />
+    </>
   );
 }

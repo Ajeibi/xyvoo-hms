@@ -1,3 +1,4 @@
+import { shopChanged } from "@/lib/store/site/shop-changed";
 import { NextResponse } from "next/server";
 import { productNotFound, resolveStoreRequest } from "@/lib/store/api-helpers";
 import { buildDuplicateProduct, buildDuplicateVariants } from "@/lib/store/product-catalogue";
@@ -71,5 +72,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     if (memberError) console.error("Duplicate product: collection not copied", memberError);
   }
 
+  shopChanged(access.tenantId);
   return NextResponse.json({ product: mapProductRowToDashboard({ ...copy, product_variants: variantRows } as StoreProductRow) }, { status: 201 });
 }

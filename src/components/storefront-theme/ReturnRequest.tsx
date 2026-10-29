@@ -1,8 +1,18 @@
 "use client";
 
 import { useId, useState } from "react";
-import { RETURN_REASON_LABELS, RETURN_REASONS, type ReturnReason } from "@/lib/store/returns";
-import { announce, useStorefront } from "./StorefrontProvider";
+import { RETURN_REASONS, type ReturnReason } from "@/lib/store/returns";
+import type { MessageKey } from "@/lib/store/i18n/messages";
+import { announce, useStorefront, useT } from "./StorefrontProvider";
+
+/** Return reasons in the shopper's language (the stored values stay as they are). */
+export const RETURN_REASON_KEYS: Record<ReturnReason, MessageKey> = {
+  wrong_size: "account.reasonWrongSize",
+  not_as_described: "account.reasonNotAsDescribed",
+  damaged: "account.reasonDamaged",
+  changed_mind: "account.reasonChangedMind",
+  other: "account.reasonOther",
+};
 
 type Eligible = { orderId: string; lines: { orderItemId: string; name: string; maxQuantity: number }[] };
 
@@ -12,6 +22,7 @@ type Eligible = { orderId: string; lines: { orderItemId: string; name: string; m
  */
 export default function ReturnRequest({ orderRef, orderId, onRequested }: { orderRef: string; orderId: string; onRequested: () => void }) {
   const { slug } = useStorefront();
+  const t = useT();
   const id = useId();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -30,11 +41,11 @@ export default function ReturnRequest({ orderRef, orderId, onRequested }: { orde
     try {
       const res = await fetch(`/api/shop/${encodeURIComponent(slug)}/account/returns?order=${encodeURIComponent(orderId)}`, { cache: "no-store" });
       const body = await res.json().catch(() => ({}));
-      if (!res.ok) setStatus(typeof body.error === "string" ? body.error : "We couldn't check this order. Please try again.");
-      else if (!body.order || body.order.lines.length === 0) setStatus(typeof body.message === "string" ? body.message : "Nothing in this order can be returned any more.");
+      if (!res.ok) setStatus(typeof body.error === "string" ? body.error : t("account.returnCheckFailed"));
+      else if (!body.order || body.order.lines.length === 0) setStatus(typeof body.message === "string" ? body.message : t("account.nothingReturnable"));
       else setEligible(body.order);
     } catch {
-      setStatus("We couldn't connect. Check your internet connection and try again.");
+      setStatus(t("common.offline"));
     } finally {
       setLoading(false);
     }
@@ -44,8 +55,8 @@ export default function ReturnRequest({ orderRef, orderId, onRequested }: { orde
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!chosen.length) return setStatus("Choose at least one item to return.");
-    if (!reason) return setStatus("Choose a reason.");
+    if (!chosen.length) return setStatus(t("account.chooseItem"));
+    if (!reason) return setStatus(t("account.chooseReasonError"));
     setSending(true);
     setStatus("");
     try {
@@ -56,14 +67,14 @@ export default function ReturnRequest({ orderRef, orderId, onRequested }: { orde
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setStatus(typeof body.error === "string" ? body.error : "We couldn't send your request. Please try again.");
+        setStatus(typeof body.error === "string" ? body.error : t("account.returnSendFailed"));
         return;
       }
       setDone(true);
-      announce("Return requested");
+      announce(t("account.returnRequested"));
       onRequested();
     } catch {
-      setStatus("We couldn't connect. Check your internet connection and try again.");
+      setStatus(t("common.offline"));
     } finally {
       setSending(false);
     }
@@ -72,7 +83,7 @@ export default function ReturnRequest({ orderRef, orderId, onRequested }: { orde
   if (done) {
     return (
       <p className="form-status" role="status">
-        Thank you. We&rsquo;ve asked the shop about returning these. You&rsquo;ll get an email when they reply.
+        {t("account.returnThanks")}
       </p>
     );
   }
@@ -80,18 +91,18 @@ export default function ReturnRequest({ orderRef, orderId, onRequested }: { orde
   if (!open) {
     return (
       <button type="button" className="link-button" onClick={start}>
-        Return something<span className="visually-hidden"> from order {orderRef}</span>
+        {t.rich("account.returnSomething", { fromOrder: <span className="visually-hidden">{t("account.fromOrderHidden", { reference: orderRef })}</span> })}
       </button>
     );
   }
 
   return (
-    <form onSubmit={submit} noValidate aria-label={`Return items from order ${orderRef}`} className="account-return">
-      {loading ? <p className="hint">Checking what can be returned…</p> : null}
+    <form onSubmit={submit} noValidate aria-label={t("account.returnFormLabel", { reference: orderRef })} className="account-return">
+      {loading ? <p className="hint">{t("account.checkingReturnable")}</p> : null}
       {eligible ? (
         <>
           <fieldset>
-            <legend>What would you like to return?</legend>
+            <legend>{t("account.whatReturn")}</legend>
             {eligible.lines.map((l) => (
               <div key={l.orderItemId} className="field">
                 <label htmlFor={`${id}-${l.orderItemId}`}>{l.name}</label>
@@ -101,10 +112,10 @@ export default function ReturnRequest({ orderRef, orderId, onRequested }: { orde
                   value={quantities[l.orderItemId] ?? 0}
                   onChange={(e) => setQuantities({ ...quantities, [l.orderItemId]: Number(e.target.value) })}
                 >
-                  <option value={0}>Keep it</option>
+                  <option value={0}>{t("account.keepIt")}</option>
                   {Array.from({ length: l.maxQuantity }, (_, i) => i + 1).map((n) => (
                     <option key={n} value={n}>
-                      Return {n}
+                      {t("account.returnQty", { count: n })}
                     </option>
                   ))}
                 </select>
@@ -112,27 +123,27 @@ export default function ReturnRequest({ orderRef, orderId, onRequested }: { orde
             ))}
           </fieldset>
           <div className="field">
-            <label htmlFor={`${id}-reason`}>Why are you returning it?</label>
+            <label htmlFor={`${id}-reason`}>{t("account.whyReturn")}</label>
             <select id={`${id}-reason`} className="input" value={reason} onChange={(e) => setReason(e.target.value as ReturnReason)}>
-              <option value="">Choose a reason</option>
+              <option value="">{t("account.chooseReason")}</option>
               {RETURN_REASONS.map((r) => (
                 <option key={r} value={r}>
-                  {RETURN_REASON_LABELS[r]}
+                  {t(RETURN_REASON_KEYS[r])}
                 </option>
               ))}
             </select>
           </div>
           <div className="field">
             <label htmlFor={`${id}-note`}>
-              Anything else the shop should know <span className="optional">(optional)</span>
+              {t("account.anythingElse")} <span className="optional">{t("common.optional")}</span>
             </label>
             <textarea id={`${id}-note`} className="input" rows={3} maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
           </div>
           <button className="btn btn--primary" type="submit" disabled={sending}>
-            {sending ? "Sending…" : "Ask to return these"}
+            {sending ? t("common.sending") : t("account.askReturn")}
           </button>{" "}
           <button className="btn btn--outline" type="button" onClick={() => setOpen(false)}>
-            Cancel
+            {t("common.cancel")}
           </button>
         </>
       ) : null}
@@ -141,7 +152,7 @@ export default function ReturnRequest({ orderRef, orderId, onRequested }: { orde
       </p>
       {!eligible && !loading ? (
         <button className="btn btn--outline" type="button" onClick={() => setOpen(false)}>
-          Close
+          {t("common.close")}
         </button>
       ) : null}
     </form>

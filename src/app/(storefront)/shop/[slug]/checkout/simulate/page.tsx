@@ -2,10 +2,15 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import SimulatedPayment from "@/components/storefront-theme/SimulatedPayment";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getShopT } from "@/lib/store/i18n/server";
 import { getStorefront } from "@/lib/store/site/storefront";
 import { isSimulatedIntent, simulatedPaymentsEnabled } from "@/lib/payments/simulated";
 
-export const metadata: Metadata = { title: "Test payment", robots: { index: false, follow: false } };
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const storefront = await getStorefront((await params).slug);
+  const title = storefront ? getShopT(storefront)("checkout.testPayment") : "Test payment";
+  return { title, robots: { index: false, follow: false } };
+}
 
 /** The pretend payment page. Only exists while PAYMENTS_SIMULATE=1 in a non-production build. */
 export default async function SimulatedPaymentPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams: Promise<{ reference?: string }> }) {

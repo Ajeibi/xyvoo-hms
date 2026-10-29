@@ -31,6 +31,7 @@ import type { DashboardProduct } from "@/lib/store/products";
 import type { StoreRoleCapabilities } from "@/lib/store/access";
 import { storefrontHost } from "@/lib/store/subdomain";
 import BundleItemsEditor from "./BundleItemsEditor";
+import ProductTranslations from "./ProductTranslations";
 import { DashAlert, DashEmptyState, DashPageHeader, DashPill, DashSectionIntro, DashStatStrip, DashStatTile, dashButton, dashInput } from "./dashboard-ui";
 import ProductCurrencyPrices, { loadFixedPrices, saveFixedPrices, type FixedPriceInputs, type StoreCurrencyInfo } from "./ProductCurrencyPrices";
 
@@ -44,7 +45,11 @@ type VariantFormRow = {
   salePrice: string;
   /** Whether it had a sale price when the form opened, so clearing it is sent. */
   hadSale?: boolean;
+  /** Its own prices in currencies the shop prices by hand, by currency code. */
+  currencyPrices?: Record<string, string>;
   stock: string;
+  /** The option's stock when the editor opened (saved options only). */
+  stockWas?: string;
   barcode: string;
   weightKg: string;
   imageUrl: string;
@@ -90,6 +95,8 @@ type ProductFormState = {
 
   // Inventory & shipping
   stock: string;
+  /** The stock when the editor opened, so saving adds the change rather than overwriting sales made meanwhile. */
+  stockWas: string;
   reorderLevel: string;
   unit: string;
   allowBackorder: boolean;
@@ -168,6 +175,7 @@ const EMPTY_FORM: ProductFormState = {
   wholesaleMinQty: "1",
 
   stock: "0",
+  stockWas: "0",
   reorderLevel: "10",
   unit: "piece",
   allowBackorder: false,
@@ -208,7 +216,7 @@ const EMPTY_FORM: ProductFormState = {
   variants: [],
 };
 
-type SectionKey = "variants" | "bundle" | "pricing" | "stock" | "seo" | "codes" | "display" | "returns" | "more";
+type SectionKey = "variants" | "bundle" | "pricing" | "stock" | "seo" | "languages" | "codes" | "display" | "returns" | "more";
 
 /** Money in the shop's own currency, written the way its customers write it. */
 const formatCurrency = (value: number, currency: string | null) => formatShopCurrency(value, currency);
@@ -310,6 +318,8 @@ export default function StorefrontProducts({
   const [fixedPrices, setFixedPrices] = useState<FixedPriceInputs>({});
   const savedFixedPrices = useRef<Awaited<ReturnType<typeof loadFixedPrices>>["rows"]>([]);
   const homeCurrency = currencyInfo?.homeCurrency ?? null;
+  /** Currencies the merchant prices by hand: each option can have its own price in them. */
+  const manualCurrencies = (currencyInfo?.settings.extra ?? []).filter((c) => c.mode === "manual").map((c) => c.code as string);
 
   // The list: one page at a time, searched, filtered and sorted on the server.
   const [filters, setFilters] = useState<ProductFilterValues>(EMPTY_FILTERS);
@@ -584,6 +594,7 @@ export default function StorefrontProducts({
       wholesaleMinQty: String(product.wholesaleMinQty ?? 1),
 
       stock: String(product.stock),
+      stockWas: String(product.stock),
       reorderLevel: String(product.reorderLevel),
       unit: product.unit || "piece",
       allowBackorder: product.allowBackorder,
@@ -628,7 +639,11 @@ export default function StorefrontProducts({
         priceOverride: v.price_override != null ? String(v.price_override) : "",
         salePrice: (v as { sale_price?: number | null }).sale_price != null ? String((v as { sale_price?: number | null }).sale_price) : "",
         hadSale: (v as { sale_price?: number | null }).sale_price != null,
+        currencyPrices: Object.fromEntries(
+          Object.entries((v as { currency_prices?: Record<string, number> | null }).currency_prices || {}).map(([code, price]) => [code, String(price)]),
+        ),
         stock: String(v.stock ?? 0),
+        stockWas: String(v.stock ?? 0),
         barcode: v.barcode || "",
         weightKg: v.weight_kg != null ? String(v.weight_kg) : "",
         imageUrl: v.image_url || "",
@@ -760,6 +775,7 @@ export default function StorefrontProducts({
 
       // Inventory & shipping
       stock: Number(form.stock) || 0,
+      ...(form.id ? { stock_was: Number(form.stockWas) || 0 } : {}),
       reorder_level: Number(form.reorderLevel) || 10,
       unit: form.unit.trim() || "piece",
       allow_backorder: form.allowBackorder,
@@ -816,7 +832,19 @@ export default function StorefrontProducts({
               sale_ends_at: v.salePrice && form.saleEndsAt ? new Date(form.saleEndsAt).toISOString() : null,
             }
           : {}),
+        // Only sent when the shop prices a currency by hand, so saves still work before the column exists.
+        ...(manualCurrencies.length
+          ? {
+              currency_prices: Object.fromEntries(
+                manualCurrencies.flatMap((code) => {
+                  const price = Number(v.currencyPrices?.[code]);
+                  return v.currencyPrices?.[code]?.trim() && price > 0 ? [[code, price]] : [];
+                }),
+              ),
+            }
+          : {}),
         stock: v.stock ? Number(v.stock) : 0,
+        ...(v.id && v.stockWas !== undefined ? { stock_was: Number(v.stockWas) || 0 } : {}),
         barcode: v.barcode.trim() || undefined,
         weight_kg: v.weightKg ? Number(v.weightKg) : undefined,
         image_url: v.imageUrl.trim() || undefined,
@@ -1464,6 +1492,17 @@ export default function StorefrontProducts({
                             onChange={(e) => updateVariant(i, { salePrice: e.target.value })}
                           />
                         </Field>
+                        {manualCurrencies.map((code) => (
+                          <Field key={code} id={`variant-${i}-price-${code}`} label={`Price in ${code}`} optional hint={`Leave blank to use the product's ${code} price.`}>
+                            <input
+                              type="number"
+                              inputMode="decimal"
+                              className={numberInput}
+                              value={variant.currencyPrices?.[code] ?? ""}
+                              onChange={(e) => updateVariant(i, { currencyPrices: { ...variant.currencyPrices, [code]: e.target.value } })}
+                            />
+                          </Field>
+                        ))}
                         <Field id={`variant-${i}-sku`} label="Stock code (SKU)" optional>
                           <input className={dashInput} value={variant.sku} onChange={(e) => updateVariant(i, { sku: e.target.value })} />
                         </Field>
@@ -1732,6 +1771,18 @@ export default function StorefrontProducts({
                   </Field>
                 </div>
               </Section>
+
+              {form.id ? (
+                <Section
+                  id="languages"
+                  title="Other languages"
+                  description="The product's name and description for shoppers who read your shop in another language."
+                  open={!!openSections.languages}
+                  onToggle={(o) => setSection("languages", o)}
+                >
+                  {openSections.languages ? <ProductTranslations slug={slug} productId={form.id} /> : null}
+                </Section>
+              ) : null}
 
               <Section
                 id="seo"

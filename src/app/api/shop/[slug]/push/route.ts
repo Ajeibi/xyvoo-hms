@@ -5,9 +5,12 @@ import { clientIp, rateLimitShared } from "@/lib/rate-limit";
 import { getPushConfig, pushSubscriptionSchema, removePushSubscription, savePushSubscription } from "@/lib/store/push";
 import { getStoreSite } from "@/lib/store/site/data";
 import { getStorePlan, storeHasFeature } from "@/lib/store/features";
+import { requestT } from "@/lib/store/customer-api";
+import { shopperT } from "@/lib/store/i18n/shopper";
 
 /**
- * POST   /api/shop/<store>/push  { subscription }  turn on a store's notifications
+ * POST   /api/shop/<store>/push  { subscription, marketing? }  turn on a store's notifications
+ *        (marketing false: only updates the shopper asks for, such as their order's)
  * DELETE /api/shop/<store>/push  { endpoint }      turn them off
  * Public (shoppers have no account), so rate-limited per IP address, and only
  * for stores that are live.
@@ -22,36 +25,39 @@ async function liveStore(slug: string) {
 }
 
 export async function POST(req: Request, { params }: { params: Promise<{ slug: string }> }) {
-  if (!getPushConfig()) return NextResponse.json({ error: "Notifications aren't available yet." }, { status: 503 });
+  const slug = (await params).slug;
+  if (!getPushConfig()) return NextResponse.json({ error: (await requestT(req, slug))("errors.acPushUnavailable") }, { status: 503 });
   if (!(await rateLimitShared(`push-subscribe:${clientIp(req)}`, 20, 60 * 60_000)).ok) {
-    return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
+    return NextResponse.json({ error: (await requestT(req, slug))("errors.acTooManyRequestsLater") }, { status: 429 });
   }
 
-  const tenant = await liveStore((await params).slug);
-  if (!tenant) return NextResponse.json({ error: "Shop not found." }, { status: 404 });
+  const tenant = await liveStore(slug);
+  if (!tenant) return NextResponse.json({ error: (await requestT(req, slug))("errors.acShopNotFound") }, { status: 404 });
+  const t = await shopperT(req, slug, tenant.id);
   // Customer notifications are a Standard feature; a Free shop doesn't offer them.
   if (!storeHasFeature(await getStorePlan(tenant.id), "pushNotifications")) {
-    return NextResponse.json({ error: "This shop doesn't send notifications." }, { status: 404 });
+    return NextResponse.json({ error: t("errors.acPushNotOffered") }, { status: 404 });
   }
 
   const body = await req.json().catch(() => null);
   const parsed = pushSubscriptionSchema.safeParse(body?.subscription);
-  if (!parsed.success) return NextResponse.json({ error: "That subscription isn't valid." }, { status: 400 });
+  if (!parsed.success) return NextResponse.json({ error: t("errors.acPushInvalid") }, { status: 400 });
 
-  await savePushSubscription(tenant.id, parsed.data, req.headers.get("user-agent"));
+  await savePushSubscription(tenant.id, parsed.data, req.headers.get("user-agent"), body?.marketing !== false);
   return NextResponse.json({ ok: true });
 }
 
 export async function DELETE(req: Request, { params }: { params: Promise<{ slug: string }> }) {
-  if (!(await rateLimitShared(`push-unsubscribe:${clientIp(req)}`, 30, 60 * 60_000)).ok) {
-    return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
-  }
   const slug = (await params).slug;
+  if (!(await rateLimitShared(`push-unsubscribe:${clientIp(req)}`, 30, 60 * 60_000)).ok) {
+    return NextResponse.json({ error: (await requestT(req, slug))("errors.acTooManyRequestsLater") }, { status: 429 });
+  }
   const tenant = /^[a-z0-9-]{1,63}$/i.test(slug) ? await getShopTenantBySlug(slug) : null;
-  if (!tenant) return NextResponse.json({ error: "Shop not found." }, { status: 404 });
+  if (!tenant) return NextResponse.json({ error: (await requestT(req, slug))("errors.acShopNotFound") }, { status: 404 });
+  const t = await shopperT(req, slug, tenant.id);
 
   const parsed = z.object({ endpoint: pushSubscriptionSchema.shape.endpoint }).safeParse(await req.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: "Missing subscription." }, { status: 400 });
+  if (!parsed.success) return NextResponse.json({ error: t("errors.acPushMissing") }, { status: 400 });
 
   await removePushSubscription(tenant.id, parsed.data.endpoint);
   return NextResponse.json({ ok: true });

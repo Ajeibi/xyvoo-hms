@@ -10,6 +10,8 @@ export type SectionProps<T extends SiteSection["type"]> = {
   storefront: Storefront;
   /** The first visible section carries the page's only <h1>. */
   isFirst: boolean;
+  /** The first section: its first few photos are on screen as the page opens, so they load straight away. */
+  nearTop: boolean;
 };
 
 export const sectionHref = (storefront: Storefront, path: string) => storeHref(storefront.basePath, path);

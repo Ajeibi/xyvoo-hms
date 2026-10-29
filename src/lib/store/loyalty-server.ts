@@ -1,3 +1,4 @@
+import { allRows, chunks } from "@/lib/supabase/all-rows";
 import { rateLimitShared } from "@/lib/rate-limit";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { loyaltySettings, type LoyaltyReason, type LoyaltySettings } from "./loyalty";
@@ -40,7 +41,11 @@ export type LoyaltyMember = { accountId: string; name: string | null; email: str
 
 /** Everyone with points activity, biggest balance first, plus the figures for the top of the page. */
 export async function loyaltyOverview(tenantId: string) {
-  const { data, error } = await db().from("loyalty_ledger").select("account_id, points, reason").eq("tenant_id", tenantId).limit(50_000);
+  // Paged: the totals need every entry, not just the first page.
+  const { data, error } = await allRows<{ account_id: string; points: number; reason: string }>(
+    (from, to) => db().from("loyalty_ledger").select("account_id, points, reason").eq("tenant_id", tenantId).order("id").range(from, to),
+    50_000,
+  );
   if (error) {
     if (missing(error)) return { members: [] as LoyaltyMember[], outstanding: 0, earned: 0, used: 0 };
     throw new Error(error.message);
@@ -54,8 +59,9 @@ export async function loyaltyOverview(tenantId: string) {
     byAccount.set(r.account_id as string, row);
   }
   const ids = [...byAccount.keys()];
-  const { data: accounts } = ids.length ? await db().from("customer_accounts").select("id, name, email").in("id", ids.slice(0, 1000)) : { data: [] };
-  const info = new Map((accounts || []).map((a) => [a.id as string, a]));
+  // Names for everyone, a few hundred at a time.
+  const accounts = (await Promise.all(chunks(ids).map(async (part) => (await db().from("customer_accounts").select("id, name, email").in("id", part)).data || []))).flat();
+  const info = new Map(accounts.map((a) => [a.id as string, a]));
   const members = ids
     .map((id): LoyaltyMember => ({ accountId: id, name: (info.get(id)?.name as string | null) ?? null, email: (info.get(id)?.email as string) ?? "", ...byAccount.get(id)! }))
     .filter((m) => m.email)

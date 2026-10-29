@@ -2,13 +2,38 @@ import { badge, detailsPanel, EMAIL_SITE_URL, escapeHtml } from "@/lib/mail/layo
 import { sendBrandedEmail } from "@/lib/mail/mailtrap";
 import { formatShopCurrency } from "@/lib/shop/format";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { parseOfflinePayments } from "./offline-payments";
+import { offlineNextStep, parseOfflinePayments } from "./offline-payments";
 import { invoiceUrlFor, receiptForEmail } from "./receipts";
 import { alertNewOrder, alertPaidCancelled, shopAlertEmailWanted } from "./merchant-alerts";
 import { storefrontUrl } from "./subdomain";
+import { whatsappNewOrder, whatsappPaidCancelled } from "./whatsapp-messages";
+import { emailLanguage, emailT, translatorFor } from "./i18n/shopper";
+import type { Translator } from "./i18n/translate";
 
 /** Short order reference shown to customers and shops, e.g. "3F9A12BC". */
 export const orderReference = (orderId: string) => orderId.slice(0, 8).toUpperCase();
+
+/**
+ * The language saved with a shopper's order, basket, request or account. Null when none
+ * was saved, or before the migration adds the column: an email is never stopped by it.
+ */
+export async function savedLanguage(table: "orders" | "checkouts" | "stock_alerts" | "customer_accounts", tenantId: string, id: string): Promise<unknown> {
+  try {
+    const { data, error } = await createServerSupabaseClient().schema("store").from(table).select("language").eq("tenant_id", tenantId).eq("id", id).maybeSingle();
+    return error ? null : ((data as { language?: unknown } | null)?.language ?? null);
+  } catch {
+    return null;
+  }
+}
+
+/** Words for a shopper email: the saved language if the shop still offers it, else the shop's main one. */
+export const shopperEmailT = async (tenantId: string, saved: unknown) => emailT(await emailLanguage(tenantId, saved));
+
+/** The shared email layout's own words (page language, footer link) in the email's language. */
+export const layoutWords = (t: Translator) => ({ lang: t.lang, helpCentre: t("emails.helpCentre") });
+
+/** Emails to the shop stay in English. */
+const english = () => translatorFor("en");
 
 /**
  * After an offline order (bank transfer, pay on delivery, WhatsApp): tells the
@@ -16,8 +41,9 @@ export const orderReference = (orderId: string) => orderId.slice(0, 8).toUpperCa
  * Never throws; a failed email mustn't affect the order.
  */
 export async function sendOrderReceivedEmails(tenantId: string, orderId: string) {
-  // Push to the shop's devices first, so they hear within seconds (never throws).
+  // Push to the shop's devices first, so they hear within seconds, then WhatsApp (neither throws).
   await alertNewOrder(tenantId, orderId);
+  await whatsappNewOrder(tenantId, orderId);
   try {
     const db = createServerSupabaseClient();
     const [{ data: order }, { data: profile }, { data: tenant }] = await Promise.all([
@@ -40,7 +66,7 @@ export async function sendOrderReceivedEmails(tenantId: string, orderId: string)
     const money = (v: number) => formatShopCurrency(v, currency);
     const reference = orderReference(order.id);
     const items = (order.order_items as { product_name: string; quantity: number; line_total: number }[]) || [];
-    const discount = discountRows(order, money);
+    const discount = discountRows(order, money, english());
     const itemLines = [...items.map((i) => `${i.quantity} × ${i.product_name} (${money(Number(i.line_total) || 0)})`), ...discount.map((d) => `${d.label}: ${d.value}`)];
     const total = money(Number(order.total_amount) || 0);
     const offline = parseOfflinePayments(profile?.offline_payments);
@@ -48,35 +74,46 @@ export async function sendOrderReceivedEmails(tenantId: string, orderId: string)
 
     // ---- Customer
     if (order.customer_email) {
-      const bank = offline.bankTransfer;
-      const nextStep =
-        order.payment_method === "Bank Transfer" && bank.enabled
-          ? `Please pay ${total} by bank transfer to ${bank.accountName}, ${bank.bankName}, account number ${bank.accountNumber}. Use ${reference} as the payment reference.${bank.note ? ` ${bank.note}` : ""} ${storeName} will confirm your order when the payment arrives.`
-          : order.payment_method === "Pay on Delivery"
-            ? `You'll pay ${total} when your order arrives.${offline.payOnDelivery.note ? ` ${offline.payOnDelivery.note}` : ""}`
-            : `${storeName} will contact you on WhatsApp to arrange payment and delivery.`;
+      // In the language the shopper ordered in ("*" above includes it once the column exists).
+      const t = await shopperEmailT(tenantId, (order as { language?: unknown }).language);
+      const nextStep = offlineNextStep({ paymentMethod: order.payment_method, offline, storeName, total, reference }, t);
       // Bank transfer orders get an invoice with the shop's bank details (see receipts.ts).
       const invoiceUrl = order.payment_method === "Bank Transfer" ? await invoiceUrlFor(tenantId, orderId) : null;
+      const shopperDiscount = discountRows(order, money, t);
+      const shopperLines = [...items.map((i) => `${i.quantity} × ${i.product_name} (${money(Number(i.line_total) || 0)})`), ...shopperDiscount.map((d) => `${d.label}: ${d.value}`)];
       await sendBrandedEmail({
         to: order.customer_email,
-        subject: `We've got your order (${reference}) from ${storeName}`,
+        subject: t("emails.receivedSubject", { ref: reference, shop: storeName }),
         replyTo: shopContact,
-        text: [`Hello ${order.customer_name}, thank you for your order from ${storeName}.`, "", `Order ${reference}`, ...itemLines, `Total: ${total}`, "", nextStep, ...(invoiceUrl ? ["", `View your invoice: ${invoiceUrl}`] : [])].join("\n"),
+        text: [
+          t("emails.receivedTextIntro", { name: order.customer_name, shop: storeName }),
+          "",
+          t("emails.orderLine", { ref: reference }),
+          ...shopperLines,
+          `${t("emails.labelTotal")}: ${total}`,
+          "",
+          nextStep,
+          ...(invoiceUrl ? ["", `${t("emails.viewInvoice")}: ${invoiceUrl}`] : []),
+        ].join("\n"),
         layout: {
-          preheader: `Order ${reference}: ${nextStep.slice(0, 90)}`,
-          badges: [badge("Order received", "green")],
-          title: `Thank you for your order`,
-          intro: `Hello ${order.customer_name}, ${storeName} has received your order.`,
+          ...layoutWords(t),
+          preheader: `${t("emails.orderLine", { ref: reference })}: ${nextStep.slice(0, 90)}`,
+          badges: [badge(t("emails.badgeOrderReceived"), "green")],
+          title: t("emails.receivedTitle"),
+          intro: t("emails.receivedIntro", { name: order.customer_name, shop: storeName }),
           body: `${detailsPanel([
-            { label: "Order", value: reference },
+            { label: t("emails.labelOrder"), value: reference },
             ...items.map((i) => ({ label: `${i.quantity} ×`, value: `${i.product_name} (${money(Number(i.line_total) || 0)})` })),
-            ...discount,
-            { label: "Total", value: total },
-            ...(order.delivery_method ? [{ label: "Delivery", value: String(order.delivery_method) }] : []),
+            ...shopperDiscount,
+            { label: t("emails.labelTotal"), value: total },
+            ...(order.delivery_method ? [{ label: t("emails.labelDelivery"), value: String(order.delivery_method) }] : []),
           ])}
-          <p style="margin:20px 0 0;color:#1e293b;font-size:15px;line-height:1.6"><strong>What happens next</strong><br>${escapeHtml(nextStep)}</p>`,
-          buttons: [...(invoiceUrl ? [{ label: "View your invoice", href: invoiceUrl }] : []), { label: `Visit ${storeName}`, href: storefrontUrl(slug), ...(invoiceUrl ? { variant: "secondary" as const } : {}) }],
-          footerNote: `You're receiving this because you placed an order with ${storeName}. Reply to this email to contact the shop.`,
+          <p style="margin:20px 0 0;color:#1e293b;font-size:15px;line-height:1.6"><strong>${escapeHtml(t("emails.whatHappensNext"))}</strong><br>${escapeHtml(nextStep)}</p>`,
+          buttons: [
+            ...(invoiceUrl ? [{ label: t("emails.viewInvoice"), href: invoiceUrl }] : []),
+            { label: t("emails.visitShop", { shop: storeName }), href: storefrontUrl(slug), ...(invoiceUrl ? { variant: "secondary" as const } : {}) },
+          ],
+          footerNote: t("emails.footerOrder", { shop: storeName }),
         },
       });
     }
@@ -101,6 +138,7 @@ export async function sendOrderReceivedEmails(tenantId: string, orderId: string)
             ...items.map((i) => ({ label: `${i.quantity} ×`, value: i.product_name })),
             ...discount,
             { label: "Total", value: total },
+            ...noteRow(order),
           ]),
           buttons: [{ label: "Open orders", href: dashboard }],
           footerNote: `You're receiving this because ${storeName} takes orders on XYVOO.`,
@@ -112,14 +150,17 @@ export async function sendOrderReceivedEmails(tenantId: string, orderId: string)
   }
 }
 
+/** The shopper's note from checkout, for the shop's new-order emails. */
+const noteRow = (order: { customer_note?: unknown }) => (typeof order.customer_note === "string" && order.customer_note.trim() ? [{ label: "Customer's note", value: order.customer_note.trim() }] : []);
+
 /** The discount line for an order's emails, if it had one. */
-/** The discount and any gift card on an order, as lines above the total. */
-function discountRows(order: { discount_code?: string | null; discount_amount?: number | string | null; gift_card_amount?: number | string | null }, money: (v: number) => string) {
+/** The discount and any gift card on an order, as lines above the total, in the email's language. */
+function discountRows(order: { discount_code?: string | null; discount_amount?: number | string | null; gift_card_amount?: number | string | null }, money: (v: number) => string, t: Translator) {
   const amount = Number(order.discount_amount) || 0;
   const gift = Number(order.gift_card_amount) || 0;
   return [
-    ...(amount > 0 ? [{ label: `Discount${order.discount_code ? ` (${order.discount_code})` : ""}`, value: `−${money(amount)}` }] : []),
-    ...(gift > 0 ? [{ label: "Paid with gift card", value: `−${money(gift)}` }] : []),
+    ...(amount > 0 ? [{ label: order.discount_code ? t("emails.discountCode", { code: order.discount_code }) : t("emails.discount"), value: `−${money(amount)}` }] : []),
+    ...(gift > 0 ? [{ label: t("emails.paidWithGiftCard"), value: `−${money(gift)}` }] : []),
   ];
 }
 
@@ -134,6 +175,9 @@ type OrderEmailContext = {
     customer_phone: string | null;
     total_amount: number;
     delivery_method: string | null;
+    customer_note?: string | null;
+    /** The shopper's language, once the migration adds the column. */
+    language?: unknown;
   };
   items: { product_name: string; quantity: number; line_total: number }[];
   storeName: string;
@@ -174,51 +218,59 @@ async function loadOrderEmailContext(tenantId: string, orderId: string): Promise
  * new-order alert. Called once per order (see card-payments.ts). Never throws.
  */
 export async function sendOrderPaidEmails(tenantId: string, orderId: string) {
-  // Push to the shop's devices first, so they hear within seconds (never throws).
+  // Push to the shop's devices first, so they hear within seconds, then WhatsApp (neither throws).
   await alertNewOrder(tenantId, orderId);
+  await whatsappNewOrder(tenantId, orderId);
   try {
     const ctx = await loadOrderEmailContext(tenantId, orderId);
     if (!ctx) return;
     const { order, items, storeName, slug, money, reference, shopContact } = ctx;
-    const discount = discountRows(order, money);
+    const discount = discountRows(order, money, english());
     const itemLines = [...items.map((i) => `${i.quantity} × ${i.product_name} (${money(Number(i.line_total) || 0)})`), ...discount.map((d) => `${d.label}: ${d.value}`)];
     const total = money(Number(order.total_amount) || 0);
-    const nextStep = `${storeName} is preparing your order and will let you know when it's on its way.`;
 
     if (order.customer_email) {
       // The numbered PDF receipt, attached and linked (see receipts.ts). The email still goes without it.
       const receipt = await receiptForEmail(tenantId, orderId).catch(() => null);
+      const t = await shopperEmailT(tenantId, order.language);
+      const nextStep = t("emails.preparingOrder", { shop: storeName });
+      const shopperDiscount = discountRows(order, money, t);
+      const shopperLines = [...items.map((i) => `${i.quantity} × ${i.product_name} (${money(Number(i.line_total) || 0)})`), ...shopperDiscount.map((d) => `${d.label}: ${d.value}`)];
       await sendBrandedEmail({
         to: order.customer_email,
-        subject: `Payment received: your order ${reference} from ${storeName}`,
+        subject: t("emails.paidSubject", { ref: reference, shop: storeName }),
         replyTo: shopContact,
         attachments: receipt?.attachments,
         text: [
-          `Hello ${order.customer_name}, thank you. Your payment of ${total} to ${storeName} has gone through.`,
+          t("emails.paidTextIntro", { name: order.customer_name, total, shop: storeName }),
           "",
-          `Order ${reference}${receipt?.number ? `, receipt ${receipt.number}` : ""}`,
-          ...itemLines,
-          `Total paid: ${total}`,
+          receipt?.number ? t("emails.orderReceiptLine", { ref: reference, number: receipt.number }) : t("emails.orderLine", { ref: reference }),
+          ...shopperLines,
+          `${t("emails.labelTotalPaid")}: ${total}`,
           "",
           nextStep,
-          ...(receipt ? ["", "Your receipt is attached to this email.", ...(receipt.url ? [`View your receipt: ${receipt.url}`] : [])] : []),
+          ...(receipt ? ["", t("emails.receiptAttached"), ...(receipt.url ? [`${t("emails.viewReceipt")}: ${receipt.url}`] : [])] : []),
         ].join("\n"),
         layout: {
-          preheader: `Order ${reference}: payment of ${total} received.`,
-          badges: [badge("Paid", "green")],
-          title: "Thank you, your order is confirmed",
-          intro: `Hello ${order.customer_name}, your payment to ${storeName} has gone through.${receipt ? " Your receipt is attached to this email." : ""}`,
+          ...layoutWords(t),
+          preheader: t("emails.paidPreheader", { ref: reference, total }),
+          badges: [badge(t("emails.badgePaid"), "green")],
+          title: t("emails.paidTitle"),
+          intro: `${t("emails.paidIntro", { name: order.customer_name, shop: storeName })}${receipt ? ` ${t("emails.receiptAttached")}` : ""}`,
           body: `${detailsPanel([
-            { label: "Order", value: reference },
-            ...(receipt?.number ? [{ label: "Receipt", value: receipt.number }] : []),
+            { label: t("emails.labelOrder"), value: reference },
+            ...(receipt?.number ? [{ label: t("emails.labelReceipt"), value: receipt.number }] : []),
             ...items.map((i) => ({ label: `${i.quantity} ×`, value: `${i.product_name} (${money(Number(i.line_total) || 0)})` })),
-            ...discount,
-            { label: "Total paid", value: total },
-            ...(order.delivery_method ? [{ label: "Delivery", value: String(order.delivery_method) }] : []),
+            ...shopperDiscount,
+            { label: t("emails.labelTotalPaid"), value: total },
+            ...(order.delivery_method ? [{ label: t("emails.labelDelivery"), value: String(order.delivery_method) }] : []),
           ])}
-          <p style="margin:20px 0 0;color:#1e293b;font-size:15px;line-height:1.6"><strong>What happens next</strong><br>${escapeHtml(nextStep)}</p>`,
-          buttons: [...(receipt?.url ? [{ label: "View your receipt", href: receipt.url }] : []), { label: `Visit ${storeName}`, href: storefrontUrl(slug), ...(receipt?.url ? { variant: "secondary" as const } : {}) }],
-          footerNote: `You're receiving this because you placed an order with ${storeName}. Reply to this email to contact the shop.`,
+          <p style="margin:20px 0 0;color:#1e293b;font-size:15px;line-height:1.6"><strong>${escapeHtml(t("emails.whatHappensNext"))}</strong><br>${escapeHtml(nextStep)}</p>`,
+          buttons: [
+            ...(receipt?.url ? [{ label: t("emails.viewReceipt"), href: receipt.url }] : []),
+            { label: t("emails.visitShop", { shop: storeName }), href: storefrontUrl(slug), ...(receipt?.url ? { variant: "secondary" as const } : {}) },
+          ],
+          footerNote: t("emails.footerOrder", { shop: storeName }),
         },
       });
     }
@@ -243,6 +295,7 @@ export async function sendOrderPaidEmails(tenantId: string, orderId: string) {
             ...discount,
             { label: "Total paid", value: total },
             ...(order.delivery_method ? [{ label: "Delivery", value: String(order.delivery_method) }] : []),
+            ...noteRow(order),
           ]),
           buttons: [{ label: "Open orders", href: dashboard }],
           footerNote: `You're receiving this because ${storeName} takes orders on XYVOO.`,
@@ -257,6 +310,7 @@ export async function sendOrderPaidEmails(tenantId: string, orderId: string) {
 /** A payment cleared on an order that had already been cancelled: the shop must fulfil it or return the money. */
 export async function sendPaidCancelledAlert(tenantId: string, orderId: string) {
   await alertPaidCancelled(tenantId, orderId);
+  await whatsappPaidCancelled(tenantId, orderId);
   try {
     const ctx = await loadOrderEmailContext(tenantId, orderId);
     if (!ctx?.shopContact || !(await shopAlertEmailWanted(tenantId, "paid_cancelled"))) return;

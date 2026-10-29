@@ -7,6 +7,8 @@ import { sendBrandedEmail } from "@/lib/mail/mailtrap";
 import type { ShopTenant } from "@/lib/shop/tenants";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { storefrontUrl } from "./subdomain";
+import { emailLanguage, emailT } from "./i18n/shopper";
+import type { Translator } from "./i18n/translate";
 
 /*
  * Shopper accounts, one set per shop (store.customer_accounts). No passwords:
@@ -24,20 +26,33 @@ const sha256 = (value: string) => crypto.createHash("sha256").update(value).dige
 /** One cookie per shop, named by the shop's id so it survives an address change. */
 export const customerCookieName = (tenantId: string) => `sf_acct_${tenantId.replace(/-/g, "").slice(0, 16)}`;
 
-const phoneSchema = z
-  .string()
-  .trim()
-  .max(40)
-  .regex(/^[0-9+()\s-]*$/, "Enter a phone number using digits only.")
-  .optional()
-  .transform((v) => (v ? v : undefined));
+/** The account form's check messages. English by default; `accountFormWords(t)` gives them in the shopper's language. */
+export type AccountFormWords = { name: string; email: string; phone: string };
+const ENGLISH_FORM_WORDS: AccountFormWords = {
+  name: "Enter your name.",
+  email: "Enter an email address in the format name@example.com.",
+  phone: "Enter a phone number using digits only.",
+};
+export const accountFormWords = (t: Translator): AccountFormWords => ({ name: t("account.enterName"), email: t("account.enterEmail"), phone: t("emails.phoneDigits") });
 
-export const accountDetailsSchema = z.object({
-  name: z.string().trim().min(1, "Enter your name.").max(120),
-  email: z.string().trim().toLowerCase().max(200).email("Enter an email address in the format name@example.com."),
-  phone: phoneSchema,
-  consent: z.boolean().default(false),
-});
+const phoneSchemaWith = (words: AccountFormWords) =>
+  z
+    .string()
+    .trim()
+    .max(40)
+    .regex(/^[0-9+()\s-]*$/, words.phone)
+    .optional()
+    .transform((v) => (v ? v : undefined));
+
+/** The same rules as accountDetailsSchema, with its messages in the shopper's language: accountDetailsSchemaWith(accountFormWords(t)). */
+export const accountDetailsSchemaWith = (words: AccountFormWords = ENGLISH_FORM_WORDS) =>
+  z.object({
+    name: z.string().trim().min(1, words.name).max(120),
+    email: z.string().trim().toLowerCase().max(200).email(words.email),
+    phone: phoneSchemaWith(words),
+    consent: z.boolean().default(false),
+  });
+export const accountDetailsSchema = accountDetailsSchemaWith();
 export type AccountDetails = z.infer<typeof accountDetailsSchema>;
 
 export type CustomerAccount = {
@@ -139,12 +154,15 @@ export async function createAccount(tenantId: string, details: AccountDetails, s
   return toAccount(data as AccountRow);
 }
 
-export const accountUpdateSchema = z.object({
-  name: z.string().trim().min(1, "Enter your name.").max(120).optional(),
-  // "" clears the number, so it's checked before the phone rules (which would drop it).
-  phone: z.union([z.literal(""), phoneSchema]),
-  consent: z.boolean().optional(),
-});
+/** The same rules as accountUpdateSchema, with its messages in the shopper's language: accountUpdateSchemaWith(accountFormWords(t)). */
+export const accountUpdateSchemaWith = (words: AccountFormWords = ENGLISH_FORM_WORDS) =>
+  z.object({
+    name: z.string().trim().min(1, words.name).max(120).optional(),
+    // "" clears the number, so it's checked before the phone rules (which would drop it).
+    phone: z.union([z.literal(""), phoneSchemaWith(words)]),
+    consent: z.boolean().optional(),
+  });
+export const accountUpdateSchema = accountUpdateSchemaWith();
 
 export async function updateAccount(tenantId: string, accountId: string, update: z.infer<typeof accountUpdateSchema>) {
   const patch: Record<string, unknown> = {};
@@ -237,25 +255,40 @@ export async function redeemSignInCode(accountId: string, code: string): Promise
 
 export const shopName = (tenant: Pick<ShopTenant, "displayName" | "subdomain" | "name">) => tenant.displayName?.trim() || String(tenant.subdomain || tenant.name);
 
+/** The language saved with the account (the code route saves the one they're using just before sending). Null before the migration. */
+async function accountLanguage(tenantId: string, accountId: string): Promise<unknown> {
+  try {
+    const { data, error } = await store().from("customer_accounts").select("language").eq("tenant_id", tenantId).eq("id", accountId).maybeSingle();
+    return error ? null : ((data as { language?: unknown } | null)?.language ?? null);
+  } catch {
+    return null;
+  }
+}
+
 export async function sendSignInCodeEmail(tenant: ShopTenant, account: CustomerAccount, code: string) {
   const storeName = shopName(tenant);
-  const greeting = account.name ? `Hello ${account.name.split(/\s+/)[0]}, ` : "Hello, ";
+  const t = emailT(await emailLanguage(tenant.id, await accountLanguage(tenant.id, account.id)));
+  const greeting = account.name ? t("emails.greetingName", { name: account.name.split(/\s+/)[0] }) : t("emails.greetingNone");
+  const intro = t("emails.codeIntro", { greeting, shop: storeName });
+  const codeIs = t("emails.codeIs", { code, minutes: CODE_TTL_MINUTES });
   await sendBrandedEmail({
     to: account.email,
-    subject: `Your ${storeName} sign-in code: ${code}`,
-    text: `${greeting}use this code to sign in to your account at ${storeName}.\n\nYour code is ${code}. It expires in ${CODE_TTL_MINUTES} minutes.\n\nIf you didn't ask for this, you can ignore this email.`,
+    subject: t("emails.codeSubject", { shop: storeName, code }),
+    text: `${intro}\n\n${codeIs}\n\n${t("emails.codeIgnore")}`,
     layout: {
-      preheader: `Your code is ${code}. It expires in ${CODE_TTL_MINUTES} minutes.`,
-      badges: [badge("Sign-in code")],
-      title: `Sign in to ${storeName}`,
-      intro: `${greeting}use this code to sign in to your account at ${storeName}.`,
+      lang: t.lang,
+      helpCentre: t("emails.helpCentre"),
+      preheader: codeIs,
+      badges: [badge(t("emails.badgeSignInCode"))],
+      title: t("emails.codeTitle", { shop: storeName }),
+      intro,
       body: `<div style="margin:0 0 20px;padding:24px;border:1px dashed #007edf;border-radius:12px;background:#f5faff;text-align:center">
         <div style="font-size:34px;font-weight:800;letter-spacing:10px;color:#000d1f;font-family:'Courier New',monospace">${escapeHtml(code)}</div>
-        <div style="margin-top:8px;font-size:13px;color:#64748b">Expires in ${CODE_TTL_MINUTES} minutes</div>
+        <div style="margin-top:8px;font-size:13px;color:#64748b">${escapeHtml(t("emails.codeExpires", { minutes: CODE_TTL_MINUTES }))}</div>
       </div>
-      <p style="margin:0;color:#64748b;font-size:14px;line-height:1.6">If you didn&rsquo;t ask for this, you can ignore this email. Nobody can sign in without the code.</p>`,
-      buttons: [{ label: `Visit ${storeName}`, href: storefrontUrl(String(tenant.subdomain || tenant.name)), variant: "secondary" }],
-      footerNote: `You're receiving this because someone asked to sign in to an account at ${storeName} with this email address.`,
+      <p style="margin:0;color:#64748b;font-size:14px;line-height:1.6">${escapeHtml(`${t("emails.codeIgnore")} ${t("emails.codeNobody")}`)}</p>`,
+      buttons: [{ label: t("emails.visitShop", { shop: storeName }), href: storefrontUrl(String(tenant.subdomain || tenant.name)), variant: "secondary" }],
+      footerNote: t("emails.codeFooter", { shop: storeName }),
     },
   });
 }

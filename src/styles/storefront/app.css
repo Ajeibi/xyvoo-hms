@@ -101,6 +101,8 @@
   background: var(--surface); color: var(--ink); border-radius: var(--card-radius, 0.75rem);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2); font-size: 0.9375rem; line-height: 1.55;
 }
+/* Already chosen (set before the first paint by the layout's head script), or no scripts to act on a choice: hidden, unless reopened from "Cookie settings". */
+.sf-consent-chosen .cookie-banner:not(.is-reopened), .no-js .cookie-banner { display: none; }
 .cookie-banner__title { margin: 0; font-family: var(--font-display); font-weight: var(--display-weight); font-size: 1.0625rem; }
 .cookie-banner p { margin: 0; }
 .cookie-banner a { color: inherit; text-decoration: underline; text-underline-offset: 0.2em; }
@@ -143,11 +145,11 @@
 .discount-code label { font-weight: 600; color: var(--ink); }
 .discount-code .hint:empty { display: none; }
 .discount-code__applied { display: flex; flex-wrap: wrap; align-items: center; gap: 0.375rem; margin: 0; font-size: 0.875rem; color: var(--ink); }
-.link-button { padding: 0; border: 0; background: none; color: var(--accent); font: inherit; text-decoration: underline; cursor: pointer; }
+.link-button { padding: 0; border: 0; background: none; color: var(--accent-text, var(--accent)); font: inherit; text-decoration: underline; cursor: pointer; }
 .link-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* Sale prices: when the sale ends, under the price */
-.sale-ends { display: block; margin-top: 0.125rem; font-size: 0.8125rem; font-weight: 600; color: var(--accent); }
+.sale-ends { display: block; margin-top: 0.125rem; font-size: 0.8125rem; font-weight: 600; color: var(--accent-text, var(--accent)); }
 .pdp__price .sale-ends { font-size: 0.875rem; }
 
 /* Checkout: tax and delivery areas */
@@ -191,7 +193,7 @@
 .star-rating legend { margin-bottom: 0.5rem; font-weight: 600; color: var(--ink); }
 .star-rating__stars { display: flex; gap: 0.25rem; }
 .star-rating__stars label { position: relative; display: grid; place-items: center; width: 2.75rem; height: 2.75rem; color: var(--muted); cursor: pointer; }
-.star-rating__stars label.is-on { color: var(--accent); }
+.star-rating__stars label.is-on { color: var(--accent-text, var(--accent)); }
 .star-rating__stars input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
 .star-rating__stars .icon { width: 1.75rem; height: 1.75rem; }
 .star-rating__stars label:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -202,7 +204,7 @@
 .review-photos__add { position: relative; display: inline-flex; width: auto; cursor: pointer; }
 .review-photos__add:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
 .review-thanks { display: grid; gap: 1rem; justify-items: start; max-width: 40rem; margin-top: 2rem; }
-.review-thanks > .icon { width: 2.5rem; height: 2.5rem; color: var(--accent); }
+.review-thanks > .icon { width: 2.5rem; height: 2.5rem; color: var(--accent-text, var(--accent)); }
 /* On product pages */
 .review-item .review-photos { margin-top: 0.25rem; }
 .review-item .review-photos a { display: block; }
@@ -231,7 +233,7 @@
 .account-prompt__title:focus { outline: none; }
 .account-prompt__optional { padding: 0.625rem 0.75rem; border-radius: 0.5rem; background: color-mix(in srgb, var(--accent) 8%, var(--surface)); font-size: 0.875rem; }
 .account-prompt__signin { font-size: 0.875rem; }
-.account-prompt__signin a { color: var(--accent); text-decoration: underline; text-underline-offset: 0.2em; }
+.account-prompt__signin a { color: var(--accent-text, var(--accent)); text-decoration: underline; text-underline-offset: 0.2em; }
 .account-prompt__close {
   position: absolute; top: 0.5rem; right: 0.5rem; width: 2.75rem; height: 2.75rem;
   display: inline-flex; align-items: center; justify-content: center;
@@ -251,7 +253,7 @@
 .account-orders__top { display: flex; justify-content: space-between; gap: 1rem; }
 .account-orders__meta, .account-orders__items { margin: 0.25rem 0 0; font-size: 0.875rem; color: var(--muted); }
 .account-card .h-section { font-size: 1.375rem; }
-.checkout-account { margin: 0; font-size: 0.9375rem; } .checkout-account a { color: var(--accent); text-decoration: underline; text-underline-offset: 0.2em; }
+.checkout-account { margin: 0; font-size: 0.9375rem; } .checkout-account a { color: var(--accent-text, var(--accent)); text-decoration: underline; text-underline-offset: 0.2em; }
 
 /* "Email me when it's back" on sold-out products (StockAlertForm.tsx). */
 .stock-alert { display: grid; gap: 0.75rem; margin-top: 1.25rem; padding: 1.125rem 1.25rem; border: 1px solid var(--line); border-radius: var(--card-radius, 0.75rem); background: color-mix(in srgb, var(--accent) 6%, var(--surface)); }
@@ -320,3 +322,162 @@
 .blog-figure figcaption { margin-top: 0.5rem; font-size: 0.875rem; color: var(--ink-2); }
 @media (min-width: 48rem) { .blog-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (min-width: 64rem) { .blog-list { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* "Order on WhatsApp" on products and the basket: WhatsApp's green, dark enough for white text (5.5:1). */
+.btn--whatsapp { gap: 0.5rem; background: #047857; color: #fff; }
+.btn--whatsapp:hover { background: #065f46; color: #fff; }
+.btn--whatsapp svg { width: 1.125rem; height: 1.125rem; flex: none; }
+.buy-row .btn--whatsapp { flex: 1 1 100%; }
+.whatsapp-hint { margin: 0.25rem 0 0; font-size: 0.8125rem; color: var(--muted, inherit); }
+
+/* Search suggestions under the header's search field (SearchBox.tsx). */
+.search-box { position: relative; flex: 1 1 auto; min-width: 0; }
+.search-box .input { width: 100%; }
+.search-box__list { display: none; position: absolute; z-index: 40; left: 0; right: 0; top: calc(100% + 0.375rem); margin: 0; padding: 0.375rem; list-style: none; background: var(--bg); color: var(--ink); border: 1px solid var(--line-strong); border-radius: var(--field-radius, 0.5rem); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.14); max-height: min(70vh, 32rem); overflow-y: auto; }
+.search-box__list.is-open { display: block; }
+.search-box__option { display: flex; align-items: center; gap: 0.75rem; min-height: 2.75rem; padding: 0.5rem 0.625rem; border-radius: 0.375rem; cursor: pointer; }
+.search-box__option.is-active { background: var(--surface); outline: 2px solid var(--accent-text, var(--accent)); outline-offset: -2px; }
+.search-box__thumb { position: relative; flex: 0 0 3rem; width: 3rem; height: 3rem; overflow: hidden; border-radius: 0.375rem; background: var(--surface); }
+.search-box__text { display: flex; flex-direction: column; min-width: 0; }
+.search-box__name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-box__price, .search-box__hint, .search-box__stock { font-size: 0.875rem; color: var(--muted); }
+.search-box__option--category .search-box__text { flex-direction: row; gap: 0.375rem; align-items: baseline; }
+.search-box__option--all { border-top: 1px solid var(--line); margin-top: 0.25rem; }
+.search-box__all { font-weight: 600; color: var(--accent-text, var(--accent)); }
+
+/* Basket panel (BasketDrawer.tsx): a native modal dialog, from the right on wide screens, full screen on phones. */
+.basket-drawer { position: fixed; inset: 0 0 0 auto; width: min(26rem, 100vw); max-width: 100vw; height: 100dvh; max-height: 100dvh; margin: 0; padding: 0; border: 0; background: var(--bg); color: var(--ink); box-shadow: -12px 0 40px rgba(0, 0, 0, 0.18); }
+.basket-drawer::backdrop { background: rgba(0, 0, 0, 0.45); }
+.basket-drawer[open] { animation: basket-in 0.22s ease-out; }
+@keyframes basket-in { from { transform: translateX(100%); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .basket-drawer[open] { animation: none; } }
+.basket-drawer__panel { display: flex; flex-direction: column; gap: 1rem; min-height: 100%; padding: 1.25rem; overflow-y: auto; }
+.basket-drawer__head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.basket-drawer__head .h-card { margin: 0; }
+.basket-drawer__added { display: flex; align-items: center; gap: 0.5rem; margin: 0; padding: 0.625rem 0.75rem; border-radius: 0.5rem; background: color-mix(in srgb, var(--accent) 10%, transparent); font-weight: 600; }
+.basket-drawer__empty { display: grid; gap: 1rem; justify-items: start; }
+.basket-drawer__lines { display: flex; flex-direction: column; gap: 1rem; margin: 0; padding: 0; list-style: none; }
+.basket-drawer__foot { display: grid; gap: 0.75rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.basket-drawer__foot .btn { width: 100%; justify-content: center; }
+.basket-drawer__total { display: flex; justify-content: space-between; margin: 0; font-size: 1.0625rem; font-weight: 700; }
+.basket-drawer__total dd { margin: 0; }
+.mini-cart-line { display: grid; grid-template-columns: 4rem minmax(0, 1fr) auto; gap: 0.875rem; align-items: start; }
+.mini-cart-line__media { position: relative; aspect-ratio: 1; overflow: hidden; border-radius: var(--media-radius, 0.5rem); background: var(--surface); }
+.mini-cart-line__body { display: grid; gap: 0.25rem; min-width: 0; }
+.mini-cart-line__name { margin: 0; font-weight: 600; }
+.mini-cart-line__meta { margin: 0; font-size: 0.875rem; color: var(--muted); }
+.mini-cart-line__price { margin: 0; font-weight: 600; white-space: nowrap; }
+.mini-cart-line__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin-top: 0.25rem; }
+.mini-cart-line.has-problem .mini-cart-line__media, .mini-cart-line.has-problem .mini-cart-line__price { opacity: 0.55; }
+.mini-cart-line__problem, .cart-line__problem { display: flex; align-items: center; gap: 0.375rem; margin: 0.25rem 0 0; font-size: 0.875rem; font-weight: 600; color: #B42318; }
+.qty__value { min-width: 2.25rem; text-align: center; font-weight: 600; }
+
+/* Delivery estimate and free delivery progress (BasketExtras.tsx). */
+.delivery-note { display: grid; gap: 0.375rem; }
+.delivery-note p { display: flex; align-items: center; gap: 0.375rem; margin: 0; }
+.delivery-note__bar { height: 0.375rem; border-radius: 1rem; background: var(--line); overflow: hidden; }
+.delivery-note__bar span { display: block; height: 100%; background: var(--accent-text, var(--accent)); }
+.discount-code__row { display: flex; gap: 0.5rem; }
+.discount-code__row .input { flex: 1 1 auto; min-width: 0; }
+
+/* "You might also like" in the basket. */
+.basket-suggestions { display: grid; gap: 0.75rem; margin-top: 1.5rem; }
+.basket-suggestions__title { margin: 0; font-size: 1.0625rem; }
+.basket-suggestions ul { display: grid; gap: 0.75rem; margin: 0; padding: 0; list-style: none; }
+.basket-suggestion { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr) auto; align-items: center; gap: 0.75rem; }
+.basket-suggestion__media { position: relative; aspect-ratio: 1; overflow: hidden; border-radius: var(--media-radius, 0.5rem); background: var(--surface); }
+.basket-suggestion__text { display: grid; gap: 0.125rem; min-width: 0; }
+.basket-suggestion__name { font-weight: 600; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.basket-suggestion__price { font-size: 0.875rem; color: var(--muted); }
+
+
+/* Checkout (StoreCheckout.tsx): the list of problems after a submit, where the shop delivers, and the line under the pay button. */
+.error-summary { display: grid; gap: 0.5rem; margin-bottom: 1.5rem; padding: 1rem 1.25rem; border: 3px solid #A3261B; border-radius: var(--field-radius, 0.5rem); background: var(--bg); }
+.error-summary:focus { outline: 3px solid var(--accent-text, var(--accent)); outline-offset: 3px; }
+.error-summary__title { margin: 0; font-size: 1.0625rem; }
+.error-summary ul { margin: 0; padding-left: 1.25rem; }
+.error-summary a { color: #A3261B; font-weight: 600; text-decoration: underline; text-underline-offset: 0.2em; }
+.checkout-country { display: flex; align-items: flex-start; gap: 0.375rem; }
+.checkout-trust { display: flex; flex-wrap: wrap; align-items: center; gap: 0.375rem; margin: 0.5rem 0 0; font-size: 0.875rem; color: var(--muted); }
+.checkout-trust a { color: inherit; text-decoration: underline; text-underline-offset: 0.2em; }
+.field--short { max-width: 14rem; }
+
+
+/* Proof of payment on the "order received" page (PaymentProofUpload.tsx). */
+.proof-upload { display: grid; gap: 0.75rem; margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--line); }
+.proof-upload .btn { justify-self: start; }
+.proof-upload__done { display: flex; align-items: center; gap: 0.5rem; margin-top: 1.25rem; font-weight: 600; }
+
+
+/* Product photos (ProductGallery.tsx): arrows, count and full-screen button on the main photo; the full-screen view. */
+.gallery-main { position: relative; touch-action: pan-y; }
+.gallery-main__zoom, .gallery-main__arrow { position: absolute; z-index: 2; display: inline-flex; align-items: center; justify-content: center; width: 2.75rem; height: 2.75rem; border: 0; border-radius: 50%; background: rgba(255, 255, 255, 0.9); color: #1b1b1b; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15); cursor: pointer; }
+.gallery-main__zoom { top: 0.75rem; right: 0.75rem; }
+.gallery-main__arrow { top: 50%; transform: translateY(-50%); }
+.gallery-main__arrow--prev { left: 0.75rem; }
+.gallery-main__arrow--next { right: 0.75rem; }
+.gallery-main__count { position: absolute; z-index: 2; left: 50%; bottom: 0.75rem; transform: translateX(-50%); margin: 0; padding: 0.25rem 0.625rem; border-radius: 1rem; background: rgba(0, 0, 0, 0.6); color: #fff; font-size: 0.8125rem; font-weight: 600; }
+.gallery-main__zoom:focus-visible, .gallery-main__arrow:focus-visible { outline: 3px solid var(--accent-text, var(--accent)); outline-offset: 2px; }
+.lightbox { width: 100vw; height: 100dvh; max-width: 100vw; max-height: 100dvh; margin: 0; padding: 0; border: 0; background: #0b0b0b; color: #fff; }
+.lightbox::backdrop { background: #0b0b0b; }
+.lightbox__stage { position: absolute; inset: 3.5rem 0.5rem; touch-action: pan-y; }
+.lightbox__stage img { object-fit: contain !important; }
+.lightbox__close { position: absolute; top: 0.5rem; right: 0.5rem; color: #fff; }
+.lightbox__arrow { position: absolute; top: 50%; transform: translateY(-50%); display: inline-flex; align-items: center; justify-content: center; width: 3rem; height: 3rem; border: 0; border-radius: 50%; background: rgba(255, 255, 255, 0.15); color: #fff; cursor: pointer; }
+.lightbox__arrow--prev { left: 0.75rem; }
+.lightbox__arrow--next { right: 0.75rem; }
+.lightbox__count { position: absolute; left: 0; right: 0; bottom: 1rem; margin: 0; text-align: center; font-size: 0.875rem; }
+.lightbox button:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+
+/* Product page extras (ProductExtras.tsx). */
+.share-btn { display: inline-flex; align-items: center; gap: 0.375rem; margin-top: 0.5rem; }
+.pdp-delivery { display: grid; gap: 0.5rem; margin: 1rem 0; padding: 0.875rem 1rem; list-style: none; border: 1px solid var(--line); border-radius: var(--card-radius, 0.75rem); font-size: 0.9375rem; }
+.pdp-delivery li { display: flex; align-items: flex-start; gap: 0.5rem; }
+.sticky-buy { position: fixed; z-index: 45; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom)); background: var(--bg); border-top: 1px solid var(--line); box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.08); transform: translateY(110%); transition: transform 0.2s ease; }
+.sticky-buy.is-visible { transform: none; }
+.sticky-buy__text { display: grid; min-width: 0; flex: 1 1 auto; }
+.sticky-buy__name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sticky-buy__price { font-size: 0.875rem; color: var(--muted); }
+@media (min-width: 900px) { .sticky-buy { display: none; } }
+@media (prefers-reduced-motion: reduce) { .sticky-buy { transition: none; } }
+
+/* Reviews (ProductReviews.tsx): stars breakdown and sorting. */
+.review-bars { display: grid; gap: 0.25rem; margin: 1rem 0; padding: 0; list-style: none; }
+.review-bar { display: grid; grid-template-columns: 4.25rem 1fr 2rem; align-items: center; gap: 0.5rem; width: 100%; min-height: 2.25rem; padding: 0.125rem 0.25rem; border: 0; border-radius: 0.375rem; background: none; color: inherit; font: inherit; font-size: 0.875rem; text-align: left; cursor: pointer; }
+.review-bar:disabled { cursor: default; opacity: 0.6; }
+.review-bar[aria-pressed="true"] { background: var(--surface); font-weight: 700; }
+.review-bar:focus-visible { outline: 3px solid var(--accent-text, var(--accent)); outline-offset: 1px; }
+.review-bar__track { height: 0.5rem; border-radius: 1rem; background: var(--line); overflow: hidden; }
+.review-bar__track span { display: block; height: 100%; background: var(--accent-text, var(--accent)); }
+.review-bar__count { text-align: right; color: var(--muted); }
+.review-toolbar { margin-bottom: 1rem; }
+
+
+/* Section settings (sections.tsx): colour scheme and spacing. A scheme re-maps the theme's own tokens inside the
+   section, so every template's styles follow it, and text stays on the pairs the theme's contrast check covers. */
+.sf-block { position: relative; }
+.sf-block--scheme-surface { background: var(--surface); --bg: var(--surface); }
+.sf-block--scheme-dark { background: var(--dark); color: var(--on-dark); --bg: var(--dark); --surface: color-mix(in srgb, var(--on-dark) 8%, var(--dark)); --ink: var(--on-dark); --ink-2: var(--on-dark); --muted: var(--on-dark-2, var(--on-dark)); --line: color-mix(in srgb, var(--on-dark) 20%, transparent); --accent-text: var(--on-dark); }
+.sf-block--scheme-accent { background: var(--accent); color: var(--on-accent); --bg: var(--accent); --surface: color-mix(in srgb, var(--on-accent) 10%, var(--accent)); --ink: var(--on-accent); --ink-2: var(--on-accent); --muted: var(--on-accent); --line: color-mix(in srgb, var(--on-accent) 25%, transparent); --accent-text: var(--on-accent); }
+.sf-block--scheme-accent .btn--primary { background: var(--on-accent); color: var(--accent); }
+.sf-block--scheme-dark .btn--primary { background: var(--on-dark); color: var(--dark); }
+.sf-block--space-compact > .section, .sf-block--space-compact > section { padding-block: calc(var(--section) * 0.5); }
+.sf-block--space-roomy > .section, .sf-block--space-roomy > section { padding-block: calc(var(--section) * 1.5); }
+
+/* In the website editor's preview only: "Edit" on each section. */
+.sf-edit-section { display: none; }
+.is-framed .sf-edit-section { display: inline-flex; position: absolute; z-index: 30; top: 0.5rem; left: 0.5rem; align-items: center; min-height: 2rem; padding: 0.25rem 0.75rem; border: 0; border-radius: 999px; background: #1d4ed8; color: #fff; font: 600 0.8125rem/1 system-ui, sans-serif; text-transform: capitalize; cursor: pointer; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2); }
+.is-framed .sf-edit-section:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+
+/* Announcement bar messages (AnnouncementMessages.tsx). */
+.announce { display: flex; align-items: center; justify-content: center; gap: 0.5rem; min-width: 0; }
+.announce p { margin: 0; }
+.announce__control { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; padding: 0; border: 0; border-radius: 50%; background: none; color: inherit; cursor: pointer; }
+.announce__control:hover { background: color-mix(in srgb, currentColor 12%, transparent); }
+.announce__control:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
+
+/* Back in stock by notification (StockAlertForm) and order updates on this device (OrderUpdatesPush). */
+.stock-alert__alt { justify-self: start; min-height: 2.75rem; padding: 0; border: 0; background: none; color: var(--accent-text, var(--accent)); font: inherit; font-size: 0.9375rem; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.stock-alert__alt:disabled { opacity: 0.6; cursor: default; }
+.order-push { display: grid; gap: 0.5rem; justify-items: start; margin-top: 1rem; padding: 1rem 1.25rem; border: 1px solid var(--line); border-radius: var(--card-radius, 0.75rem); background: var(--surface); }
+.order-push p { margin: 0; }

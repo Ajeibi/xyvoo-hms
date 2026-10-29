@@ -5,7 +5,11 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { storeTimezone } from "./analytics";
 import { parseOfflinePayments, type OfflinePayments } from "./offline-payments";
 import { TaggedPdf, type TableCell } from "./receipts-pdf";
+import { emailLanguage, translatorFor } from "./i18n/shopper";
+import type { ShopLanguage } from "./i18n/languages";
+import type { Translator } from "./i18n/translate";
 import {
+  dateLocale,
   describeVariantOptions,
   fileSlug,
   formatDocumentDate,
@@ -79,6 +83,8 @@ export type ReceiptData = {
   createdAt: string;
   paidAt: string | null;
   bank: OfflinePayments["bankTransfer"] | null;
+  /** The shopper's language: the one saved with the order, if the shop still offers it. */
+  lang: ShopLanguage;
 };
 
 const num = (v: unknown) => Number(v ?? 0) || 0;
@@ -120,7 +126,7 @@ export async function loadReceiptData(where: { tenantId: string; orderId: string
   const tenantId = order.tenant_id;
   const variantIds = [...new Set((order.order_items || []).map((i) => i.variant_id).filter((v): v is string => Boolean(v)))];
 
-  const [{ data: profile }, { data: tenant }, variants, tax, taxProfile, number, refund] = await Promise.all([
+  const [{ data: profile }, { data: tenant }, variants, tax, taxProfile, number, refund, language] = await Promise.all([
     db
       .from("business_profile")
       .select("business_email, phone, whatsapp, address_line1, address_line2, city, state, postcode, country_code, currency_code, offline_payments")
@@ -141,6 +147,11 @@ export async function loadReceiptData(where: { tenantId: string; orderId: string
       : Promise.resolve(order.receipt_number),
     // Refunds arrive with the orders work; until then nothing is shown as refunded.
     db.from("orders").select("refunded_amount").eq("tenant_id", tenantId).eq("id", order.id).maybeSingle(),
+    // The shopper's language arrives with a migration; until then the shop's main language.
+    db.from("orders").select("language").eq("tenant_id", tenantId).eq("id", order.id).maybeSingle().then(
+      (r) => emailLanguage(tenantId, r.error ? null : (r.data as { language?: unknown } | null)?.language),
+      () => emailLanguage(tenantId, null),
+    ),
   ]);
   if (!tenant) return null;
 
@@ -201,27 +212,28 @@ export async function loadReceiptData(where: { tenantId: string; orderId: string
     createdAt: order.created_at,
     paidAt: order.paid_at,
     bank: kind === "invoice" && offline.bankTransfer.enabled ? offline.bankTransfer : null,
+    lang: language,
   };
 }
 
-/** How the order was paid, in words. */
-export function paymentSentence(method: string | null, paidOn: string) {
-  const on = paidOn ? ` on ${paidOn}` : "";
+/** How the order was paid, in words (in the receipt's language). */
+export function paymentSentence(method: string | null, paidOn: string, t: Translator = translatorFor("en")) {
+  const on = paidOn ? t("emails.payOn", { date: paidOn }) : "";
   switch (method) {
     case "Card":
-      return `Paid by card${on}.`;
+      return t("emails.payCard", { on });
     case "Bank Transfer":
-      return `Paid by bank transfer${on}.`;
+      return t("emails.payBankTransfer", { on });
     case "Pay on Delivery":
-      return `Paid on delivery${on}.`;
+      return t("emails.payOnDelivery", { on });
     case "WhatsApp":
-      return `Paid${on}, arranged on WhatsApp.`;
+      return t("emails.payWhatsapp", { on });
     case "Discount":
-      return `Covered in full by a discount${on}. Nothing to pay.`;
+      return t("emails.payDiscount", { on });
     case "Gift card":
-      return `Paid in full with a gift card${on}.`;
+      return t("emails.payGiftCard", { on });
     default:
-      return `Paid${method ? ` by ${method.toLowerCase()}` : ""}${on}.`;
+      return method ? t("emails.payOther", { method: method.toLowerCase(), on }) : t("emails.payPlain", { on });
   }
 }
 
@@ -251,13 +263,26 @@ async function fetchLogo(url: string | null) {
   }
 }
 
-/** The PDF for a receipt or invoice. */
+/** The PDF for a receipt or invoice, in the shopper's language (the order's). */
 export async function renderReceiptPdf(r: ReceiptData) {
+  const t = translatorFor(r.lang);
+  const shop = r.storeName;
+  const ref = r.reference;
   const isReceipt = r.kind === "receipt";
-  const title = isReceipt ? `Receipt${r.number ? ` ${r.number}` : ""} from ${r.storeName}` : `Invoice for order ${r.reference} from ${r.storeName}`;
-  const pdf = await TaggedPdf.create({ title, subject: `${isReceipt ? "Receipt" : "Invoice"} for order ${r.reference}`, author: r.storeName });
+  const title = isReceipt
+    ? r.number
+      ? t("emails.pdfReceiptTitle", { number: r.number, shop })
+      : t("emails.pdfReceiptTitleNoNumber", { shop })
+    : t("emails.pdfInvoiceTitle", { ref, shop });
+  const locale = dateLocale(r.lang);
+  const pdf = await TaggedPdf.create({
+    title,
+    subject: isReceipt ? t("emails.pdfReceiptSubject", { ref }) : t("emails.pdfInvoiceSubject", { ref }),
+    author: r.storeName,
+    lang: locale,
+  });
   const money = (v: number) => pdfMoney(v, r.currency);
-  const docDate = formatDocumentDate(isReceipt ? r.paidAt || r.createdAt : r.createdAt, r.timezone);
+  const docDate = formatDocumentDate(isReceipt ? r.paidAt || r.createdAt : r.createdAt, r.timezone, locale);
 
   // ---- Shop
   const logo = await fetchLogo(r.logoUrl);
@@ -266,7 +291,7 @@ export async function renderReceiptPdf(r: ReceiptData) {
   if (logo) {
     try {
       const image = logo.type === "png" ? await pdf.doc.embedPng(logo.bytes) : await pdf.doc.embedJpg(logo.bytes);
-      const { width } = pdf.figure(image, `${r.storeName} logo`, 48, 120);
+      const { width } = pdf.figure(image, t("emails.pdfLogo", { shop }), 48, 120);
       textX = pdf.left + width + 14;
     } catch {
       // An unreadable logo just isn't shown.
@@ -276,70 +301,79 @@ export async function renderReceiptPdf(r: ReceiptData) {
   pdf.paragraph(r.storeName, { size: 15, bold: true, x: textX, width: textWidth, after: 2 });
   const contact = [...r.shop.address, [r.shop.phone, r.shop.email].filter(Boolean).join("  ·  ")].filter(Boolean);
   for (const line of contact) pdf.paragraph(line, { size: 9.5, muted: true, x: textX, width: textWidth, after: 1 });
-  if (r.shop.taxNumber) pdf.paragraph(`${r.shop.taxName || "Tax"} number: ${r.shop.taxNumber}`, { size: 9.5, muted: true, x: textX, width: textWidth, after: 1 });
+  if (r.shop.taxNumber) {
+    pdf.paragraph(t("emails.pdfTaxNumber", { tax: r.shop.taxName || t("emails.pdfTax"), number: r.shop.taxNumber }), { size: 9.5, muted: true, x: textX, width: textWidth, after: 1 });
+  }
   if (logo) pdf.y = Math.min(pdf.y, top - 52);
   pdf.rule(10);
 
   // ---- Title and details
-  pdf.heading(isReceipt ? "Receipt" : "Invoice", 1);
+  pdf.heading(isReceipt ? t("emails.pdfReceipt") : t("emails.pdfInvoice"), 1);
   const details: TableCell[][] = [
-    ...(isReceipt ? [["Receipt number", r.number || "Not yet numbered"]] : [["Invoice for order", r.reference]]),
-    [isReceipt ? "Date paid" : "Invoice date", docDate],
-    ...(isReceipt ? [["Order reference", r.reference]] : []),
-    ["Order placed", formatDocumentDate(r.createdAt, r.timezone)],
-    ...(isReceipt ? [["Payment", paymentSentence(r.paymentMethod, docDate)]] : [["Amount due", { text: money(r.total), bold: true }]]),
+    ...(isReceipt ? [[t("emails.pdfReceiptNumber"), r.number || t("emails.pdfNotNumbered")]] : [[t("emails.pdfInvoiceFor"), r.reference]]),
+    [isReceipt ? t("emails.pdfDatePaid") : t("emails.pdfInvoiceDate"), docDate],
+    ...(isReceipt ? [[t("emails.pdfOrderReference"), r.reference]] : []),
+    [t("emails.pdfOrderPlaced"), formatDocumentDate(r.createdAt, r.timezone, locale)],
+    ...(isReceipt ? [[t("emails.pdfPayment"), paymentSentence(r.paymentMethod, docDate, t)]] : [[t("emails.pdfAmountDue"), { text: money(r.total), bold: true }]]),
   ];
   pdf.table(
     [
-      { header: "Detail", width: 150 },
-      { header: "Value", width: pdf.contentWidth - 150 },
+      { header: t("emails.pdfDetail"), width: 150 },
+      { header: t("emails.pdfValue"), width: pdf.contentWidth - 150 },
     ],
     details,
     { headerRow: false, rowHeaders: true, size: 10 },
   );
 
   // ---- Customer
-  pdf.heading(isReceipt ? "Customer" : "Billed to");
+  pdf.heading(isReceipt ? t("emails.pdfCustomer") : t("emails.pdfBilledTo"));
   pdf.paragraph(r.customer.name, { bold: true, after: 1 });
   for (const line of [r.customer.address.join(", "), [r.customer.phone, r.customer.email].filter(Boolean).join("  ·  ")].filter(Boolean)) {
     pdf.paragraph(line, { size: 10, muted: true, after: 1 });
   }
-  if (r.deliveryMethod) pdf.paragraph(`Delivery: ${r.deliveryMethod}`, { size: 10, muted: true, after: 1 });
+  if (r.deliveryMethod) pdf.paragraph(t("emails.pdfDeliveryLine", { method: r.deliveryMethod }), { size: 10, muted: true, after: 1 });
 
   // ---- Items
-  pdf.heading("Items");
+  pdf.heading(t("emails.pdfItems"));
   const qtyW = 50;
   const priceW = 100;
   const amountW = 105;
   pdf.table(
     [
-      { header: "Item", width: pdf.contentWidth - qtyW - priceW - amountW },
-      { header: "Qty", width: qtyW, align: "right" },
-      { header: "Unit price", width: priceW, align: "right" },
-      { header: "Amount", width: amountW, align: "right" },
+      { header: t("emails.pdfItem"), width: pdf.contentWidth - qtyW - priceW - amountW },
+      { header: t("emails.pdfQty"), width: qtyW, align: "right" },
+      { header: t("emails.pdfUnitPrice"), width: priceW, align: "right" },
+      { header: t("emails.pdfAmount"), width: amountW, align: "right" },
     ],
     r.items.map((i) => [{ text: i.name, note: i.options || undefined }, String(i.quantity), money(i.unitPrice), money(i.lineTotal)]),
     { size: 10, zebra: true },
   );
 
   // ---- Totals
-  const taxLabel = r.tax ? `${r.shop.taxName || "Tax"}${r.tax.rate ? ` (${r.tax.rate}%)` : ""}` : "";
+  const taxLabel = r.tax ? `${r.shop.taxName || t("emails.pdfTax")}${r.tax.rate ? ` (${r.tax.rate}%)` : ""}` : "";
+  const totalLabel = isReceipt ? t("emails.labelTotalPaid") : t("emails.pdfTotalToPay");
+  const delivery = t("emails.labelDelivery");
   const totals: TableCell[][] = [
-    ["Subtotal", money(r.subtotal)],
-    ...(r.discount.amount > 0 ? [[`Discount${r.discount.code ? ` (${r.discount.code})` : ""}`, money(-r.discount.amount)]] : []),
-    ...(r.deliveryFee > 0 ? [["Delivery", money(r.deliveryFee)]] : r.deliveryMethod ? [["Delivery", "Free"]] : []),
+    [t("emails.pdfSubtotal"), money(r.subtotal)],
+    ...(r.discount.amount > 0 ? [[r.discount.code ? t("emails.discountCode", { code: r.discount.code }) : t("emails.discount"), money(-r.discount.amount)]] : []),
+    ...(r.deliveryFee > 0 ? [[delivery, money(r.deliveryFee)]] : r.deliveryMethod ? [[delivery, t("emails.pdfFree")]] : []),
     ...(r.tax && !r.tax.inclusive ? [[taxLabel, money(r.tax.amount)]] : []),
-    ...(r.giftCard > 0 ? [["Paid with gift card", money(-r.giftCard)]] : []),
-    [isReceipt ? "Total paid" : "Total to pay", money(r.total)],
-    ...(r.tax && r.tax.inclusive ? [[`Includes ${taxLabel}`, money(r.tax.amount)]] : []),
-    ...(isReceipt && r.refunded > 0 ? [["Refunded to you", money(-r.refunded)], ["Paid after refunds", money(Math.max(0, r.total - r.refunded))]] : []),
+    ...(r.giftCard > 0 ? [[t("emails.paidWithGiftCard"), money(-r.giftCard)]] : []),
+    [totalLabel, money(r.total)],
+    ...(r.tax && r.tax.inclusive ? [[t("emails.pdfIncludes", { tax: taxLabel }), money(r.tax.amount)]] : []),
+    ...(isReceipt && r.refunded > 0
+      ? [
+          [t("emails.pdfRefundedToYou"), money(-r.refunded)],
+          [t("emails.pdfPaidAfterRefunds"), money(Math.max(0, r.total - r.refunded))],
+        ]
+      : []),
   ];
-  const totalsIndex = totals.findIndex((row) => row[0] === (isReceipt ? "Total paid" : "Total to pay"));
+  const totalsIndex = totals.findIndex((row) => row[0] === totalLabel);
   totals[totalsIndex] = totals[totalsIndex].map((c) => ({ text: typeof c === "string" ? c : c.text, bold: true }));
   pdf.table(
     [
-      { header: "Summary", width: pdf.contentWidth - 160 },
-      { header: "Amount", width: 160, align: "right" },
+      { header: t("emails.pdfSummary"), width: pdf.contentWidth - 160 },
+      { header: t("emails.pdfAmount"), width: 160, align: "right" },
     ],
     totals,
     { headerRow: false, rowHeaders: true, size: 10.5 },
@@ -347,35 +381,36 @@ export async function renderReceiptPdf(r: ReceiptData) {
 
   // ---- Paying an invoice
   if (!isReceipt) {
-    pdf.heading("How to pay");
+    pdf.heading(t("emails.pdfHowToPay"));
     if (r.bank) {
-      pdf.paragraph(`Please pay ${money(r.total)} by bank transfer to the account below. Use ${r.reference} as the payment reference so ${r.storeName} can match your payment.`);
+      pdf.paragraph(t("emails.pdfPayByBank", { total: money(r.total), ref, shop }));
       pdf.table(
         [
-          { header: "Bank detail", width: 150 },
-          { header: "Value", width: pdf.contentWidth - 150 },
+          { header: t("emails.pdfBankDetail"), width: 150 },
+          { header: t("emails.pdfValue"), width: pdf.contentWidth - 150 },
         ],
         [
-          ["Bank", r.bank.bankName],
-          ["Account name", r.bank.accountName],
-          ["Account number", r.bank.accountNumber],
-          ["Payment reference", { text: r.reference, bold: true }],
+          [t("emails.pdfBank"), r.bank.bankName],
+          [t("emails.pdfAccountName"), r.bank.accountName],
+          [t("emails.pdfAccountNumber"), r.bank.accountNumber],
+          [t("emails.pdfPaymentReference"), { text: r.reference, bold: true }],
         ],
         { headerRow: false, rowHeaders: true },
       );
       if (r.bank.note) pdf.paragraph(r.bank.note, { size: 10, muted: true });
     } else {
-      pdf.paragraph(`Please contact ${r.storeName} for their bank details. Use ${r.reference} as the payment reference.`);
+      pdf.paragraph(t("emails.pdfAskForBank", { shop, ref }));
     }
-    pdf.paragraph(`${r.storeName} will confirm your order when the payment arrives, and you'll get a receipt by email.`, { size: 10, muted: true });
+    pdf.paragraph(t("emails.pdfConfirmWhenPaid", { shop }), { size: 10, muted: true });
   }
 
   pdf.rule(10);
-  pdf.paragraph(isReceipt ? `Thank you for shopping with ${r.storeName}.` : `Thank you for your order from ${r.storeName}.`, { bold: true });
+  pdf.paragraph(isReceipt ? t("emails.pdfThanksReceipt", { shop }) : t("emails.pdfThanksInvoice", { shop }), { bold: true });
   const ask = r.shop.email || r.shop.phone;
-  if (ask) pdf.paragraph(`Questions about this order? Contact ${r.storeName} at ${ask} and quote ${r.reference}.`, { size: 10, muted: true });
+  if (ask) pdf.paragraph(t("emails.pdfQuestions", { shop, contact: ask, ref }), { size: 10, muted: true });
 
-  const bytes = await pdf.save(`${isReceipt ? r.number || "Receipt" : "Invoice"} · ${r.storeName}`);
+  const footer = `${isReceipt ? r.number || t("emails.pdfReceipt") : t("emails.pdfInvoice")} · ${r.storeName}`;
+  const bytes = await pdf.save(footer, (page, total) => t("emails.pdfPage", { page, total }));
   const filename = `${fileSlug(r.storeName)}-${isReceipt ? (r.number || `receipt-${r.reference}`).toLowerCase() : `invoice-${r.reference.toLowerCase()}`}.pdf`;
   return { bytes, filename };
 }
@@ -438,38 +473,44 @@ export async function sendReceiptEmail(tenantId: string, orderId: string) {
     const money = (v: number) => formatShopCurrency(v, r.currency);
     const total = money(r.total);
     const url = r.token ? receiptUrl(r.token) : null;
-    const nextStep = `${r.storeName} is preparing your order and will let you know when it's on its way.`;
+    // In the language the shopper ordered in, like the attached receipt.
+    const t = translatorFor(r.lang);
+    const shop = r.storeName;
+    const ref = r.reference;
+    const nextStep = t("emails.preparingOrder", { shop });
     const itemLines = r.items.map((i) => `${i.quantity} × ${i.name}${i.options ? ` (${i.options})` : ""}`);
     await sendBrandedEmail({
       to: r.customer.email,
-      subject: `Payment received: your receipt for order ${r.reference} from ${r.storeName}`,
+      subject: t("emails.receiptSubject", { ref, shop }),
       replyTo: r.shop.email,
       text: [
-        `Hello ${r.customer.name}, ${r.storeName} has received your payment of ${total}. Thank you.`,
+        t("emails.receiptTextIntro", { name: r.customer.name, shop, total }),
         "",
-        `Order ${r.reference}${r.number ? `, receipt ${r.number}` : ""}`,
+        r.number ? t("emails.orderReceiptLine", { ref, number: r.number }) : t("emails.orderLine", { ref }),
         ...itemLines,
-        `Total paid: ${total}`,
+        `${t("emails.labelTotalPaid")}: ${total}`,
         "",
-        "Your receipt is attached to this email.",
-        ...(url ? [`View your receipt: ${url}`] : []),
+        t("emails.receiptAttached"),
+        ...(url ? [`${t("emails.viewReceipt")}: ${url}`] : []),
         "",
         nextStep,
       ].join("\n"),
       layout: {
-        preheader: `Order ${r.reference}: ${r.storeName} has received your payment of ${total}.`,
-        badges: [badge("Paid", "green")],
-        title: "Payment received, thank you",
-        intro: `Hello ${r.customer.name}, ${r.storeName} has received your payment. Your receipt is attached to this email.`,
+        lang: t.lang,
+        helpCentre: t("emails.helpCentre"),
+        preheader: t("emails.receiptPreheader", { ref, shop, total }),
+        badges: [badge(t("emails.badgePaid"), "green")],
+        title: t("emails.receiptTitle"),
+        intro: `${t("emails.receiptIntro", { name: r.customer.name, shop })} ${t("emails.receiptAttached")}`,
         body: `${detailsPanel([
-          { label: "Order", value: r.reference },
-          ...(r.number ? [{ label: "Receipt", value: r.number }] : []),
+          { label: t("emails.labelOrder"), value: r.reference },
+          ...(r.number ? [{ label: t("emails.labelReceipt"), value: r.number }] : []),
           ...r.items.map((i) => ({ label: `${i.quantity} ×`, value: `${i.name}${i.options ? ` (${i.options})` : ""}` })),
-          { label: "Total paid", value: total },
+          { label: t("emails.labelTotalPaid"), value: total },
         ])}
-        <p style="margin:20px 0 0;color:#1e293b;font-size:15px;line-height:1.6"><strong>What happens next</strong><br>${escapeHtml(nextStep)}</p>`,
-        buttons: [...(url ? [{ label: "View your receipt", href: url }] : []), { label: `Visit ${r.storeName}`, href: storefrontUrl(r.slug), variant: "secondary" as const }],
-        footerNote: `You're receiving this because you placed an order with ${r.storeName}. Reply to this email to contact the shop.`,
+        <p style="margin:20px 0 0;color:#1e293b;font-size:15px;line-height:1.6"><strong>${escapeHtml(t("emails.whatHappensNext"))}</strong><br>${escapeHtml(nextStep)}</p>`,
+        buttons: [...(url ? [{ label: t("emails.viewReceipt"), href: url }] : []), { label: t("emails.visitShop", { shop }), href: storefrontUrl(r.slug), variant: "secondary" as const }],
+        footerNote: t("emails.footerOrder", { shop }),
       },
       attachments: [{ filename: built.filename, content: built.bytes, contentType: "application/pdf" }],
     });

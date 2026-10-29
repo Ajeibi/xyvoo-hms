@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { getConsent } from "@/lib/store/analytics-client";
 import { CreateAccountForm } from "./AccountForms";
-import { announce, useStorefront } from "./StorefrontProvider";
+import { announce, useStorefront, useT } from "./StorefrontProvider";
 import { useShopAccount } from "./useShopAccount";
 
 /*
@@ -46,6 +46,7 @@ export default function AccountPrompt({
   privacyHref: string | null;
 }) {
   const { slug, href } = useStorefront();
+  const t = useT();
   const { status, account } = useShopAccount();
   const pathname = usePathname();
   const [due, setDue] = useState(false);
@@ -91,10 +92,8 @@ export default function AccountPrompt({
 
   useEffect(() => {
     if (visible && !done)
-      announce(
-        `${storeName} invites you to create a free account. The invitation is at the bottom of the page.`,
-      );
-  }, [visible, done, storeName]);
+      announce(t("account.promptAnnounce", { storeName }));
+  }, [visible, done, storeName, t]);
 
   if (!visible) return null;
 
@@ -109,7 +108,7 @@ export default function AccountPrompt({
         type="button"
         className="account-prompt__close"
         onClick={close}
-        aria-label="Close the account invitation"
+        aria-label={t("account.closeInvitation")}
       >
         <span aria-hidden="true">×</span>
       </button>
@@ -121,43 +120,33 @@ export default function AccountPrompt({
             ref={heading}
             tabIndex={-1}
           >
-            You&rsquo;re all set
+            {t("account.allSet")}
           </h2>
-          <p className="body-copy">
-            Your account is ready. When you order, your details will already be
-            filled in.
-          </p>
+          <p className="body-copy">{t("account.allSetBody")}</p>
           <div className="account-form__actions">
             <button
               type="button"
               className="btn btn--primary btn--sm"
               onClick={close}
             >
-              Keep shopping
+              {t("account.keepShopping")}
             </button>
             <Link
               className="link-button"
               href={href("/account")}
               onClick={close}
             >
-              See your account
+              {t("account.seeAccount")}
             </Link>
           </div>
         </div>
       ) : (
         <>
           <h2 className="account-prompt__title" id="account-prompt-title">
-            Create your free account with {storeName}
+            {t("account.promptTitle", { storeName })}
           </h2>
-          <p className="body-copy">
-            Check out faster, keep your basket on any device and see your orders
-            in one place.
-          </p>
-          <p className="account-prompt__optional">
-            It&rsquo;s completely optional. Skipping it changes nothing: you can
-            keep browsing and order as normal. When you order, we&rsquo;ll set
-            up your account from your checkout details.
-          </p>
+          <p className="body-copy">{t("account.promptBody")}</p>
+          <p className="account-prompt__optional">{t("account.promptOptional")}</p>
           {!open ? (
             <div className="account-form__actions">
               <button
@@ -171,10 +160,10 @@ export default function AccountPrompt({
                   );
                 }}
               >
-                Create my account
+                {t("account.createMyAccount")}
               </button>
               <button type="button" className="link-button" onClick={close}>
-                Not now
+                {t("account.notNow")}
               </button>
             </div>
           ) : (
@@ -190,17 +179,20 @@ export default function AccountPrompt({
                 }}
                 extraActions={
                   <button type="button" className="link-button" onClick={close}>
-                    Not now
+                    {t("account.notNow")}
                   </button>
                 }
               />
             </div>
           )}
           <p className="account-prompt__signin">
-            Already have an account?{" "}
-            <Link href={href("/account")} onClick={close}>
-              Sign in
-            </Link>
+            {t.rich("account.alreadyHaveAccount", {
+              link: (
+                <Link href={href("/account")} onClick={close}>
+                  {t("account.signIn")}
+                </Link>
+              ),
+            })}
           </p>
         </>
       )}

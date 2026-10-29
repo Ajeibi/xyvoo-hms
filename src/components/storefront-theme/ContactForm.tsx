@@ -1,15 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import { useStorefront } from "./StorefrontProvider";
+import { useStorefront, useT } from "./StorefrontProvider";
 
 type Field = "name" | "email" | "message";
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const TOPICS = ["A question about a product", "An existing order", "Delivery", "Returns and exchanges", "Something else"];
+// The shop's email always gets the English topic; the shopper sees it in their language.
+const TOPICS = [
+  { value: "A question about a product", label: "listing.topicProduct" },
+  { value: "An existing order", label: "listing.topicOrder" },
+  { value: "Delivery", label: "listing.topicDelivery" },
+  { value: "Returns and exchanges", label: "listing.topicReturns" },
+  { value: "Something else", label: "listing.topicOther" },
+] as const;
 
 /** The Contact page's message form. Sends to the shop by email; nothing is stored in the browser. */
 export default function ContactForm({ heading, intro, replyTime, privacyHref }: { heading: string; intro: string; replyTime: string; privacyHref: string | null }) {
   const { slug } = useStorefront();
+  const t = useT();
   const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
   const [status, setStatus] = useState("");
   const [sent, setSent] = useState(false);
@@ -21,20 +29,20 @@ export default function ContactForm({ heading, intro, replyTime, privacyHref }: 
     const data = new FormData(form);
     const get = (n: string) => String(data.get(n) ?? "").trim();
     const found: Partial<Record<Field, string>> = {};
-    if (!get("name")) found.name = "Enter your full name.";
-    if (!get("email")) found.email = "Enter your email address.";
-    else if (!EMAIL_PATTERN.test(get("email"))) found.email = "Enter an email address in the format name@example.com.";
-    if (get("message").length < 5) found.message = "Enter your message.";
+    if (!get("name")) found.name = t("listing.enterFullName");
+    if (!get("email")) found.email = t("listing.enterEmail");
+    else if (!EMAIL_PATTERN.test(get("email"))) found.email = t("listing.emailFormat");
+    if (get("message").length < 5) found.message = t("listing.enterMessage");
     setErrors(found);
     const first = (["name", "email", "message"] as Field[]).find((f) => found[f]);
     if (first) {
-      setStatus("Please correct the highlighted fields.");
+      setStatus(t("listing.correctFields"));
       form.querySelector<HTMLElement>(`#c-${first}`)?.focus();
       return;
     }
 
     setSending(true);
-    setStatus("Sending your message…");
+    setStatus(t("listing.sendingMessage"));
     try {
       const res = await fetch(`/api/shop/${encodeURIComponent(slug)}/contact`, {
         method: "POST",
@@ -43,14 +51,14 @@ export default function ContactForm({ heading, intro, replyTime, privacyHref }: 
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setStatus(typeof body.error === "string" ? body.error : "We couldn't send your message. Please try again.");
+        setStatus(typeof body.error === "string" ? body.error : t("listing.sendFailed"));
         return;
       }
       form.reset();
       setSent(true);
-      setStatus(`Thank you. Your message has been sent${replyTime ? ` and we'll reply ${replyTime}` : ""}.`);
+      setStatus(replyTime ? t("listing.messageSentReply", { replyTime }) : t("listing.messageSent"));
     } catch {
-      setStatus("We couldn't connect. Check your internet connection and try again.");
+      setStatus(t("common.offline"));
     } finally {
       setSending(false);
     }
@@ -74,16 +82,16 @@ export default function ContactForm({ heading, intro, replyTime, privacyHref }: 
       <h2 className="h-card" id="form-title">
         {heading}
       </h2>
-      <p className="body-copy form-intro">{intro || "All fields are required unless marked optional."}</p>
+      <p className="body-copy form-intro">{intro || t("listing.allFieldsRequired")}</p>
       <form className="contact-form" onSubmit={submit} noValidate aria-labelledby="form-title">
         <div className="form-row">
           <div className="field">
-            <label htmlFor="c-name">Full name</label>
+            <label htmlFor="c-name">{t("listing.fullName")}</label>
             <input className="input" type="text" autoComplete="name" {...field("name")} />
             {error("name")}
           </div>
           <div className="field">
-            <label htmlFor="c-email">Email address</label>
+            <label htmlFor="c-email">{t("common.email")}</label>
             <input className="input" type="email" autoComplete="email" inputMode="email" {...field("email")} />
             {error("email")}
           </div>
@@ -91,30 +99,32 @@ export default function ContactForm({ heading, intro, replyTime, privacyHref }: 
         <div className="form-row">
           <div className="field">
             <label htmlFor="c-phone">
-              Phone number <span className="optional">(optional)</span>
+              {t("common.phone")} <span className="optional">{t("common.optional")}</span>
             </label>
             <input className="input" id="c-phone" name="phone" type="tel" autoComplete="tel" inputMode="tel" />
           </div>
           <div className="field">
             <label htmlFor="c-order">
-              Order number <span className="optional">(optional)</span>
+              {t("listing.orderNumber")} <span className="optional">{t("common.optional")}</span>
             </label>
             <input className="input" id="c-order" name="order" type="text" aria-describedby="c-order-hint" />
             <p className="hint" id="c-order-hint">
-              You&rsquo;ll find this in your confirmation email.
+              {t("listing.orderHint")}
             </p>
           </div>
         </div>
         <div className="field">
-          <label htmlFor="c-topic">What is it about?</label>
-          <select className="select" id="c-topic" name="topic" defaultValue={TOPICS[0]}>
-            {TOPICS.map((t) => (
-              <option key={t}>{t}</option>
+          <label htmlFor="c-topic">{t("listing.topicLabel")}</label>
+          <select className="select" id="c-topic" name="topic" defaultValue={TOPICS[0].value}>
+            {TOPICS.map((topic) => (
+              <option key={topic.value} value={topic.value}>
+                {t(topic.label)}
+              </option>
             ))}
           </select>
         </div>
         <div className="field">
-          <label htmlFor="c-message">Your message</label>
+          <label htmlFor="c-message">{t("listing.yourMessage")}</label>
           <textarea className="textarea" rows={6} {...field("message")} />
           {error("message")}
         </div>
@@ -125,19 +135,19 @@ export default function ContactForm({ heading, intro, replyTime, privacyHref }: 
         </div>
         <div className="form-actions">
           <button className="btn btn--primary" type="submit" disabled={sending}>
-            {sending ? "Sending…" : sent ? "Send another message" : "Send message"}
+            {sending ? t("common.sending") : sent ? t("listing.sendAnother") : t("listing.sendMessage")}
           </button>
-          {replyTime ? <p>We reply {replyTime}.</p> : null}
+          {replyTime ? <p>{t("listing.weReply", { replyTime })}</p> : null}
         </div>
         <p className="form-status" role="status">
           {status}
         </p>
         <p className="hint">
-          We&rsquo;ll only use your details to answer your message.
+          {t("listing.detailsUse")}
           {privacyHref ? (
             <>
               {" "}
-              Read our <a href={privacyHref}>privacy policy</a>.
+              {t.rich("listing.readPrivacy", { link: <a href={privacyHref}>{t("listing.privacyPolicy")}</a> })}
             </>
           ) : null}
         </p>

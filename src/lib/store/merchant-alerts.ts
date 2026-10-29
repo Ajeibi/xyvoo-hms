@@ -3,7 +3,7 @@ import { badge, detailsPanel, EMAIL_SITE_URL } from "@/lib/mail/layout";
 import { sendBrandedEmail } from "@/lib/mail/mailtrap";
 import { formatShopCurrency } from "@/lib/shop/format";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { productsAtLowStock, parseAlertPrefs, type AlertKind, type AlertPrefs } from "./merchant-alert-prefs";
+import { productsAtLowStock, parseAlertPrefs, parseAlertWhatsAppNumber, type AlertKind, type AlertPrefs } from "./merchant-alert-prefs";
 import { getPushConfig, type PushSubscriptionInput } from "./push";
 
 /*
@@ -32,8 +32,22 @@ export async function getAlertPrefs(tenantId: string): Promise<AlertPrefs> {
   }
 }
 
-export async function saveAlertPrefs(tenantId: string, prefs: AlertPrefs) {
-  const { error } = await store().from("alert_settings").upsert({ tenant_id: tenantId, preferences: prefs }, { onConflict: "tenant_id" });
+/** The number the shop's WhatsApp alerts go to, if it has added one. */
+export async function getAlertWhatsAppNumber(tenantId: string): Promise<string | null> {
+  try {
+    const { data } = await store().from("alert_settings").select("preferences").eq("tenant_id", tenantId).maybeSingle();
+    return parseAlertWhatsAppNumber(data?.preferences);
+  } catch {
+    return null;
+  }
+}
+
+/** Saves the alert choices. The WhatsApp number is kept as it is unless one is given (null removes it). */
+export async function saveAlertPrefs(tenantId: string, prefs: AlertPrefs, whatsappNumber?: string | null) {
+  const number = whatsappNumber === undefined ? await getAlertWhatsAppNumber(tenantId) : whatsappNumber;
+  const { error } = await store()
+    .from("alert_settings")
+    .upsert({ tenant_id: tenantId, preferences: { ...prefs, ...(number ? { whatsapp_number: number } : {}) } }, { onConflict: "tenant_id" });
   if (error) throw new Error(error.message);
 }
 

@@ -6,6 +6,7 @@ import { resolveStoreRequest } from "@/lib/store/api-helpers";
 import { applyOrderAction, ORDER_ACTIONS, OrderActionError } from "@/lib/store/order-actions";
 import { emailForAction, sendOrderStatusEmail } from "@/lib/store/order-status-emails";
 import { sendReceiptEmail } from "@/lib/store/receipts";
+import { whatsappOrderUpdate } from "@/lib/store/whatsapp-messages";
 
 const bulkSchema = z.object({
   slug: z.string(),
@@ -54,7 +55,10 @@ export async function POST(req: Request) {
   // As for one order: a confirmed offline payment gets the shopper their receipt.
   if (action === "payment_received" && updated.length) {
     after(async () => {
-      for (const id of updated) await sendReceiptEmail(tenantId, id);
+      for (const id of updated) {
+        await sendReceiptEmail(tenantId, id);
+        await whatsappOrderUpdate(tenantId, id, "payment_received");
+      }
       await sendGiftCardsForShop(tenantId);
     });
   }

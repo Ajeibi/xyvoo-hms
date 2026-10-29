@@ -7,6 +7,8 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { storeCurrency } from "./payout-routes";
 import { STORE_PATHS } from "./site/links";
 import { storefrontUrl } from "./subdomain";
+import { dateLocale } from "./receipts-format";
+import { layoutWords, savedLanguage, shopperEmailT } from "./order-emails";
 
 /*
  * Gift cards (store.gift_cards). Selling them uses a "Gift card" product whose
@@ -219,13 +221,15 @@ type CardRow = {
   message: string | null;
   expires_at: string | null;
   emailed_at: string | null;
+  /** The order that bought it (null for cards the shop issued). */
+  order_id: string | null;
 };
 
 /** Emails every new card that hasn't gone out yet (one shop, or all). Returns how many were sent. */
 export async function sendUnsentGiftCards(tenantId?: string, onlyCardId?: string): Promise<number> {
   let query = store()
     .from("gift_cards")
-    .select("id, tenant_id, code, initial_amount, currency, source, recipient_name, recipient_email, sender_name, message, expires_at, emailed_at")
+    .select("id, tenant_id, code, initial_amount, currency, source, recipient_name, recipient_email, sender_name, message, expires_at, emailed_at, order_id")
     .is("emailed_at", null)
     .not("recipient_email", "is", null)
     .eq("status", "active")
@@ -285,45 +289,48 @@ export async function sendGiftCardsForShop(tenantId: string) {
 async function sendGiftCardEmail(card: CardRow, tenant: { subdomain?: unknown; name?: unknown; display_name?: unknown }, shopEmail: string | null) {
   const slug = String(tenant.subdomain || tenant.name);
   const storeName = (tenant.display_name as string | null)?.trim() || slug;
+  // A bought card goes out in the language its order was placed in; one the shop issued, in the shop's main language.
+  const t = await shopperEmailT(card.tenant_id, card.order_id ? await savedLanguage("orders", card.tenant_id, card.order_id) : null);
   const amount = formatShopCurrency(Number(card.initial_amount), card.currency);
-  const from = card.source === "purchase" ? card.sender_name || "Someone" : storeName;
-  const greeting = card.recipient_name ? `Hello ${card.recipient_name.split(/\s+/)[0]}, ` : "Hello, ";
-  const intro = `${greeting}${from} has sent you a ${amount} gift card for ${storeName}. Spend it on anything you like, in one go or over several orders.`;
-  const expiry = card.expires_at ? `It can be used until ${new Date(card.expires_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}.` : "It doesn't expire.";
+  const from = card.source === "purchase" ? card.sender_name || t("emails.giftSomeone") : storeName;
+  const greeting = card.recipient_name ? t("emails.greetingName", { name: card.recipient_name.split(/\s+/)[0] }) : t("emails.greetingNone");
+  const intro = t("emails.giftIntro", { greeting, from, amount, shop: storeName });
+  const expiry = card.expires_at
+    ? t("emails.giftUntil", { date: new Date(card.expires_at).toLocaleDateString(dateLocale(t.lang), { day: "numeric", month: "long", year: "numeric" }) })
+    : t("emails.giftNoExpiry");
   const shopUrl = `${storefrontUrl(slug)}${STORE_PATHS.products}`;
+  const box = t("checkout.giftCard");
 
   await sendBrandedEmail({
     to: card.recipient_email,
-    subject: `${from} sent you a ${amount} gift card for ${storeName}`,
+    subject: t("emails.giftSubject", { from, amount, shop: storeName }),
     replyTo: shopEmail,
     text: [
       intro,
-      ...(card.message ? ["", `Their message: ${card.message}`] : []),
+      ...(card.message ? ["", t("emails.giftTheirMessage", { message: card.message })] : []),
       "",
-      `Your gift card code: ${card.code}`,
-      `Amount: ${amount}. ${expiry}`,
+      t("emails.giftYourCode", { code: card.code }),
+      t("emails.giftAmountLine", { amount, expiry }),
       "",
-      `To use it, enter the code in the Gift card box at checkout. Start shopping: ${shopUrl}`,
+      `${t("emails.giftHowTo", { box })} ${t("emails.startShopping")}: ${shopUrl}`,
       "",
-      "Keep this email safe: anyone with the code can spend it.",
+      t("emails.giftKeepSafe"),
     ].join("\n"),
     layout: {
-      preheader: `A ${amount} gift card for ${storeName} is waiting for you.`,
-      badges: [badge("Gift card", "green")],
-      title: `You've got a ${amount} gift card`,
+      ...layoutWords(t),
+      preheader: t("emails.giftPreheader", { amount, shop: storeName }),
+      badges: [badge(box, "green")],
+      title: t("emails.giftTitle", { amount }),
       intro,
-      body: `${card.message ? quoteBlock(card.source === "purchase" ? `A message from ${from}` : "A message from the shop", card.message) : ""}
+      body: `${card.message ? quoteBlock(card.source === "purchase" ? t("emails.giftMessageFrom", { from }) : t("emails.giftMessageFromShop"), card.message) : ""}
       <div style="margin:24px 0 8px;padding:24px;border-radius:16px;background:linear-gradient(135deg,#0b5cad,#7c3aed);color:#ffffff;text-align:center">
-        <div style="font-size:13px;letter-spacing:0.12em;text-transform:uppercase;opacity:0.9">${escapeHtml(storeName)} gift card</div>
+        <div style="font-size:13px;letter-spacing:0.12em;text-transform:uppercase;opacity:0.9">${escapeHtml(t("emails.giftCardOf", { shop: storeName }))}</div>
         <div style="margin:10px 0 14px;font-size:30px;font-weight:800">${escapeHtml(amount)}</div>
         <div style="display:inline-block;padding:10px 16px;border-radius:10px;background:#ffffff;color:#000d1f;font-size:20px;font-weight:800;letter-spacing:3px;font-family:'Courier New',monospace">${escapeHtml(card.code)}</div>
       </div>
-      <p style="margin:12px 0 0;color:#475569;font-size:14px;line-height:1.6">${escapeHtml(expiry)} To use it, enter the code in the <strong>Gift card</strong> box at checkout. Keep this email safe: anyone with the code can spend it.</p>`,
-      buttons: [{ label: "Start shopping", href: shopUrl }],
-      footerNote:
-        card.source === "purchase"
-          ? `You're receiving this because ${from} bought you a gift card at ${storeName}.`
-          : `You're receiving this because ${storeName} sent you a gift card.`,
+      <p style="margin:12px 0 0;color:#475569;font-size:14px;line-height:1.6">${escapeHtml(expiry)} ${escapeHtml(t("emails.giftHowTo", { box: "{box}" })).replace("{box}", `<strong>${escapeHtml(box)}</strong>`)} ${escapeHtml(t("emails.giftKeepSafe"))}</p>`,
+      buttons: [{ label: t("emails.startShopping"), href: shopUrl }],
+      footerNote: card.source === "purchase" ? t("emails.giftFooterBought", { from, shop: storeName }) : t("emails.giftFooterIssued", { shop: storeName }),
     },
   });
 }

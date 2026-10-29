@@ -1,3 +1,4 @@
+import type { Translator } from "@/lib/store/i18n/translate";
 import { z } from "zod";
 
 /*
@@ -55,4 +56,26 @@ export function availablePaymentMethods(input: { acceptsCard: boolean; offline: 
   if (input.offline.payOnDelivery.enabled) methods.push("pay_on_delivery");
   if (input.offline.whatsapp.enabled && input.whatsappNumber) methods.push("whatsapp");
   return methods;
+}
+
+/**
+ * What the shopper does next after an offline order: the same words in the order email and the WhatsApp message.
+ * With `t`, in the shopper's language (the email); without it, English (the WhatsApp template).
+ */
+export function offlineNextStep(input: { paymentMethod: string | null; offline: OfflinePayments; storeName: string; total: string; reference: string }, t?: Translator) {
+  const { offline, storeName, total, reference } = input;
+  const bank = offline.bankTransfer;
+  if (t) {
+    if (input.paymentMethod === "Bank Transfer" && bank.enabled) {
+      const pay = t("emails.nextBank", { total, accountName: bank.accountName, bankName: bank.bankName, accountNumber: bank.accountNumber, reference });
+      return `${pay}${bank.note ? ` ${bank.note}` : ""} ${t("emails.nextBankConfirm", { store: storeName })}`;
+    }
+    if (input.paymentMethod === "Pay on Delivery") return `${t("emails.nextPayOnDelivery", { total })}${offline.payOnDelivery.note ? ` ${offline.payOnDelivery.note}` : ""}`;
+    return t("emails.nextWhatsapp", { store: storeName });
+  }
+  if (input.paymentMethod === "Bank Transfer" && bank.enabled) {
+    return `Please pay ${total} by bank transfer to ${bank.accountName}, ${bank.bankName}, account number ${bank.accountNumber}. Use ${reference} as the payment reference.${bank.note ? ` ${bank.note}` : ""} ${storeName} will confirm your order when the payment arrives.`;
+  }
+  if (input.paymentMethod === "Pay on Delivery") return `You'll pay ${total} when your order arrives.${offline.payOnDelivery.note ? ` ${offline.payOnDelivery.note}` : ""}`;
+  return `${storeName} will contact you on WhatsApp to arrange payment and delivery.`;
 }

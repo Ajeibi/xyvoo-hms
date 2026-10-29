@@ -3,11 +3,12 @@
 import { useState } from "react";
 import { formatShopCurrency } from "@/lib/shop/format";
 import type { SimulatedOutcome } from "@/lib/payments/simulated";
-import { useStorefront } from "./StorefrontProvider";
+import { useStorefront, useT } from "./StorefrontProvider";
 
 /** The pretend card page: choose what the bank would have said. For testing only. */
 export default function SimulatedPayment({ reference, amount, currency, storeName }: { reference: string; amount: number; currency: string; storeName: string }) {
   const { slug, href } = useStorefront();
+  const t = useT();
   const [busy, setBusy] = useState<SimulatedOutcome | null>(null);
   const [error, setError] = useState("");
 
@@ -23,26 +24,26 @@ export default function SimulatedPayment({ reference, amount, currency, storeNam
       if (!res.ok) throw new Error();
       window.location.assign(`${href("/checkout/callback")}?reference=${encodeURIComponent(reference)}`);
     } catch {
-      setError("The test payment couldn't be recorded. Please try again.");
+      setError(t("checkout.testPaymentFailed"));
       setBusy(null);
     }
   };
 
   return (
     <div className="cart-empty">
-      <h1 className="h-page">Test payment</h1>
+      <h1 className="h-page">{t("checkout.testPayment")}</h1>
       <p className="body-copy">
-        This is a pretend card page for testing. No money moves. You are paying {formatShopCurrency(amount, currency)} to {storeName}.
+        {t("checkout.testPaymentIntro", { amount: formatShopCurrency(amount, currency), store: storeName })}
       </p>
       <div className="account-form__actions">
         <button type="button" className="btn btn--primary" disabled={busy !== null} onClick={() => choose("success")}>
-          {busy === "success" ? "Paying…" : "Pay successfully"}
+          {busy === "success" ? t("checkout.paying") : t("checkout.paySuccessfully")}
         </button>
         <button type="button" className="btn btn--outline" disabled={busy !== null} onClick={() => choose("failed")}>
-          Card declined
+          {t("checkout.cardDeclined")}
         </button>
         <button type="button" className="link-button" disabled={busy !== null} onClick={() => choose("abandoned")}>
-          Leave without paying
+          {t("checkout.leaveWithoutPaying")}
         </button>
       </div>
       <p className="form-status" role="status">

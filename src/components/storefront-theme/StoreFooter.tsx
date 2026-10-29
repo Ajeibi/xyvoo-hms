@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { getShopT } from "@/lib/store/i18n/server";
 import { menuItemPath, storeHref } from "@/lib/store/site/links";
 import type { Storefront } from "@/lib/store/site/storefront";
 import StoreApp, { type StoreAppConfig } from "./StoreApp";
@@ -9,6 +10,7 @@ import { StoreLogo } from "./StoreHeader";
 export default function StoreFooter({ storefront, showMark, appConfig = null }: { storefront: Storefront; showMark: boolean; appConfig?: StoreAppConfig | null }) {
   const { site, storeName, basePath } = storefront;
   const socials = storeSocialLinks(storefront);
+  const t = getShopT(storefront);
 
   return (
     <footer className="site-footer">
@@ -21,7 +23,7 @@ export default function StoreFooter({ storefront, showMark, appConfig = null }: 
               <ul className="social">
                 {socials.map((s) => (
                   <li key={s.href}>
-                    <a className="icon-btn" href={s.href} aria-label={`${storeName} on ${s.label}`} rel="noopener noreferrer" target="_blank">
+                    <a className="icon-btn" href={s.href} aria-label={t("chrome.socialLink", { store: storeName, network: s.label })} rel="noopener noreferrer" target="_blank">
                       {s.icon}
                     </a>
                   </li>

@@ -5,16 +5,19 @@ import Link from "next/link";
 import { MAX_REVIEW_PHOTOS, MAX_REVIEW_PHOTO_BYTES } from "@/lib/store/reviews";
 import type { ReviewableOrder } from "@/lib/store/reviews-server";
 import { Icon } from "./primitives";
-import { useStorefront } from "./StorefrontProvider";
+import type { MessageKey } from "@/lib/store/i18n/messages";
+import { useStorefront, useT } from "./StorefrontProvider";
 
 type Item = ReviewableOrder["items"][number];
 type Draft = { rating: number; title: string; comment: string; images: string[]; uploading: number; photoError: string };
 
-const RATING_WORDS = ["", "Poor", "Not great", "Good", "Very good", "Excellent"];
+const RATING_WORDS: MessageKey[] = ["product.ratingPoor", "product.ratingNotGreat", "product.ratingGood", "product.ratingVeryGood", "product.ratingExcellent"];
 
 /** Rate each item bought, comment and add photos. Sent as one review per item; unrated items are skipped. */
 export default function ReviewForm({ token, defaultName, items, shopHref }: { token: string; defaultName: string; items: Item[]; shopHref: string }) {
   const { slug } = useStorefront();
+  const t = useT();
+  const ratingWord = (n: number) => t(RATING_WORDS[n - 1]);
   const [name, setName] = useState(defaultName);
   const [drafts, setDrafts] = useState<Record<string, Draft>>(() =>
     Object.fromEntries(
@@ -36,13 +39,13 @@ export default function ReviewForm({ token, defaultName, items, shopHref }: { to
     const room = MAX_REVIEW_PHOTOS - drafts[id].images.length - drafts[id].uploading;
     const chosen = [...files].slice(0, Math.max(room, 0));
     if (!chosen.length) {
-      update(id, { photoError: `You can add up to ${MAX_REVIEW_PHOTOS} photos for each item.` });
+      update(id, { photoError: t("product.photoLimit", { max: MAX_REVIEW_PHOTOS }) });
       return;
     }
     update(id, { photoError: "", uploading: drafts[id].uploading + chosen.length });
     for (const file of chosen) {
       let error = "";
-      if (file.size > MAX_REVIEW_PHOTO_BYTES) error = `${file.name} is too large. Please choose a photo under 5MB.`;
+      if (file.size > MAX_REVIEW_PHOTO_BYTES) error = t("product.photoTooLarge", { file: file.name });
       else {
         const form = new FormData();
         form.append("token", token);
@@ -51,9 +54,9 @@ export default function ReviewForm({ token, defaultName, items, shopHref }: { to
           const res = await fetch(`/api/shop/${encodeURIComponent(slug)}/reviews/photos`, { method: "POST", body: form });
           const data = await res.json().catch(() => ({}));
           if (res.ok && typeof data.url === "string") setDrafts((d) => ({ ...d, [id]: { ...d[id], images: [...d[id].images, data.url].slice(0, MAX_REVIEW_PHOTOS) } }));
-          else error = typeof data.error === "string" ? data.error : "We couldn't add that photo.";
+          else error = typeof data.error === "string" ? data.error : t("product.photoFailed");
         } catch {
-          error = "We couldn't add that photo. Check your connection and try again.";
+          error = t("product.photoFailedConnection");
         }
       }
       setDrafts((d) => ({ ...d, [id]: { ...d[id], uploading: Math.max(d[id].uploading - 1, 0), photoError: error || d[id].photoError } }));
@@ -64,20 +67,20 @@ export default function ReviewForm({ token, defaultName, items, shopHref }: { to
     event.preventDefault();
     const rated = items.filter((i) => drafts[i.orderItemId].rating > 0);
     if (!rated.length) {
-      setStatus("Choose a star rating for at least one item.");
+      setStatus(t("product.chooseRating"));
       return;
     }
     if (!name.trim()) {
-      setStatus("Tell us the name to show with your review.");
+      setStatus(t("product.nameNeeded"));
       document.getElementById("rv-name")?.focus();
       return;
     }
     if (items.some((i) => drafts[i.orderItemId].uploading > 0)) {
-      setStatus("Please wait for your photos to finish uploading.");
+      setStatus(t("product.waitForPhotos"));
       return;
     }
     setSending(true);
-    setStatus("Sending your review…");
+    setStatus(t("product.sendingReview"));
     try {
       const res = await fetch(`/api/shop/${encodeURIComponent(slug)}/reviews`, {
         method: "POST",
@@ -93,14 +96,14 @@ export default function ReviewForm({ token, defaultName, items, shopHref }: { to
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setStatus(typeof data.error === "string" ? data.error : "We couldn't send your review. Please try again.");
+        setStatus(typeof data.error === "string" ? data.error : t("product.reviewFailed"));
         return;
       }
       setDone({ published: Boolean(data.published) });
       setStatus("");
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch {
-      setStatus("We couldn't connect. Check your internet connection and try again.");
+      setStatus(t("common.offline"));
     } finally {
       setSending(false);
     }
@@ -110,20 +113,19 @@ export default function ReviewForm({ token, defaultName, items, shopHref }: { to
     return (
       <div className="review-thanks" role="status">
         <Icon name="check-circle" />
-        <h2 className="h-section">Thank you for your review</h2>
+        <h2 className="h-section">{t("product.thanksTitle")}</h2>
         <p className="body-copy">
-          {done.published ? "It's now on the shop for other shoppers to see." : "The shop will check it shortly, then it will appear for other shoppers to see."} You can come back to this
-          page to change it.
+          {done.published ? t("product.reviewPublished") : t("product.reviewPending")} {t("product.canChangeLater")}
         </p>
         <Link className="btn btn--primary" href={shopHref}>
-          Back to the shop
+          {t("product.backToShop")}
         </Link>
       </div>
     );
   }
 
   return (
-    <form className="review-form" onSubmit={submit} noValidate aria-label="Review your order">
+    <form className="review-form" onSubmit={submit} noValidate aria-label={t("product.reviewYourOrder")}>
       {items.map((item) => {
         const d = drafts[item.orderItemId];
         const base = `rv-${item.orderItemId}`;
@@ -138,55 +140,55 @@ export default function ReviewForm({ token, defaultName, items, shopHref }: { to
                   {item.name}
                 </h2>
                 {item.options ? <p className="muted">{item.options}</p> : null}
-                {item.review ? <p className="muted">You reviewed this before. Change anything and send it again to update it.</p> : null}
+                {item.review ? <p className="muted">{t("product.reviewedBefore")}</p> : null}
               </div>
             </div>
 
             <fieldset className="star-rating">
-              <legend>Your rating</legend>
+              <legend>{t("product.yourRating")}</legend>
               <div className="star-rating__stars">
                 {[1, 2, 3, 4, 5].map((n) => (
                   <label key={n} className={n <= d.rating ? "is-on" : ""}>
                     <input type="radio" name={`${base}-rating`} value={n} checked={d.rating === n} onChange={() => update(item.orderItemId, { rating: n })} />
                     <Icon name={n <= d.rating ? "star" : "star-empty"} />
                     <span className="visually-hidden">
-                      {n} {n === 1 ? "star" : "stars"}, {RATING_WORDS[n]}
+                      {t("product.starLabel", { count: n, rating: ratingWord(n) })}
                     </span>
                   </label>
                 ))}
               </div>
               <p className="hint" aria-live="polite">
-                {d.rating ? RATING_WORDS[d.rating] : "Not rated: this item will be skipped"}
+                {d.rating ? ratingWord(d.rating) : t("product.notRated")}
               </p>
             </fieldset>
 
             <div className="field">
               <label htmlFor={`${base}-title`}>
-                Sum it up <span className="optional">(optional)</span>
+                {t("product.sumItUp")} <span className="optional">{t("common.optional")}</span>
               </label>
-              <input className="input" id={`${base}-title`} maxLength={100} value={d.title} onChange={(e) => update(item.orderItemId, { title: e.target.value })} placeholder="For example: Beautiful quality" />
+              <input className="input" id={`${base}-title`} maxLength={100} value={d.title} onChange={(e) => update(item.orderItemId, { title: e.target.value })} placeholder={t("product.titlePlaceholder")} />
             </div>
             <div className="field">
               <label htmlFor={`${base}-comment`}>
-                Your comment <span className="optional">(optional)</span>
+                {t("product.yourComment")} <span className="optional">{t("common.optional")}</span>
               </label>
               <textarea className="textarea" id={`${base}-comment`} rows={4} maxLength={2000} value={d.comment} onChange={(e) => update(item.orderItemId, { comment: e.target.value })} aria-describedby={`${base}-comment-hint`} />
               <p className="hint" id={`${base}-comment-hint`}>
-                What did you like? How was the fit, quality or delivery?
+                {t("product.commentHint")}
               </p>
             </div>
 
             <div className="field">
               <span className="field-label" id={`${base}-photos-label`}>
-                Photos <span className="optional">(optional, up to {MAX_REVIEW_PHOTOS})</span>
+                {t("product.photosLabel")} <span className="optional">{t("product.photosOptional", { max: MAX_REVIEW_PHOTOS })}</span>
               </span>
               {d.images.length ? (
                 <ul className="review-photos" aria-labelledby={`${base}-photos-label`}>
                   {d.images.map((url, j) => (
                     <li key={url}>
-                      <img src={url} alt={`Your photo ${j + 1} of ${item.name}`} loading="lazy" decoding="async" />
+                      <img src={url} alt={t("product.yourPhotoAlt", { number: j + 1, name: item.name })} loading="lazy" decoding="async" />
                       <button type="button" className="link-button" onClick={() => update(item.orderItemId, { images: d.images.filter((u) => u !== url) })}>
-                        Remove<span className="visually-hidden"> photo {j + 1}</span>
+                        {t("common.remove")}<span className="visually-hidden"> {t("product.photoNumber", { number: j + 1 })}</span>
                       </button>
                     </li>
                   ))}
@@ -194,7 +196,7 @@ export default function ReviewForm({ token, defaultName, items, shopHref }: { to
               ) : null}
               {d.images.length + d.uploading < MAX_REVIEW_PHOTOS ? (
                 <label className="btn btn--outline review-photos__add">
-                  <Icon name="image" size="sm" /> {d.uploading ? "Adding photo…" : "Add a photo"}
+                  <Icon name="image" size="sm" /> {d.uploading ? t("product.addingPhoto") : t("product.addPhoto")}
                   <input
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
@@ -208,7 +210,7 @@ export default function ReviewForm({ token, defaultName, items, shopHref }: { to
                 </label>
               ) : null}
               <p className="hint" role="status">
-                {d.photoError || (d.uploading ? "Uploading…" : "")}
+                {d.photoError || (d.uploading ? t("product.uploading") : "")}
               </p>
             </div>
           </section>
@@ -216,14 +218,14 @@ export default function ReviewForm({ token, defaultName, items, shopHref }: { to
       })}
 
       <div className="field">
-        <label htmlFor="rv-name">Name shown with your review</label>
+        <label htmlFor="rv-name">{t("product.nameShown")}</label>
         <input className="input" id="rv-name" maxLength={60} value={name} onChange={(e) => setName(e.target.value)} autoComplete="off" aria-describedby="rv-name-hint" />
         <p className="hint" id="rv-name-hint">
-          We show your first name and the first letter of your surname. Your email is never shown.
+          {t("product.nameHint")}
         </p>
       </div>
       <button className="btn btn--primary" type="submit" disabled={sending}>
-        {sending ? "Sending…" : reviewedBefore ? "Update my review" : "Send my review"}
+        {sending ? t("common.sending") : reviewedBefore ? t("product.updateReview") : t("product.sendReview")}
       </button>
       <p className="form-status" role="status">
         {status}

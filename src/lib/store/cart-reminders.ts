@@ -6,9 +6,12 @@ import { getShopProductsByIds } from "@/lib/shop/products";
 import { rateLimitShared } from "@/lib/rate-limit";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { priceBasketLines } from "./discounts-server";
+import { sendLinkedPush } from "./push-links";
 import { isSale } from "./sales";
 import { isShopLive } from "./site/data";
 import { storefrontUrl } from "./subdomain";
+import type { Translator } from "./i18n/translate";
+import { layoutWords, savedLanguage, shopperEmailT } from "./order-emails";
 
 /*
  * Automatic abandoned-cart reminders. A shopper who left their email at
@@ -178,8 +181,18 @@ export async function sendDueCartReminders(now = Date.now()): Promise<number> {
     if (!claimed?.length) continue;
 
     try {
-      await sendReminderEmail(row, which, tenant, (profileFor.get(row.tenant_id)?.business_email as string | null) ?? null);
+      // In the language the shopper was using when they left the basket.
+      const t = await shopperEmailT(row.tenant_id, await savedLanguage("checkouts", row.tenant_id, row.id));
+      await sendReminderEmail(row, which, tenant, (profileFor.get(row.tenant_id)?.business_email as string | null) ?? null, t);
       sent += 1;
+      // And on the device the basket was left on, if the shopper has the shop's notifications there.
+      const storeName = (tenant.display_name as string | null)?.trim() || String(tenant.subdomain || tenant.name);
+      await sendLinkedPush(row.tenant_id, "checkout", row.id, {
+        title: which === 1 ? t("emails.reminderPushTitle1") : t("emails.reminderPushTitle2"),
+        body: t("emails.reminderPushBody", { shop: storeName }),
+        path: `/cart?restore=${row.reminder_key}`,
+        tag: `basket-${row.id}`,
+      });
       // Don't remind about another basket from the same person in this run.
       ctx.optedOut.add(key(row.tenant_id, row.customer_email));
     } catch (err) {
@@ -219,18 +232,17 @@ async function sendReminderEmail(
   which: 1 | 2,
   tenant: { subdomain?: unknown; name?: unknown; display_name?: unknown },
   shopEmail: string | null,
+  t: Translator,
 ) {
   const slug = String(tenant.subdomain || tenant.name);
   const storeName = (tenant.display_name as string | null)?.trim() || slug;
   const money = (v: number) => formatShopCurrency(v, row.currency);
-  const first = row.customer_name?.trim().split(/\s+/)[0] || "there";
+  const first = row.customer_name?.trim().split(/\s+/)[0] || t("emails.noName");
   const items = row.items || [];
   const links = reminderLinks(slug, row.reminder_key);
-  const subject = which === 1 ? `You left something in your basket at ${storeName}` : `Still thinking it over? Your basket at ${storeName} is waiting`;
-  const intro =
-    which === 1
-      ? `Hello ${first}, you didn't quite finish your order at ${storeName}. We've kept your basket, so it's ready when you are.`
-      : `Hello ${first}, just a quick reminder that your basket at ${storeName} is still saved. If you had a question about delivery or payment, reply to this email and the shop will help.`;
+  const subject = which === 1 ? t("emails.reminderSubject1", { shop: storeName }) : t("emails.reminderSubject2", { shop: storeName });
+  const intro = which === 1 ? t("emails.reminderIntro1", { name: first, shop: storeName }) : t("emails.reminderIntro2", { name: first, shop: storeName });
+  const basketTotal = t("emails.labelBasketTotal");
 
   await sendBrandedEmail({
     to: row.customer_email,
@@ -244,24 +256,25 @@ async function sendReminderEmail(
       intro,
       "",
       ...items.map((i) => `${i.quantity} × ${i.name} (${money(i.unitPrice * i.quantity)})`),
-      `Basket total: ${money(Number(row.subtotal) || 0)}`,
+      `${basketTotal}: ${money(Number(row.subtotal) || 0)}`,
       "",
-      `Finish your order: ${links.restore}`,
+      `${t("emails.finishOrder")}: ${links.restore}`,
       "",
-      `Prices and stock are checked again when you return. Don't want these reminders? ${links.stop}`,
+      `${t("emails.reminderChecked")} ${t("emails.reminderStopQuestion")} ${links.stop}`,
     ].join("\n"),
     layout: {
-      preheader: `Your basket at ${storeName} is saved. Pick up where you left off.`,
-      badges: [badge("Your basket", "blue")],
-      title: which === 1 ? "Your basket is waiting" : "Your basket is still saved",
+      ...layoutWords(t),
+      preheader: t("emails.reminderPreheader", { shop: storeName }),
+      badges: [badge(t("emails.badgeYourBasket"), "blue")],
+      title: which === 1 ? t("emails.reminderTitle1") : t("emails.reminderTitle2"),
       intro,
       body: `${detailsPanel([
         ...items.map((i) => ({ label: `${i.quantity} ×`, value: `${i.name} (${money(i.unitPrice * i.quantity)})` })),
-        { label: "Basket total", value: money(Number(row.subtotal) || 0) },
+        { label: basketTotal, value: money(Number(row.subtotal) || 0) },
       ])}
-      <p style="margin:20px 0 0;color:#475569;font-size:13px;line-height:1.6">Prices and stock are checked again when you return. Don&rsquo;t want these reminders? <a href="${escapeHtml(links.stop)}" style="color:#475569">Stop basket reminders from ${escapeHtml(storeName)}</a>.</p>`,
-      buttons: [{ label: "Finish your order", href: links.restore }],
-      footerNote: `You're receiving this because you started an order with ${storeName} and left your email address at checkout.`,
+      <p style="margin:20px 0 0;color:#475569;font-size:13px;line-height:1.6">${escapeHtml(`${t("emails.reminderChecked")} ${t("emails.reminderStopQuestion")}`)} <a href="${escapeHtml(links.stop)}" style="color:#475569">${escapeHtml(t("emails.reminderStopLink", { shop: storeName }))}</a>.</p>`,
+      buttons: [{ label: t("emails.finishOrder"), href: links.restore }],
+      footerNote: t("emails.reminderFooter", { shop: storeName }),
     },
   });
 }
@@ -282,7 +295,16 @@ async function checkoutByKey(tenantId: string, reminderKey: string) {
 export async function reminderBasket(tenantId: string, reminderKey: string): Promise<CartLine[] | null> {
   const checkout = await checkoutByKey(tenantId, reminderKey);
   if (!checkout) return null;
-  const saved = ((checkout.items as { productId?: string; variantId?: string | null; quantity?: number }[]) || []).filter(
+  return rebuildBasket(tenantId, checkout.items);
+}
+
+/**
+ * A saved basket (a reminder's, or one kept on a shopper's account) as basket
+ * lines rebuilt from today's products: today's names, photos, prices and stock.
+ * Items no longer on sale or out of stock are left out.
+ */
+export async function rebuildBasket(tenantId: string, items: unknown): Promise<CartLine[]> {
+  const saved = ((Array.isArray(items) ? items : []) as { productId?: string; variantId?: string | null; quantity?: number }[]).filter(
     (i): i is { productId: string; variantId: string | null; quantity: number } => typeof i.productId === "string" && Number(i.quantity) > 0,
   );
   const products = new Map((await getShopProductsByIds(tenantId, saved.map((i) => i.productId))).map((p) => [p.id, p]));
@@ -295,7 +317,9 @@ export async function reminderBasket(tenantId: string, reminderKey: string): Pro
     if (item.variantId && !variant) continue;
     const stock = variant ? variant.stock : product.stock;
     const maxQuantity = product.allowBackorder ? 999 : Math.max(stock, 0);
-    if (maxQuantity <= 0) continue;
+    const minQuantity = Math.max(1, product.minimumOrderQty || 1);
+    // Sold out, or fewer left than the shop's minimum order: it can't be bought, so it isn't put back.
+    if (maxQuantity < minQuantity) continue;
     lines.push({
       productId: product.id,
       variantId: variant?.id ?? null,
@@ -304,10 +328,11 @@ export async function reminderBasket(tenantId: string, reminderKey: string): Pro
       imageUrl: variant?.imageUrl || product.imageUrl,
       unitPrice: product.price,
       currency: product.currency,
-      fixedPrices: variant?.priceOverride != null ? undefined : fixedLinePrices(product.fixedPrices),
+      fixedPrices: variant && Object.keys(variant.fixedPrices ?? {}).length ? fixedLinePrices(variant.fixedPrices) : variant?.priceOverride != null ? undefined : fixedLinePrices(product.fixedPrices),
       deliveryExtra: product.deliveryExtra || undefined,
-      quantity: Math.min(item.quantity, maxQuantity),
+      quantity: Math.min(Math.max(item.quantity, minQuantity), maxQuantity),
       maxQuantity,
+      minQuantity,
     });
   }
   // Today's price for each line, sale and size included.

@@ -1,3 +1,4 @@
+import { allRows } from "@/lib/supabase/all-rows";
 import { NextResponse } from "next/server";
 import { resolveStoreRequest } from "@/lib/store/api-helpers";
 import { mapOrderRowToDashboard, type StoreOrderRow } from "@/lib/store/orders";
@@ -21,7 +22,8 @@ export async function GET(req: Request) {
   const db = resolved.service.schema("store");
   const since = new Date(Date.now() - 61 * 24 * 60 * 60 * 1000).toISOString();
   const [recent, latest, open, currency] = await Promise.all([
-    db.from("orders").select(SELECT).eq("tenant_id", tenantId).gte("created_at", since).order("created_at", { ascending: false }).limit(5000),
+    // Paged: a busy shop can take more orders in two months than one request returns.
+    allRows((from, to) => db.from("orders").select(SELECT).eq("tenant_id", tenantId).gte("created_at", since).order("created_at", { ascending: false }).order("id").range(from, to), 20_000),
     db.from("orders").select(SELECT).eq("tenant_id", tenantId).order("created_at", { ascending: false }).limit(6),
     db
       .from("orders")

@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { shopChanged } from "@/lib/store/site/shop-changed";
 import { getStoreSite } from "./site/data";
 import { availablePaymentMethods, parseOfflinePayments } from "./offline-payments";
 import { getStorePaymentRoute } from "./payments";
@@ -83,10 +84,12 @@ export async function publishSite(tenantId: string, userId: string) {
     .update({ published: site.draft, status: "live", published_version: version, published_at: now, published_by: userId })
     .eq("tenant_id", tenantId);
   if (error) throw new Error(error.message);
+  shopChanged(tenantId);
 }
 
 /** Takes the shop offline (customers see "opening soon"); the published version is kept for republishing. */
 export async function unpublishSite(tenantId: string) {
   const { error } = await createServerSupabaseClient().schema("store").from("sites").update({ status: "paused" }).eq("tenant_id", tenantId);
   if (error) throw new Error(error.message);
+  shopChanged(tenantId);
 }

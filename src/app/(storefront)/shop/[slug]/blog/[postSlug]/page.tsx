@@ -6,6 +6,7 @@ import { postDescription, readingMinutes, type BlogBlock } from "@/lib/store/blo
 import { getPost } from "@/lib/store/blog-server";
 import { STORE_PATHS, storeHref } from "@/lib/store/site/links";
 import { getStorefront } from "@/lib/store/site/storefront";
+import { getShopT } from "@/lib/store/i18n/server";
 
 type Props = { params: Promise<{ slug: string; postSlug: string }> };
 
@@ -79,9 +80,10 @@ export default async function StorefrontBlogPostPage({ params }: Props) {
   if (!found) notFound();
   const { storefront, post } = found;
   const url = `${storefront.siteUrl}${STORE_PATHS.blogPost(post.slug)}`;
+  const t = getShopT(storefront);
   const crumbs = [
-    { label: "Home", href: storeHref(storefront.basePath, "/") },
-    { label: "Blog", href: storeHref(storefront.basePath, STORE_PATHS.blog) },
+    { label: t("common.home"), href: storeHref(storefront.basePath, "/") },
+    { label: t("listing.blog"), href: storeHref(storefront.basePath, STORE_PATHS.blog) },
     { label: post.title },
   ];
   const jsonLd = {
@@ -100,10 +102,13 @@ export default async function StorefrontBlogPostPage({ params }: Props) {
   return (
     <article className="container section">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
-      <Breadcrumb items={crumbs} />
+      <Breadcrumb t={t} items={crumbs} />
       <header className="blog-head">
         <p className="eyebrow">
-          {post.publishedAt ? new Date(post.publishedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "Draft"} · {readingMinutes(post.body)} min read
+          {post.publishedAt
+            ? new Date(post.publishedAt).toLocaleDateString(t.lang === "en" ? "en-GB" : t.lang, { day: "numeric", month: "long", year: "numeric" })
+            : t("listing.draft")}{" "}
+          · {t("listing.minRead", { count: readingMinutes(post.body) })}
           {post.author ? ` · ${post.author}` : ""}
         </p>
         <h1 className="h-page">{post.title}</h1>
@@ -121,7 +126,7 @@ export default async function StorefrontBlogPostPage({ params }: Props) {
       </div>
       <p>
         <Link className="link-arrow" href={storeHref(storefront.basePath, STORE_PATHS.blog)}>
-          All posts
+          {t("listing.allPosts")}
         </Link>
       </p>
     </article>

@@ -4,6 +4,8 @@ import { clientIp, rateLimitShared } from "@/lib/rate-limit";
 import { getShopTenantBySlug } from "@/lib/shop/tenants";
 import { recordMarketingConsent } from "@/lib/store/campaigns-server";
 import { isShopLive } from "@/lib/store/site/data";
+import { issueMessage, requestT } from "@/lib/store/customer-api";
+import { shopperT } from "@/lib/store/i18n/shopper";
 
 const BodySchema = z.object({
   email: z.string().trim().toLowerCase().max(200).email("Check your email address."),
@@ -12,15 +14,16 @@ const BodySchema = z.object({
 
 /** POST /api/shop/<store>/marketing/subscribe { email, name? } — the newsletter sign-up on a shop. */
 export async function POST(req: Request, { params }: { params: Promise<{ slug: string }> }) {
-  if (!(await rateLimitShared(`newsletter:${clientIp(req)}`, 10, 60 * 60_000)).ok) {
-    return NextResponse.json({ error: "Too many sign-ups from here. Please try again later." }, { status: 429 });
-  }
   const slug = (await params).slug;
+  if (!(await rateLimitShared(`newsletter:${clientIp(req)}`, 10, 60 * 60_000)).ok) {
+    return NextResponse.json({ error: (await requestT(req, slug))("errors.acTooManySignups") }, { status: 429 });
+  }
   const tenant = await getShopTenantBySlug(slug);
-  if (!tenant || !(await isShopLive(tenant.id))) return NextResponse.json({ error: "Shop not found." }, { status: 404 });
+  if (!tenant || !(await isShopLive(tenant.id))) return NextResponse.json({ error: (await requestT(req, slug))("errors.acShopNotFound") }, { status: 404 });
+  const t = await shopperT(req, slug, tenant.id);
   const parsed = BodySchema.safeParse(await req.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message || "Check your email address." }, { status: 400 });
+  if (!parsed.success) return NextResponse.json({ error: issueMessage(t, parsed.error.issues[0], "errors.acCheckEmail") }, { status: 400 });
   const saved = await recordMarketingConsent(tenant.id, parsed.data.email, parsed.data.name, "newsletter");
-  if (!saved) return NextResponse.json({ error: "We couldn't save that just now. Please try again." }, { status: 500 });
+  if (!saved) return NextResponse.json({ error: t("errors.acSaveFailed") }, { status: 500 });
   return NextResponse.json({ ok: true }, { status: 201 });
 }

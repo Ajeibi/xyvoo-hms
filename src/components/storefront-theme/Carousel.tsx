@@ -2,6 +2,13 @@
 
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { Icon } from "./primitives";
+import { useT } from "./StorefrontProvider";
+
+/** The button labels for each kind of carousel. */
+const LABELS = {
+  reviews: { prev: "listing.previousReviews", next: "listing.nextReviews" },
+  categories: { prev: "listing.previousCategories", next: "listing.nextCategories" },
+} as const;
 
 /*
  * The templates' scroll-snap carousel: the track scrolls natively (and works
@@ -73,17 +80,18 @@ export function CarouselControls({
 }: {
   trackId: string;
   /** Used in the button labels, e.g. "reviews" gives "Previous reviews". */
-  noun: string;
+  noun: keyof typeof LABELS;
   prevClassName?: string;
   nextClassName?: string;
 }) {
+  const t = useT();
   const { atStart, atEnd, step } = useCarousel();
   return (
     <div className="carousel-controls">
-      <button className={prevClassName} type="button" aria-label={`Previous ${noun}`} aria-controls={trackId} disabled={atStart} onClick={() => step(-1)}>
+      <button className={prevClassName} type="button" aria-label={t(LABELS[noun].prev)} aria-controls={trackId} disabled={atStart} onClick={() => step(-1)}>
         <Icon name="chevron-left" size="sm" />
       </button>
-      <button className={nextClassName} type="button" aria-label={`Next ${noun}`} aria-controls={trackId} disabled={atEnd} onClick={() => step(1)}>
+      <button className={nextClassName} type="button" aria-label={t(LABELS[noun].next)} aria-controls={trackId} disabled={atEnd} onClick={() => step(1)}>
         <Icon name="chevron-right" size="sm" />
       </button>
     </div>

@@ -3,8 +3,9 @@ import { CarouselControls, CarouselRoot, CarouselTrack } from "./Carousel";
 import Countdown from "./Countdown";
 import { ProductGridList } from "./ProductCard";
 import { Icon, MediaLink, SectionHead, StoreImage, toIconName } from "./primitives";
-import { buildTiles, itemCountLabel, loadSectionProducts, sectionHref, type SectionProps } from "./sections-shared";
+import { buildTiles, loadSectionProducts, sectionHref, type SectionProps } from "./sections-shared";
 import { STORE_PATHS } from "@/lib/store/site/links";
+import { getShopT } from "@/lib/store/i18n/server";
 
 /*
  * Loftwood's homepage sections, ported from
@@ -21,6 +22,7 @@ export function LoftwoodHero({ section, storefront, isFirst }: SectionProps<"her
   const Heading = isFirst ? "h1" : "h2";
   const tiles = buildTiles(storefront, [], 8);
   const trackId = `${section.id}-rooms`;
+  const t = getShopT(storefront);
 
   return (
     <section className="hero-lw" aria-labelledby={`${section.id}-title`}>
@@ -56,16 +58,16 @@ export function LoftwoodHero({ section, storefront, isFirst }: SectionProps<"her
           {tiles.length ? (
             <div className="hero-lw__rooms">
               <CarouselRoot>
-                <CarouselTrack id={trackId} className="carousel rooms" label="Shop by category, scrollable">
+                <CarouselTrack id={trackId} className="carousel rooms" label={t("listing.shopByCategoryScrollable")}>
                   {tiles.map((tile, i) => (
                     <li key={tile.key}>
                       <Link className="room-card" href={sectionHref(storefront, tile.path)}>
                         <span className={`media tone-${(i % 4) + 2} room-card__media`} aria-hidden="true">
-                          {tile.imageUrl ? <StoreImage src={tile.imageUrl} alt="" sizes="288px" /> : null}
+                          {tile.imageUrl ? <StoreImage src={tile.imageUrl} alt="" sizes="288px" eager={isFirst && i < 4} /> : null}
                         </span>
                         <span className="room-card__text">
                           <strong>{tile.label}</strong>
-                          {tile.count != null ? <span>{itemCountLabel(tile.count)}</span> : null}
+                          {tile.count != null ? <span>{t("listing.itemCount", { count: tile.count })}</span> : null}
                         </span>
                         <span className="room-card__go" aria-hidden="true">
                           <Icon name="arrow-right" />
@@ -90,10 +92,11 @@ export function LoftwoodHero({ section, storefront, isFirst }: SectionProps<"her
   );
 }
 
-export function LoftwoodValueStrip({ section }: SectionProps<"value-strip">) {
+export function LoftwoodValueStrip({ section, storefront }: SectionProps<"value-strip">) {
   if (section.items.length === 0) return null;
+  const t = getShopT(storefront);
   return (
-    <section className="features-lw" aria-label="Why shop with us">
+    <section className="features-lw" aria-label={t("listing.whyShopWithUs")}>
       <div className="container">
         <ul className="features-lw__list">
           {section.items.map((item, i) => (
@@ -114,28 +117,29 @@ export function LoftwoodValueStrip({ section }: SectionProps<"value-strip">) {
 }
 
 /** Bento grid of up to three categories; the first card is tall. */
-export function LoftwoodCategoryTiles({ section, storefront }: SectionProps<"category-tiles">) {
+export function LoftwoodCategoryTiles({ section, storefront, nearTop }: SectionProps<"category-tiles">) {
   const tiles = buildTiles(storefront, section.collectionIds, 3);
   if (tiles.length === 0) return null;
   const titleId = `${section.id}-title`;
+  const t = getShopT(storefront);
 
   return (
     <section className="section section--tight-top" aria-labelledby={titleId}>
       <div className="container">
         <h2 className={section.heading ? "h-section section-head" : "visually-hidden"} id={titleId}>
-          {section.heading || "Shop by category"}
+          {section.heading || t("listing.shopByCategory")}
         </h2>
         <div className="bento">
           {tiles.map((tile, i) => (
             <article className={`bento__card${i === 0 && tiles.length > 1 ? " bento__card--tall" : ""}`} key={tile.key}>
-              {tile.count != null ? <p className="count-pill">{itemCountLabel(tile.count)}</p> : null}
+              {tile.count != null ? <p className="count-pill">{t("listing.itemCount", { count: tile.count })}</p> : null}
               <h3 className="h-section">
                 <Link className="plain-link" href={sectionHref(storefront, tile.path)}>
                   {tile.label}
                 </Link>
               </h3>
               <MediaLink className={`media tone-${[3, 2, 4][i]} bento__media`} href={sectionHref(storefront, tile.path)}>
-                {tile.imageUrl ? <StoreImage src={tile.imageUrl} alt="" sizes="(min-width: 900px) 20vw, 100vw" /> : null}
+                {tile.imageUrl ? <StoreImage src={tile.imageUrl} alt="" sizes="(min-width: 900px) 20vw, 100vw" eager={nearTop && i < 4} /> : null}
               </MediaLink>
             </article>
           ))}
@@ -146,20 +150,22 @@ export function LoftwoodCategoryTiles({ section, storefront }: SectionProps<"cat
 }
 
 /** Product rows; "on sale" rows use the template's three-column deals grid. */
-export async function LoftwoodProductList({ section, storefront }: SectionProps<"product-list">) {
+export async function LoftwoodProductList({ section, storefront, nearTop }: SectionProps<"product-list">) {
   const products = await loadSectionProducts(section, storefront);
   if (products.length === 0) return null;
   const titleId = `${section.id}-title`;
+  const t = getShopT(storefront);
 
   return (
     <section className="section section--tight-top" aria-labelledby={titleId}>
       <div className="container">
-        <SectionHead id={titleId} heading={section.heading} link={{ label: "View all", href: sectionHref(storefront, STORE_PATHS.products) }} />
+        <SectionHead id={titleId} heading={section.heading} link={{ label: t("listing.viewAll"), href: sectionHref(storefront, STORE_PATHS.products) }} />
         <ProductGridList
           products={products}
           basePath={storefront.basePath}
           variant={storefront.site.theme.cardVariant}
           className={section.source === "on-sale" ? "products products--3" : "products"}
+          eagerCount={nearTop ? 4 : 0}
         />
       </div>
     </section>
@@ -169,8 +175,9 @@ export async function LoftwoodProductList({ section, storefront }: SectionProps<
 /** Flash sale panel with an optional countdown and photo. */
 export function LoftwoodPromo({ section, storefront }: SectionProps<"promo">) {
   const titleId = `${section.id}-title`;
+  const { lang } = getShopT(storefront);
   const endsText = section.endsAt
-    ? new Date(section.endsAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+    ? new Date(section.endsAt).toLocaleDateString(lang === "en" ? "en-GB" : lang, { day: "numeric", month: "long", year: "numeric" })
     : null;
 
   return (

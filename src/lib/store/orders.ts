@@ -39,6 +39,10 @@ export type StoreOrderRow = {
   /** Where it was sold: "online", or recorded by hand ("in_person", "phone", ...). */
   channel?: string | null;
   shop_note?: string | null;
+  /** The shopper's own note from checkout. */
+  customer_note?: string | null;
+  /** When the shopper sent proof of a bank transfer. */
+  payment_proof_uploaded_at?: string | null;
   created_at: string;
   updated_at: string;
   store_order_items?: StoreOrderItemRow[];
@@ -74,6 +78,10 @@ export type DashboardOrder = {
   channel: string;
   /** The team's own note on an order recorded by hand. */
   shopNote: string | null;
+  /** What the shopper wrote at checkout (delivery instructions, a gift message...). */
+  customerNote: string | null;
+  /** When the shopper sent proof of a bank transfer (opened through /payment-proof). */
+  paymentProofAt: string | null;
   createdAt: string;
 };
 
@@ -105,6 +113,8 @@ export function mapOrderRowToDashboard(row: StoreOrderRow, fallbackCurrency = "N
     items,
     channel: row.channel || "online",
     shopNote: row.shop_note ?? null,
+    customerNote: row.customer_note ?? null,
+    paymentProofAt: row.payment_proof_uploaded_at ?? null,
     createdAt: row.created_at,
   };
 }

@@ -46,6 +46,8 @@ export async function loadEditorState(tenantId: string, storeName: string, logoU
       theme: resolved.theme,
       brand: resolved.brand,
       sections: resolved.sections,
+      productSections: resolved.productSections,
+      collectionSections: resolved.collectionSections,
       navigation: resolved.navigation,
       content: resolved.content,
       seo: resolved.seo,

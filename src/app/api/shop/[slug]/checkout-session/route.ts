@@ -1,3 +1,4 @@
+import { requestLanguage, saveShopperLanguage, shopperT } from "@/lib/store/i18n/shopper";
 import { after, NextResponse } from "next/server";
 import { getShopTenantBySlug } from "@/lib/shop/tenants";
 import { clientIp, rateLimitShared } from "@/lib/rate-limit";
@@ -19,13 +20,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ slug: s
   }
   const slug = (await params).slug;
   const tenant = /^[a-z0-9-]{1,63}$/i.test(slug) ? await getShopTenantBySlug(slug) : null;
-  if (!tenant || !(await isShopLive(tenant.id))) return NextResponse.json({ error: "Shop not found." }, { status: 404 });
+  if (!tenant) return NextResponse.json({ error: "Shop not found." }, { status: 404 });
+  if (!(await isShopLive(tenant.id))) return NextResponse.json({ error: (await shopperT(req, slug, tenant.id))("errors.coShopNotFound") }, { status: 404 });
 
   const parsed = checkoutSessionSchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ ok: false }, { status: 400 });
 
   try {
     const saved = await saveCheckoutSession(tenant.id, parsed.data);
+    // So a reminder about this basket is in the shopper's language.
+    if (saved) await saveShopperLanguage("checkouts", tenant.id, { token: parsed.data.token }, await requestLanguage(req, slug, tenant.id));
     // A good moment to send any basket reminders that are due (at most every ten minutes).
     after(runCartRemindersIfDue);
   after(runStockAlertsIfDue);

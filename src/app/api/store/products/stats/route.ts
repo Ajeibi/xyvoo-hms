@@ -1,3 +1,4 @@
+import { allRows } from "@/lib/supabase/all-rows";
 import { NextResponse } from "next/server";
 import { resolveStoreRequest } from "@/lib/store/api-helpers";
 import { waitingCounts } from "@/lib/store/stock-alerts";
@@ -12,13 +13,19 @@ export async function GET(req: Request) {
   const resolved = await resolveStoreRequest(new URL(req.url).searchParams.get("slug") || "");
   if (resolved.error) return resolved.error;
   const [{ data, error }, waiting] = await Promise.all([
-    resolved.service
-      .schema("store")
-      .from("products")
-      .select("price, cost_price, stock, stock_state, status")
-      .eq("tenant_id", resolved.access.tenantId)
-      .neq("status", "archived")
-      .limit(20000),
+    // Paged, so the totals cover every product.
+    allRows<{ price: number; cost_price: number | null; stock: number; stock_state: string | null; status: string }>(
+      (from, to) =>
+        resolved.service
+          .schema("store")
+          .from("products")
+          .select("price, cost_price, stock, stock_state, status")
+          .eq("tenant_id", resolved.access.tenantId)
+          .neq("status", "archived")
+          .order("id")
+          .range(from, to),
+      20_000,
+    ),
     waitingCounts(resolved.access.tenantId).catch(() => ({}) as Record<string, number>),
   ]);
   if (error) {

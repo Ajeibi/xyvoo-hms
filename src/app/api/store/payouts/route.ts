@@ -1,4 +1,6 @@
-import { NextResponse } from "next/server";
+import { shopChanged } from "@/lib/store/site/shop-changed";
+import { after, NextResponse } from "next/server";
+import { alertOwnerMoneyChange, ownerOnlyMoney } from "@/lib/store/money-settings";
 import { z } from "zod";
 import { resolveStoreRequest } from "@/lib/store/api-helpers";
 import { diffFields, logActivity } from "@/lib/store/activity";
@@ -17,7 +19,8 @@ export async function GET(req: Request) {
   const account = await getActivePayoutAccount(resolved.access.tenantId);
   return NextResponse.json({
     paymentsAvailable: Boolean(getPlatformPaystack()),
-    canManage: resolved.capabilities.canManageSettings,
+    // Admins can see it; only the owner can change where the money goes.
+    canManage: resolved.access.role === "owner",
     account: account
       ? {
           businessName: account.business_name,
@@ -52,6 +55,8 @@ export async function POST(req: Request) {
   const resolved = await resolveBillingRequest(v.slug);
   if (resolved.error) return resolved.error;
   const { access, service, platform } = resolved;
+  const notOwner = ownerOnlyMoney(access.role);
+  if (notOwner) return notOwner;
 
   try {
     const accountName = await resolveAccount(platform, v.accountNumber, v.bankCode);
@@ -102,6 +107,20 @@ export async function POST(req: Request) {
         { business_name: v.businessName, bank_name: v.bankName, account_name: accountName, account_number_last4: v.accountNumber.slice(-4) },
       ),
     });
+    // The owner always hears about it, at their own sign-in email.
+    const tenantId = access.tenantId;
+    after(() =>
+      alertOwnerMoneyChange(tenantId, access.userId, {
+        title: existing ? "Your payout account was changed" : "A payout account was added",
+        detail: existing ? "The bank account your shop's card payments are paid into has just been changed." : "A bank account for your shop's card payments has just been added.",
+        rows: [
+          ...(existing ? [{ label: "Was", value: `${existing.bank_name} ••••${existing.account_number_last4}` }] : []),
+          { label: existing ? "Now" : "Account", value: `${v.bankName} ••••${v.accountNumber.slice(-4)} (${accountName})` },
+        ],
+      }),
+    );
+    // A shop with a payout account takes cards.
+    shopChanged(access.tenantId);
     return NextResponse.json({ ok: true, accountName, accountNumberLast4: v.accountNumber.slice(-4) });
   } catch (error) {
     return paystackFailure(error, "We couldn't save your payout account just now. Please try again.");

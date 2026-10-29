@@ -1,3 +1,4 @@
+import { shopTenantChanged } from "@/lib/store/site/shop-changed";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { isReservedSubdomain } from "@/lib/store/subdomain";
@@ -59,6 +60,8 @@ export async function changeStoreSlug(tenantId: string, oldSlug: string, newSlug
     .from("slug_redirects")
     .upsert({ old_slug: oldSlug, tenant_id: tenantId, created_at: new Date().toISOString(), expires_at: new Date(Date.now() + 90 * 86_400_000).toISOString() });
   if (redirectError) throw new Error(redirectError.message);
+  // The new address works straight away and the old one starts redirecting.
+  shopTenantChanged(tenantId);
 }
 
 export type PreviousAddress = { slug: string; createdAt: string; expiresAt: string };

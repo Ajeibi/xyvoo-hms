@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useCartStore } from "@/components/shop/CartProvider";
 import { cartLineKey, type CartLine } from "@/lib/shop/cart";
-import { announce, useStorefront } from "./StorefrontProvider";
+import { announce, useStorefront, useT } from "./StorefrontProvider";
 
 /**
  * /cart?restore=<key>, from a basket reminder email: puts the saved basket back
@@ -12,6 +12,7 @@ import { announce, useStorefront } from "./StorefrontProvider";
  */
 export default function RestoreBasket() {
   const { slug } = useStorefront();
+  const t = useT();
   const restoreKey = useSearchParams().get("restore");
   const hasHydrated = useCartStore((s) => s.hasHydrated);
   const lines = useCartStore((s) => s.lines);
@@ -31,22 +32,22 @@ export default function RestoreBasket() {
         const added = saved.filter((l) => !inBasket.has(cartLineKey(l.productId, l.variantId)));
         added.forEach((l) => addLine(l));
         const text = !ok
-          ? "We couldn't find your saved basket. It may have expired."
+          ? t("checkout.restoreNotFound")
           : added.length
-            ? "Welcome back. We've put your basket back, with today's prices."
+            ? t("checkout.restoreAdded")
             : saved.length
-              ? "Welcome back. Your basket is just as you left it."
-              : "Sorry, the items in your saved basket are no longer available.";
+              ? t("checkout.restoreSame")
+              : t("checkout.restoreUnavailable");
         setMessage(text);
         announce(text);
       })
-      .catch(() => setMessage("We couldn't load your saved basket. Check your internet connection and refresh the page."))
+      .catch(() => setMessage(t("checkout.restoreFailed")))
       .finally(() => {
         const url = new URL(window.location.href);
         url.searchParams.delete("restore");
         window.history.replaceState(window.history.state, "", url.toString());
       });
-  }, [restoreKey, hasHydrated, lines, addLine, slug]);
+  }, [restoreKey, hasHydrated, lines, addLine, slug, t]);
 
   if (!message) return null;
   return (

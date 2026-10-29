@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowUpRight } from "lucide-react";
+import { GridPulses } from "@/components/website/GridPulses";
 import { HomePricingSection } from "@/components/website/HomePricingSection";
 import { SolutionAtAGlance } from "@/components/website/SolutionAtAGlance";
 import { SolutionGrowthStack } from "@/components/website/SolutionGrowthStack";
@@ -127,6 +128,7 @@ export function StorefrontExtraLanding({ page }: { page: StorefrontExtraPage }) 
       {/* Hero — dense split layout, same bg as /solution/storefront's own hero */}
       <section className="relative isolate overflow-hidden border-b border-white/5 bg-[#04140f] px-6 pt-36 pb-20 md:pb-24">
         <div className="pointer-events-none absolute inset-0 z-0" style={DARK_GRID_STYLE} aria-hidden />
+        <GridPulses color="#4dd0c4" />
         <div
           className="pointer-events-none absolute -top-16 right-[8%] z-0 h-[360px] w-[360px] rounded-full blur-[100px]"
           style={{ background: "rgb(var(--xyvoo-teal-product-rgb, 77 208 196) / 0.24)" }}
