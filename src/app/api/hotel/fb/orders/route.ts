@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import {
   createFbOrder,
+  findOrderByClientRef,
   insertResolvedOrderLine,
   loadOrderById,
   loadOrders,
@@ -14,6 +15,8 @@ import { FB_ITEM_NOTE_MAX } from "@/lib/hms/fb-modifier-rules";
 import type { FbOrderStatus } from "@/lib/hms/fb-types";
 import { getTenantFbSettings } from "@/lib/hms/fb-settings";
 import { loadPricingNow } from "@/lib/hms/fb-pricing";
+import { acceptedOrderedAt, FB_OFFLINE_MAX_AGE_HOURS, ticketTooOld } from "@/lib/hms/fb-offline-queue";
+import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { fbForbidden, requireFbApi } from "../_lib";
 
 const QuerySchema = z.object({
@@ -57,6 +60,10 @@ const CreateSchema = z.object({
   sendToKitchen: z.boolean().optional(),
   /** first_course (default): drinks and the first course now, the rest held. */
   fireMode: z.enum(["first_course", "all", "hold"]).optional(),
+  /** The till's own reference: sending the same ticket again returns the first order. */
+  clientRef: z.string().regex(/^[A-Za-z0-9-]{8,64}$/, "Bad ticket reference.").optional(),
+  /** When a ticket taken offline was really ordered (ISO). */
+  orderedAt: z.string().max(40).optional(),
 });
 
 export async function GET(req: Request) {
@@ -101,6 +108,25 @@ export async function POST(req: Request) {
     const denied = fbForbidden(auth.capabilities, "canUsePos");
     if (denied) return NextResponse.json({ error: denied.error }, { status: denied.status });
 
+    // Sent before (the answer was lost on the way back): return that order, never a second one.
+    if (body.clientRef) {
+      const existingId = await findOrderByClientRef(auth.service, auth.tenant.id, body.clientRef);
+      if (existingId) {
+        const existing = await loadOrderById(auth.service, auth.tenant.id, existingId);
+        return NextResponse.json({ ok: true, duplicate: true, order: existing });
+      }
+    }
+    if (body.orderedAt && ticketTooOld(body.orderedAt)) {
+      return NextResponse.json(
+        {
+          error: `This ticket was taken more than ${FB_OFFLINE_MAX_AGE_HOURS} hours ago, so it can't be sent now. Check with the guest and take it again.`,
+        },
+        { status: 400 },
+      );
+    }
+    const orderedAt = acceptedOrderedAt(body.orderedAt);
+    const takenOffline = Boolean(body.orderedAt && orderedAt && Date.now() - orderedAt.getTime() > 60_000);
+
     const lines =
       body.items ??
       (body.menuItemId ? [{ menuItemId: body.menuItemId, quantity: 1 }] : []);
@@ -109,7 +135,8 @@ export async function POST(req: Request) {
     // never leaves a half-made order behind.
     const resolved: { line: ResolvedOrderLine; quantity: number }[] = [];
     // One clock for the whole ticket, so every line gets the same happy-hour decision.
-    const pricing = await loadPricingNow(auth.service, auth.tenant.id);
+    // A ticket taken offline is priced at the time the guest ordered.
+    const pricing = await loadPricingNow(auth.service, auth.tenant.id, orderedAt ?? new Date());
     for (const line of lines) {
       const result = await resolveOrderLine(auth.service, auth.tenant.id, line, pricing);
       if (!result.line) {
@@ -127,7 +154,13 @@ export async function POST(req: Request) {
       placedBy: auth.user.id,
       notes: body.notes,
       rush: body.rush,
+      clientRef: body.clientRef,
+      offlineOrderedAt: takenOffline && orderedAt ? orderedAt.toISOString() : null,
     });
+    if (created.duplicateOf) {
+      const existing = await loadOrderById(auth.service, auth.tenant.id, created.duplicateOf);
+      return NextResponse.json({ ok: true, duplicate: true, order: existing });
+    }
     if (created.error || !created.order) {
       return NextResponse.json({ error: created.error ?? "Could not create order." }, { status: 400 });
     }
@@ -147,6 +180,17 @@ export async function POST(req: Request) {
       const sent = await sendOrderToKitchen(auth.service, auth.tenant.id, order.id, body.fireMode);
       if (sent.error) return NextResponse.json({ error: sent.error }, { status: 400 });
       order = sent.order ?? order;
+    }
+
+    if (takenOffline && orderedAt) {
+      await writeAuditLog({
+        tenantId: auth.tenant.id,
+        actorUserId: auth.user.id,
+        action: "fb_offline_ticket_sent",
+        entityType: "fb_order",
+        entityId: order.id,
+        after: { order_number: order.order_number, ordered_at: orderedAt.toISOString(), client_ref: body.clientRef ?? null },
+      });
     }
 
     const full =

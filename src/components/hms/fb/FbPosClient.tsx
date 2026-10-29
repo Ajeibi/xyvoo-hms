@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
-import { Clock, Flame, Loader2, Minus, Pencil, Plus, Receipt, Send, Settings, Trash2 } from "lucide-react";
+import { Clock, CloudOff, Flame, Loader2, Minus, Pencil, Plus, Receipt, Send, Settings, Trash2 } from "lucide-react";
 import {
   draftLineKey,
   groupsForMenuItem,
@@ -21,6 +21,8 @@ import { computeBillTotals, NO_BILL_CHARGES } from "@/lib/hms/fb-bill-rules";
 import { kitchenTicketPrintUrl, reservePrintWindow, useDevicePrintSetting } from "@/lib/hms/fb-print-links";
 import { changeLabel, DEFAULT_FB_TIME_ZONE, priceWithRules, ruleCoversItem, ruleIsOn, shortTime } from "@/lib/hms/fb-price-rules";
 import { useHotelClock } from "@/lib/hms/fb-price-clock";
+import { useOfflineTickets } from "@/lib/hms/fb-offline-tickets";
+import { ticketTooOld } from "@/lib/hms/fb-offline-queue";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import { FbItemChoicesDialog, type FbItemChoices } from "@/components/hms/fb/FbItemChoicesDialog";
 import { useFbRealtime } from "@/hooks/useFbRealtime";
@@ -116,8 +118,10 @@ export function FbPosClient({
   const settingsMenuUrl = `/hms/${slug}/restaurant-bar/settings#menu-setup`;
 
   const loadConfig = useCallback(async () => {
-    const res = await fetch(`/api/hotel/fb/config?slug=${encodeURIComponent(slug)}&seed=0`);
-    const cfg = await res.json();
+    // Offline: keep the menu already on screen.
+    const res = await fetch(`/api/hotel/fb/config?slug=${encodeURIComponent(slug)}&seed=0`).catch(() => null);
+    if (!res) return;
+    const cfg = await res.json().catch(() => ({}));
     if (res.ok) {
       setConfig({
         outlets: cfg.outlets,
@@ -355,6 +359,23 @@ export function FbPosClient({
     ? draft.lines.find((l) => l.key === choicesTarget.editKey)
     : undefined;
 
+  // Tickets taken while offline wait on this till and go to the kitchen when the connection is back.
+  const offline = useOfflineTickets(slug, {
+    onSent: ({ ticket, order, duplicate }) =>
+      toastSuccess(
+        duplicate ? "Already in the kitchen" : "Offline ticket sent to the kitchen",
+        `${ticket.label}${order?.order_number ? ` · #${order.order_number}` : ""}`,
+      ),
+    onProblem: (ticket, problem) => toastError(`Couldn't send ${ticket.label}`, problem),
+  });
+
+  const ticketLabel = () => {
+    const table = outletTables.find((t) => t.id === tableId)?.table_code;
+    const count = draft.lines.reduce((n, l) => n + l.quantity, 0);
+    const where = table ? `Table ${table}` : tabLabel.trim() || "Walk-in";
+    return `${where} · ${count} item${count === 1 ? "" : "s"}`;
+  };
+
   const sendToKitchen = async () => {
     if (!draft.lines.length || sending) return;
 
@@ -365,30 +386,54 @@ export function FbPosClient({
     // Opened during the click so the browser doesn't block it as a pop-up.
     const printWindow = printTickets ? reservePrintWindow() : null;
 
+    // The ticket's own reference: sending it again (after a dropped connection) never makes a second order.
+    const ref = crypto.randomUUID();
+    const orderedAt = new Date().toISOString();
+    const payload = {
+      outletId: primaryOutletId,
+      tableId: hasRestaurantOutlet ? tableId : null,
+      tabLabel: hasBarOutlet ? tabLabel || null : null,
+      items: draft.lines.map((line) => ({
+        menuItemId: line.menuItemId,
+        quantity: line.quantity,
+        modifierOptionIds: line.optionIds,
+        notes: line.note,
+        course: line.course,
+        seat: line.seat,
+      })),
+      rush: draft.rush,
+      sendToKitchen: true,
+      fireMode: ticketHasCourses ? draft.fireMode : "all",
+    };
+    const keepOffline = () => {
+      printWindow?.cancel();
+      if (!offline.enqueue({ ref, orderedAt, payload, label: ticketLabel() })) {
+        toastError("Couldn't keep the ticket", "This browser can't store it. Write the order down and send it when the connection is back.");
+        return;
+      }
+      toastSuccess("Kept on this till", "No connection. It goes to the kitchen as soon as the connection is back.");
+      setDraft(emptyDraft());
+      setTableId(null);
+      setTabLabel("");
+    };
+    if (!navigator.onLine) {
+      keepOffline();
+      return;
+    }
+
     setSending(true);
     try {
       const res = await fetch("/api/hotel/fb/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          slug,
-          outletId: primaryOutletId,
-          tableId: hasRestaurantOutlet ? tableId : null,
-          tabLabel: hasBarOutlet ? tabLabel || null : null,
-          items: draft.lines.map((line) => ({
-            menuItemId: line.menuItemId,
-            quantity: line.quantity,
-            modifierOptionIds: line.optionIds,
-            notes: line.note,
-            course: line.course,
-            seat: line.seat,
-          })),
-          rush: draft.rush,
-          sendToKitchen: true,
-          fireMode: ticketHasCourses ? draft.fireMode : "all",
-        }),
-      });
-      const data = await res.json();
+        body: JSON.stringify({ slug, ...payload, clientRef: ref, orderedAt }),
+      }).catch(() => null);
+      // No answer, or the server is down: keep it and send it later (its reference stops a double order).
+      if (!res || res.status >= 500) {
+        keepOffline();
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         printWindow?.cancel();
         toastError("Send failed", data.error ?? "Try again.");
@@ -531,6 +576,69 @@ export function FbPosClient({
             </div>
           ) : null}
         </div>
+      ) : null}
+
+      {!offline.online || offline.tickets.length ? (
+        <section
+          aria-labelledby="fb-pos-offline-title"
+          className={cn(
+            "rounded-2xl border px-4 py-3 text-sm",
+            offline.online ? "border-sky-200 bg-sky-50 text-sky-950" : "border-amber-300 bg-amber-50 text-amber-950",
+          )}
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 id="fb-pos-offline-title" className="flex items-center gap-2 font-semibold">
+              <CloudOff className="h-4 w-4" aria-hidden />
+              {offline.online
+                ? `${offline.tickets.length} ticket${offline.tickets.length === 1 ? "" : "s"} waiting to reach the kitchen`
+                : "No connection. Keep taking orders."}
+            </h2>
+            {offline.online && offline.tickets.some((t) => !t.problem) ? (
+              <button type="button" onClick={() => void offline.flush()} className={hmsButton.small}>
+                Send now
+              </button>
+            ) : null}
+          </div>
+          {!offline.online ? (
+            <p className="mt-1">
+              Tickets are kept on this till and go to the kitchen as soon as the connection is back. Tell the kitchen
+              by hand if it can&rsquo;t wait. Payments need a connection.
+            </p>
+          ) : null}
+          {offline.tickets.length ? (
+            <ul className="mt-2 space-y-1.5">
+              {offline.tickets.map((t) => (
+                <li key={t.ref} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span className="font-medium">{t.label}</span>
+                  <span className="text-xs opacity-80">
+                    taken {new Date(t.orderedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                  {t.problem ? (
+                    <>
+                      <span className="text-red-800">{t.problem}</span>
+                      {!ticketTooOld(t.orderedAt) ? (
+                        <button type="button" onClick={() => offline.retry(t.ref)} className={hmsButton.quiet}>
+                          Try again<span className="sr-only"> for {t.label}</span>
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (window.confirm(`Discard ${t.label}? The kitchen will never get it.`)) offline.discard(t.ref);
+                        }}
+                        className={hmsButton.danger}
+                      >
+                        Discard<span className="sr-only"> {t.label}</span>
+                      </button>
+                    </>
+                  ) : (
+                    <span className="text-xs">{offline.online ? "sending…" : "waiting for connection"}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </section>
       ) : null}
 
       {outlet && hasMenu && rulesOnHere.length ? (

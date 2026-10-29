@@ -403,6 +403,10 @@ export async function createFbOrder(
     placedBy: string;
     notes?: string;
     rush?: boolean;
+    /** The till's own reference for the ticket; a second order with it is refused. */
+    clientRef?: string | null;
+    /** When a ticket taken offline was really ordered. */
+    offlineOrderedAt?: string | null;
   },
 ) {
   const { billRates } = await getTenantFbSettings(supabase, params.tenantId);
@@ -421,12 +425,29 @@ export async function createFbOrder(
       notes: params.notes ?? null,
       status: "open",
       rush: Boolean(params.rush),
+      client_ref: params.clientRef ?? null,
+      offline_ordered_at: params.offlineOrderedAt ?? null,
     })
     .select("*")
     .single();
 
-  if (error || !data) return { order: null, error: error?.message ?? "Could not create order." };
-  return { order: mapOrder(data as Record<string, unknown>), error: null };
+  if (error?.code === "23505" && params.clientRef) {
+    return { order: null, error: null, duplicateOf: await findOrderByClientRef(supabase, params.tenantId, params.clientRef) };
+  }
+  if (error || !data) return { order: null, error: error?.message ?? "Could not create order.", duplicateOf: null };
+  return { order: mapOrder(data as Record<string, unknown>), error: null, duplicateOf: null };
+}
+
+/** The order a till already made with this ticket reference, if any. */
+export async function findOrderByClientRef(supabase: SupabaseClient, tenantId: string, clientRef: string) {
+  const { data } = await supabase
+    .schema("hotel")
+    .from("fb_orders")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .eq("client_ref", clientRef)
+    .maybeSingle();
+  return (data?.id as string | undefined) ?? null;
 }
 
 export type FbOrderLineInput = {
