@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { getAccountIdByCode } from "@/lib/hms/chart-of-accounts";
 import { postJournalEntry, type JournalEntryLineInput } from "@/lib/hms/journal-entries";
+import { stayLinePart } from "@/lib/hms/folio";
 
 /**
  * Bridges the gap where day-to-day guest folio activity and walk-in F&B POS sales never
@@ -20,16 +21,26 @@ import { postJournalEntry, type JournalEntryLineInput } from "@/lib/hms/journal-
  * "food_beverage") — counting BOTH that folio line and the order's own subtotal would
  * double the revenue, so walk-in aggregation explicitly excludes settlement_method =
  * "room_charge" orders (those are only counted via the folio side).
+ *
+ * VAT and the state and stamp levies on a room are the government's money, not the hotel's:
+ * they go to Taxes Payable (2200) rather than Room Revenue. The service charge is the hotel's.
  */
+
+/** Taxes on a room that the hotel collects for the government. */
+export const GOVERNMENT_TAX_PARTS = new Set(["vat", "state_levy", "stamp_levy"]);
 
 export type NightAuditBreakdown = {
   roomRevenue: number;
   fbRevenue: number;
   otherRevenue: number;
   unclassifiedRevenue: number;
+  /** VAT and levies charged on rooms today (less any taken off), owed to the government. */
+  taxesCollected: number;
   cashTotal: number;
   cardTotal: number;
   cityLedgerTotal: number;
+  /** Deposits taken before arrival and moved onto bills today (out of Advance Guest Deposits). */
+  depositsApplied: number;
   guestLedgerNet: number;
   unmatchedPaymentTotal: number;
   folioLineCount: number;
@@ -54,64 +65,72 @@ function dayBoundsUtc(auditDate: string): { start: string; end: string } {
   return { start, end };
 }
 
-export async function computeNightAuditBreakdown(
-  service: SupabaseClient,
-  tenantId: string,
-  auditDate: string,
-): Promise<NightAuditBreakdown> {
-  const { start, end } = dayBoundsUtc(auditDate);
+export type NightAuditFolioRow = {
+  kind: string;
+  amount: number | string;
+  method: string;
+  department: string | null;
+  metadata?: Record<string, unknown> | null;
+  reference?: string | null;
+  description?: string | null;
+};
+export type NightAuditFbOrderRow = { subtotal: number | string; settlement_method: string };
 
-  const { data: folioLines } = await service
-    .schema("hotel")
-    .from("folio_transactions")
-    .select("kind,amount,method,department")
-    .eq("tenant_id", tenantId)
-    .is("voided_at", null)
-    .gte("created_at", start)
-    .lt("created_at", end);
-
+/** Adds up one day's folio lines (not voided) and walk-in F&B orders (closed, not room-charged). */
+export function summariseNightAudit(rows: NightAuditFolioRow[], fbRows: NightAuditFbOrderRow[]): NightAuditBreakdown {
   let folioRoomRevenue = 0;
   let folioFbRevenue = 0;
   let folioOtherRevenue = 0;
   let folioUnclassifiedRevenue = 0;
+  let taxesCollected = 0;
   let folioPaymentsCash = 0;
   let folioPaymentsCard = 0;
   let folioPaymentsCityLedger = 0;
+  let folioPaymentsDeposit = 0;
   let unmatchedPaymentTotal = 0;
 
-  const rows = (folioLines ?? []) as { kind: string; amount: number; method: string; department: string | null }[];
   for (const line of rows) {
     const amount = Math.abs(Number(line.amount) || 0);
-    if (line.kind === "charge" || line.kind === "discount" || line.kind === "refund") {
+    if (line.kind === "refund") {
+      // Money handed back at the desk: out of the till or reversed on the card machine.
+      if (line.method === "cash") folioPaymentsCash -= amount;
+      else if (line.method === "card" || line.method === "pos") folioPaymentsCard -= amount;
+      else unmatchedPaymentTotal -= amount;
+    } else if (line.kind === "charge" || line.kind === "discount") {
       const sign = line.kind === "charge" ? 1 : -1;
-      if (line.department === "rooms") folioRoomRevenue += sign * amount;
-      else if (line.department === "food_beverage") folioFbRevenue += sign * amount;
+      // A whole-bill discount says how it splits across departments; take each share off its revenue.
+      const allocation = line.metadata?.allocation;
+      if (line.kind === "discount" && Array.isArray(allocation) && allocation.length > 0) {
+        for (const a of allocation as { department: string | null; amount: number }[]) {
+          const share = Math.abs(Number(a.amount) || 0);
+          if (a.department === "rooms") folioRoomRevenue -= share;
+          else if (a.department === "food_beverage") folioFbRevenue -= share;
+          else if (a.department) folioOtherRevenue -= share;
+          else folioUnclassifiedRevenue -= share;
+        }
+        continue;
+      }
+      if (line.department === "rooms") {
+        const part = stayLinePart({ metadata: line.metadata ?? {}, reference: line.reference ?? null, description: line.description ?? null });
+        if (GOVERNMENT_TAX_PARTS.has(part)) taxesCollected += sign * amount;
+        else folioRoomRevenue += sign * amount;
+      } else if (line.department === "food_beverage") folioFbRevenue += sign * amount;
       else if (line.department) folioOtherRevenue += sign * amount;
       else folioUnclassifiedRevenue += sign * amount;
     } else if (line.kind === "payment") {
       if (line.method === "cash") folioPaymentsCash += amount;
       else if (line.method === "card" || line.method === "pos") folioPaymentsCard += amount;
       else if (line.method === "direct_bill" || line.method === "split") folioPaymentsCityLedger += amount;
+      else if (line.method === "deposit") folioPaymentsDeposit += amount;
       else unmatchedPaymentTotal += amount;
     }
     // "transfer" kind lines are internal folio-to-folio reclassifications — excluded, since
     // a correctly paired transfer nets to zero and isn't new revenue or cash movement.
   }
 
-  const { data: fbOrders } = await service
-    .schema("hotel")
-    .from("fb_orders")
-    .select("subtotal,settlement_method")
-    .eq("tenant_id", tenantId)
-    .eq("status", "closed")
-    .neq("settlement_method", "room_charge")
-    .gte("closed_at", start)
-    .lt("closed_at", end);
-
   let walkInFbRevenue = 0;
   let walkInCash = 0;
   let walkInCard = 0;
-  const fbRows = (fbOrders ?? []) as { subtotal: number; settlement_method: string }[];
   for (const order of fbRows) {
     const amount = Number(order.subtotal) || 0;
     walkInFbRevenue += amount;
@@ -119,32 +138,77 @@ export async function computeNightAuditBreakdown(
     else if (order.settlement_method === "card" || order.settlement_method === "pos") walkInCard += amount;
   }
 
+  const round = (n: number) => Math.round(n * 100) / 100;
   const guestLedgerNet =
     folioRoomRevenue +
     folioFbRevenue +
     folioOtherRevenue +
-    folioUnclassifiedRevenue -
-    (folioPaymentsCash + folioPaymentsCard + folioPaymentsCityLedger);
+    folioUnclassifiedRevenue +
+    taxesCollected -
+    (folioPaymentsCash + folioPaymentsCard + folioPaymentsCityLedger + folioPaymentsDeposit);
 
   return {
-    roomRevenue: folioRoomRevenue,
-    fbRevenue: folioFbRevenue + walkInFbRevenue,
-    otherRevenue: folioOtherRevenue,
-    unclassifiedRevenue: folioUnclassifiedRevenue,
-    cashTotal: folioPaymentsCash + walkInCash,
-    cardTotal: folioPaymentsCard + walkInCard,
-    cityLedgerTotal: folioPaymentsCityLedger,
-    guestLedgerNet,
-    unmatchedPaymentTotal,
+    roomRevenue: round(folioRoomRevenue),
+    fbRevenue: round(folioFbRevenue + walkInFbRevenue),
+    otherRevenue: round(folioOtherRevenue),
+    unclassifiedRevenue: round(folioUnclassifiedRevenue),
+    taxesCollected: round(taxesCollected),
+    cashTotal: round(folioPaymentsCash + walkInCash),
+    cardTotal: round(folioPaymentsCard + walkInCard),
+    cityLedgerTotal: round(folioPaymentsCityLedger),
+    depositsApplied: round(folioPaymentsDeposit),
+    guestLedgerNet: round(guestLedgerNet),
+    unmatchedPaymentTotal: round(unmatchedPaymentTotal),
     folioLineCount: rows.length,
     walkInFbOrderCount: fbRows.length,
   };
 }
 
-function buildLines(
-  b: NightAuditBreakdown,
-  accts: { room: string; fb: string; other: string; misc: string; cash: string; card: string; cityLedger: string; guestLedger: string },
-): JournalEntryLineInput[] {
+export async function computeNightAuditBreakdown(
+  service: SupabaseClient,
+  tenantId: string,
+  auditDate: string,
+): Promise<NightAuditBreakdown> {
+  const { start, end } = dayBoundsUtc(auditDate);
+
+  const [{ data: folioLines }, { data: fbOrders }] = await Promise.all([
+    service
+      .schema("hotel")
+      .from("folio_transactions")
+      .select("kind,amount,method,department,metadata,reference,description")
+      .eq("tenant_id", tenantId)
+      .is("voided_at", null)
+      .gte("created_at", start)
+      .lt("created_at", end),
+    service
+      .schema("hotel")
+      .from("fb_orders")
+      .select("subtotal,settlement_method")
+      .eq("tenant_id", tenantId)
+      .eq("status", "closed")
+      .neq("settlement_method", "room_charge")
+      .gte("closed_at", start)
+      .lt("closed_at", end),
+  ]);
+
+  return summariseNightAudit((folioLines ?? []) as NightAuditFolioRow[], (fbOrders ?? []) as NightAuditFbOrderRow[]);
+}
+
+export type NightAuditAccounts = {
+  room: string;
+  fb: string;
+  other: string;
+  misc: string;
+  cash: string;
+  card: string;
+  cityLedger: string;
+  guestLedger: string;
+  deposits: string | null;
+  taxes: string | null;
+};
+
+/** The night audit's journal lines for a day's figures: one balanced entry. */
+export function buildNightAuditLines(b: NightAuditBreakdown, accts: NightAuditAccounts): JournalEntryLineInput[] {
   const lines: JournalEntryLineInput[] = [];
   const revenueLine = (amount: number, accountId: string, department: string) => {
     if (amount === 0) return;
@@ -156,10 +220,18 @@ function buildLines(
   revenueLine(b.fbRevenue, accts.fb, "Kitchen");
   revenueLine(b.otherRevenue, accts.other, "Other");
   revenueLine(b.unclassifiedRevenue, accts.misc, "Other");
+  if (accts.taxes) revenueLine(b.taxesCollected, accts.taxes, "Front Desk");
 
-  if (b.cashTotal > 0) lines.push({ accountId: accts.cash, department: "Front Desk", debit: b.cashTotal, credit: 0 });
-  if (b.cardTotal > 0) lines.push({ accountId: accts.card, department: "Front Desk", debit: b.cardTotal, credit: 0 });
+  // More given back than taken on a day leaves cash or card as a credit.
+  const moneyLine = (amount: number, accountId: string) => {
+    if (amount > 0) lines.push({ accountId, department: "Front Desk", debit: amount, credit: 0 });
+    else if (amount < 0) lines.push({ accountId, department: "Front Desk", debit: 0, credit: -amount });
+  };
+  moneyLine(b.cashTotal, accts.cash);
+  moneyLine(b.cardTotal, accts.card);
   if (b.cityLedgerTotal > 0) lines.push({ accountId: accts.cityLedger, department: "Front Desk", debit: b.cityLedgerTotal, credit: 0 });
+  // A deposit moved onto a bill: the hotel no longer holds it for the guest, it pays their bill.
+  if (b.depositsApplied > 0 && accts.deposits) lines.push({ accountId: accts.deposits, department: "Front Desk", debit: b.depositsApplied, credit: 0 });
 
   if (b.guestLedgerNet > 0) lines.push({ accountId: accts.guestLedger, department: "Front Desk", debit: b.guestLedgerNet, credit: 0 });
   else if (b.guestLedgerNet < 0) lines.push({ accountId: accts.guestLedger, department: "Front Desk", debit: 0, credit: -b.guestLedgerNet });
@@ -192,7 +264,7 @@ export async function runNightAudit(
     }
   }
 
-  const [room, fb, other, misc, cash, card, cityLedger, guestLedger] = await Promise.all([
+  const [room, fb, other, misc, cash, card, cityLedger, guestLedger, deposits, taxes] = await Promise.all([
     getAccountIdByCode(service, params.tenantId, "4000"),
     getAccountIdByCode(service, params.tenantId, "4100"),
     getAccountIdByCode(service, params.tenantId, "4200"),
@@ -201,6 +273,8 @@ export async function runNightAudit(
     getAccountIdByCode(service, params.tenantId, "1020"),
     getAccountIdByCode(service, params.tenantId, "1300"),
     getAccountIdByCode(service, params.tenantId, "1200"),
+    getAccountIdByCode(service, params.tenantId, "2300"),
+    getAccountIdByCode(service, params.tenantId, "2200"),
   ]);
   const missing = [
     ["Room Revenue (4000)", room],
@@ -217,7 +291,7 @@ export async function runNightAudit(
   }
 
   const breakdown = await computeNightAuditBreakdown(service, params.tenantId, params.auditDate);
-  const lines = buildLines(breakdown, {
+  const lines = buildNightAuditLines(breakdown, {
     room: room as string,
     fb: fb as string,
     other: other as string,
@@ -226,7 +300,15 @@ export async function runNightAudit(
     card: card as string,
     cityLedger: cityLedger as string,
     guestLedger: guestLedger as string,
+    deposits: (deposits as string | null) ?? null,
+    taxes: (taxes as string | null) ?? null,
   });
+  if (breakdown.taxesCollected !== 0 && !taxes) {
+    return { ok: false, error: "Missing required accounts: Taxes Payable (2200), for the VAT and levies charged on rooms today." };
+  }
+  if (breakdown.depositsApplied > 0 && !deposits) {
+    return { ok: false, error: "Missing required accounts: Advance Guest Deposits (2300), for the deposits moved onto bills today." };
+  }
 
   if (lines.length < 2) {
     return { ok: false, error: `Nothing to post for ${params.auditDate} — no folio or F&B activity found.` };

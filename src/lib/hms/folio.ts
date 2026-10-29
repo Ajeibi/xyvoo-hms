@@ -4,11 +4,16 @@ import type { PaymentDisplayStatus } from "@/lib/hms/front-desk-board";
 import { isAdminLikeRole } from "@/lib/hms/department-access";
 import type { WalkInRoomPricingResult } from "@/lib/hms/walk-in-pricing";
 import { calendarNightsBetween } from "@/lib/hms/walk-in-pricing";
+import { isExtraNightLine, stayTaxRules, type ExtraNightReservation } from "@/lib/hms/folio-extra-nights";
+import { computeNigeriaHospitalityTaxes } from "@/lib/hms/nigeria-hospitality-taxes";
+import type { HotelPricingSetup } from "@/lib/hms/room-pricing";
 
 export const EARLY_CHECKOUT_ADJUSTMENT_REF = "early_checkout_adjustment";
 
 export type FolioLineKind = "charge" | "payment" | "discount" | "refund" | "transfer";
-export type FolioSplitLeg = "guest" | "company";
+/** The windows a bill can have: who pays each line. */
+export const FOLIO_WINDOWS = ["guest", "company", "agent", "other"] as const;
+export type FolioSplitLeg = (typeof FOLIO_WINDOWS)[number];
 
 export type FolioLineRow = {
   id: string;
@@ -46,6 +51,8 @@ export type FolioSummary = FolioBalance & {
   lines: FolioLineRow[];
   guestLegBalance: number;
   companyLegBalance: number;
+  /** What each window still owes. */
+  windowBalances: Record<FolioSplitLeg, number>;
 };
 
 function num(v: string | number | null | undefined) {
@@ -206,6 +213,9 @@ export async function getFolioForReservation(
     lines,
     guestLegBalance: computeLegBalance(lines, "guest"),
     companyLegBalance: computeLegBalance(lines, "company"),
+    windowBalances: Object.fromEntries(
+      FOLIO_WINDOWS.map((w) => [w, Math.round(computeLegBalance(lines, w) * 100) / 100]),
+    ) as Record<FolioSplitLeg, number>,
   };
 }
 
@@ -235,13 +245,20 @@ export async function getTenantFolioSettings(supabase: SupabaseClient, tenantId:
   const { data } = await supabase
     .schema("hotel")
     .from("tenant_folio_settings")
-    .select("allow_checkout_with_balance,large_charge_threshold,manager_pin_hash")
+    .select("allow_checkout_with_balance,large_charge_threshold,manager_pin_hash,discount_limit_percent,invoice_prefix,next_invoice_number,tax_id,default_credit_limit")
     .eq("tenant_id", tenantId)
     .maybeSingle();
   return {
     allowCheckoutWithBalance: data?.allow_checkout_with_balance ?? false,
     largeChargeThreshold: num(data?.large_charge_threshold) || 50000,
     hasManagerPin: Boolean(data?.manager_pin_hash),
+    /** Staff can give discounts up to this % of the bill without a manager PIN; 0 means always ask. */
+    discountLimitPercent: num(data?.discount_limit_percent),
+    invoicePrefix: (data?.invoice_prefix as string | null) || "INV",
+    nextInvoiceNumber: num(data?.next_invoice_number) || 1,
+    taxId: (data?.tax_id as string | null) ?? "",
+    /** How much a guest can owe before the desk is warned, unless the stay has its own limit; null is no limit. */
+    defaultCreditLimit: num(data?.default_credit_limit) || null,
   };
 }
 
@@ -254,11 +271,15 @@ export async function getTenantFolioSettings(supabase: SupabaseClient, tenantId:
 export async function updateTenantFolioSettings(
   supabase: SupabaseClient,
   tenantId: string,
-  patch: { allowCheckoutWithBalance?: boolean; largeChargeThreshold?: number; managerPin?: string },
+  patch: { allowCheckoutWithBalance?: boolean; largeChargeThreshold?: number; managerPin?: string; discountLimitPercent?: number; invoicePrefix?: string; taxId?: string; defaultCreditLimit?: number | null },
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const update: Record<string, unknown> = { tenant_id: tenantId, updated_at: new Date().toISOString() };
   if (patch.allowCheckoutWithBalance !== undefined) update.allow_checkout_with_balance = patch.allowCheckoutWithBalance;
   if (patch.largeChargeThreshold !== undefined) update.large_charge_threshold = patch.largeChargeThreshold;
+  if (patch.discountLimitPercent !== undefined) update.discount_limit_percent = patch.discountLimitPercent;
+  if (patch.invoicePrefix !== undefined) update.invoice_prefix = patch.invoicePrefix.trim().toUpperCase();
+  if (patch.taxId !== undefined) update.tax_id = patch.taxId.trim() || null;
+  if (patch.defaultCreditLimit !== undefined) update.default_credit_limit = patch.defaultCreditLimit;
   if (patch.managerPin !== undefined && patch.managerPin.trim()) {
     update.manager_pin_hash = hashManagerPin(patch.managerPin);
   }
@@ -293,8 +314,9 @@ export async function insertFolioLine(
   supabase: SupabaseClient,
   input: InsertFolioLineInput,
 ): Promise<{ line: FolioLineRow | null; error: string | null }> {
+  // Payments and discounts take money off the bill; charges and refunds (money handed back) add to it.
   const signedAmount =
-    input.kind === "payment" || input.kind === "refund" || input.kind === "discount"
+    input.kind === "payment" || input.kind === "discount"
       ? -Math.abs(input.amount)
       : Math.abs(input.amount);
 
@@ -328,30 +350,6 @@ export async function insertFolioLine(
   return { line: mapFolioLineRow(data as Record<string, unknown>), error: null };
 }
 
-export async function postRoomChargeOnCheckIn(
-  supabase: SupabaseClient,
-  params: {
-    tenantId: string;
-    reservationId: string;
-    totalRoomCharges: number;
-    nights: number;
-    postedBy: string;
-    currencyCode?: string;
-  },
-) {
-  return insertFolioLine(supabase, {
-    tenantId: params.tenantId,
-    reservationId: params.reservationId,
-    kind: "charge",
-    amount: params.totalRoomCharges,
-    method: "system",
-    description: `Room charges (${params.nights} night${params.nights === 1 ? "" : "s"})`,
-    department: "rooms",
-    postedBy: params.postedBy,
-    currencyCode: params.currencyCode ?? "NGN",
-  });
-}
-
 /** Posts room + Nigeria-modelled tax / levy folio lines at walk-in check-in. */
 export async function postWalkInFolioBundle(
   supabase: SupabaseClient,
@@ -361,13 +359,15 @@ export async function postWalkInFolioBundle(
     nights: number;
     postedBy: string;
     currencyCode: string;
-    pricing: WalkInRoomPricingResult;
+    pricing: Pick<WalkInRoomPricingResult, "taxes" | "roomSubtotalAfterDiscount" | "roomDiscountAmount">;
     discountPercent: number;
     discountScope: string;
   },
 ) {
   const { nights, pricing, discountPercent, discountScope } = params;
   const { taxes, roomSubtotalAfterDiscount, roomDiscountAmount } = pricing;
+  // `part` says what each line is, so bills can show room and taxes apart without reading wording.
+  const stay = { stayCharge: true, nights };
 
   const scopeLabel = discountScope.replace(/_/g, " ");
   const roomDescription =
@@ -382,6 +382,7 @@ export async function postWalkInFolioBundle(
     amount: roomSubtotalAfterDiscount,
     method: "system",
     description: roomDescription,
+    metadata: { ...stay, part: "room", discountPercent, discountScope, discountAmount: roomDiscountAmount },
     department: "rooms",
     postedBy: params.postedBy,
     currencyCode: params.currencyCode,
@@ -395,6 +396,7 @@ export async function postWalkInFolioBundle(
       amount: taxes.serviceChargeAmount,
       method: "system",
       description: `Service charge (${taxes.serviceChargeRatePercent}% of room)`,
+      metadata: { ...stay, part: "service_charge" },
       department: "rooms",
       postedBy: params.postedBy,
       currencyCode: params.currencyCode,
@@ -408,7 +410,8 @@ export async function postWalkInFolioBundle(
       kind: "charge",
       amount: taxes.stateLevyAmount,
       method: "system",
-      description: `State / local levy (${taxes.stateLevyRatePercent}% of room — configure rate in settings)`,
+      description: `State / local levy (${taxes.stateLevyRatePercent}% of room)`,
+      metadata: { ...stay, part: "state_levy" },
       department: "rooms",
       postedBy: params.postedBy,
       currencyCode: params.currencyCode,
@@ -422,7 +425,8 @@ export async function postWalkInFolioBundle(
       kind: "charge",
       amount: taxes.vatAmount,
       method: "system",
-      description: `VAT (${taxes.vatRatePercent}% — Nigeria standard rate on taxable base)`,
+      description: `VAT (${taxes.vatRatePercent}%)`,
+      metadata: { ...stay, part: "vat" },
       department: "rooms",
       postedBy: params.postedBy,
       currencyCode: params.currencyCode,
@@ -437,6 +441,7 @@ export async function postWalkInFolioBundle(
       amount: taxes.stampLevyAmount,
       method: "system",
       description: "Stamp / processing levy",
+      metadata: { ...stay, part: "stamp_levy" },
       department: "rooms",
       postedBy: params.postedBy,
       currencyCode: params.currencyCode,
@@ -444,11 +449,135 @@ export async function postWalkInFolioBundle(
   }
 }
 
+/**
+ * Posts a booked stay's room charge and its taxes when the guest arrives (the Arrivals
+ * check-in). Uses the price and discount saved when the booking was made, and the service
+ * charge, levy and VAT rules the stay was priced with, so it bills the same as a walk-in.
+ */
+export async function postBookedStayCharges(
+  supabase: SupabaseClient,
+  params: {
+    tenantId: string;
+    reservationId: string;
+    reservation: Pick<ExtraNightReservation, "pricing_snapshot" | "tax_exempt" | "vat_applicable"> & {
+      nights: number;
+      total_room_charges: number | string | null;
+    };
+    pricing: HotelPricingSetup;
+    postedBy: string;
+  },
+) {
+  const { reservation, pricing } = params;
+  const snap = (reservation.pricing_snapshot ?? {}) as {
+    discountPercent?: number;
+    discountScope?: string;
+    roomDiscountAmount?: number;
+  };
+  const roomSubtotalAfterDiscount = Number(reservation.total_room_charges) || 0;
+  const rules = stayTaxRules(reservation, pricing);
+  const taxes = computeNigeriaHospitalityTaxes({
+    roomTaxableBase: roomSubtotalAfterDiscount,
+    serviceChargeRatePercent: rules.serviceChargeRatePercent,
+    stateLevyRatePercent: rules.stateLevyRatePercent,
+    exemptions: rules.exemptions,
+  });
+  return postWalkInFolioBundle(supabase, {
+    tenantId: params.tenantId,
+    reservationId: params.reservationId,
+    nights: Math.max(1, reservation.nights),
+    postedBy: params.postedBy,
+    currencyCode: pricing.currency,
+    pricing: { taxes, roomSubtotalAfterDiscount, roomDiscountAmount: Number(snap.roomDiscountAmount) || 0 },
+    discountPercent: Number(snap.discountPercent) || 0,
+    discountScope: snap.discountScope ?? "none",
+  });
+}
+
 /** Calendar nights from check-in date through checkout date (minimum 1). */
 export function computeStayedNights(checkedInAt: string, checkoutAt: Date): number {
   const from = checkedInAt.slice(0, 10);
   const to = checkoutAt.toISOString().slice(0, 10);
   return calendarNightsBetween(from, to);
+}
+
+const STAY_TAX_WORDING: [string, RegExp][] = [
+  ["service_charge", /^Service charge/i],
+  ["state_levy", /^State \/ local levy/i],
+  ["vat", /^VAT/i],
+  ["stamp_levy", /^Stamp/i],
+];
+
+// "Room charges (2 nights)", "Room (3 nights) — after 10% discount", and the seed data's "Room charges — 2 nights".
+const LEGACY_ROOM_STAY = /^Room( charges)?\s*(\(|—|-)\s*\d+ nights?/i;
+
+/**
+ * A line posted at check-in for the booked stay (the room or a tax on it), as opposed to a charge
+ * added to the rooms department later, such as a late check-out fee. Newer lines say so in their
+ * metadata; older ones are read from their wording.
+ */
+export function isBookedStayLine(l: Pick<FolioLineRow, "kind" | "department" | "method" | "metadata" | "reference" | "description">) {
+  if (l.kind !== "charge" || l.department !== "rooms" || l.method !== "system" || isExtraNightLine(l)) return false;
+  if (l.metadata?.stayCharge === true) return true;
+  const d = l.description ?? "";
+  return LEGACY_ROOM_STAY.test(d) || STAY_TAX_WORDING.some(([, re]) => re.test(d));
+}
+
+/** What a room-stay line is: "room", or the tax it is. Older lines are read from their wording. */
+export function stayLinePart(line: Pick<FolioLineRow, "metadata" | "reference" | "description">): string {
+  if (typeof line.metadata?.part === "string") return line.metadata.part;
+  const ref = line.reference ?? "";
+  if (ref.startsWith("extra_night:") || ref.startsWith("discount:")) return ref.slice(ref.lastIndexOf(":") + 1);
+  return STAY_TAX_WORDING.find(([, re]) => re.test(line.description ?? ""))?.[0] ?? "room";
+}
+
+/**
+ * The credit for unused booked nights if the guest left at `checkoutAt`, without posting it.
+ * Only counts system-posted room-stay charges (room + bundled taxes at check-in), never extra
+ * nights. `alreadyCredited` is true once the credit is on the folio.
+ */
+export function computeEarlyCheckoutCredit(
+  lines: FolioLineRow[],
+  params: { bookedNights: number; checkedInAt: string; checkoutAt: Date },
+) {
+  const bookedNights = Math.max(1, params.bookedNights);
+  const actualNights = computeStayedNights(params.checkedInAt, params.checkoutAt);
+  const unusedNights = Math.max(0, bookedNights - actualNights);
+  const active = lines.filter((l) => !l.voided_at);
+  const alreadyCredited = active.some((l) => l.reference === EARLY_CHECKOUT_ADJUSTMENT_REF);
+
+  // The booked stay as charged, less any room discounts (and the taxes they took off), so a
+  // discount isn't given twice: once on every night, then again on the nights credited back.
+  const stayCharges = active.filter(
+    (l) =>
+      isBookedStayLine(l) ||
+      // Not a whole-bill discount's VAT and levy lines: that discount is a set amount off the bill.
+      (l.department === "rooms" && l.kind === "discount" && (l.reference ?? "").startsWith("discount:") && l.metadata?.target !== "bill"),
+  );
+  let creditAmount = 0;
+  // The credit split by what it comes off (room, service charge, levy, VAT), so the tax on the
+  // bill stays right. Rounding is settled on the room part.
+  const parts: { part: string; amount: number }[] = [];
+  if (unusedNights > 0 && !alreadyCredited && stayCharges.length > 0) {
+    const currentStayTotal = stayCharges.reduce((s, l) => s + l.amount, 0);
+    const targetTotal = Math.round(currentStayTotal * (actualNights / bookedNights) * 100) / 100;
+    creditAmount = Math.round((currentStayTotal - targetTotal) * 100) / 100;
+    if (creditAmount < 0.01) creditAmount = 0;
+    if (creditAmount > 0) {
+      const byPart = new Map<string, number>();
+      for (const l of stayCharges) byPart.set(stayLinePart(l), (byPart.get(stayLinePart(l)) ?? 0) + l.amount);
+      let allotted = 0;
+      for (const [part, total] of byPart) {
+        if (part === "room") continue;
+        const amount = Math.round(total * (unusedNights / bookedNights) * 100) / 100;
+        if (amount > 0) {
+          parts.push({ part, amount });
+          allotted += amount;
+        }
+      }
+      parts.unshift({ part: "room", amount: Math.round((creditAmount - allotted) * 100) / 100 });
+    }
+  }
+  return { bookedNights, actualNights, unusedNights, creditAmount, alreadyCredited, parts };
 }
 
 /**
@@ -467,54 +596,43 @@ export async function adjustFolioForEarlyCheckout(
     currencyCode?: string;
   },
 ): Promise<{ adjusted: boolean; unusedNights: number; creditAmount: number; actualNights: number }> {
-  const bookedNights = Math.max(1, params.bookedNights);
-  const actualNights = computeStayedNights(params.checkedInAt, params.checkoutAt);
-  const unusedNights = bookedNights - actualNights;
-
-  if (unusedNights <= 0) {
-    return { adjusted: false, unusedNights: 0, creditAmount: 0, actualNights };
-  }
-
   const lines = await fetchFolioLines(supabase, params.tenantId, params.reservationId);
-  const active = lines.filter((l) => !l.voided_at);
+  const { bookedNights, actualNights, unusedNights, creditAmount, parts } = computeEarlyCheckoutCredit(lines, params);
 
-  if (active.some((l) => l.reference === EARLY_CHECKOUT_ADJUSTMENT_REF)) {
+  if (creditAmount <= 0) {
     return { adjusted: false, unusedNights, creditAmount: 0, actualNights };
   }
 
-  const stayCharges = active.filter(
-    (l) => l.kind === "charge" && l.method === "system" && l.department === "rooms",
-  );
-  if (stayCharges.length === 0) {
-    return { adjusted: false, unusedNights, creditAmount: 0, actualNights };
-  }
-
-  const currentStayTotal = stayCharges.reduce((s, l) => s + l.amount, 0);
-  const ratio = actualNights / bookedNights;
-  const targetTotal = Math.round(currentStayTotal * ratio * 100) / 100;
-  const creditAmount = Math.round((currentStayTotal - targetTotal) * 100) / 100;
-
-  if (creditAmount < 0.01) {
-    return { adjusted: false, unusedNights, creditAmount: 0, actualNights };
-  }
-
-  const { error } = await insertFolioLine(supabase, {
-    tenantId: params.tenantId,
-    reservationId: params.reservationId,
-    kind: "discount",
-    amount: creditAmount,
-    method: "system",
-    description: `Early checkout — ${unusedNights} unused night${unusedNights === 1 ? "" : "s"} credited`,
-    department: "rooms",
-    postedBy: params.postedBy,
-    reference: EARLY_CHECKOUT_ADJUSTMENT_REF,
-    currencyCode: params.currencyCode ?? "NGN",
-    metadata: {
-      bookedNights,
-      actualNights,
-      unusedNights,
-    },
-  });
+  const nightsText = `${unusedNights} unused night${unusedNights === 1 ? "" : "s"}`;
+  const PART_WORDING: Record<string, string> = {
+    service_charge: `Service charge on the ${nightsText} credited`,
+    state_levy: `State / local levy on the ${nightsText} credited`,
+    vat: `VAT on the ${nightsText} credited`,
+    stamp_levy: `Stamp levy on the ${nightsText} credited`,
+  };
+  const now = Date.now();
+  // One insert, so the credit is posted whole or not at all.
+  const { error } = await supabase
+    .schema("hotel")
+    .from("folio_transactions")
+    .insert(
+      parts.map((p, i) => ({
+        created_at: new Date(now + i).toISOString(),
+        tenant_id: params.tenantId,
+        reservation_id: params.reservationId,
+        kind: "discount",
+        amount: -Math.abs(p.amount),
+        method: "system",
+        status: "posted",
+        description: p.part === "room" ? `Early check-out: ${nightsText} credited` : (PART_WORDING[p.part] ?? `${p.part} credited`),
+        department: "rooms",
+        posted_by: params.postedBy,
+        reference: EARLY_CHECKOUT_ADJUSTMENT_REF,
+        split_leg: "guest",
+        currency_code: params.currencyCode ?? "NGN",
+        metadata: { part: p.part, bookedNights, actualNights, unusedNights },
+      })),
+    );
 
   if (error) {
     return { adjusted: false, unusedNights, creditAmount: 0, actualNights };

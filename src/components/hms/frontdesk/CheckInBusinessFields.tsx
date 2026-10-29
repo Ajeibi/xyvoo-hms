@@ -2,6 +2,7 @@
 
 import { CheckInFieldInfo, CheckInFieldLabelRow } from "@/components/hms/frontdesk/CheckInFieldInfo";
 import { FrontDeskPopoverSelect } from "@/components/hms/frontdesk/FrontDeskPopoverSelect";
+import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 
 type RateType = "rack" | "corporate" | "walk_in_bar" | "promotional";
@@ -75,21 +76,17 @@ export function BusinessSourceFieldset({
   setMarketSegment,
   source,
   setSource,
-  currency,
   bookingChannel,
-  travelAgentName,
-  commissionPlan,
-  commissionValue,
+  slug,
+  travelAgentId,
 }: {
   marketSegment: MarketSegment;
   setMarketSegment: (v: MarketSegment) => void;
   source: BookingSource;
   setSource: (v: BookingSource) => void;
-  currency: string;
   bookingChannel?: string | null;
-  travelAgentName?: string | null;
-  commissionPlan?: string | null;
-  commissionValue?: number | null;
+  slug: string;
+  travelAgentId?: string | null;
 }) {
   return (
     <fieldset className="space-y-4">
@@ -97,7 +94,7 @@ export function BusinessSourceFieldset({
         <span>Business source</span>
         <CheckInFieldInfo
           label="Business source"
-          text="Marketing and channel fields: who the guest is (segment), how they found you (source), OTA name, agent, and commission for back-office reconciliation."
+          text="Who the guest is (segment), how they found you (source), the booking site, and the travel agent who earns commission on the stay."
         />
       </legend>
       <div className="grid gap-4 sm:grid-cols-2">
@@ -162,45 +159,56 @@ export function BusinessSourceFieldset({
             className="h-10 rounded-xl"
           />
         </div>
-        <div className="space-y-2">
-          <CheckInFieldLabelRow
-            htmlFor="travelAgentName"
-            helpTitle="Travel agent name"
-            helpText="Agency or consultant credited with the booking when source is travel agent; supports commission tracking."
-          >
-            Travel agent name
-          </CheckInFieldLabelRow>
-          <Input id="travelAgentName" name="travelAgentName" defaultValue={travelAgentName ?? undefined} className="h-10 rounded-xl" />
-        </div>
-        <div className="space-y-2">
-          <CheckInFieldLabelRow
-            htmlFor="commissionPlan"
-            helpTitle="Commission plan"
-            helpText="Internal name of the commission arrangement (e.g. net 15%, flat fee). Links to finance for OTA or agent payouts."
-          >
-            Commission plan
-          </CheckInFieldLabelRow>
-          <Input id="commissionPlan" name="commissionPlan" defaultValue={commissionPlan ?? undefined} className="h-10 rounded-xl" />
-        </div>
-        <div className="space-y-2">
-          <CheckInFieldLabelRow
-            htmlFor="commissionValue"
-            helpTitle="Commission value"
-            helpText="Monetary commission for this stay in your property currency (amount or calculated payout reference per your policy)."
-          >
-            Commission value ({currency})
-          </CheckInFieldLabelRow>
-          <Input
-            id="commissionValue"
-            name="commissionValue"
-            type="number"
-            min={0}
-            step="0.01"
-            defaultValue={commissionValue ?? undefined}
-            className="h-10 rounded-xl"
-          />
-        </div>
+        <TravelAgentSelect slug={slug} initialId={travelAgentId ?? null} />
       </div>
     </fieldset>
+  );
+}
+
+/**
+ * The travel agent who earns commission on this stay, from the hotel's list (Reservations,
+ * Settings). Their rate is kept on the stay, and the commission is billed at check-out.
+ */
+function TravelAgentSelect({ slug, initialId }: { slug: string; initialId: string | null }) {
+  const [agents, setAgents] = useState<{ id: string; name: string; commissionPercent: number }[]>([]);
+  const [value, setValue] = useState(initialId ?? "");
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/hotel/travel-agents?slug=${encodeURIComponent(slug)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!cancelled && data) setAgents(data.agents ?? []);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
+
+  return (
+    <div className="space-y-2 sm:col-span-2">
+      <CheckInFieldLabelRow
+        htmlFor="travelAgentId"
+        helpTitle="Travel agent"
+        helpText="The agent or booking site that earns commission on this stay. Their commission is worked out on the room at check-out and sent to Accounts as a bill to pay. Add agents under Reservations, Settings."
+      >
+        Travel agent (earns commission)
+      </CheckInFieldLabelRow>
+      <select
+        id="travelAgentId"
+        name="travelAgentId"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        className="h-10 w-full cursor-pointer rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+      >
+        <option value="">None</option>
+        {agents.map((a) => (
+          <option key={a.id} value={a.id}>
+            {a.name} ({a.commissionPercent}% of the room)
+          </option>
+        ))}
+      </select>
+    </div>
   );
 }

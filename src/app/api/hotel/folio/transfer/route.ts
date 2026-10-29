@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
+import type { FolioSplitLeg } from "@/lib/hms/folio";
 import { z } from "zod";
-import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
+import { requireHotelApiSection } from "@/lib/hms/hotel-api-auth";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { insertFolioLine } from "@/lib/hms/folio";
 import { loadFolioPayload, loadReservation } from "../_lib";
@@ -14,7 +15,7 @@ const BodySchema = z.object({
 export async function POST(req: Request) {
   try {
     const body = BodySchema.parse(await req.json());
-    const auth = await requireHotelApiMember(body.slug);
+    const auth = await requireHotelApiSection(body.slug);
     if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
     const { data: line } = await auth.service
@@ -54,7 +55,7 @@ export async function POST(req: Request) {
       method: line.method as string,
       description: (line.description as string) ?? "Transferred charge",
       postedBy: auth.user.id,
-      splitLeg: (line.split_leg as "guest" | "company") ?? "guest",
+      splitLeg: (line.split_leg as FolioSplitLeg) ?? "guest",
       relatedReservationId: line.reservation_id as string,
     });
     if (error || !newLine) {

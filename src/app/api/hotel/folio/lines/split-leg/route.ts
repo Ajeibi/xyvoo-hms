@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
+import { FOLIO_WINDOWS } from "@/lib/hms/folio";
 import { z } from "zod";
-import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
+import { requireHotelApiSection } from "@/lib/hms/hotel-api-auth";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { reassignFolioLinesSplitLeg } from "@/lib/hms/folio";
 import { loadFolioPayload } from "../../_lib";
@@ -9,13 +10,13 @@ const BodySchema = z.object({
   slug: z.string().min(1),
   reservationId: z.string().uuid(),
   lineIds: z.array(z.string().uuid()).min(1),
-  splitLeg: z.enum(["guest", "company"]),
+  splitLeg: z.enum(FOLIO_WINDOWS),
 });
 
 export async function PATCH(req: Request) {
   try {
     const body = BodySchema.parse(await req.json());
-    const auth = await requireHotelApiMember(body.slug);
+    const auth = await requireHotelApiSection(body.slug);
     if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
     const result = await reassignFolioLinesSplitLeg(auth.service, {

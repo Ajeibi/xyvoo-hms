@@ -15,11 +15,7 @@ export default async function MaintenancePage({
         meaning="care"
         subtitle="Coordinate work orders, planned servicing, and room recovery from one maintenance dashboard."
         settingsHref={`/hms/${slug}/maintenance/settings`}
-        highlights={[
-          { label: "Open work orders", value: "6", detail: "Active issues waiting on technician action or parts." },
-          { label: "Rooms blocked", value: "2", detail: "Rooms currently unavailable because of maintenance tasks." },
-          { label: "Preventive tasks", value: "4", detail: "Scheduled maintenance jobs due in the current cycle." },
-        ]}
+        comingSoon="Maintenance isn't ready yet. Work orders and planned servicing are on the way. For now, block a room for repairs from Rooms on the front desk."
       />
     </HMSLayout>
   );

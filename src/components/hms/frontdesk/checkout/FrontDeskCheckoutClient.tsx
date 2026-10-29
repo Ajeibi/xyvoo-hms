@@ -166,6 +166,11 @@ export function FrontDeskCheckoutClient({
                       ) : (
                         <HmsPill tone="blue">Due today</HmsPill>
                       )}
+                      {row.extraNightsWaiting > 0 ? (
+                        <span className="mt-1 block text-xs font-medium text-amber-800">
+                          Still here? {row.extraNightsWaiting} night{row.extraNightsWaiting === 1 ? "" : "s"} not charged
+                        </span>
+                      ) : null}
                     </td>
                     <td className="py-3 pr-6 text-right" onClick={(e) => e.stopPropagation()}>
                       <button type="button" className={hmsButton.secondary} onClick={() => open(row)}>

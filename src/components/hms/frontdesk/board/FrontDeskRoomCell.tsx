@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { RoomOpsAction } from "../rooms/ops/types";
 
+const CREDIT_LABEL = { near: "Close to credit limit", over: "Over credit limit" } as const;
+
 function RoomTooltipContent({ room }: { room: FrontDeskRoomBoardItem }) {
   const stay = room.stay ?? room.reservedStay;
 
@@ -68,6 +70,11 @@ function RoomTooltipContent({ room }: { room: FrontDeskRoomBoardItem }) {
           <p className="border-t border-slate-600/40 pt-2 text-xs text-slate-200">
             <span className="font-semibold text-white">Payment: </span>
             {PAYMENT_STATUS_LABEL[room.paymentStatus]}
+          </p>
+        ) : null}
+        {room.creditAlert ? (
+          <p className={cn("text-xs font-semibold", room.creditAlert === "over" ? "text-red-300" : "text-amber-200")}>
+            {CREDIT_LABEL[room.creditAlert]}
           </p>
         ) : null}
         {room.housekeeping || room.unitStatus === "dirty" || room.unitStatus === "cleaning_in_progress" ? (
@@ -147,11 +154,14 @@ export function FrontDeskRoomCell({
             )}
             aria-pressed={selected}
             aria-label={
-              selected
-                ? `Selected — Room ${room.roomCode}, ${room.statusLabel}`
-                : room.paymentStatus
-                  ? `Room ${room.roomCode}, ${room.statusLabel}, ${PAYMENT_STATUS_LABEL[room.paymentStatus]}`
-                  : `Room ${room.roomCode}, ${room.statusLabel}`
+              [
+                selected ? `Selected — Room ${room.roomCode}` : `Room ${room.roomCode}`,
+                room.statusLabel,
+                !selected && room.paymentStatus ? PAYMENT_STATUS_LABEL[room.paymentStatus] : null,
+                room.creditAlert ? CREDIT_LABEL[room.creditAlert] : null,
+              ]
+                .filter(Boolean)
+                .join(", ")
             }
           >
             {selected ? (
@@ -190,6 +200,16 @@ export function FrontDeskRoomCell({
             <span className="line-clamp-2 text-[11px] leading-snug font-medium whitespace-normal opacity-95">
               {room.statusShortLabel}
             </span>
+            {room.creditAlert ? (
+              <span
+                className={cn(
+                  "rounded-full px-1.5 py-px text-[9px] font-black uppercase tracking-wide shadow-sm ring-1 ring-white/80",
+                  room.creditAlert === "over" ? "bg-red-600 text-white" : "bg-amber-300 text-amber-950",
+                )}
+              >
+                {room.creditAlert === "over" ? "Over limit" : "Near limit"}
+              </span>
+            ) : null}
           </Button>
         </TooltipTrigger>
         <TooltipContent side="top" className="max-w-[280px] px-3 py-2.5">

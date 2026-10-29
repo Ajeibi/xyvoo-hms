@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
+import { requireHotelApiSection } from "@/lib/hms/hotel-api-auth";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { getActiveCashFloatSession, openCashFloatSession } from "@/lib/hms/folio";
 import { notifyCashFloatVariance } from "@/lib/hms/notification-rules";
+import { expectedCardInFloat, expectedCashInFloat } from "@/lib/hms/folio-refunds";
 
 const OpenSchema = z.object({
   slug: z.string().min(1),
@@ -15,22 +16,30 @@ const CloseSchema = z.object({
   slug: z.string().min(1),
   action: z.literal("close"),
   closingBalance: z.coerce.number().min(0),
+  /** The total on the card machine's end-of-day report; left out when staff skip the check. */
+  cardReported: z.coerce.number().min(0).optional(),
   notes: z.string().max(500).optional(),
 });
 
 export async function GET(req: Request) {
   const slug = new URL(req.url).searchParams.get("slug");
   if (!slug) return NextResponse.json({ error: "slug required" }, { status: 400 });
-  const auth = await requireHotelApiMember(slug);
+  const auth = await requireHotelApiSection(slug);
   if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const session = await getActiveCashFloatSession(auth.service, auth.tenant.id);
-  return NextResponse.json({ session });
+  const [expected, card] = session
+    ? await Promise.all([
+        expectedCashInFloat(auth.service, session as { id: string; opening_balance: number }),
+        expectedCardInFloat(auth.service, session as { tenant_id: string; opened_at: string }),
+      ])
+    : [null, null];
+  return NextResponse.json({ session, expected, card });
 }
 
 export async function POST(req: Request) {
   try {
     const raw = await req.json();
-    const auth = await requireHotelApiMember(raw.slug);
+    const auth = await requireHotelApiSection(raw.slug);
     if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
     if (raw.action === "open") {
@@ -59,17 +68,11 @@ export async function POST(req: Request) {
     const session = await getActiveCashFloatSession(auth.service, auth.tenant.id);
     if (!session) return NextResponse.json({ error: "No open cash float session." }, { status: 404 });
 
-    const { data: cashLines } = await auth.service
-      .schema("hotel")
-      .from("folio_transactions")
-      .select("amount")
-      .eq("cash_float_session_id", session.id)
-      .eq("kind", "payment")
-      .is("voided_at", null);
-
-    const cashIn = (cashLines ?? []).reduce((s, r) => s + Math.abs(Number(r.amount)), 0);
-    const expected = Number(session.opening_balance) + cashIn;
+    // Opening amount, plus cash taken (bills and deposits), less cash given back (refunds).
+    const expected = await expectedCashInFloat(auth.service, session as { id: string; opening_balance: number });
     const variance = body.closingBalance - expected;
+    const card = await expectedCardInFloat(auth.service, session as { tenant_id: string; opened_at: string });
+    const cardVariance = body.cardReported != null ? Math.round((body.cardReported - card.total) * 100) / 100 : null;
 
     const { error } = await auth.service
       .schema("hotel")
@@ -80,6 +83,9 @@ export async function POST(req: Request) {
         closing_balance: body.closingBalance,
         expected_balance: expected,
         variance,
+        card_reported: body.cardReported ?? null,
+        card_expected: card.total,
+        card_variance: cardVariance,
         notes: body.notes ?? null,
       })
       .eq("id", session.id);
@@ -92,7 +98,7 @@ export async function POST(req: Request) {
       action: "cash_float_closed",
       entityType: "cash_float_session",
       entityId: session.id as string,
-      after: { variance, expected, closing: body.closingBalance },
+      after: { variance, expected, closing: body.closingBalance, cardExpected: card.total, cardReported: body.cardReported ?? null, cardVariance },
     });
 
     if (Math.abs(variance) > 0.01) {
@@ -103,7 +109,7 @@ export async function POST(req: Request) {
       });
     }
 
-    return NextResponse.json({ ok: true, expected, variance });
+    return NextResponse.json({ ok: true, expected, variance, cardExpected: card.total, cardVariance });
   } catch (e) {
     if (e instanceof z.ZodError) {
       return NextResponse.json({ error: e.issues[0]?.message }, { status: 400 });

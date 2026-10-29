@@ -12,7 +12,7 @@ export default async function FrontDeskCheckoutPage({
   const { slug } = await params;
   const tenant = await getHotelTenantBySlug(slug);
   const currency = normalizePricingSetup(tenant?.pricing_setup).currency;
-  const rows = tenant ? await getCheckoutDueList(tenant.id) : [];
+  const rows = tenant ? await getCheckoutDueList(tenant.id, tenant.pricing_setup) : [];
 
   return (
     <HMSLayout slug={slug} requiredSection="frontdesk">

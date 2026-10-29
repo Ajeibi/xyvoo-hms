@@ -1,16 +1,22 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
+import { requireHotelApiSection } from "@/lib/hms/hotel-api-auth";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { isAdminLikeRole } from "@/lib/hms/department-access";
 import { getFolioForReservation, getTenantFolioSettings, adjustFolioForEarlyCheckout } from "@/lib/hms/folio";
 import { normalizePricingSetup } from "@/lib/hms/room-pricing";
+import {
+  postExtraNightCharges,
+  summariseExtraNights,
+  type ExtraNightReservation,
+} from "@/lib/hms/folio-extra-nights";
 import { notifyCheckoutCompleted, notifyCommissionDue, notifyOverdueCheckout } from "@/lib/hms/notification-rules";
 import { openOrEscalateHousekeepingTask } from "@/lib/hms/housekeeping-tasks";
 import { setRoomStatus } from "@/lib/hms/room-status";
 import { executeKeyRevoke } from "@/lib/hms/integrations/smart-lock";
-import { buildCheckoutReceiptEmail } from "@/lib/hms/receipts";
-import { sendCheckoutReceiptEmail } from "@/lib/mail/mailtrap";
+import { assignInvoiceNumber, sendInvoiceEmail } from "@/lib/hms/folio-invoice";
+import { billWindowsToAccounts, loadWindows, planWindowBilling, summariseWindows } from "@/lib/hms/folio-windows";
+import { postCommissionBill } from "@/lib/hms/folio-commission";
 
 const CheckoutSchema = z
   .object({
@@ -27,14 +33,14 @@ const CheckoutSchema = z
 export async function POST(req: Request) {
   try {
     const body = CheckoutSchema.parse(await req.json());
-    const auth = await requireHotelApiMember(body.slug);
+    const auth = await requireHotelApiSection(body.slug);
     if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
     let query = auth.service
       .schema("hotel")
       .from("reservations")
       .select(
-        "id,confirmation_code,arrival_at,departure_at,nights,checked_in_at,rate_per_night,total_room_charges,room_unit_id,status,tenant_id,commission_plan,commission_value,folio_number",
+        "id,confirmation_code,arrival_at,departure_at,nights,checked_in_at,rate_per_night,total_room_charges,room_unit_id,status,tenant_id,commission_plan,commission_value,folio_number,vat_applicable,tax_exempt,pricing_snapshot,extra_nights_confirmed_on",
       )
       .eq("tenant_id", auth.tenant.id)
       .eq("status", "checked_in");
@@ -60,7 +66,26 @@ export async function POST(req: Request) {
 
     const nowIso = new Date().toISOString();
     const checkoutAt = new Date(nowIso);
-    const currency = normalizePricingSetup(auth.tenant.pricing_setup).currency;
+    const pricing = normalizePricingSetup(auth.tenant.pricing_setup);
+    const currency = pricing.currency;
+
+    const extraNights = await postExtraNightCharges(auth.service, {
+      tenantId: auth.tenant.id,
+      reservation: reservation as ExtraNightReservation,
+      pricing,
+      postedBy: auth.user.id,
+      now: checkoutAt,
+    });
+    if (extraNights.postedNights.length > 0) {
+      await writeAuditLog({
+        tenantId: auth.tenant.id,
+        actorUserId: auth.user.id,
+        action: "folio_extra_nights_charged",
+        entityType: "reservation",
+        entityId: reservation.id,
+        after: { nights: extraNights.postedNights, amount: extraNights.postedAmount },
+      });
+    }
 
     let earlyCheckoutCredit = 0;
     let actualStayNights: number | null = null;
@@ -95,16 +120,48 @@ export async function POST(req: Request) {
 
     const folio = await getFolioForReservation(auth.service, auth.tenant.id, reservation.id);
     const settings = await getTenantFolioSettings(auth.service, auth.tenant.id);
+
+    // Windows linked to a company account are billed to it; the guest settles the rest.
+    const { payers } = await loadWindows(auth.service, auth.tenant.id, reservation.id);
+    const windows = summariseWindows(folio.lines, payers, "Guest");
+    const { dueNow } = planWindowBilling(windows);
     if (
-      folio.balance > 0.01 &&
+      dueNow > 0.01 &&
       !settings.allowCheckoutWithBalance &&
       !body.overrideBalance &&
       !isAdminLikeRole(auth.role)
     ) {
       return NextResponse.json(
-        { error: "Outstanding folio balance must be settled before checkout.", balance: folio.balance },
+        { error: "Outstanding folio balance must be settled before checkout.", balance: dueNow },
         { status: 409 },
       );
+    }
+
+    let unitCode: string | null = null;
+    if (reservation.room_unit_id) {
+      const { data: unit } = await auth.service.schema("hotel").from("room_units").select("room_code").eq("id", reservation.room_unit_id).maybeSingle();
+      unitCode = (unit?.room_code as string | undefined) ?? null;
+    }
+    const billing = await billWindowsToAccounts(auth.service, {
+      tenantId: auth.tenant.id,
+      reservationId: reservation.id,
+      confirmationCode: reservation.confirmation_code,
+      folioNumber: reservation.folio_number,
+      roomCode: unitCode,
+      windows,
+      currency,
+      userId: auth.user.id,
+    });
+    if (!billing.ok) return NextResponse.json({ error: billing.error }, { status: 409 });
+    for (const b of billing.billed) {
+      await writeAuditLog({
+        tenantId: auth.tenant.id,
+        actorUserId: auth.user.id,
+        action: "folio_window_billed_to_account",
+        entityType: "reservation",
+        entityId: reservation.id,
+        after: b,
+      });
     }
 
     const wasOverdue = new Date(reservation.departure_at).getTime() < Date.now();
@@ -115,6 +172,7 @@ export async function POST(req: Request) {
       earlyCheckoutCredit > 0 && actualStayNights != null
         ? Math.round(bookedTotal * (actualStayNights / bookedNights) * 100) / 100
         : bookedTotal;
+    const extra = summariseExtraNights(folio.lines);
 
     const { error: resError } = await auth.service
       .schema("hotel")
@@ -128,7 +186,12 @@ export async function POST(req: Request) {
               nights: actualStayNights,
               total_room_charges: adjustedRoomTotal,
             }
-          : {}),
+          : extra.nights > 0
+            ? {
+                nights: bookedNights + extra.nights,
+                total_room_charges: Math.round((bookedTotal + extra.roomTotal) * 100) / 100,
+              }
+            : {}),
       })
       .eq("id", reservation.id);
 
@@ -192,24 +255,17 @@ export async function POST(req: Request) {
     const guest = Array.isArray(raw) ? raw[0] : raw;
     const guestName = guest ? `${guest.first_name} ${guest.last_name}`.trim() : "Guest";
 
+    // Anything the guest overpaid (say, after the early check-out credit) is shown so it can be refunded.
+    const finalLines = await getFolioForReservation(auth.service, auth.tenant.id, reservation.id);
+    const owedBack = Math.round(Math.max(0, -finalLines.windowBalances.guest) * 100) / 100;
+
+    // The final invoice: numbered now, and emailed to the guest as a PDF (it is also the receipt).
+    const invoiceNumber = await assignInvoiceNumber(auth.service, auth.tenant.id, reservation.id);
     let receiptSent = false;
     if (guest?.email) {
-      try {
-        const { subject, text, html } = buildCheckoutReceiptEmail({
-          hotelName: auth.tenant.display_name || auth.tenant.name || "Your hotel",
-          guestName,
-          confirmationCode: reservation.confirmation_code,
-          roomCode: roomCode === "—" ? null : roomCode,
-          folioNumber: reservation.folio_number,
-          currency,
-          lines: folio.lines,
-          checkedOutAt: nowIso,
-        });
-        await sendCheckoutReceiptEmail({ to: guest.email, subject, text, html });
-        receiptSent = true;
-      } catch (e) {
-        console.warn("[checkout] receipt email failed", e);
-      }
+      const sent = await sendInvoiceEmail(auth.service, { tenantId: auth.tenant.id, reservationId: reservation.id });
+      receiptSent = sent.ok;
+      if (!sent.ok) console.warn("[checkout] invoice email failed", sent.error);
     }
 
     await writeAuditLog({
@@ -238,14 +294,31 @@ export async function POST(req: Request) {
       });
     }
 
-    const commission = Number(reservation.commission_value);
-    if (reservation.commission_plan && commission > 0) {
+    // The travel agent's commission on the room, posted as a supplier bill the hotel owes them.
+    const commissionResult = await postCommissionBill(auth.service, {
+      tenantId: auth.tenant.id,
+      reservationId: reservation.id,
+      lines: finalLines.lines,
+      currency,
+      userId: auth.user.id,
+    });
+    if (commissionResult.posted) {
+      await writeAuditLog({
+        tenantId: auth.tenant.id,
+        actorUserId: auth.user.id,
+        action: "agent_commission_billed",
+        entityType: "reservation",
+        entityId: reservation.id,
+        after: { billId: commissionResult.billId, amount: commissionResult.amount, agent: commissionResult.agentName, status: commissionResult.status },
+      });
       await notifyCommissionDue({
         tenantId: auth.tenant.id,
         guestName,
-        amount: commission,
+        amount: commissionResult.amount,
         entityId: reservation.id,
       });
+    } else if (commissionResult.reason) {
+      console.warn("[checkout] commission not billed", commissionResult.reason);
     }
 
     return NextResponse.json({
@@ -254,7 +327,15 @@ export async function POST(req: Request) {
       roomCode,
       earlyCheckoutCredit: earlyCheckoutCredit > 0 ? earlyCheckoutCredit : undefined,
       actualNights: actualStayNights ?? undefined,
+      extraNights: extra.nights > 0 ? extra.nights : undefined,
+      extraNightsTotal: extra.nights > 0 ? extra.total : undefined,
+      // Nights past the automatic limit that staff chose not to confirm, so weren't charged.
+      unchargedNights: extraNights.waitingNights.length > 0 ? extraNights.waitingNights.length : undefined,
       receiptSent,
+      commission: commissionResult.posted ? { agent: commissionResult.agentName, amount: commissionResult.amount, status: commissionResult.status } : undefined,
+      owedBack: owedBack > 0.009 ? owedBack : undefined,
+      billedToAccounts: billing.billed.length ? billing.billed : undefined,
+      invoiceNumber: invoiceNumber ?? undefined,
       receiptEmail: receiptSent ? guest?.email : undefined,
     });
   } catch (e) {

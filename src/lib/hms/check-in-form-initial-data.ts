@@ -52,6 +52,7 @@ export type CheckInFormInitialData = {
   source: "walk_in" | "phone" | "referral" | "ota" | "website" | "travel_agent";
   bookingChannel: string | null;
   travelAgentName: string | null;
+  travelAgentId: string | null;
   commissionPlan: string | null;
   commissionValue: number | null;
   voucherNumber: string | null;
@@ -114,7 +115,7 @@ export async function getCheckInFormInitialData(
       `id,confirmation_code,status,arrival_at,departure_at,adults,purpose_of_visit,room_type_code,room_unit_id,
        rate_type,season_code,rate_overridden,rate_override_reason,show_rate_on_registration_card,
        tax_exemption_reason,tax_exemption_doc_ref,settlement_method,preauth_amount,bill_to_account,po_number,
-       min_payment_per_day,booking_channel,market_segment,source,travel_agent_name,commission_plan,commission_value,
+       min_payment_per_day,booking_channel,market_segment,source,travel_agent_name,travel_agent_vendor_id,commission_plan,commission_value,
        voucher_number,vip_flag,generate_bill,immigration_registration_required,pricing_snapshot,remarks_by_phase,
        guarantee_release_date,reservation_guests(is_primary,relationship,guests(${GUEST_SELECT}))`,
     )
@@ -231,6 +232,7 @@ export async function getCheckInFormInitialData(
     source: reservation.source as CheckInFormInitialData["source"],
     bookingChannel: reservation.booking_channel as string | null,
     travelAgentName: reservation.travel_agent_name as string | null,
+    travelAgentId: (reservation.travel_agent_vendor_id as string | null) ?? null,
     commissionPlan: reservation.commission_plan as string | null,
     commissionValue: reservation.commission_value as number | null,
     voucherNumber: reservation.voucher_number as string | null,

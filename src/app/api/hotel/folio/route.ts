@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
+import { requireHotelApiSection } from "@/lib/hms/hotel-api-auth";
 import { loadFolioPayload } from "./_lib";
 
 const QuerySchema = z.object({
@@ -15,7 +15,7 @@ export async function GET(req: Request) {
       slug: url.searchParams.get("slug"),
       reservationId: url.searchParams.get("reservationId"),
     });
-    const auth = await requireHotelApiMember(query.slug);
+    const auth = await requireHotelApiSection(query.slug);
     if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
     const payload = await loadFolioPayload(auth, query.reservationId);
@@ -36,6 +36,8 @@ export async function GET(req: Request) {
         roomTypeName: payload.roomTypeName,
         nights: payload.reservation.nights,
         guestName: payload.guestName,
+        guestEmail: payload.guestEmail,
+        guestPhone: payload.guestPhone,
       },
       folio: {
         lines: payload.folio.lines,
@@ -47,6 +49,11 @@ export async function GET(req: Request) {
         companyLegBalance: payload.folio.companyLegBalance,
       },
       settings: payload.settings,
+      extraNights: payload.extraNights,
+      stay: payload.stay,
+      billing: payload.billing,
+      agent: payload.agent,
+      credit: payload.credit,
     });
   } catch (e) {
     if (e instanceof z.ZodError) {

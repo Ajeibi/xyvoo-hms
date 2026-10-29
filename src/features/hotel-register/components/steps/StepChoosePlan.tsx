@@ -41,18 +41,23 @@ export default function StepChoosePlan() {
                   onChange={() => setBillingCycle(c.id)}
                   className="mt-1 h-4 w-4 shrink-0 accent-xyvoo-blue-deep"
                 />
-                <span className="flex flex-1 flex-wrap items-start justify-between gap-x-4 gap-y-2">
-                  <span>
-                    <span className="block text-base font-semibold text-slate-900">{c.label}</span>
-                    <span className="mt-0.5 block text-sm text-slate-600">Commitment: {c.commitment}</span>
+                {/* One fixed layout for every cycle, so cards line up whatever the price's length. */}
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-start justify-between gap-3">
+                    <span>
+                      <span className="block text-base font-semibold text-slate-900">{c.label}</span>
+                      <span className="mt-0.5 block text-sm text-slate-600">Commitment: {c.commitment}</span>
+                    </span>
+                    {c.saving ? (
+                      <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">{c.saving}</span>
+                    ) : null}
                   </span>
-                  <span className="sm:text-right">
-                    <span className="block text-2xl font-bold text-slate-900">
+                  <span className="mt-3 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                    <span className="text-2xl font-bold text-slate-900">
                       {c.price}
                       <span className="text-sm font-medium text-slate-600">{c.period}</span>
                     </span>
-                    <span className="block text-sm text-slate-600">{c.effective}</span>
-                    {c.saving ? <span className="block text-sm font-semibold text-emerald-700">{c.saving}</span> : null}
+                    <span className="text-sm text-slate-600">{c.effective}</span>
                   </span>
                 </span>
               </label>

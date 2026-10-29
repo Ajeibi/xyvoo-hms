@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
+import { FOLIO_WINDOWS } from "@/lib/hms/folio";
 import { z } from "zod";
-import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
+import { requireHotelApiSection } from "@/lib/hms/hotel-api-auth";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { getActiveCashFloatSession, insertFolioLine, openCashFloatSession } from "@/lib/hms/folio";
 import { notifyPaymentReceived } from "@/lib/hms/notification-rules";
@@ -10,15 +11,15 @@ const BodySchema = z.object({
   slug: z.string().min(1),
   reservationId: z.string().uuid(),
   amount: z.coerce.number().positive(),
-  method: z.enum(["cash", "card", "pos", "split", "direct_bill"]),
+  method: z.enum(["cash", "pos", "direct_bill"]),
   reference: z.string().max(120).optional(),
-  splitLeg: z.enum(["guest", "company"]).optional(),
+  splitLeg: z.enum(FOLIO_WINDOWS).optional(),
 });
 
 export async function POST(req: Request) {
   try {
     const body = BodySchema.parse(await req.json());
-    const auth = await requireHotelApiMember(body.slug);
+    const auth = await requireHotelApiSection(body.slug);
     if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
     const reservation = await loadReservation(auth, body.reservationId);

@@ -9,10 +9,7 @@ const smtp = nodemailer.createTransport({
   host: mailEnv.host,
   port: mailEnv.port,
   secure: false,
-  auth: {
-    user: mailEnv.user,
-    pass: mailEnv.pass,
-  },
+  auth: mailEnv.user && mailEnv.pass ? { user: mailEnv.user, pass: mailEnv.pass } : undefined,
 });
 
 /** "Slow down" or "try later" from the mail server, or a dropped connection: worth another go. */

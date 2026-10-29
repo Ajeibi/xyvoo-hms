@@ -11,6 +11,7 @@ import {
   CircleHelp,
   CreditCard,
   History,
+  Landmark,
   Moon,
   Shapes,
   UtensilsCrossed,
@@ -155,6 +156,13 @@ export function AccountsNightAuditClient({
                 meaning={breakdown.unclassifiedRevenue !== 0 ? "attention" : "neutral"}
                 status={breakdown.unclassifiedRevenue !== 0 ? "warning" : undefined}
                 statusText="Needs a department"
+              />
+              <HmsStatTile
+                label="VAT and levies"
+                value={fmt(breakdown.taxesCollected)}
+                icon={Landmark}
+                meaning="money"
+                hint="Charged on rooms for the government; goes to Taxes Payable"
               />
               <HmsStatTile label="Cash" value={fmt(breakdown.cashTotal)} icon={Banknote} meaning="money" />
               <HmsStatTile label="Card / POS" value={fmt(breakdown.cardTotal)} icon={CreditCard} meaning="money" />

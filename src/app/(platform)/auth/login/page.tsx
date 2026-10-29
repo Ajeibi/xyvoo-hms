@@ -8,6 +8,9 @@ import { supabaseAuthBrowser } from "@/lib/supabase/auth-browser";
 import { formatSignInError } from "@/lib/auth-errors";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import HotelAuthLayout from "@/features/hotel-register/components/HotelAuthLayout";
+import RegisterHighlights from "@/features/hotel-register/components/RegisterHighlights";
+
+const SIGN_IN_QUOTE = ["Welcome back. Everything your team did while you were away is right where it should be."];
 import { INPUT_CLASS } from "@/features/hotel-register/constants";
 import { LINK_CLASS, PRIMARY_BUTTON_CLASS } from "@/features/hotel-register/components/fields";
 
@@ -74,7 +77,7 @@ export default function LoginPage() {
   };
 
   return (
-    <HotelAuthLayout imageAlt="A receptionist welcoming guests at a hotel front desk">
+    <HotelAuthLayout imageAlt="A receptionist welcoming guests at a hotel front desk" aside={<RegisterHighlights quotes={SIGN_IN_QUOTE} />}>
       <motion.div
         className="space-y-2"
         initial={{ opacity: 0, y: 20 }}

@@ -23,6 +23,15 @@ import { HmsFilterChips, HmsSectionIntro } from "@/components/hms/hms-ui-client"
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ExtraNightsNotice, type ExtraNightsInfo } from "@/components/hms/frontdesk/folio/ExtraNightsNotice";
+import { InvoiceActions } from "@/components/hms/frontdesk/folio/InvoiceActions";
+import { FolioWindowsPanel } from "@/components/hms/frontdesk/folio/FolioWindowsPanel";
+import { RefundForm } from "@/components/hms/frontdesk/folio/RefundForm";
+import { TravelAgentCard, type StayAgent } from "@/components/hms/frontdesk/folio/TravelAgentCard";
+import { CreditLimitBanner, CreditLimitCard, type StayCredit } from "@/components/hms/frontdesk/folio/CreditLimitCard";
+import { WINDOW_LABEL, type WindowSummary } from "@/lib/hms/folio-windows-shared";
+import type { FolioSplitLeg } from "@/lib/hms/folio";
+import type { CardTakings } from "@/lib/hms/folio-refunds";
 
 type FolioPayload = {
   reservation: {
@@ -36,6 +45,8 @@ type FolioPayload = {
     folioSplitNotes: string | null;
     commissionPlan: string | null;
     commissionValue: number | null;
+    guestEmail?: string | null;
+    guestPhone?: string | null;
   };
   folio: {
     lines: FolioLineRow[];
@@ -47,6 +58,10 @@ type FolioPayload = {
     companyLegBalance: number;
   };
   settings: { allowCheckoutWithBalance: boolean; hasManagerPin: boolean };
+  extraNights?: ExtraNightsInfo;
+  billing?: { windows: WindowSummary[]; dueNow: number };
+  agent?: StayAgent;
+  credit?: StayCredit;
 };
 
 type SearchHit = {
@@ -75,9 +90,10 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [reservationId, setReservationId] = useState(initialId ?? "");
   const [payload, setPayload] = useState<FolioPayload | null>(null);
-  const [legFilter, setLegFilter] = useState<"all" | "guest" | "company">("all");
+  const [legFilter, setLegFilter] = useState<"all" | FolioSplitLeg>("all");
   const [tab, setTab] = useState<"folio" | "cash-float">("folio");
   const [cashSession, setCashSession] = useState<Record<string, unknown> | null>(null);
+  const [cardTakings, setCardTakings] = useState<CardTakings | null>(null);
   const [loading, setLoading] = useState(false);
   const [activeList, setActiveList] = useState<SearchHit[]>([]);
   const [activeListLoading, setActiveListLoading] = useState(true);
@@ -105,8 +121,9 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
   const loadCashFloat = useCallback(async () => {
     const res = await fetch(`/api/hotel/folio/cash-float?slug=${encodeURIComponent(slug)}`);
     if (res.ok) {
-      const data = (await res.json()) as { session: Record<string, unknown> | null };
+      const data = (await res.json()) as { session: Record<string, unknown> | null; card?: CardTakings | null };
       setCashSession(data.session);
+      setCardTakings(data.card ?? null);
     }
   }, [slug]);
 
@@ -304,7 +321,7 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
     router.refresh();
   };
 
-  const reassignSplitLeg = async (lineIds: string[], splitLeg: "guest" | "company") => {
+  const reassignSplitLeg = async (lineIds: string[], splitLeg: FolioSplitLeg) => {
     if (!reservationId || lineIds.length === 0) return;
     const res = await fetch("/api/hotel/folio/lines/split-leg", {
       method: "PATCH",
@@ -351,11 +368,15 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
           { value: "cash-float", label: "Cash float" },
         ]}
         value={tab}
-        onChange={setTab}
+        onChange={(next) => {
+          setTab(next);
+          // Payments may have been taken since the page opened: show the till as it is now.
+          if (next === "cash-float") void loadCashFloat();
+        }}
       />
 
       {tab === "cash-float" ? (
-        <CashFloatPanel slug={slug} session={cashSession} onRefresh={loadCashFloat} />
+        <CashFloatPanel slug={slug} session={cashSession} card={cardTakings} currency={currency} onRefresh={loadCashFloat} />
       ) : (
         <>
           <HmsSectionIntro
@@ -425,6 +446,28 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
 
           {payload ? (
             <div className="space-y-6">
+              <ExtraNightsNotice
+                slug={slug}
+                reservationId={payload.reservation.id}
+                currency={currency}
+                info={payload.extraNights}
+                onConfirmed={() => void loadFolio(payload.reservation.id)}
+              />
+              {payload.reservation.status === "checked_in" ? <CreditLimitBanner credit={payload.credit} currency={currency} /> : null}
+              <RefundForm
+                slug={slug}
+                reservationId={payload.reservation.id}
+                currency={currency}
+                refundable={Math.max(0, -(payload.billing?.windows.find((w) => w.window === "guest")?.balance ?? payload.folio.balance))}
+                onDone={() => void loadFolio(payload.reservation.id)}
+              />
+              <InvoiceActions
+                slug={slug}
+                reservationId={payload.reservation.id}
+                isFinal={payload.reservation.status === "checked_out"}
+                guestEmail={payload.reservation.guestEmail}
+                guestPhone={payload.reservation.guestPhone}
+              />
               <HmsStatStrip label={`Bill ${payload.reservation.folioNumber} in figures`}>
                 <HmsStatTile label="Charges" value={formatPricingAmount(payload.folio.charges, currency)} icon={Receipt} meaning="money" hint="Everything added to the bill" />
                 <HmsStatTile label="Paid and credited" value={formatPricingAmount(payload.folio.credits, currency)} icon={Banknote} meaning="money" hint="Taken off the bill so far" />
@@ -439,15 +482,20 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
                   }
                 />
                 <HmsStatTile
-                  label="Guest / company"
+                  label="Who owes what"
                   value={
-                    <span className="text-lg">
-                      {formatPricingAmount(payload.folio.guestLegBalance, currency)} / {formatPricingAmount(payload.folio.companyLegBalance, currency)}
+                    <span className="block space-y-0.5 text-sm font-medium">
+                      {(payload.billing?.windows ?? []).map((w) => (
+                        <span key={w.window} className="flex justify-between gap-2">
+                          <span className="truncate">{w.window === "guest" ? "Guest" : w.payerName}</span>
+                          <span className="tabular-nums">{formatPricingAmount(w.balance, currency)}</span>
+                        </span>
+                      ))}
                     </span>
                   }
                   icon={Building2}
                   meaning="money"
-                  hint="What each side still owes"
+                  hint="What each payer still owes"
                 />
               </HmsStatStrip>
 
@@ -459,13 +507,6 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
                 description={
                   <>
                     Booking {payload.reservation.confirmationCode} · {words(payload.reservation.status)}
-                    {payload.reservation.commissionPlan ? (
-                      <>
-                        {" "}
-                        · Commission: {payload.reservation.commissionPlan},{" "}
-                        {formatPricingAmount(Number(payload.reservation.commissionValue ?? 0), currency)}
-                      </>
-                    ) : null}
                   </>
                 }
               >
@@ -473,9 +514,12 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
                   label="Show lines for"
                   meaning="money"
                   options={[
-                    { value: "all", label: "Whole bill", count: payload.folio.lines.length },
-                    { value: "guest", label: "Guest", count: payload.folio.lines.filter((l) => l.split_leg === "guest").length },
-                    { value: "company", label: "Company", count: payload.folio.lines.filter((l) => l.split_leg === "company").length },
+                    { value: "all" as const, label: "Whole bill", count: payload.folio.lines.length },
+                    ...(payload.billing?.windows ?? []).map((w) => ({
+                      value: w.window,
+                      label: w.window === "guest" ? "Guest" : `${WINDOW_LABEL[w.window]}: ${w.payerName}`,
+                      count: payload.folio.lines.filter((l) => l.split_leg === w.window).length,
+                    })),
                   ]}
                   value={legFilter}
                   onChange={setLegFilter}
@@ -487,8 +531,38 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
                   onVoid={() => void loadFolio(reservationId)}
                   onTransfer={(lineId) => void transferCharge(lineId)}
                   onReassignSplitLeg={(lineIds, leg) => void reassignSplitLeg(lineIds, leg)}
+                  windows={payload.billing?.windows ?? []}
                 />
               </HmsCard>
+
+              <TravelAgentCard
+                key={`${payload.reservation.id}-${payload.agent?.id ?? "none"}`}
+                slug={slug}
+                reservationId={payload.reservation.id}
+                currency={currency}
+                agent={payload.agent ?? null}
+                editable={payload.reservation.status === "checked_in" || payload.reservation.status === "confirmed"}
+                onChanged={() => void loadFolio(payload.reservation.id)}
+              />
+
+              <CreditLimitCard
+                key={`${payload.reservation.id}-${payload.credit?.stayLimit ?? "default"}`}
+                slug={slug}
+                reservationId={payload.reservation.id}
+                currency={currency}
+                credit={payload.credit}
+                editable={payload.reservation.status === "checked_in" || payload.reservation.status === "confirmed"}
+                onChanged={() => void loadFolio(payload.reservation.id)}
+              />
+
+              <FolioWindowsPanel
+                slug={slug}
+                reservationId={payload.reservation.id}
+                currency={currency}
+                windows={payload.billing?.windows ?? []}
+                editable={payload.reservation.status === "checked_in" || payload.reservation.status === "confirmed"}
+                onChanged={() => void loadFolio(payload.reservation.id)}
+              />
 
               <div className="grid gap-6 lg:grid-cols-2">
                 <div className="space-y-6">
@@ -503,7 +577,7 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
                       <F id="charge-department" label="Department" optional hint="For example: restaurant, spa or laundry.">
                         <input id="charge-department" name="department" aria-describedby="charge-department-hint" className={hmsInput} />
                       </F>
-                      <LegSelect id="charge-leg" />
+                      <LegSelect id="charge-leg" windows={payload.billing?.windows ?? []} />
                       <button type="submit" className={`${hmsButton.primary} ${focusRing}`}>
                         Add charge
                       </button>
@@ -517,7 +591,7 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
                       <F id="discount-amount" label={`Amount (${currency})`}>
                         <input id="discount-amount" name="amount" type="number" step="0.01" min="0.01" required className={hmsInput} />
                       </F>
-                      <LegSelect id="discount-leg" />
+                      <LegSelect id="discount-leg" windows={payload.billing?.windows ?? []} />
                       <F id="discount-pin" label="Manager PIN" optional hint="Needed if you're not a manager or admin.">
                         <input id="discount-pin" name="managerPin" type="password" autoComplete="off" aria-describedby="discount-pin-hint" className={hmsInput} />
                       </F>
@@ -536,13 +610,11 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
                       <F id="payment-method" label="How they paid">
                         <select id="payment-method" name="method" required className={hmsInput}>
                           <option value="cash">Cash</option>
-                          <option value="card">Card (enter the reference)</option>
-                          <option value="pos">Card machine</option>
-                          <option value="split">Split</option>
+                          <option value="pos">Card machine (POS)</option>
                           <option value="direct_bill">Direct bill</option>
                         </select>
                       </F>
-                      <LegSelect id="payment-leg" paying />
+                      <LegSelect id="payment-leg" paying windows={payload.billing?.windows ?? []} />
                       <F id="payment-reference" label="Receipt or reference" optional>
                         <input id="payment-reference" name="reference" className={hmsInput} />
                       </F>
@@ -567,12 +639,11 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
                       <F id="fx-method" label="How they paid">
                         <select id="fx-method" name="method" required className={hmsInput}>
                           <option value="cash">Cash</option>
-                          <option value="card">Card (enter the reference)</option>
-                          <option value="split">Split</option>
+                          <option value="pos">Card machine (POS)</option>
                           <option value="direct_bill">Direct bill</option>
                         </select>
                       </F>
-                      <LegSelect id="fx-leg" paying />
+                      <LegSelect id="fx-leg" paying windows={payload.billing?.windows ?? []} />
                       <F id="fx-reference" label="Receipt or reference" optional>
                         <input id="fx-reference" name="reference" className={hmsInput} />
                       </F>
@@ -607,12 +678,21 @@ function F(props: { id: string; label: string; hint?: string; optional?: boolean
   return <HmsField {...props} />;
 }
 
-function LegSelect({ id, paying = false }: { id: string; paying?: boolean }) {
+function LegSelect({ id, paying = false, windows }: { id: string; paying?: boolean; windows: WindowSummary[] }) {
+  const options = windows.length ? windows : [{ window: "guest" as const, payerName: "the guest" }];
   return (
-    <F id={id} label={paying ? "Pays off the part owed by" : "Who pays this"} hint="Only matters if the bill is split between the guest and a company.">
+    <F
+      id={id}
+      label={paying ? "Pays off the part owed by" : "Who pays this"}
+      hint={paying ? "Which payer's part this payment settles." : "Leave it to the bill's rules, or pick a payer for this one line."}
+    >
       <select id={id} name="splitLeg" aria-describedby={`${id}-hint`} className={hmsInput}>
-        <option value="guest">The guest</option>
-        <option value="company">The company</option>
+        {paying ? null : <option value="">As the bill&apos;s rules say</option>}
+        {options.map((w) => (
+          <option key={w.window} value={w.window}>
+            {w.window === "guest" ? "The guest" : `${WINDOW_LABEL[w.window]}: ${w.payerName}`}
+          </option>
+        ))}
       </select>
     </F>
   );
@@ -824,13 +904,15 @@ function FolioLineTable({
   onVoid,
   onTransfer,
   onReassignSplitLeg,
+  windows,
 }: {
   lines: FolioLineRow[];
   currency: string;
   slug: string;
   onVoid: () => void;
   onTransfer: (lineId: string) => void;
-  onReassignSplitLeg: (lineIds: string[], splitLeg: "guest" | "company") => void;
+  onReassignSplitLeg: (lineIds: string[], splitLeg: FolioSplitLeg) => void;
+  windows: WindowSummary[];
 }) {
   const [voidTarget, setVoidTarget] = useState<FolioLineRow | null>(null);
   const [voidReason, setVoidReason] = useState("");
@@ -846,7 +928,7 @@ function FolioLineTable({
       else next.add(id);
       return next;
     });
-  const moveSelected = (leg: "guest" | "company") => {
+  const moveSelected = (leg: FolioSplitLeg) => {
     onReassignSplitLeg([...selectedIds], leg);
     setSelectedIds(new Set());
   };
@@ -886,20 +968,19 @@ function FolioLineTable({
         <span className="font-medium text-emerald-900">
           {selectedIds.size} line{selectedIds.size === 1 ? "" : "s"} selected
         </span>
-        <button type="button" className={`${hmsButton.secondary} px-3 py-1.5 ${focusRing}`} onClick={() => moveSelected("guest")}>
-          Guest pays these
-        </button>
-        <button type="button" className={`${hmsButton.secondary} px-3 py-1.5 ${focusRing}`} onClick={() => moveSelected("company")}>
-          Company pays these
-        </button>
+        {(windows.length ? windows : [{ window: "guest" as const, payerName: "Guest" }]).map((w) => (
+          <button key={w.window} type="button" className={`${hmsButton.secondary} px-3 py-1.5 ${focusRing}`} onClick={() => moveSelected(w.window)}>
+            {w.window === "guest" ? "Guest" : w.payerName} pays these
+          </button>
+        ))}
         <button type="button" className={`${hmsButton.quiet} ml-auto ${focusRing}`} onClick={() => setSelectedIds(new Set())}>
           Clear selection
         </button>
       </div>
     ) : movable.length > 0 ? (
       <p className="mt-4 text-sm text-slate-600">
-        To split the bill, tick charges and choose who pays them. For example, the company pays for the room while the
-        guest pays for extras.
+        To move charges to another payer by hand, tick them and choose who pays. To split the bill for good, add a payer
+        under Who pays and choose where charges go.
       </p>
     ) : null}
     {lines.length === 0 ? (
@@ -1046,8 +1127,6 @@ function CorporateBillingForm({
         billToAccount: fd.get("billToAccount") || null,
         poNumber: fd.get("poNumber") || null,
         folioSplitNotes: fd.get("folioSplitNotes") || null,
-        commissionPlan: fd.get("commissionPlan") || null,
-        commissionValue: fd.get("commissionValue") ? Number(fd.get("commissionValue")) : null,
       }),
     });
     const data = await res.json().catch(() => ({}));
@@ -1060,7 +1139,7 @@ function CorporateBillingForm({
   };
 
   return (
-    <HmsCard id="folio-company-billing" icon={Building2} meaning="money" title="Company billing" description="Fill this in when a company or travel agent is paying for some or all of the stay.">
+    <HmsCard id="folio-company-billing" icon={Building2} meaning="money" title="Company billing" description="Fill this in when a company is paying for some or all of the stay. Travel agents have their own card.">
       <form onSubmit={submit} className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <F id="bill-to-account" label="Company account" optional>
@@ -1073,22 +1152,6 @@ function CorporateBillingForm({
         <F id="split-notes" label="Notes on splitting the bill" optional>
           <input id="split-notes" name="folioSplitNotes" defaultValue={payload.reservation.folioSplitNotes ?? ""} className={hmsInput} />
         </F>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <F id="commission-plan" label="Travel agent or commission plan" optional>
-            <input id="commission-plan" name="commissionPlan" defaultValue={payload.reservation.commissionPlan ?? ""} className={hmsInput} />
-          </F>
-          <F id="commission-value" label="Commission amount" optional>
-            <input
-              id="commission-value"
-              name="commissionValue"
-              type="number"
-              min="0"
-              step="0.01"
-              defaultValue={payload.reservation.commissionValue ?? ""}
-              className={hmsInput}
-            />
-          </F>
-        </div>
         <button type="submit" className={`${hmsButton.secondary} ${focusRing}`}>
           Save company billing
         </button>
@@ -1100,10 +1163,14 @@ function CorporateBillingForm({
 function CashFloatPanel({
   slug,
   session,
+  card,
+  currency,
   onRefresh,
 }: {
   slug: string;
   session: Record<string, unknown> | null;
+  card: CardTakings | null;
+  currency: string;
   onRefresh: () => void;
 }) {
   const open = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -1133,6 +1200,7 @@ function CashFloatPanel({
         slug,
         action: "close",
         closingBalance: Number(fd.get("closingBalance")),
+        cardReported: String(fd.get("cardReported") ?? "").trim() ? Number(fd.get("cardReported")) : undefined,
         notes: fd.get("notes") || undefined,
       }),
     });
@@ -1141,7 +1209,15 @@ function CashFloatPanel({
       toastError("Could not close cash float", data.error ?? "Try again.");
       return;
     }
-    toastSuccess("Cash float closed");
+    const money = (n: number) => formatPricingAmount(Math.abs(n), currency);
+    const cashNote = Math.abs(data.variance ?? 0) < 0.01 ? "The cash matches." : `The cash is ${money(data.variance)} ${data.variance > 0 ? "over" : "short"}.`;
+    const cardNote =
+      data.cardVariance == null
+        ? ""
+        : Math.abs(data.cardVariance) < 0.01
+          ? " The card machine matches."
+          : ` The card machine is ${money(data.cardVariance)} ${data.cardVariance > 0 ? "over" : "short"}.`;
+    toastSuccess("Cash float closed", `${cashNote}${cardNote}`);
     onRefresh();
   };
 
@@ -1163,6 +1239,18 @@ function CashFloatPanel({
             <form onSubmit={close} className="space-y-4">
               <F id="closing-balance" label="Cash counted now" hint="Count every note and coin in the till.">
                 <input id="closing-balance" name="closingBalance" type="number" step="0.01" required aria-describedby="closing-balance-hint" className={hmsInput} />
+              </F>
+              <F
+                id="card-reported"
+                label="Card machine end-of-day total"
+                optional
+                hint={
+                  card
+                    ? `From the machine's end-of-day report. The HMS recorded ${formatPricingAmount(card.total, currency)} since the float was opened: ${formatPricingAmount(card.bills, currency)} on bills, ${formatPricingAmount(card.deposits, currency)} in deposits and ${formatPricingAmount(card.restaurant, currency)} at the restaurant, less ${formatPricingAmount(card.refunds, currency)} given back.`
+                    : "From the machine's end-of-day report, to check it against the card payments recorded."
+                }
+              >
+                <input id="card-reported" name="cardReported" type="number" step="0.01" min="0" aria-describedby="card-reported-hint" className={hmsInput} />
               </F>
               <F id="float-notes" label="Notes" optional>
                 <input id="float-notes" name="notes" className={hmsInput} />

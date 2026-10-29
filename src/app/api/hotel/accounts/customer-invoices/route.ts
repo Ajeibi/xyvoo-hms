@@ -4,6 +4,7 @@ import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
 import { getAccountsCapabilities } from "@/lib/hms/accounts-rbac";
 import { createCustomerInvoice, CUSTOMER_INVOICE_STATUSES, listCustomerInvoices } from "@/lib/hms/customer-invoices";
 import { ACCOUNTS_DEPARTMENTS } from "@/lib/hms/journal-entries";
+import { billStayAmountToAccount } from "@/lib/hms/folio-windows";
 
 const ListQuery = z.object({
   slug: z.string().min(1),
@@ -80,10 +81,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: `No active ${wanted} account found. Add one in Chart of accounts first.` }, { status: 503 });
     }
 
-    const result = await createCustomerInvoice(auth.service, {
+    const invoice = {
       tenantId: auth.tenant.id,
       customerId: body.customerId,
-      reservationId: body.reservationId ?? null,
       department: body.department,
       invoiceDate: body.invoiceDate,
       dueDate: body.dueDate ?? null,
@@ -95,10 +95,27 @@ export async function POST(req: Request) {
       tax: body.tax,
       notes: body.notes ?? null,
       createdBy: auth.user.id,
-    });
+    };
+
+    // A stay's charges are already on its bill and booked by the night audit: bill them to the
+    // account from the bill rather than booking the revenue a second time.
+    let result: Awaited<ReturnType<typeof createCustomerInvoice>>;
+    if (body.reservationId) {
+      const { data: customer } = await auth.service
+        .schema("hotel")
+        .from("ar_customers")
+        .select("name")
+        .eq("tenant_id", auth.tenant.id)
+        .eq("id", body.customerId)
+        .maybeSingle();
+      if (!customer) return NextResponse.json({ error: "Customer not found." }, { status: 400 });
+      result = await billStayAmountToAccount(auth.service, { ...invoice, reservationId: body.reservationId, customerName: customer.name as string });
+    } else {
+      result = await createCustomerInvoice(auth.service, { ...invoice, reservationId: null });
+    }
 
     if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
-    return NextResponse.json({ ok: true, id: result.id, invoiceNumber: result.invoiceNumber });
+    return NextResponse.json({ ok: true, id: result.id, invoiceNumber: result.invoiceNumber, billedFromStay: Boolean(body.reservationId) });
   } catch (e) {
     if (e instanceof z.ZodError) {
       return NextResponse.json({ error: e.issues[0]?.message }, { status: 400 });

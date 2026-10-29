@@ -246,7 +246,8 @@ const SUPABASE_HOST = (() => {
 })();
 
 /** The shop's logo as PNG or JPEG bytes, only from our own image storage, or null. */
-async function fetchLogo(url: string | null) {
+/** A shop or hotel logo from Supabase storage, as PNG or JPEG bytes for a PDF, or null. */
+export async function fetchLogo(url: string | null) {
   if (!url || !SUPABASE_HOST) return null;
   try {
     const parsed = new URL(url);

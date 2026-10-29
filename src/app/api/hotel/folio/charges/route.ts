@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
+import { FOLIO_WINDOWS } from "@/lib/hms/folio";
 import { z } from "zod";
-import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
+import { requireHotelApiSection } from "@/lib/hms/hotel-api-auth";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { getTenantFolioSettings, insertFolioLine } from "@/lib/hms/folio";
 import { notifyLargeChargePosted } from "@/lib/hms/notification-rules";
@@ -12,13 +13,13 @@ const BodySchema = z.object({
   amount: z.coerce.number().positive(),
   description: z.string().min(1).max(200),
   department: z.string().max(60).optional(),
-  splitLeg: z.enum(["guest", "company"]).optional(),
+  splitLeg: z.enum(FOLIO_WINDOWS).optional(),
 });
 
 export async function POST(req: Request) {
   try {
     const body = BodySchema.parse(await req.json());
-    const auth = await requireHotelApiMember(body.slug);
+    const auth = await requireHotelApiSection(body.slug);
     if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
     const reservation = await loadReservation(auth, body.reservationId);
@@ -33,11 +34,14 @@ export async function POST(req: Request) {
       reservationId: body.reservationId,
       kind: "charge",
       amount: body.amount,
+      // The database allows only its listed methods; isBookedStayLine tells this apart from the booked stay.
       method: "system",
       description: body.description,
       department: body.department,
       postedBy: auth.user.id,
       splitLeg,
+      // A payer picked by hand stays put; otherwise the stay's routing rules decide (in the database).
+      metadata: body.splitLeg ? { window_set: true } : {},
     });
     if (error || !line) return NextResponse.json({ error: error ?? "Could not post charge." }, { status: 500 });
 

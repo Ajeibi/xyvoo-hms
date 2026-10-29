@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { applyDepositsToFolio, snapshotDeposit } from "@/lib/hms/folio-deposits";
+import { setStayAgent } from "@/lib/hms/folio-commission";
 import { z } from "zod";
 import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -622,6 +624,19 @@ export async function POST(req: Request) {
         discountPercent: parsed.discountPercent,
         discountScope: parsed.discountScope,
       });
+      // A booking checked in from this form brings its deposits onto the bill.
+      if (existingReservation) {
+        await applyDepositsToFolio(service, { tenantId: tenant.id, reservationId: reservation.id, userId: user.id, currency: pricing.currency });
+      }
+    } else if (!existingReservation) {
+      // A new booking keeps the deposit it was asked for, whatever the policy says later.
+      await snapshotDeposit(service, tenant.id, reservation.id);
+    }
+
+    // The travel agent who earns commission on this stay, at their current rate.
+    if (parsed.travelAgentId) {
+      const agent = await setStayAgent(service, { tenantId: tenant.id, reservationId: reservation.id, agentId: parsed.travelAgentId });
+      if (!agent.ok) console.warn("[check-in] travel agent not set", agent.error);
     }
 
     const guestName = `${parsed.firstName} ${parsed.lastName}`;

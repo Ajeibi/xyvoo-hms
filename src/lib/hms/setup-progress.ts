@@ -7,7 +7,7 @@ export type SetupProgressKey =
   | "room_pricing"
   | "staff_access"
   | "chart_of_accounts"
-  | "payment_gateway"
+  | "cashier_controls"
   | "fb_setup"
   | "inventory_setup";
 
@@ -26,11 +26,10 @@ function isNonEmptyArray(value: unknown): boolean {
 export async function getSetupProgress(
   service: SupabaseClient,
   tenantId: string,
-  tenant: Pick<HotelTenantBySlugRow, "display_name" | "name" | "floor_plan" | "room_types" | "paystack_setup">,
+  tenant: Pick<HotelTenantBySlugRow, "display_name" | "name" | "floor_plan" | "room_types">,
 ): Promise<SetupProgress> {
-  const paystackSetup = (tenant.paystack_setup ?? {}) as { enabled?: boolean };
 
-  const [{ count: membershipCount }, { count: coaCount }, { count: fbCount }, { count: inventoryCount }] =
+  const [{ count: membershipCount }, { count: coaCount }, { count: fbCount }, { count: inventoryCount }, { data: folioSettings }] =
     await Promise.all([
       service.schema("hotel").from("memberships").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId),
       service.schema("hotel").from("chart_of_accounts").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId),
@@ -40,6 +39,9 @@ export async function getSetupProgress(
         .from("inventory_locations")
         .select("id", { count: "exact", head: true })
         .eq("tenant_id", tenantId),
+      // The HMS records cash and card-machine payments; it never takes them. Cashier control is
+      // the manager PIN that guards voids, discounts and overrides.
+      service.schema("hotel").from("tenant_folio_settings").select("manager_pin_hash").eq("tenant_id", tenantId).maybeSingle(),
     ]);
 
   return {
@@ -48,7 +50,7 @@ export async function getSetupProgress(
     room_pricing: isNonEmptyArray(tenant.room_types),
     staff_access: (membershipCount ?? 0) > 1,
     chart_of_accounts: (coaCount ?? 0) > 0,
-    payment_gateway: Boolean(paystackSetup.enabled),
+    cashier_controls: Boolean(folioSettings?.manager_pin_hash),
     fb_setup: (fbCount ?? 0) > 0,
     inventory_setup: (inventoryCount ?? 0) > 0,
   };
