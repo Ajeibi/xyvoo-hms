@@ -9,7 +9,8 @@ import { getGrossRevenueForUtcDay } from "@/lib/hms/dashboard-revenue-series";
 import type { DashboardFbOrderRow } from "@/lib/hms/dashboard-fb-metrics";
 import { countChildrenJson, countInHouseGuestHeadcount } from "@/lib/hms/reservation-metrics";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { computeFolioBalance, mapFolioLineRow, type FolioLineRow } from "@/lib/hms/folio";
+import { computeFolioBalance, getTenantFolioSettings, mapFolioLineRow, type FolioLineRow } from "@/lib/hms/folio";
+import { creditLimitState } from "@/lib/hms/folio-credit-limits-shared";
 import { assertQueriesSucceeded } from "@/lib/hms/data-unavailable";
 
 export type PaymentDisplayStatus = "paid" | "partial" | "unpaid" | "refund_pending" | "unknown";
@@ -203,6 +204,8 @@ export type FrontDeskRoomBoardItem = {
   lastCheckoutAt: string | null;
   roomFlags: RoomUnitFlags;
   paymentStatus: PaymentDisplayStatus | null;
+  /** The in-house guest owes close to ("near") or more than ("over") their credit limit. */
+  creditAlert: "near" | "over" | null;
   housekeeping: HousekeepingTaskInfo | null;
 };
 
@@ -311,6 +314,7 @@ type ReservationRow = {
   booking_channel: string | null;
   adults: number;
   children_json: unknown;
+  credit_limit?: string | number | null;
 };
 
 type GuestRow = {
@@ -921,6 +925,13 @@ function emptyBoard(currency: string): FrontDeskBoardData {
   };
 }
 
+/** Credit warning for a guest staying now; booked stays aren't checked yet. */
+function stayCreditAlert(stay: ReservationRow | null, lines: FolioLineRow[], defaultLimit: number | null) {
+  if (!stay) return null;
+  const level = creditLimitState(lines, stay.credit_limit != null ? Number(stay.credit_limit) : null, defaultLimit).level;
+  return level === "near" || level === "over" ? level : null;
+}
+
 export async function getFrontDeskBoardData(params: {
   tenantId: string | null;
   floorPlanRaw: unknown;
@@ -958,7 +969,7 @@ export async function getFrontDeskBoardData(params: {
       .schema("hotel")
       .from("reservations")
       .select(
-        `id,confirmation_code,status,arrival_at,departure_at,room_unit_id,room_type_code,checked_in_at,checked_out_at,settlement_method,preauth_amount,total_room_charges,rate_per_night,guest_remarks,folio_number,vip_flag,source,booking_channel,adults,children_json,reservation_guests(is_primary,relationship,guests(${guestSelect})),folio_transactions!folio_transactions_reservation_id_fkey(*)`,
+        `id,confirmation_code,status,arrival_at,departure_at,room_unit_id,room_type_code,checked_in_at,checked_out_at,settlement_method,preauth_amount,total_room_charges,rate_per_night,guest_remarks,folio_number,vip_flag,source,booking_channel,adults,children_json,credit_limit,reservation_guests(is_primary,relationship,guests(${guestSelect})),folio_transactions!folio_transactions_reservation_id_fkey(*)`,
       )
       .eq("tenant_id", tenantId)
       .or(`status.in.(checked_in,confirmed),departure_at.gte."${trendWindowStartIso}"`),
@@ -1053,6 +1064,7 @@ export async function getFrontDeskBoardData(params: {
 
   const rooms = (roomRows ?? []) as RoomUnitRow[];
   if (rooms.length === 0) return emptyBoard(currency);
+  const { defaultCreditLimit } = await getTenantFolioSettings(supabase, tenantId);
 
   type ReservationWithGuests = ReservationRow & {
     reservation_guests?: ReservationGuestEmbed[] | null;
@@ -1158,6 +1170,7 @@ export async function getFrontDeskBoardData(params: {
     const stayRow = activeStay ?? reservedStay;
     const stayFolioLines = stayRow ? folioLinesByReservation.get(stayRow.id) ?? [] : [];
     const paymentStatus = stayRow ? derivePaymentStatus(stayRow, stayFolioLines) : null;
+    const creditAlert = stayCreditAlert(activeStay, activeStay ? folioLinesByReservation.get(activeStay.id) ?? [] : [], defaultCreditLimit);
 
     return {
       id: room.id,
@@ -1194,6 +1207,7 @@ export async function getFrontDeskBoardData(params: {
       lastCheckoutAt: lastCheckoutByRoom.get(room.id) ?? null,
       roomFlags: flagsByRoom.get(room.id) ?? DEFAULT_ROOM_FLAGS,
       paymentStatus,
+      creditAlert,
       housekeeping: hkByRoom.get(room.id) ?? null,
     };
   });
@@ -1595,7 +1609,7 @@ export async function loadFrontDeskRoomBoardItemForUnit(params: {
     .schema("hotel")
     .from("reservations")
     .select(
-      `id,confirmation_code,status,arrival_at,departure_at,room_unit_id,room_type_code,checked_in_at,checked_out_at,settlement_method,preauth_amount,total_room_charges,rate_per_night,guest_remarks,folio_number,vip_flag,source,booking_channel,adults,children_json,reservation_guests(is_primary,relationship,guests(${guestSelect}))`,
+      `id,confirmation_code,status,arrival_at,departure_at,room_unit_id,room_type_code,checked_in_at,checked_out_at,settlement_method,preauth_amount,total_room_charges,rate_per_night,guest_remarks,folio_number,vip_flag,source,booking_channel,adults,children_json,credit_limit,reservation_guests(is_primary,relationship,guests(${guestSelect}))`,
     )
     .eq("tenant_id", tenantId)
     .eq("room_unit_id", unit.id);
@@ -1618,7 +1632,7 @@ export async function loadFrontDeskRoomBoardItemForUnit(params: {
 
   const reservationIds = reservations.map((r) => r.id);
 
-  const [folioResult, flagResult, hkResult] = await Promise.all([
+  const [folioResult, flagResult, hkResult, folioSettings] = await Promise.all([
     reservationIds.length
       ? supabase
           .schema("hotel")
@@ -1644,6 +1658,7 @@ export async function loadFrontDeskRoomBoardItemForUnit(params: {
       .eq("room_unit_id", unit.id)
       .neq("status", "ready")
       .maybeSingle(),
+    getTenantFolioSettings(supabase, tenantId),
   ]);
 
   const folioLinesByReservation = new Map<string, FolioLineRow[]>();
@@ -1762,6 +1777,7 @@ export async function loadFrontDeskRoomBoardItemForUnit(params: {
     lastCheckoutAt,
     roomFlags,
     paymentStatus,
+    creditAlert: stayCreditAlert(activeStay, activeStay ? folioLinesByReservation.get(activeStay.id) ?? [] : [], folioSettings.defaultCreditLimit),
     housekeeping: hkByRoom.get(unit.id) ?? null,
   };
 }

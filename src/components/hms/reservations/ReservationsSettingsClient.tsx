@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Banknote, FileText, KeyRound, Lock, LogOut, Percent } from "lucide-react";
+import { Banknote, FileText, Gauge, KeyRound, Lock, LogOut, Percent } from "lucide-react";
 import { HmsCard, HmsField, HmsPage, HmsPageHeader, hmsButton, hmsInput } from "@/components/hms/hms-ui";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
@@ -18,6 +18,7 @@ type Settings = {
   invoicePrefix: string;
   nextInvoiceNumber: number;
   taxId: string;
+  defaultCreditLimit: number | null;
 };
 
 export function ReservationsSettingsClient({
@@ -36,6 +37,7 @@ export function ReservationsSettingsClient({
   const [discountLimit, setDiscountLimit] = useState(String(initial.discountLimitPercent ?? 0));
   const [invoicePrefix, setInvoicePrefix] = useState(initial.invoicePrefix ?? "INV");
   const [taxId, setTaxId] = useState(initial.taxId ?? "");
+  const [creditLimit, setCreditLimit] = useState(initial.defaultCreditLimit ? String(initial.defaultCreditLimit) : "");
   const [pin, setPin] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -46,6 +48,7 @@ export function ReservationsSettingsClient({
     discountLimitPercent?: number;
     invoicePrefix?: string;
     taxId?: string;
+    defaultCreditLimit?: number | null;
   }) => {
     setSaving(true);
     try {
@@ -173,6 +176,40 @@ export function ReservationsSettingsClient({
               onClick={() => void save({ discountLimitPercent: Number(discountLimit) })}
             >
               Save limit
+            </button>
+          </div>
+        </HmsField>
+      </HmsCard>
+
+      <HmsCard id="credit-limit" icon={Gauge} meaning="money" title="Credit limit">
+        <HmsField
+          id="default-credit-limit"
+          label="Warn when a guest owes more than"
+          hint={
+            settings.defaultCreditLimit
+              ? `Currently ${formatPricingAmount(settings.defaultCreditLimit, currency)}. The bill and the front desk board warn staff when a guest owes more. A stay can be given its own limit on its bill. Leave it empty for no limit.`
+              : "No limit is set, so no stay is warned unless it's given its own limit on its bill. Charges billed to a company or travel agent don't count."
+          }
+        >
+          <div className="flex flex-wrap gap-2">
+            <input
+              id="default-credit-limit"
+              type="number"
+              min="1"
+              step="0.01"
+              value={creditLimit}
+              disabled={!canManage}
+              aria-describedby="default-credit-limit-hint"
+              onChange={(e) => setCreditLimit(e.target.value)}
+              className={`${hmsInput} max-w-xs`}
+            />
+            <button
+              type="button"
+              className={`${hmsButton.secondary} ${focusRing}`}
+              disabled={!canManage || saving || (creditLimit.trim() !== "" && !(Number(creditLimit) > 0))}
+              onClick={() => void save({ defaultCreditLimit: creditLimit.trim() ? Number(creditLimit) : null })}
+            >
+              {creditLimit.trim() ? "Save limit" : "Remove limit"}
             </button>
           </div>
         </HmsField>

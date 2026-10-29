@@ -245,7 +245,7 @@ export async function getTenantFolioSettings(supabase: SupabaseClient, tenantId:
   const { data } = await supabase
     .schema("hotel")
     .from("tenant_folio_settings")
-    .select("allow_checkout_with_balance,large_charge_threshold,manager_pin_hash,discount_limit_percent,invoice_prefix,next_invoice_number,tax_id")
+    .select("allow_checkout_with_balance,large_charge_threshold,manager_pin_hash,discount_limit_percent,invoice_prefix,next_invoice_number,tax_id,default_credit_limit")
     .eq("tenant_id", tenantId)
     .maybeSingle();
   return {
@@ -257,6 +257,8 @@ export async function getTenantFolioSettings(supabase: SupabaseClient, tenantId:
     invoicePrefix: (data?.invoice_prefix as string | null) || "INV",
     nextInvoiceNumber: num(data?.next_invoice_number) || 1,
     taxId: (data?.tax_id as string | null) ?? "",
+    /** How much a guest can owe before the desk is warned, unless the stay has its own limit; null is no limit. */
+    defaultCreditLimit: num(data?.default_credit_limit) || null,
   };
 }
 
@@ -269,7 +271,7 @@ export async function getTenantFolioSettings(supabase: SupabaseClient, tenantId:
 export async function updateTenantFolioSettings(
   supabase: SupabaseClient,
   tenantId: string,
-  patch: { allowCheckoutWithBalance?: boolean; largeChargeThreshold?: number; managerPin?: string; discountLimitPercent?: number; invoicePrefix?: string; taxId?: string },
+  patch: { allowCheckoutWithBalance?: boolean; largeChargeThreshold?: number; managerPin?: string; discountLimitPercent?: number; invoicePrefix?: string; taxId?: string; defaultCreditLimit?: number | null },
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const update: Record<string, unknown> = { tenant_id: tenantId, updated_at: new Date().toISOString() };
   if (patch.allowCheckoutWithBalance !== undefined) update.allow_checkout_with_balance = patch.allowCheckoutWithBalance;
@@ -277,6 +279,7 @@ export async function updateTenantFolioSettings(
   if (patch.discountLimitPercent !== undefined) update.discount_limit_percent = patch.discountLimitPercent;
   if (patch.invoicePrefix !== undefined) update.invoice_prefix = patch.invoicePrefix.trim().toUpperCase();
   if (patch.taxId !== undefined) update.tax_id = patch.taxId.trim() || null;
+  if (patch.defaultCreditLimit !== undefined) update.default_credit_limit = patch.defaultCreditLimit;
   if (patch.managerPin !== undefined && patch.managerPin.trim()) {
     update.manager_pin_hash = hashManagerPin(patch.managerPin);
   }

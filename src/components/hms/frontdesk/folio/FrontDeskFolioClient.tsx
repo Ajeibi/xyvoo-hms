@@ -28,6 +28,7 @@ import { InvoiceActions } from "@/components/hms/frontdesk/folio/InvoiceActions"
 import { FolioWindowsPanel } from "@/components/hms/frontdesk/folio/FolioWindowsPanel";
 import { RefundForm } from "@/components/hms/frontdesk/folio/RefundForm";
 import { TravelAgentCard, type StayAgent } from "@/components/hms/frontdesk/folio/TravelAgentCard";
+import { CreditLimitBanner, CreditLimitCard, type StayCredit } from "@/components/hms/frontdesk/folio/CreditLimitCard";
 import { WINDOW_LABEL, type WindowSummary } from "@/lib/hms/folio-windows-shared";
 import type { FolioSplitLeg } from "@/lib/hms/folio";
 
@@ -58,6 +59,7 @@ type FolioPayload = {
   extraNights?: ExtraNightsInfo;
   billing?: { windows: WindowSummary[]; dueNow: number };
   agent?: StayAgent;
+  credit?: StayCredit;
 };
 
 type SearchHit = {
@@ -443,6 +445,7 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
                 info={payload.extraNights}
                 onConfirmed={() => void loadFolio(payload.reservation.id)}
               />
+              {payload.reservation.status === "checked_in" ? <CreditLimitBanner credit={payload.credit} currency={currency} /> : null}
               <RefundForm
                 slug={slug}
                 reservationId={payload.reservation.id}
@@ -529,6 +532,16 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
                 reservationId={payload.reservation.id}
                 currency={currency}
                 agent={payload.agent ?? null}
+                editable={payload.reservation.status === "checked_in" || payload.reservation.status === "confirmed"}
+                onChanged={() => void loadFolio(payload.reservation.id)}
+              />
+
+              <CreditLimitCard
+                key={`${payload.reservation.id}-${payload.credit?.stayLimit ?? "default"}`}
+                slug={slug}
+                reservationId={payload.reservation.id}
+                currency={currency}
+                credit={payload.credit}
                 editable={payload.reservation.status === "checked_in" || payload.reservation.status === "confirmed"}
                 onChanged={() => void loadFolio(payload.reservation.id)}
               />

@@ -52,6 +52,7 @@ export async function GET(req: Request) {
       stay: payload.stay,
       billing: payload.billing,
       agent: payload.agent,
+      credit: payload.credit,
     });
   } catch (e) {
     if (e instanceof z.ZodError) {
