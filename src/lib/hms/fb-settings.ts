@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { clampRate, FB_RATE_LIMITS, type FbBillRates, NO_BILL_CHARGES } from "@/lib/hms/fb-bill-rules";
+import { DEFAULT_FB_TIME_ZONE, isValidTimeZone } from "@/lib/hms/fb-price-rules";
 
 /** Fallback when nothing has been saved in back office. */
 export const DEFAULT_KITCHEN_OVERDUE_MINUTES = 10;
@@ -12,6 +13,8 @@ export type TenantFbSettings = {
   kitchenOverdueMinutesConfigured: boolean;
   /** Service charge, levy and VAT for new bills. */
   billRates: FbBillRates;
+  /** The hotel's clock for happy hours and other price rules. */
+  timeZone: string;
 };
 
 export function resolveKitchenOverdueMinutes(value?: number | null) {
@@ -29,7 +32,7 @@ export async function getTenantFbSettings(
   const { data } = await supabase
     .schema("hotel")
     .from("tenant_fb_settings")
-    .select("kitchen_overdue_minutes,service_charge_percent,levy_percent,vat_percent,prices_include_tax")
+    .select("kitchen_overdue_minutes,service_charge_percent,levy_percent,vat_percent,prices_include_tax,time_zone")
     .eq("tenant_id", tenantId)
     .maybeSingle();
 
@@ -44,6 +47,8 @@ export async function getTenantFbSettings(
           prices_include_tax: data.prices_include_tax !== false,
         }
       : NO_BILL_CHARGES,
+    timeZone:
+      typeof data?.time_zone === "string" && isValidTimeZone(data.time_zone) ? data.time_zone : DEFAULT_FB_TIME_ZONE,
   };
 }
 
@@ -84,4 +89,13 @@ export async function upsertTenantFbBillRates(supabase: SupabaseClient, tenantId
   const { error } = await supabase.schema("hotel").from("tenant_fb_settings").upsert(row, { onConflict: "tenant_id" });
   if (error) throw error;
   return getTenantFbSettings(supabase, tenantId);
+}
+
+/** Saves the time zone that price-rule hours are read in. */
+export async function upsertTenantFbTimeZone(supabase: SupabaseClient, tenantId: string, timeZone: string) {
+  const { error } = await supabase
+    .schema("hotel")
+    .from("tenant_fb_settings")
+    .upsert({ tenant_id: tenantId, time_zone: timeZone, updated_at: new Date().toISOString() }, { onConflict: "tenant_id" });
+  if (error) throw error;
 }

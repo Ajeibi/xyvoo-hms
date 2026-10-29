@@ -13,6 +13,7 @@ import { FB_COURSE_MAX } from "@/lib/hms/fb-course-rules";
 import { FB_ITEM_NOTE_MAX } from "@/lib/hms/fb-modifier-rules";
 import type { FbOrderStatus } from "@/lib/hms/fb-types";
 import { getTenantFbSettings } from "@/lib/hms/fb-settings";
+import { loadPricingNow } from "@/lib/hms/fb-pricing";
 import { fbForbidden, requireFbApi } from "../_lib";
 
 const QuerySchema = z.object({
@@ -107,8 +108,10 @@ export async function POST(req: Request) {
     // Check and price every line first, so a bad choice or a sold-out item
     // never leaves a half-made order behind.
     const resolved: { line: ResolvedOrderLine; quantity: number }[] = [];
+    // One clock for the whole ticket, so every line gets the same happy-hour decision.
+    const pricing = await loadPricingNow(auth.service, auth.tenant.id);
     for (const line of lines) {
-      const result = await resolveOrderLine(auth.service, auth.tenant.id, line);
+      const result = await resolveOrderLine(auth.service, auth.tenant.id, line, pricing);
       if (!result.line) {
         return NextResponse.json({ error: result.error ?? "Menu item unavailable." }, { status: 400 });
       }

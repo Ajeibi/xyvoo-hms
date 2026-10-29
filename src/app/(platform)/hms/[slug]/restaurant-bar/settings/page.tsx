@@ -2,6 +2,7 @@ import HMSLayout from "@/components/hms/HMSLayout";
 import { FbBillRatesSetup } from "@/components/hms/fb/FbBillRatesSetup";
 import { FbCourseSetup } from "@/components/hms/fb/FbCourseSetup";
 import { FbModifierGroupsSetup } from "@/components/hms/fb/FbModifierGroupsSetup";
+import { FbPriceRulesSetup } from "@/components/hms/fb/FbPriceRulesSetup";
 import { FbRestaurantBarShell } from "@/components/hms/fb/FbRestaurantBarShell";
 import HotelMenuSetup from "@/components/hms/HotelMenuSetup";
 import { getHmsAccessContext } from "@/lib/hms/access";
@@ -48,6 +49,14 @@ export default async function RestaurantBarSettingsPage({
             slug={model.slug}
             currency={model.currency}
             initial={model.initial.billRates}
+          />
+          <FbPriceRulesSetup
+            slug={model.slug}
+            currency={model.currency}
+            outlets={model.initial.outlets}
+            categories={model.initial.categories}
+            initialRules={model.initial.priceRules}
+            initialTimeZone={model.initial.timeZone}
           />
           <FbCourseSetup
             slug={model.slug}

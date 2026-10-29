@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { loadPriceRules } from "@/lib/hms/fb-pricing";
 import { loadModifierSetup } from "@/lib/hms/fb-modifiers";
 import { getTenantFbSettings } from "@/lib/hms/fb-settings";
 import type { FbMenuCategoryRow, FbMenuItemRow, FbOutletRow, FbStationRow, FbTableRow } from "@/lib/hms/fb-types";
@@ -89,7 +90,10 @@ export async function loadFbConfig(
     supabase.schema("hotel").from("fb_tables").select("*").eq("tenant_id", tenantId).order("table_code"),
     loadModifierSetup(supabase, tenantId),
   ]);
-  const settings = await getTenantFbSettings(supabase, tenantId);
+  const [settings, priceRules] = await Promise.all([
+    getTenantFbSettings(supabase, tenantId),
+    loadPriceRules(supabase, tenantId),
+  ]);
 
   return {
     outlets: (outletsRes.data ?? []).map(mapOutlet),
@@ -100,6 +104,8 @@ export async function loadFbConfig(
     modifierGroups: modifiers.groups,
     modifierLinks: modifiers.links,
     billRates: settings.billRates,
+    priceRules,
+    timeZone: settings.timeZone,
   };
 }
 

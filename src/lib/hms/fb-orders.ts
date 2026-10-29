@@ -11,6 +11,8 @@ import { loadModifierGroupsForMenuItem, loadOrderItemModifiers } from "@/lib/hms
 import { mergeBlockReason, planSplit, splitBlockReason } from "@/lib/hms/fb-split-rules";
 import { computeBillTotals } from "@/lib/hms/fb-bill-rules";
 import { getTenantFbSettings } from "@/lib/hms/fb-settings";
+import { type FbPricingNow, loadPricingNow } from "@/lib/hms/fb-pricing";
+import { priceWithRules } from "@/lib/hms/fb-price-rules";
 import {
   courseLabel,
   defaultCourseFor,
@@ -21,11 +23,11 @@ import {
 import {
   type FbOutletTender,
   leftToPay,
-  resolvePartPayment,
   roomChargeBlockReason,
   roundMoney,
   settlementBlockReason,
 } from "@/lib/hms/fb-payment-rules";
+import { resolveTippedPayment } from "@/lib/hms/fb-tip-rules";
 import { postStockMovement } from "@/lib/hms/inventory-stock";
 import type {
   FbKitchenStatus,
@@ -111,6 +113,8 @@ export function mapOrderItem(r: Record<string, unknown>): FbOrderItemRow {
     comp_reason: (r.comp_reason as string) ?? null,
     comped_at: (r.comped_at as string) ?? null,
     original_price: r.original_price == null ? null : num(r.original_price),
+    list_price: r.list_price == null ? null : num(r.list_price),
+    price_rule_name: (r.price_rule_name as string) ?? null,
     created_at: r.created_at as string,
   };
 }
@@ -147,7 +151,7 @@ async function loadOrderPayments(supabase: SupabaseClient, orderIds: string[]) {
   const { data } = await supabase
     .schema("hotel")
     .from("fb_order_payments")
-    .select("id,order_id,method,amount,amount_tendered,change_given,share_label,created_at")
+    .select("id,order_id,method,amount,amount_tendered,change_given,share_label,tip_amount,tip_staff_id,created_at")
     .in("order_id", orderIds)
     .order("created_at", { ascending: true });
   for (const r of data ?? []) {
@@ -159,6 +163,8 @@ async function loadOrderPayments(supabase: SupabaseClient, orderIds: string[]) {
       amount_tendered: r.amount_tendered == null ? null : num(r.amount_tendered),
       change_given: num(r.change_given),
       share_label: (r.share_label as string) ?? null,
+      tip_amount: num(r.tip_amount),
+      tip_staff_id: (r.tip_staff_id as string) ?? null,
       created_at: r.created_at as string,
     });
     map.set(r.order_id as string, list);
@@ -435,6 +441,9 @@ export type ResolvedOrderLine = {
   menuItemId: string;
   name: string;
   unitPrice: number;
+  /** Menu price before a price rule; null when none applied. */
+  listPrice: number | null;
+  priceRuleName: string | null;
   stationId: string | null;
   stationCode: string | null;
   notes: string | null;
@@ -446,11 +455,14 @@ export type ResolvedOrderLine = {
 /**
  * Checks one line (item, choices, note) and prices it, without writing
  * anything — so a whole ticket can be checked before the order is created.
+ * The price is the menu price with choices, changed by any price rule running
+ * now (pass `pricing` to load the rules once for a whole ticket).
  */
 export async function resolveOrderLine(
   supabase: SupabaseClient,
   tenantId: string,
   line: FbOrderLineInput,
+  pricing?: FbPricingNow,
 ): Promise<{ line: ResolvedOrderLine | null; error: string | null }> {
   const { data: menuItem } = await supabase
     .schema("hotel")
@@ -479,6 +491,14 @@ export async function resolveOrderLine(
     supabase.schema("hotel").from("fb_outlets").select("outlet_type").eq("id", menuItem.outlet_id).maybeSingle(),
   ]);
 
+  const now = pricing ?? (await loadPricingNow(supabase, tenantId));
+  const ruled = priceWithRules(
+    roundMoney(basePrice + selection.priceDelta),
+    { outlet_id: menuItem.outlet_id as string, category_id: (menuItem.category_id as string) ?? null },
+    now.rules,
+    now.clock,
+  );
+
   const course =
     line.course != null
       ? line.course
@@ -491,7 +511,9 @@ export async function resolveOrderLine(
     line: {
       menuItemId: line.menuItemId,
       name: menuItem.name as string,
-      unitPrice: roundMoney(basePrice + selection.priceDelta),
+      unitPrice: ruled.price,
+      listPrice: ruled.rule ? ruled.listPrice : null,
+      priceRuleName: ruled.rule?.name ?? null,
       stationId: (menuItem.station_id as string) ?? null,
       stationCode: (station?.code as string) ?? null,
       notes: normaliseItemNote(line.notes),
@@ -817,6 +839,8 @@ export async function insertResolvedOrderLine(
       menu_item_id: line.menuItemId,
       name_snapshot: line.name,
       price_snapshot: line.unitPrice,
+      list_price: line.listPrice,
+      price_rule_name: line.priceRuleName,
       quantity: 1,
       station_id: line.stationId,
       station_code_snapshot: line.stationCode,
@@ -1627,7 +1651,8 @@ async function lostClaimReason(supabase: SupabaseClient, tenantId: string, order
  * once the payments add up to it. The money rules live in the SQL function
  * hotel.fb_take_payment, which locks the bill so two tills can't overpay it.
  * Nothing is written to a guest folio: the night audit reads these payments.
- * `reservationId` only links the guest.
+ * `reservationId` only links the guest. A tip rides on top of the payment
+ * (never part of the bill) and is owed to `tipStaffId`, or the pool when null.
  */
 export async function settleFbOrderAtOutlet(
   supabase: SupabaseClient,
@@ -1640,6 +1665,8 @@ export async function settleFbOrderAtOutlet(
     tendered?: number | null;
     shareLabel?: string | null;
     reservationId?: string | null;
+    tip?: number | null;
+    tipStaffId?: string | null;
     settledBy: string;
   },
 ) {
@@ -1650,7 +1677,13 @@ export async function settleFbOrderAtOutlet(
 
   const left = leftToPay(order);
   const amount = params.amount ?? left;
-  const check = resolvePartPayment({ left, amount, method: params.method, tendered: params.tendered });
+  const check = resolveTippedPayment({
+    left,
+    amount,
+    method: params.method,
+    tendered: params.tendered,
+    tip: params.tip,
+  });
   if (!check.ok) return { order: null, error: check.error };
 
   if (params.reservationId && !order.reservation_id) {
@@ -1680,14 +1713,17 @@ export async function settleFbOrderAtOutlet(
     p_share_label: params.shareLabel ?? null,
     p_taken_by: params.settledBy,
     p_expected_subtotal: order.subtotal,
+    p_tip: check.tip,
+    p_tip_staff_id: check.tip > 0 ? (params.tipStaffId ?? null) : null,
   });
   if (error) return { order: null, error: error.message };
-  const result = data as { settled: boolean; remaining: number; change_given: number };
+  const result = data as { settled: boolean; remaining: number; change_given: number; tip?: number };
 
   const closed = result.settled ? await closeFbOrder(supabase, params.tenantId, params.orderId) : null;
   return {
     order: closed?.order ?? (await loadOrderById(supabase, params.tenantId, params.orderId)),
     changeGiven: Number(result.change_given) || 0,
+    tip: Number(result.tip) || 0,
     remaining: Number(result.remaining) || 0,
     settled: Boolean(result.settled),
     error: null,

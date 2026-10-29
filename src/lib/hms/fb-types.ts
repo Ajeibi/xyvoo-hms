@@ -135,6 +135,10 @@ export type FbOrderItemRow = {
   comp_reason: string | null;
   comped_at: string | null;
   original_price: number | null;
+  /** Menu price before a happy hour or other price rule; null when none applied. */
+  list_price: number | null;
+  /** The price rule used, e.g. "Happy hour". */
+  price_rule_name: string | null;
   created_at: string;
 };
 
@@ -145,6 +149,10 @@ export type FbOrderPayment = {
   amount_tendered: number | null;
   change_given: number;
   share_label: string | null;
+  /** Tip given with this payment, on top of amount (not part of the bill). */
+  tip_amount: number;
+  /** Who the tip is for; null = the shared pool. */
+  tip_staff_id: string | null;
   created_at: string;
 };
 

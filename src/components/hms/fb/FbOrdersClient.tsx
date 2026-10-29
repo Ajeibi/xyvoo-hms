@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlarmClock, ArrowRightLeft, Banknote, BedDouble, Check, Combine, Flame, Loader2, Printer, Search, Send, Split } from "lucide-react";
+import Link from "next/link";
+import { AlarmClock, ArrowRightLeft, Banknote, BedDouble, Check, Combine, Flame, HandCoins, Loader2, Printer, Search, Send, Split } from "lucide-react";
 import type { FbOrderWithItems } from "@/lib/hms/fb-types";
 import type { FbRoleCapabilities } from "@/lib/hms/fb-rbac";
 import { DEFAULT_KITCHEN_OVERDUE_MINUTES } from "@/lib/hms/fb-settings";
@@ -16,7 +17,8 @@ import {
   ticketAgeStyle,
 } from "@/lib/hms/fb-order-timing";
 import { courseLabel, summariseCourses } from "@/lib/hms/fb-course-rules";
-import { evenShares, leftToPay, resolvePartPayment } from "@/lib/hms/fb-payment-rules";
+import { evenShares, leftToPay } from "@/lib/hms/fb-payment-rules";
+import { resolveTippedPayment, tipFromPercent } from "@/lib/hms/fb-tip-rules";
 import { billsBySeat, mergeBlockReason, planSplit, splittableItems } from "@/lib/hms/fb-split-rules";
 import { cancelNeeds, compNeeds, FB_COMP_REASONS, FB_VOID_REASONS, FB_WAIVE_REASONS, voidNeeds } from "@/lib/hms/fb-void-rules";
 import { computeBillTotals } from "@/lib/hms/fb-bill-rules";
@@ -272,6 +274,12 @@ export function FbOrdersClient({
   const [printReceipts, setPrintReceipts] = useDevicePrintSetting("receipt-on-pay");
   const [evenPeople, setEvenPeople] = useState(2);
   const [otherAmount, setOtherAmount] = useState("");
+  // Tip on top of the payment: none, a quick percentage, or a typed amount.
+  const [tipMode, setTipMode] = useState<"none" | "5" | "10" | "other">("none");
+  const [tipOther, setTipOther] = useState("");
+  /** Who the tip is for; "" = the shared pool. */
+  const [tipStaffId, setTipStaffId] = useState("");
+  const [tipStaff, setTipStaff] = useState<{ userId: string; name: string }[] | null>(null);
 
   const openPaySheet = (order: FbOrderWithItems) => {
     setPayTarget(order);
@@ -281,6 +289,16 @@ export function FbOrdersClient({
     setPayMode("all");
     setEvenPeople(2);
     setOtherAmount("");
+    setTipMode("none");
+    setTipOther("");
+    // The tip goes to whoever took the order, unless changed.
+    setTipStaffId(order.placed_by ?? "");
+    if (tipStaff === null) {
+      void fetch(`/api/hotel/fb/tips?slug=${encodeURIComponent(slug)}&list=staff`)
+        .then((res) => (res.ok ? res.json() : { staff: [] }))
+        .then((data) => setTipStaff(data.staff ?? []))
+        .catch(() => setTipStaff([]));
+    }
   };
 
   const closePaySheet = () => {
@@ -306,14 +324,26 @@ export function FbOrdersClient({
 
   // Blank cash field = exact money. Checked again on the server.
   const cashTendered = cashReceived.trim() === "" ? null : Number(cashReceived);
+  const tipAmount =
+    tipMode === "none"
+      ? 0
+      : tipMode === "other"
+        ? Number(tipOther) || 0
+        : Number.isFinite(payAmount)
+          ? tipFromPercent(payAmount, Number(tipMode))
+          : 0;
   const payCheck = payTarget
-    ? resolvePartPayment({
+    ? resolveTippedPayment({
         left: payLeft,
         amount: payAmount,
         method: payMethod,
         tendered: payMethod === "cash" ? cashTendered : null,
+        tip: tipAmount,
       })
     : null;
+  // Only people who work here can be picked; anyone else falls back to the pool.
+  const tipStaffKnown = tipStaff?.some((s) => s.userId === tipStaffId) ?? false;
+  const tipFor = tipStaffKnown ? tipStaffId : "";
 
   const confirmSettlePos = async () => {
     if (!payTarget || !payCheck) return;
@@ -335,6 +365,8 @@ export function FbOrdersClient({
           amount,
           amountTendered: payMethod === "cash" ? (cashTendered ?? undefined) : undefined,
           shareLabel,
+          tip: tipAmount > 0 ? tipAmount : undefined,
+          tipStaffId: tipAmount > 0 ? tipFor || null : undefined,
         }),
       });
       const data = await res.json();
@@ -346,7 +378,10 @@ export function FbOrdersClient({
         return;
       }
       const change = Number(data.changeGiven) || 0;
-      const changeNote = change > 0 ? ` · change ${formatPricingAmount(change, currency)}` : "";
+      const tipTaken = Number(data.tip) || 0;
+      const changeNote =
+        (tipTaken > 0 ? ` · tip ${formatPricingAmount(tipTaken, currency)}` : "") +
+        (change > 0 ? ` · change ${formatPricingAmount(change, currency)}` : "");
       if (data.settled) {
         printWindow?.go(receiptPrintUrl(slug, order.id));
         toastSuccess("Bill paid", `${methodLabel} ${formatPricingAmount(amount, currency)}${changeNote}`);
@@ -361,6 +396,8 @@ export function FbOrdersClient({
         if (data.order) setPayTarget(data.order);
         setCashReceived("");
         setOtherAmount("");
+        setTipMode("none");
+        setTipOther("");
         setPayError(null);
       }
       await load();
@@ -644,6 +681,12 @@ export function FbOrdersClient({
         meaning="food"
         title="Open orders"
         description="See where each order is in the kitchen, then take payment or charge it to a room."
+        actions={
+          <Link href={`/hms/${slug}/restaurant-bar/tips`} className={hmsButton.secondary}>
+            <HandCoins className="h-4 w-4 text-slate-600" aria-hidden />
+            Tips
+          </Link>
+        }
       />
 
       <AlertDialog
@@ -843,7 +886,10 @@ export function FbOrdersClient({
                           {formatSettlementMethod(p.method)}
                           {p.share_label ? ` · ${p.share_label}` : ""}
                         </span>
-                        <span className="tabular-nums">{formatPricingAmount(p.amount, currency)}</span>
+                        <span className="tabular-nums">
+                          {formatPricingAmount(p.amount, currency)}
+                          {p.tip_amount > 0 ? ` + ${formatPricingAmount(p.tip_amount, currency)} tip` : ""}
+                        </span>
                       </li>
                     ))}
                   </ul>
@@ -961,6 +1007,87 @@ export function FbOrdersClient({
                     </button>
                   </div>
                 </div>
+                <div>
+                  <p id="fb-orders-pay-tip" className="mb-2 text-sm font-medium text-slate-800">
+                    Tip <span className="font-normal text-slate-600">(optional, on top of the bill)</span>
+                  </p>
+                  <div role="group" aria-labelledby="fb-orders-pay-tip" className="grid grid-cols-4 gap-2">
+                    {(
+                      [
+                        ["none", "No tip"],
+                        ["5", "5%"],
+                        ["10", "10%"],
+                        ["other", "Other"],
+                      ] as const
+                    ).map(([mode, label]) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        aria-pressed={tipMode === mode}
+                        disabled={paySheetBusy}
+                        onClick={() => {
+                          setTipMode(mode);
+                          setPayError(null);
+                        }}
+                        className={cn(
+                          "min-h-11 rounded-xl border px-2 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
+                          tipMode === mode
+                            ? "border-emerald-600 bg-emerald-50 text-emerald-900"
+                            : "border-slate-200 text-slate-700 hover:bg-slate-50",
+                        )}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  {tipMode === "other" ? (
+                    <div className="mt-2">
+                      <label htmlFor="fb-orders-tip-amount" className="sr-only">
+                        Tip amount
+                      </label>
+                      <input
+                        id="fb-orders-tip-amount"
+                        type="number"
+                        inputMode="decimal"
+                        min={0}
+                        step="0.01"
+                        placeholder="Tip amount"
+                        value={tipOther}
+                        disabled={paySheetBusy}
+                        onChange={(e) => {
+                          setTipOther(e.target.value);
+                          setPayError(null);
+                        }}
+                        className={hmsInput}
+                      />
+                    </div>
+                  ) : null}
+                  {tipAmount > 0 ? (
+                    <div className="mt-2 space-y-2">
+                      <HmsField id="fb-orders-tip-for" label="Tip for">
+                        <select
+                          id="fb-orders-tip-for"
+                          value={tipFor}
+                          disabled={paySheetBusy || tipStaff === null}
+                          onChange={(e) => setTipStaffId(e.target.value)}
+                          className={hmsInput}
+                        >
+                          <option value="">Shared tip pool</option>
+                          {(tipStaff ?? []).map((s) => (
+                            <option key={s.userId} value={s.userId}>
+                              {s.name}
+                            </option>
+                          ))}
+                        </select>
+                      </HmsField>
+                      <p className="text-sm text-slate-700">
+                        {payMethod === "cash"
+                          ? `Guest pays ${formatPricingAmount(payAmount + tipAmount, currency)}: ${formatPricingAmount(payAmount, currency)} bill + ${formatPricingAmount(tipAmount, currency)} tip.`
+                          : `Charge the card machine ${formatPricingAmount(payAmount + tipAmount, currency)}: ${formatPricingAmount(payAmount, currency)} bill + ${formatPricingAmount(tipAmount, currency)} tip.`}
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
                 {payMethod === "cash" ? (
                   <HmsField
                     id="fb-orders-cash-received"
@@ -1022,6 +1149,7 @@ export function FbOrdersClient({
             >
               {paySheetBusy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
               Take {payCheck?.ok ? formatPricingAmount(payAmount, currency) : "payment"}
+              {payCheck?.ok && payCheck.tip > 0 ? ` + ${formatPricingAmount(payCheck.tip, currency)} tip` : ""}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1548,6 +1676,12 @@ export function FbOrdersClient({
                       )}
                       {item.kitchen_status === "voided" && item.void_reason ? (
                         <span className="text-xs text-slate-600">{item.void_reason}</span>
+                      ) : null}
+                      {item.price_rule_name && !item.comped_at ? (
+                        <span className="inline-flex items-center rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-800 ring-1 ring-violet-200">
+                          {item.price_rule_name}
+                          {item.list_price ? ` (was ${formatPricingAmount(item.list_price, currency)} each)` : ""}
+                        </span>
                       ) : null}
                       {item.comped_at ? (
                         <HmsPill tone="blue">

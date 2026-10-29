@@ -31,6 +31,7 @@ import type {
 } from "@/lib/hms/fb-types";
 import type { PublicMenuOutlet } from "@/lib/hms/fb-menu";
 import type { FbBillRates } from "@/lib/hms/fb-bill-rules";
+import type { FbPriceRule } from "@/lib/hms/fb-price-rules";
 
 export type FbConfigPayload = {
   outlets: FbOutletRow[];
@@ -42,6 +43,10 @@ export type FbConfigPayload = {
   modifierLinks: FbMenuItemModifierLink[];
   /** Service charge, levy and VAT for new bills (POS estimate). */
   billRates: FbBillRates;
+  /** Happy hours and other time-based prices (all of them; the POS uses the switched-on ones). */
+  priceRules: FbPriceRule[];
+  /** The hotel's clock for price rules. */
+  timeZone: string;
 };
 
 export type FbOrderHistoryRow = {

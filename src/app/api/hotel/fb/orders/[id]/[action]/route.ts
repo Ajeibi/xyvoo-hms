@@ -19,6 +19,10 @@ const PaymentSchema = z.object({
   /** e.g. "Share 2 of 3" for an even split. */
   shareLabel: z.string().trim().max(40).optional(),
   reservationId: z.string().uuid().optional(),
+  /** Tip on top of the amount (cash, card and terminal only). */
+  tip: z.coerce.number().min(0, "A tip can't be negative.").max(10_000_000).optional(),
+  /** Who the tip is for; null or left out = the shared pool. */
+  tipStaffId: z.string().uuid().nullable().optional(),
 });
 
 export async function POST(
@@ -75,6 +79,8 @@ export async function POST(
         tendered: payBody.amountTendered,
         shareLabel: payBody.shareLabel,
         reservationId: payBody.reservationId,
+        tip: payBody.tip,
+        tipStaffId: payBody.tipStaffId,
         settledBy: auth.user.id,
       });
       if (paid.error) return NextResponse.json({ error: paid.error }, { status: 400 });
@@ -91,6 +97,8 @@ export async function POST(
           share: payBody.shareLabel ?? null,
           amount_tendered: payBody.amountTendered ?? null,
           change_given: paid.changeGiven,
+          tip: paid.tip,
+          tip_for: paid.tip ? (payBody.tipStaffId ?? "pool") : null,
           left_to_pay: paid.remaining,
         },
       });
@@ -98,6 +106,7 @@ export async function POST(
         ok: true,
         order: paid.order,
         changeGiven: paid.changeGiven,
+        tip: paid.tip,
         remaining: paid.remaining,
         settled: paid.settled,
       });

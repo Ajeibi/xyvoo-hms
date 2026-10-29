@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
-import { Flame, Loader2, Minus, Pencil, Plus, Receipt, Send, Settings, Trash2 } from "lucide-react";
+import { Clock, Flame, Loader2, Minus, Pencil, Plus, Receipt, Send, Settings, Trash2 } from "lucide-react";
 import {
   draftLineKey,
   groupsForMenuItem,
@@ -19,6 +19,8 @@ import {
 } from "@/lib/hms/fb-course-rules";
 import { computeBillTotals, NO_BILL_CHARGES } from "@/lib/hms/fb-bill-rules";
 import { kitchenTicketPrintUrl, reservePrintWindow, useDevicePrintSetting } from "@/lib/hms/fb-print-links";
+import { changeLabel, DEFAULT_FB_TIME_ZONE, priceWithRules, ruleCoversItem, ruleIsOn, shortTime } from "@/lib/hms/fb-price-rules";
+import { useHotelClock } from "@/lib/hms/fb-price-clock";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import { FbItemChoicesDialog, type FbItemChoices } from "@/components/hms/fb/FbItemChoicesDialog";
 import { useFbRealtime } from "@/hooks/useFbRealtime";
@@ -37,6 +39,8 @@ type FbConfig = {
   modifierGroups: FbConfigPayload["modifierGroups"];
   modifierLinks: FbConfigPayload["modifierLinks"];
   billRates?: FbConfigPayload["billRates"];
+  priceRules: FbConfigPayload["priceRules"];
+  timeZone: string;
 };
 
 type DraftLine = {
@@ -45,8 +49,9 @@ type DraftLine = {
   menuItemId: string;
   outletId: string;
   name: string;
-  /** Unit price including choices. */
+  /** Menu price including choices, before any happy hour (worked out when shown). */
   price: number;
+  categoryId: string | null;
   quantity: number;
   optionIds: string[];
   choiceLabels: string[];
@@ -97,6 +102,8 @@ export function FbPosClient({
     modifierGroups: initial.config.modifierGroups ?? [],
     modifierLinks: initial.config.modifierLinks ?? [],
     billRates: initial.config.billRates,
+    priceRules: initial.config.priceRules ?? [],
+    timeZone: initial.config.timeZone ?? DEFAULT_FB_TIME_ZONE,
   });
   const [choicesTarget, setChoicesTarget] = useState<ChoicesTarget | null>(null);
   const [printTickets, setPrintTickets] = useDevicePrintSetting("kitchen-ticket-on-send");
@@ -120,6 +127,8 @@ export function FbPosClient({
         modifierGroups: cfg.modifierGroups ?? [],
         modifierLinks: cfg.modifierLinks ?? [],
         billRates: cfg.billRates,
+        priceRules: cfg.priceRules ?? [],
+        timeZone: cfg.timeZone ?? DEFAULT_FB_TIME_ZONE,
       });
       setOutletId((prev) => {
         if (prev && cfg.outlets?.some((o: { id: string }) => o.id === prev)) return prev;
@@ -161,9 +170,35 @@ export function FbPosClient({
     [config.tables, restaurantOutletIds],
   );
 
+  // Happy hours: prices follow the hotel's clock, minute by minute. The
+  // server fixes each line's price when the ticket is sent.
+  const clock = useHotelClock(config.timeZone);
+  const activeRules = useMemo(() => config.priceRules.filter((r) => r.is_active), [config.priceRules]);
+  const ruledPrice = useCallback(
+    (listPrice: number, item: { outlet_id: string; category_id: string | null }) =>
+      clock
+        ? priceWithRules(listPrice, item, activeRules, clock)
+        : { price: listPrice, listPrice, rule: null },
+    [activeRules, clock],
+  );
+  // Rules running now that touch at least one item on the menu being shown.
+  const rulesOnHere = useMemo(
+    () =>
+      clock
+        ? activeRules.filter(
+            (r) => ruleIsOn(r, clock) && allMenuItems.some((item) => ruleCoversItem(r, item)),
+          )
+        : [],
+    [activeRules, allMenuItems, clock],
+  );
+
+  const linePrice = useCallback(
+    (line: DraftLine) => ruledPrice(line.price, { outlet_id: line.outletId, category_id: line.categoryId }),
+    [ruledPrice],
+  );
   const draftSubtotal = useMemo(
-    () => draft.lines.reduce((sum, line) => sum + line.price * line.quantity, 0),
-    [draft.lines],
+    () => draft.lines.reduce((sum, line) => sum + linePrice(line).price * line.quantity, 0),
+    [draft.lines, linePrice],
   );
   // An estimate with the hotel's current rates; the bill keeps the rates it opens with.
   const draftTotals = useMemo(
@@ -255,6 +290,7 @@ export function FbPosClient({
       outletId: menuItem.outlet_id,
       name: menuItem.name,
       price: menuItem.price + check.priceDelta,
+      categoryId: menuItem.category_id,
       optionIds: check.chosen.map((c) => c.optionId),
       choiceLabels: check.chosen.map((c) => modifierLabel({ name: c.optionName, price_delta: c.priceDelta }, (n) => formatPricingAmount(n, currency))),
       note,
@@ -497,6 +533,24 @@ export function FbPosClient({
         </div>
       ) : null}
 
+      {outlet && hasMenu && rulesOnHere.length ? (
+        <div
+          role="status"
+          className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-950"
+        >
+          <Clock className="h-4 w-4 shrink-0 text-violet-700" aria-hidden />
+          {rulesOnHere.map((r) => (
+            <span key={r.id}>
+              <span className="font-semibold">{r.name}</span> on now: {changeLabel(r.change_percent)}
+              {r.category_ids.length
+                ? ` on ${config.categories.filter((c) => r.category_ids.includes(c.id)).map((c) => c.name).join(", ")}`
+                : ""}{" "}
+              until {shortTime(r.ends_at)}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
       {outlet && hasMenu ? (
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-4">
         <div className="min-w-0 space-y-4">
@@ -514,6 +568,7 @@ export function FbPosClient({
                     const qty = draftQtyByItemId.get(item.id) ?? 0;
                     const inDraft = qty > 0;
                     const soldOut = isMenuItemSoldOut(item);
+                    const ruled = ruledPrice(item.price, item);
                     return (
                       <button
                         key={item.id}
@@ -557,8 +612,21 @@ export function FbPosClient({
                             soldOut ? "text-slate-600" : inDraft ? "text-orange-900" : "text-slate-700",
                           )}
                         >
-                          {formatPricingAmount(item.price, currency)}
+                          {ruled.rule && !soldOut ? (
+                            <>
+                              <span className="font-semibold text-violet-800">{formatPricingAmount(ruled.price, currency)}</span>{" "}
+                              <span className="text-xs text-slate-600 line-through">
+                                <span className="sr-only">was </span>
+                                {formatPricingAmount(item.price, currency)}
+                              </span>
+                            </>
+                          ) : (
+                            formatPricingAmount(item.price, currency)
+                          )}
                         </p>
+                        {ruled.rule && !soldOut ? (
+                          <p className="mt-0.5 text-xs font-medium text-violet-800">{ruled.rule.name}</p>
+                        ) : null}
                       </button>
                     );
                   })}
@@ -607,6 +675,11 @@ export function FbPosClient({
                           {line.note ? (
                             <p className="text-sm italic text-amber-900">Note: {line.note}</p>
                           ) : null}
+                          {linePrice(line).rule ? (
+                            <p className="text-xs font-medium text-violet-800">
+                              {linePrice(line).rule?.name}: {changeLabel(linePrice(line).rule?.change_percent ?? 0)}
+                            </p>
+                          ) : null}
                           <div className="mt-1 flex flex-wrap items-center gap-3">
                           <label className="flex items-center gap-1.5 text-xs text-slate-700">
                             Course
@@ -649,7 +722,7 @@ export function FbPosClient({
                           ) : null}
                         </div>
                         <p className="shrink-0 tabular-nums font-medium text-slate-800">
-                          {formatPricingAmount(line.price * line.quantity, currency)}
+                          {formatPricingAmount(linePrice(line).price * line.quantity, currency)}
                         </p>
                       </div>
                       <div className="mt-2 flex items-center justify-between gap-2">

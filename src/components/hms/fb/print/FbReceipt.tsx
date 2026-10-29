@@ -60,6 +60,11 @@ export function FbReceipt({ model }: { model: FbReceiptModel }) {
           {item.modifiers.length ? (
             <p className="pl-3 text-[11px]">{item.modifiers.map((m) => m.option_name).join(", ")}</p>
           ) : null}
+          {item.price_rule_name && item.list_price && !item.comped_at ? (
+            <p className="pl-3 text-[11px]">
+              {item.price_rule_name} (was {money(item.list_price)} each)
+            </p>
+          ) : null}
           {item.seat ? <p className="pl-3 text-[11px]">Seat {item.seat}</p> : null}
         </div>
       ))}
@@ -90,6 +95,9 @@ export function FbReceipt({ model }: { model: FbReceiptModel }) {
                 label={`${METHOD_LABEL[p.method] ?? p.method}${p.share_label ? ` · ${p.share_label}` : ""}`}
                 value={money(p.amount)}
               />
+              {p.tip_amount > 0 ? (
+                <Row label="Tip (thank you)" value={money(p.tip_amount)} />
+              ) : null}
               {p.method === "cash" && p.change_given > 0 ? (
                 <p className="pl-3 text-[11px]">
                   Received {money(p.amount_tendered ?? p.amount)}, change {money(p.change_given)}
