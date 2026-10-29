@@ -28,6 +28,7 @@ import {
   settlementBlockReason,
 } from "@/lib/hms/fb-payment-rules";
 import { resolveTippedPayment } from "@/lib/hms/fb-tip-rules";
+import { linkPaymentToOpenTill, openSessionIdForOutlet } from "@/lib/hms/fb-cashup";
 import { postStockMovement } from "@/lib/hms/inventory-stock";
 import type {
   FbKitchenStatus,
@@ -1717,7 +1718,9 @@ export async function settleFbOrderAtOutlet(
     p_tip_staff_id: check.tip > 0 ? (params.tipStaffId ?? null) : null,
   });
   if (error) return { order: null, error: error.message };
-  const result = data as { settled: boolean; remaining: number; change_given: number; tip?: number };
+  const result = data as { payment_id: string; settled: boolean; remaining: number; change_given: number; tip?: number };
+  // Counts in the cash-up of the till open at this outlet (if one is open).
+  await linkPaymentToOpenTill(supabase, params.tenantId, result.payment_id, order.outlet_id);
 
   const closed = result.settled ? await closeFbOrder(supabase, params.tenantId, params.orderId) : null;
   return {
@@ -1819,6 +1822,8 @@ export async function chargeFbOrderToRoom(
     amount_tendered: roundMoney(order.subtotal),
     reservation_id: params.reservationId,
     taken_by: params.postedBy,
+    // Shown on the shift report of the till open at this outlet (no cash involved).
+    cash_session_id: await openSessionIdForOutlet(supabase, params.tenantId, order.outlet_id),
   });
   await supabase
     .schema("hotel")

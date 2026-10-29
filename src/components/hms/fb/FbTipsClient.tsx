@@ -51,6 +51,9 @@ export function FbTipsClient({ slug, currency }: { slug: string; currency: strin
   const [payout, setPayout] = useState<Payout | null>(null);
   const [method, setMethod] = useState<FbTipPayoutMethod>("cash");
   const [note, setNote] = useState("");
+  /** Open till the cash comes out of; "" = office cash (not a till). */
+  const [tillId, setTillId] = useState("");
+  const [openTills, setOpenTills] = useState<{ id: string; outletName: string }[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const money = (n: number) => formatPricingAmount(n, currency);
@@ -84,17 +87,31 @@ export function FbTipsClient({ slug, currency }: { slug: string; currency: strin
   const people = (data?.balances ?? []).filter((b) => b.staffId !== null);
   const totalOwed = roundMoney((data?.balances ?? []).reduce((s, b) => s + Math.max(0, b.owed), 0));
 
+  /** Which tills are open, for "cash from till". Loaded when a payout starts. */
+  const loadOpenTills = () => {
+    setTillId("");
+    void fetch(`/api/hotel/fb/cash-up?slug=${encodeURIComponent(slug)}`)
+      .then((res) => (res.ok ? res.json() : { sessions: [] }))
+      .then((json: { sessions?: { id: string; outletName: string; status: string }[] }) => {
+        const open = (json.sessions ?? []).filter((s) => s.status === "open");
+        setOpenTills(open);
+        setTillId(open.length === 1 ? open[0].id : "");
+      })
+      .catch(() => setOpenTills([]));
+  };
   const startOwn = (b: FbTipBalance) => {
     setPayout({ source: "own", staffId: b.staffId ?? "", amount: String(b.owed) });
     setMethod("cash");
     setNote("");
     setError("");
+    loadOpenTills();
   };
   const startPool = () => {
     setPayout({ source: "pool", total: String(pool?.owed ?? 0), chosen: [], amounts: {} });
     setMethod("cash");
     setNote("");
     setError("");
+    loadOpenTills();
   };
 
   /** Re-shares the pool total equally between the people ticked. */
@@ -127,7 +144,14 @@ export function FbTipsClient({ slug, currency }: { slug: string; currency: strin
       const res = await fetch("/api/hotel/fb/tips", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug, source: payout.source, payments, method, note: note.trim() || null }),
+        body: JSON.stringify({
+          slug,
+          source: payout.source,
+          payments,
+          method,
+          note: note.trim() || null,
+          tillSessionId: method === "cash" && tillId ? tillId : null,
+        }),
       });
       const json = await res.json();
       if (!res.ok) {
@@ -135,6 +159,7 @@ export function FbTipsClient({ slug, currency }: { slug: string; currency: strin
         return;
       }
       toastSuccess("Tips paid out", `${money(json.total)} by ${method === "cash" ? "cash" : "bank transfer"}`);
+      if (json.postingError) toastError("Paid out, but not booked to the accounts", json.postingError);
       setPayout(null);
       load();
     } catch {
@@ -348,6 +373,31 @@ export function FbTipsClient({ slug, currency }: { slug: string; currency: strin
               </button>
             ))}
           </div>
+
+          {method === "cash" ? (
+            <div className="max-w-sm">
+              <HmsField
+                id="fb-tips-till"
+                label="Cash comes from"
+                hint="Taking it from a till lowers the cash that till should hold at cash-up."
+              >
+                <select
+                  id="fb-tips-till"
+                  value={tillId}
+                  onChange={(e) => setTillId(e.target.value)}
+                  aria-describedby="fb-tips-till-hint"
+                  className={hmsInput}
+                >
+                  <option value="">Office cash (not a till)</option>
+                  {openTills.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.outletName} till
+                    </option>
+                  ))}
+                </select>
+              </HmsField>
+            </div>
+          ) : null}
 
           <div className="max-w-md">
             <HmsField id="fb-tips-note" label="Note" optional>

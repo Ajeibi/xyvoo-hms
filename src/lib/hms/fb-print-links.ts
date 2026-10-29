@@ -10,6 +10,11 @@ export function kitchenTicketPrintUrl(slug: string, orderId: string, auto = true
   return `/hms-print/${encodeURIComponent(slug)}/kitchen/${orderId}${auto ? "?auto=1" : ""}`;
 }
 
+/** End-of-shift report for one till. */
+export function cashUpReportUrl(slug: string, sessionId: string) {
+  return `/hms-print/${encodeURIComponent(slug)}/cash-up/${sessionId}`;
+}
+
 /** Opens a print page in a new tab now (must run inside a click, or browsers block it). */
 export function openPrint(url: string) {
   window.open(url, "_blank", "noopener");

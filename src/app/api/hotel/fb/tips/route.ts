@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { loadTipStaff, loadTipsModel, payTips } from "@/lib/hms/fb-tips";
+import { bookTipPayouts, loadCashSession } from "@/lib/hms/fb-cashup";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { fbForbidden, requireFbApi } from "../_lib";
 
@@ -18,6 +19,8 @@ const PayoutSchema = z.object({
     .max(50),
   method: z.enum(["cash", "bank"]),
   note: z.string().trim().max(200, "Keep the note to 200 characters.").optional().nullable(),
+  /** Cash taken out of this open till (counts against its cash-up). */
+  tillSessionId: z.string().uuid().optional().nullable(),
 });
 
 /** Tips owed and recent tips. Staff see only their own tips; managers see everyone's. */
@@ -55,6 +58,16 @@ export async function POST(req: Request) {
     const denied = fbForbidden(auth.capabilities, "canConfigure");
     if (denied) return NextResponse.json({ error: denied.error }, { status: denied.status });
 
+    if (body.tillSessionId) {
+      if (body.method !== "cash") {
+        return NextResponse.json({ error: "Only cash payouts come out of a till." }, { status: 400 });
+      }
+      const till = await loadCashSession(auth.service, auth.tenant.id, body.tillSessionId);
+      if (!till || till.status !== "open") {
+        return NextResponse.json({ error: "That till is no longer open. Choose another or pay from office cash." }, { status: 400 });
+      }
+    }
+
     const result = await payTips(auth.service, {
       tenantId: auth.tenant.id,
       source: body.source,
@@ -64,6 +77,16 @@ export async function POST(req: Request) {
       paidBy: auth.user.id,
     });
     if (result.error) return NextResponse.json({ error: result.error }, { status: 400 });
+
+    // Book it: what is owed to staff goes down, and cash or bank goes down.
+    const booked = await bookTipPayouts(auth.service, {
+      tenantId: auth.tenant.id,
+      payoutIds: result.payoutIds,
+      total: result.total,
+      method: body.method,
+      tillSessionId: body.tillSessionId,
+      actor: auth.user.id,
+    });
 
     await writeAuditLog({
       tenantId: auth.tenant.id,
@@ -78,9 +101,12 @@ export async function POST(req: Request) {
         payments: body.payments,
         payout_ids: result.payoutIds,
         note: body.note ?? null,
+        till_session_id: body.tillSessionId ?? null,
+        journal_entry_id: booked.journalEntryId,
+        posting_error: booked.error,
       },
     });
-    return NextResponse.json({ ok: true, total: result.total });
+    return NextResponse.json({ ok: true, total: result.total, postingError: booked.error });
   } catch (e) {
     if (e instanceof z.ZodError) {
       return NextResponse.json({ error: e.issues[0]?.message }, { status: 400 });

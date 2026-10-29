@@ -3,6 +3,9 @@ import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { loadKitchenBoard, loadOrderById } from "@/lib/hms/fb-orders";
 import type { FbKitchenTicket, FbOrderWithItems } from "@/lib/hms/fb-types";
 import { normalizePricingSetup } from "@/lib/hms/room-pricing";
+import { type FbCashSession, liveExpectedCash, loadCashSession, loadZReport } from "@/lib/hms/fb-cashup";
+import type { ZReport } from "@/lib/hms/fb-cashup-rules";
+import { loadTipStaff } from "@/lib/hms/fb-tips";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export type FbPrintAccess = { ok: true } | { ok: false; reason: "signed_out" | "forbidden" | "not_found" };
@@ -81,4 +84,42 @@ export async function loadKitchenTicketModel(
   const ticket = tickets.find((t) => t.id === rootId);
   if (!ticket) return { model: null, denied: "not_found" };
   return { model: { hotelName: ctx.access.hotelDisplayName, ticket }, denied: null };
+}
+
+export type FbCashUpReportModel = {
+  hotelName: string;
+  currency: string;
+  session: FbCashSession;
+  report: ZReport;
+  /** Live figure for an open till (managers only). */
+  expectedNow: number | null;
+  names: Record<string, string>;
+};
+
+/** End-of-shift report for one till. An open till's report is for managers only (staff count blind). */
+export async function loadCashUpReportModel(
+  slug: string,
+  sessionId: string,
+): Promise<{ model: FbCashUpReportModel; denied: null } | { model: null; denied: "signed_out" | "forbidden" | "not_found" }> {
+  const ctx = await printContext(slug);
+  if (ctx.denied || !ctx.tenant || !ctx.service) return { model: null, denied: ctx.denied ?? "not_found" };
+  const session = await loadCashSession(ctx.service, ctx.tenant.id, sessionId);
+  if (!session) return { model: null, denied: "not_found" };
+  if (session.status === "open" && !ctx.access.canAccessAllDepartments) return { model: null, denied: "forbidden" };
+  const [report, staff, expectedNow] = await Promise.all([
+    loadZReport(ctx.service, ctx.tenant.id, sessionId),
+    loadTipStaff(ctx.service, ctx.tenant.id),
+    session.status === "open" ? liveExpectedCash(ctx.service, ctx.tenant.id, session) : Promise.resolve(null),
+  ]);
+  return {
+    model: {
+      hotelName: ctx.access.hotelDisplayName,
+      currency: normalizePricingSetup(ctx.tenant.pricing_setup).currency,
+      session,
+      report,
+      expectedNow,
+      names: Object.fromEntries(staff.map((s) => [s.userId, s.name])),
+    },
+    denied: null,
+  };
 }
