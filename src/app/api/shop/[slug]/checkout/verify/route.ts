@@ -88,9 +88,16 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
     )
     .eq("id", intent.order_id)
     .single();
+  // Tax is read on its own, like the receipt does, so a database without the tax columns still answers.
+  const tax = order
+    ? await service.schema("store").from("orders").select("tax_amount, tax_inclusive").eq("id", intent.order_id).maybeSingle()
+    : null;
+  const taxRow = tax && !tax.error ? (tax.data as { tax_amount?: unknown; tax_inclusive?: unknown } | null) : null;
 
   return NextResponse.json({
     status: verification.status,
-    order,
+    order: order
+      ? { ...order, tax_amount: Number(taxRow?.tax_amount) || 0, tax_inclusive: Boolean(taxRow?.tax_inclusive) }
+      : null,
   });
 }

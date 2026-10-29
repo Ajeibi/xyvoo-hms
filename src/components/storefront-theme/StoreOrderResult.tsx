@@ -17,6 +17,8 @@ type OrderSummary = {
   id: string;
   customer_name: string;
   total_amount: number;
+  tax_amount: number;
+  tax_inclusive: boolean;
   delivery_fee: number | null;
   delivery_method: string | null;
   discount_code: string | null;
@@ -187,9 +189,16 @@ export default function StoreOrderResult({ reference }: { reference: string }) {
                   <dd>−{formatShopCurrency(Number(order.gift_card_amount), currency)}</dd>
                 </>
               ) : null}
+              {order.tax_amount > 0 && !order.tax_inclusive ? (
+                <>
+                  <dt>{t("checkout.tax")}</dt>
+                  <dd>{formatShopCurrency(order.tax_amount, currency)}</dd>
+                </>
+              ) : null}
               <dt className="total">{t("checkout.totalPaid")}</dt>
               <dd className="total">{formatShopCurrency(order.total_amount, currency)}</dd>
             </dl>
+            {order.tax_amount > 0 && order.tax_inclusive ? <p className="hint">{t("checkout.includesTax", { amount: formatShopCurrency(order.tax_amount, currency) })}</p> : null}
             {addressText(order.shipping_address) ? (
               <p className="body-copy">
                 <strong>{t("checkout.deliveringTo")}</strong> {addressText(order.shipping_address)}
