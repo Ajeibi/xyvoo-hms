@@ -18,8 +18,8 @@ export type FolioAuth = Exclude<Awaited<ReturnType<typeof requireHotelApiMember>
 type ReservationGuestEmbed = {
   is_primary: boolean;
   guests:
-    | { first_name: string; last_name: string; email?: string | null }
-    | { first_name: string; last_name: string; email?: string | null }[]
+    | { first_name: string; last_name: string; email?: string | null; phone?: string | null; whatsapp?: string | null }
+    | { first_name: string; last_name: string; email?: string | null; phone?: string | null; whatsapp?: string | null }[]
     | null;
 }[] | null;
 
@@ -28,6 +28,13 @@ function guestEmailFrom(reservationGuests: ReservationGuestEmbed) {
   const g = primary?.guests;
   const guest = Array.isArray(g) ? g[0] : g;
   return guest?.email ?? null;
+}
+
+function guestPhoneFrom(reservationGuests: ReservationGuestEmbed) {
+  const primary = reservationGuests?.find((e) => e.is_primary) ?? reservationGuests?.[0];
+  const g = primary?.guests;
+  const guest = Array.isArray(g) ? g[0] : g;
+  return guest?.whatsapp || guest?.phone || null;
 }
 
 function guestNameFrom(reservationGuests: ReservationGuestEmbed) {
@@ -45,7 +52,7 @@ export async function loadReservation(
     .schema("hotel")
     .from("reservations")
     .select(
-      "id,confirmation_code,folio_number,status,settlement_method,preauth_amount,total_room_charges,rate_per_night,room_type_code,nights,departure_at,arrival_at,checked_in_at,rate_overridden,rate_override_reason,vat_applicable,tax_exempt,pricing_snapshot,extra_nights_confirmed_on,travel_agent_vendor_id,agent_commission_percent,commission_bill_id,bill_to_account,po_number,folio_split_notes,commission_plan,commission_value,credit_limit,reservation_guests(is_primary,guests(first_name,last_name,email))",
+      "id,confirmation_code,folio_number,status,settlement_method,preauth_amount,total_room_charges,rate_per_night,room_type_code,nights,departure_at,arrival_at,checked_in_at,rate_overridden,rate_override_reason,vat_applicable,tax_exempt,pricing_snapshot,extra_nights_confirmed_on,travel_agent_vendor_id,agent_commission_percent,commission_bill_id,bill_to_account,po_number,folio_split_notes,commission_plan,commission_value,credit_limit,reservation_guests(is_primary,guests(first_name,last_name,email,phone,whatsapp))",
     )
     .eq("id", reservationId)
     .eq("tenant_id", auth.tenant.id)
@@ -76,6 +83,7 @@ export async function loadFolioPayload(auth: FolioAuth, reservationId: string) {
   const roomTypeName = roomTypes.find((rt) => rt.id === reservation.room_type_code)?.name ?? null;
   const guestName = guestNameFrom(reservation.reservation_guests as ReservationGuestEmbed);
   const guestEmail = guestEmailFrom(reservation.reservation_guests as ReservationGuestEmbed);
+  const guestPhone = guestPhoneFrom(reservation.reservation_guests as ReservationGuestEmbed);
   const charged = summariseExtraNights(folio.lines);
   const extraNights = {
     charged: charged.nights,
@@ -94,7 +102,7 @@ export async function loadFolioPayload(auth: FolioAuth, reservationId: string) {
     stayLimit: reservation.credit_limit != null ? Number(reservation.credit_limit) : null,
     defaultLimit: settings.defaultCreditLimit,
   };
-  return { reservation, folio, settings, roomTypeName, guestName, guestEmail, extraNights, stay, billing, agent, credit };
+  return { reservation, folio, settings, roomTypeName, guestName, guestEmail, guestPhone, extraNights, stay, billing, agent, credit };
 }
 
 /** The stay's travel agent and their commission so far (final at check-out). */

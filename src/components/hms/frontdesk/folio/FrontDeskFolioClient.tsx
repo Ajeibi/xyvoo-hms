@@ -45,6 +45,7 @@ type FolioPayload = {
     commissionPlan: string | null;
     commissionValue: number | null;
     guestEmail?: string | null;
+    guestPhone?: string | null;
   };
   folio: {
     lines: FolioLineRow[];
@@ -458,6 +459,7 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
                 reservationId={payload.reservation.id}
                 isFinal={payload.reservation.status === "checked_out"}
                 guestEmail={payload.reservation.guestEmail}
+                guestPhone={payload.reservation.guestPhone}
               />
               <HmsStatStrip label={`Bill ${payload.reservation.folioNumber} in figures`}>
                 <HmsStatTile label="Charges" value={formatPricingAmount(payload.folio.charges, currency)} icon={Receipt} meaning="money" hint="Everything added to the bill" />

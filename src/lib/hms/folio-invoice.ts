@@ -130,7 +130,9 @@ export type InvoiceData = InvoiceBody & {
   hotelLines: string[];
   taxId: string | null;
   currency: string;
-  guest: { name: string; email: string | null; phone: string | null };
+  guest: { name: string; email: string | null; phone: string | null; whatsapp: string | null };
+  /** The hotel's country as saved on its profile, for reading local phone numbers. */
+  hotelCountry: string | null;
   company: { account: string | null; po: string | null };
   roomCode: string | null;
   confirmationCode: string;
@@ -143,7 +145,7 @@ export type InvoiceData = InvoiceBody & {
   isFinal: boolean;
 };
 
-type GuestEmbed = { first_name: string; last_name: string; title: string | null; email: string | null; phone: string | null };
+type GuestEmbed = { first_name: string; last_name: string; title: string | null; email: string | null; phone: string | null; whatsapp: string | null };
 
 /**
  * Everything the invoice shows, or null if the stay isn't this hotel's. A checked-out stay
@@ -154,7 +156,7 @@ export async function loadInvoiceData(supabase: SupabaseClient, tenantId: string
     .schema("hotel")
     .from("reservations")
     .select(
-      "id,status,confirmation_code,folio_number,arrival_at,departure_at,checked_in_at,checked_out_at,nights,room_unit_id,bill_to_account,po_number,invoice_number,invoice_issued_at,reservation_guests(is_primary,guests(first_name,last_name,title,email,phone))",
+      "id,status,confirmation_code,folio_number,arrival_at,departure_at,checked_in_at,checked_out_at,nights,room_unit_id,bill_to_account,po_number,invoice_number,invoice_issued_at,reservation_guests(is_primary,guests(first_name,last_name,title,email,phone,whatsapp))",
     )
     .eq("tenant_id", tenantId)
     .eq("id", reservationId)
@@ -209,7 +211,8 @@ export async function loadInvoiceData(supabase: SupabaseClient, tenantId: string
     hotelLines: [place, profile?.contact_phone ? `Phone ${profile.contact_phone}` : ""].filter(Boolean) as string[],
     taxId: (settings?.tax_id as string | null)?.trim() || null,
     currency: normalizePricingSetup(tenant?.pricing_setup).currency,
-    guest: { name: guestName, email: g?.email ?? null, phone: g?.phone ?? null },
+    guest: { name: guestName, email: g?.email ?? null, phone: g?.phone ?? null, whatsapp: g?.whatsapp ?? null },
+    hotelCountry: typeof profile?.country === "string" ? profile.country.trim() || null : null,
     company: { account: (r.bill_to_account as string | null) ?? null, po: (r.po_number as string | null) ?? null },
     roomCode: (unit?.room_code as string | undefined) ?? null,
     confirmationCode: r.confirmation_code as string,
