@@ -53,6 +53,7 @@ export type HmsSectionKey =
   | "accounts-ar-aging"
   | "accounts-night-audit"
   | "accounts-periods"
+  | "accounts-tax"
   | "accounts-budgets"
   | "accounts-fixed-assets"
   | "accounts-settings"
@@ -404,6 +405,7 @@ export const DEPARTMENT_ROLE_SCOPES: Record<string, DepartmentScopeDefinition> =
       { key: "accounts-periods", icon: "clipboardCheck", label: "Period close", path: `/hms/${slug}/accounts/periods` },
       { key: "accounts-fixed-assets", icon: "clipboardCheck", label: "Fixed assets", path: `/hms/${slug}/accounts/fixed-assets` },
       { key: "accounts-budgets", icon: "clipboardCheck", label: "Budgets", path: `/hms/${slug}/accounts/budgets` },
+      { key: "accounts-tax", icon: "clipboardCheck", label: "Tax reports", path: `/hms/${slug}/accounts/tax` },
       { key: "accounts-settings", icon: "settings", label: "Settings", path: `/hms/${slug}/accounts/settings` },
     ],
     allowedSections: [
