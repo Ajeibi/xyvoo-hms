@@ -15,6 +15,7 @@ import {
   IdCard,
   KeyRound,
   Loader2,
+  MessageSquare,
   StickyNote,
 } from "lucide-react";
 import {
@@ -40,6 +41,7 @@ import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import { READINESS_LABEL } from "./FrontDeskAssignRoomPicker";
 import { ArrivalIdPhoto } from "./ArrivalIdPhoto";
 import { ArrivalKeys } from "./ArrivalKeys";
+import { ArrivalMessages } from "./ArrivalMessages";
 import { ArrivalStayChange } from "./ArrivalStayChange";
 import { ArrivalWelcomeNote } from "./ArrivalWelcomeNote";
 import { cn } from "@/lib/utils";
@@ -705,6 +707,12 @@ export function FrontDeskArrivalDetailSheet({
               {capabilities.canCheckIn && (r.status === "checked_in" || r.status === "confirmed") ? (
                 <SectionCard icon={KeyRound} meaning="rooms" title="Keys">
                   <ArrivalKeys slug={slug} reservationId={r.id} canIssue={r.status === "checked_in"} />
+                </SectionCard>
+              ) : null}
+
+              {capabilities.canManageRequests ? (
+                <SectionCard icon={MessageSquare} meaning="guests" title="Messages">
+                  <ArrivalMessages slug={slug} reservationId={r.id} />
                 </SectionCard>
               ) : null}
 
