@@ -81,6 +81,17 @@ export function buildDisposalLines(
   return { lines, gain };
 }
 
+/** One month's depreciation journal: Dr expense and Cr accumulated depreciation for every asset due. */
+export function buildDepreciationLines(
+  due: { amount: number; department: string | null }[],
+  accounts: { expense: string; accumulated: string },
+): JournalEntryLineInput[] {
+  return due.flatMap((d) => [
+    { accountId: accounts.expense, department: d.department, debit: d.amount, credit: 0 },
+    { accountId: accounts.accumulated, department: d.department, debit: 0, credit: d.amount },
+  ]);
+}
+
 export type FixedAssetRow = {
   id: string;
   assetCode: string;
@@ -283,10 +294,10 @@ export async function runDepreciation(
       .filter((d) => d.amount > 0);
     if (due.length === 0) continue;
 
-    const lines: JournalEntryLineInput[] = due.flatMap((d) => [
-      { accountId: expense, department: d.asset.department, debit: d.amount, credit: 0 },
-      { accountId: accumulatedAcct, department: d.asset.department, debit: 0, credit: d.amount },
-    ]);
+    const lines = buildDepreciationLines(
+      due.map((d) => ({ amount: d.amount, department: d.asset.department })),
+      { expense, accumulated: accumulatedAcct },
+    );
     const posted = await postJournalEntry(service, {
       tenantId: params.tenantId,
       entryDate: monthEndOf(month),
