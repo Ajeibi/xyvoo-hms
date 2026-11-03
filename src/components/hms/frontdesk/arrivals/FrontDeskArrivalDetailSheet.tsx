@@ -11,6 +11,7 @@ import {
   ClipboardList,
   CreditCard,
   ExternalLink,
+  FileText,
   Gift,
   History,
   IdCard,
@@ -45,6 +46,7 @@ import { READINESS_LABEL } from "./FrontDeskAssignRoomPicker";
 import { ArrivalIdPhoto } from "./ArrivalIdPhoto";
 import { ArrivalAccessibility } from "./ArrivalAccessibility";
 import { ArrivalOnlineCheckIn } from "./ArrivalOnlineCheckIn";
+import { ArrivalRegistrationCard } from "./ArrivalRegistrationCard";
 import { ArrivalUpsells } from "./ArrivalUpsells";
 import { ArrivalKeys } from "./ArrivalKeys";
 import { ArrivalMessages } from "./ArrivalMessages";
@@ -713,6 +715,17 @@ export function FrontDeskArrivalDetailSheet({
               {capabilities.canCheckIn && (r.status === "checked_in" || r.status === "confirmed") ? (
                 <SectionCard icon={KeyRound} meaning="rooms" title="Keys">
                   <ArrivalKeys slug={slug} reservationId={r.id} canIssue={r.status === "checked_in"} />
+                </SectionCard>
+              ) : null}
+
+              {r.status === "confirmed" || r.status === "checked_in" ? (
+                <SectionCard icon={FileText} meaning="guests" title="Registration card">
+                  <ArrivalRegistrationCard
+                    slug={slug}
+                    reservationId={r.id}
+                    guestName={g?.displayName ?? "Guest"}
+                    canSign={capabilities.canCheckIn}
+                  />
                 </SectionCard>
               ) : null}
 

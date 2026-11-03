@@ -3,6 +3,7 @@ import { z } from "zod";
 import { phoneCountry } from "@/lib/hms/folio-invoice-link";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { emitNotification, writeAuditLog } from "@/lib/hms/front-desk-ops";
+import { createRegistrationCard } from "@/lib/hms/registration-card";
 import {
   ARRIVAL_TIMES,
   decodeSignature,
@@ -90,6 +91,22 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
       },
     });
     if (!saved.ok) return NextResponse.json({ error: saved.error }, { status: 409, headers: NO_STORE });
+
+    // The signed registration card is made straight away and kept on the stay. A failure here never
+    // undoes the check-in: staff can make the card from the online signature later.
+    try {
+      const card = await createRegistrationCard(db, {
+        tenantId: link.tenantId,
+        reservationId: link.reservationId,
+        signature,
+        signedBy: saved.guestName,
+        source: "online",
+        userId: null,
+      });
+      if (!card.ok) console.warn("[online check-in] card not made", card.error);
+    } catch (e) {
+      console.warn("[online check-in] card failed", e);
+    }
 
     await writeAuditLog({
       tenantId: link.tenantId,
