@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarPlus, ChevronDown, LogIn, LogOut, Sparkles, UserPlus, Wrench } from "lucide-react";
+import { Banknote, BedDouble, CalendarClock, CalendarPlus, ChevronDown, LogIn, LogOut, Sparkles, UserPlus, Wrench } from "lucide-react";
 import { HmsField, hmsInput } from "@/components/hms/hms-ui";
 import { HMS_MEANING, type HmsMeaning } from "@/components/hms/meaning";
 import { Button } from "@/components/ui/button";
@@ -117,10 +117,25 @@ export function HmsQuickActionsMenu({ slug }: { slug: string }) {
             Report a repair
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuLabel className="text-sm font-semibold text-slate-700">Coming soon</DropdownMenuLabel>
-          <DropdownMenuItem disabled className="rounded-xl">Extend a stay</DropdownMenuItem>
-          <DropdownMenuItem disabled className="rounded-xl">Change room</DropdownMenuItem>
-          <DropdownMenuItem disabled className="rounded-xl">Add a payment</DropdownMenuItem>
+          <DropdownMenuLabel className="text-sm font-semibold text-slate-700">Guests in the house</DropdownMenuLabel>
+          <DropdownMenuItem asChild className="gap-2.5 rounded-xl">
+            <Link href={`${base}/frontdesk/stays?view=in-house`}>
+              <ActionIcon icon={CalendarClock} meaning="rooms" />
+              Extend a stay
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild className="gap-2.5 rounded-xl">
+            <Link href={`${base}/frontdesk/rooms?action=change-assignment`}>
+              <ActionIcon icon={BedDouble} meaning="rooms" />
+              Change room
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild className="gap-2.5 rounded-xl">
+            <Link href={`${base}/frontdesk/folio`}>
+              <ActionIcon icon={Banknote} meaning="money" />
+              Add a payment
+            </Link>
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
