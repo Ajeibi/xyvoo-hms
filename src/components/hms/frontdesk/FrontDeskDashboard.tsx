@@ -61,6 +61,7 @@ function capabilityHref(slug: string, key: string): string {
     "group-check-in":`/hms/${slug}/frontdesk/groups`,
     "parcel-management": `/hms/${slug}/frontdesk/parcels`,
     "accessibility-flags": `/hms/${slug}/frontdesk/arrivals`,
+    "upsell-prompts": `/hms/${slug}/frontdesk/upsells`,
     "revoke-key":`/hms/${slug}/frontdesk/stays?view=in-house`,
     "check-in-search": `/hms/${slug}/frontdesk/arrivals`,
     "room-assignment": `/hms/${slug}/frontdesk/arrivals`,
