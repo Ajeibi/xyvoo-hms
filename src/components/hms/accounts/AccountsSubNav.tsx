@@ -17,6 +17,7 @@ const TABS = [
   { key: "invoices", label: "Customer invoices", suffix: "/invoices" },
   { key: "ar-aging", label: "AR ageing", suffix: "/ar-aging" },
   { key: "night-audit", label: "Night audit", suffix: "/night-audit" },
+  { key: "periods", label: "Period close", suffix: "/periods" },
   { key: "settings", label: "Settings", suffix: "/settings" },
 ] as const;
 

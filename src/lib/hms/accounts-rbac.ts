@@ -29,6 +29,10 @@ export type AccountsRoleCapabilities = {
   /** Importing/matching/completing a bank reconciliation — same trusted-department model as
    * everything else except vendor-bill approval. */
   canReconcileBankAccounts: boolean;
+  /** Closing a finished month locks it; any Accounts caller may do that. */
+  canClosePeriod: boolean;
+  /** Reopening a closed month is the owner's call alone, and is logged with a reason. */
+  canReopenPeriod: boolean;
 };
 
 /**
@@ -60,5 +64,7 @@ export function getAccountsCapabilities(params: {
     canReceivePayment: access,
     canRunNightAudit: access,
     canReconcileBankAccounts: access,
+    canClosePeriod: access,
+    canReopenPeriod: params.membershipRole === "owner",
   };
 }
