@@ -53,6 +53,7 @@ export type HmsSectionKey =
   | "accounts-ar-aging"
   | "accounts-night-audit"
   | "accounts-periods"
+  | "accounts-department-pnl"
   | "accounts-exports"
   | "accounts-recurring"
   | "accounts-tax"
@@ -170,6 +171,7 @@ const ADMIN_SECTIONS: HmsSectionKey[] = [
   "accounts-tax",
   "accounts-recurring",
   "accounts-exports",
+  "accounts-department-pnl",
   "accounts-settings",
   "maintenance",
   "maintenance-settings",
@@ -414,6 +416,7 @@ export const DEPARTMENT_ROLE_SCOPES: Record<string, DepartmentScopeDefinition> =
       { key: "accounts-tax", icon: "clipboardCheck", label: "Tax reports", path: `/hms/${slug}/accounts/tax` },
       { key: "accounts-recurring", icon: "clipboardCheck", label: "Recurring", path: `/hms/${slug}/accounts/recurring` },
       { key: "accounts-exports", icon: "clipboardCheck", label: "Exports", path: `/hms/${slug}/accounts/exports` },
+      { key: "accounts-department-pnl", icon: "clipboardCheck", label: "Department P&L", path: `/hms/${slug}/accounts/department-pnl` },
       { key: "accounts-settings", icon: "settings", label: "Settings", path: `/hms/${slug}/accounts/settings` },
     ],
     allowedSections: [
@@ -437,6 +440,7 @@ export const DEPARTMENT_ROLE_SCOPES: Record<string, DepartmentScopeDefinition> =
       "accounts-tax",
       "accounts-recurring",
       "accounts-exports",
+      "accounts-department-pnl",
       "accounts-settings",
       "notifications",
     ],
