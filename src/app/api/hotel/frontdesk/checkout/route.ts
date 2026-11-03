@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireHotelApiSection } from "@/lib/hms/hotel-api-auth";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { revokeAllKeys } from "@/lib/hms/reservation-keys";
+import { requestStayFeedback } from "@/lib/hms/stay-feedback";
 import { isAdminLikeRole } from "@/lib/hms/department-access";
 import { getFolioForReservation, getTenantFolioSettings, adjustFolioForEarlyCheckout } from "@/lib/hms/folio";
 import { normalizePricingSetup } from "@/lib/hms/room-pricing";
@@ -276,6 +277,23 @@ export async function POST(req: Request) {
       if (!sent.ok) console.warn("[checkout] invoice email failed", sent.error);
     }
 
+    // The feedback link, by email. Never holds up a checkout: a failure is only logged.
+    let feedbackSent = false;
+    if (guest?.email) {
+      try {
+        const asked = await requestStayFeedback(auth.service, {
+          tenantId: auth.tenant.id,
+          reservationId: reservation.id,
+          channel: "email",
+          origin: new URL(req.url).origin,
+        });
+        feedbackSent = asked.ok;
+        if (!asked.ok) console.warn("[checkout] feedback link not sent", asked.error);
+      } catch (e) {
+        console.warn("[checkout] feedback link failed", e);
+      }
+    }
+
     await writeAuditLog({
       tenantId: auth.tenant.id,
       actorUserId: auth.user.id,
@@ -340,6 +358,7 @@ export async function POST(req: Request) {
       // Nights past the automatic limit that staff chose not to confirm, so weren't charged.
       unchargedNights: extraNights.waitingNights.length > 0 ? extraNights.waitingNights.length : undefined,
       receiptSent,
+      feedbackSent,
       commission: commissionResult.posted ? { agent: commissionResult.agentName, amount: commissionResult.amount, status: commissionResult.status } : undefined,
       owedBack: owedBack > 0.009 ? owedBack : undefined,
       billedToAccounts: billing.billed.length ? billing.billed : undefined,

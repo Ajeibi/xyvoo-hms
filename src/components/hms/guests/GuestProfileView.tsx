@@ -5,6 +5,7 @@ import { formatGuestProfileRevenue } from "@/lib/hms/guest-profile";
 import { formatBoardDateTime } from "@/lib/hms/front-desk-board";
 import { GuestDetailRows } from "@/components/hms/frontdesk/board/guest-details";
 import { GuestFlagsAndNotes } from "@/components/hms/guests/GuestFlagsAndNotes";
+import { GuestFeedbackCard } from "@/components/hms/guests/GuestFeedbackCard";
 import { HmsCard, HmsEmptyState, HmsPage, HmsPageHeader, HmsPill, HmsStatStrip, HmsStatTile } from "@/components/hms/hms-ui";
 
 const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2";
@@ -116,6 +117,8 @@ export function GuestProfileView({
         notes={data.notes}
         canEdit={canEdit}
       />
+
+      <GuestFeedbackCard slug={slug} guestId={data.guestId} />
 
       {data.preferences ? (
         <HmsCard id="guest-preferences" icon={Heart} meaning="guests" title="Preferences">
