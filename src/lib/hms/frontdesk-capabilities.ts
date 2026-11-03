@@ -189,6 +189,18 @@ export const FRONT_DESK_PAGE_BLOCKS: FrontDeskPageBlock[] = [
         accent: "checkin",
       },
       {
+        key: "online-check-in",
+        title: "Online check-in",
+        subtitle: "Details, ID and signature from the guest's phone",
+        accent: "checkin",
+      },
+      {
+        key: "registration-card",
+        title: "Registration card",
+        subtitle: "Signed on a tablet or phone, kept as a PDF",
+        accent: "checkin",
+      },
+      {
         key: "payment-capture",
         title: "Payment capture",
         subtitle: "Pre-auth or VCC",

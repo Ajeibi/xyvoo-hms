@@ -46,7 +46,7 @@ export async function saveIdPhoto(
     side: IdPhotoSide;
     bytes: Uint8Array;
     type: string;
-    userId: string;
+    userId: string | null;
   },
 ): Promise<{ id: string } | { error: string }> {
   const path = idPhotoPath(input.tenantId, input.reservationId, input.type);
