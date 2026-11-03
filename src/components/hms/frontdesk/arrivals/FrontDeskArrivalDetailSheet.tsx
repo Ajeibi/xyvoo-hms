@@ -12,6 +12,7 @@ import {
   Gift,
   History,
   IdCard,
+  KeyRound,
   Loader2,
   StickyNote,
 } from "lucide-react";
@@ -37,6 +38,7 @@ import {
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import { READINESS_LABEL } from "./FrontDeskAssignRoomPicker";
 import { ArrivalIdPhoto } from "./ArrivalIdPhoto";
+import { ArrivalKeys } from "./ArrivalKeys";
 import { ArrivalWelcomeNote } from "./ArrivalWelcomeNote";
 import { cn } from "@/lib/utils";
 import { HmsAlert, HmsField, HmsIconBadge, HmsPill, hmsInput } from "@/components/hms/hms-ui";
@@ -681,6 +683,12 @@ export function FrontDeskArrivalDetailSheet({
                     reservationId={r.id}
                     canAdd={r.status === "confirmed" || r.status === "checked_in"}
                   />
+                </SectionCard>
+              ) : null}
+
+              {capabilities.canCheckIn && (r.status === "checked_in" || r.status === "confirmed") ? (
+                <SectionCard icon={KeyRound} meaning="rooms" title="Keys">
+                  <ArrivalKeys slug={slug} reservationId={r.id} canIssue={r.status === "checked_in"} />
                 </SectionCard>
               ) : null}
 

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireHotelApiSection } from "@/lib/hms/hotel-api-auth";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
+import { revokeAllKeys } from "@/lib/hms/reservation-keys";
 import { isAdminLikeRole } from "@/lib/hms/department-access";
 import { getFolioForReservation, getTenantFolioSettings, adjustFolioForEarlyCheckout } from "@/lib/hms/folio";
 import { normalizePricingSetup } from "@/lib/hms/room-pricing";
@@ -198,6 +199,13 @@ export async function POST(req: Request) {
     if (resError) {
       return NextResponse.json({ error: "Could not complete checkout." }, { status: 500 });
     }
+
+    await revokeAllKeys(auth.service, {
+      tenantId: auth.tenant.id,
+      reservationId: reservation.id,
+      userId: auth.user.id,
+      reason: "Guest checked out",
+    });
 
     let roomCode = body.roomCode?.trim() ?? "—";
     if (reservation.room_unit_id) {
