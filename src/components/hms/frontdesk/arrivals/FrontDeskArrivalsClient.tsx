@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
+  Accessibility,
   BedDouble,
   CheckCircle2,
   ChevronDown,
@@ -41,6 +42,7 @@ import { FrontDeskPopoverSelect } from "@/components/hms/frontdesk/FrontDeskPopo
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import { useFrontDeskRealtime } from "@/hooks/useFrontDeskRealtime";
 import { toastError, toastSuccess } from "@/lib/app-toast";
+import { flagsSummary, type AccessibilityFlag } from "@/lib/hms/accessibility-flags-shared";
 import { FrontDeskArrivalDetailSheet } from "./FrontDeskArrivalDetailSheet";
 import { FrontDeskReservationCheckInDialog } from "./FrontDeskReservationCheckInDialog";
 import { FrontDeskArrivalTimeline } from "./FrontDeskArrivalTimeline";
@@ -233,6 +235,20 @@ export function FrontDeskArrivalsClient({
   const [assignOpen, setAssignOpen] = useState(false);
   const [showTimeline, setShowTimeline] = useState(true);
   const [page, setPage] = useState(1);
+  const [accessFlags, setAccessFlags] = useState<Record<string, AccessibilityFlag[]>>({});
+
+  useEffect(() => {
+    let live = true;
+    fetch(`/api/hotel/frontdesk/accessibility?slug=${encodeURIComponent(slug)}`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { flags: {} }))
+      .then((j) => {
+        if (live) setAccessFlags(j.flags ?? {});
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [slug, data]);
   const selectAllRef = useRef<HTMLInputElement>(null);
 
   const refresh = useCallback(async () => {
@@ -760,6 +776,15 @@ export function FrontDeskArrivalsClient({
                             <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">
                               <Star className="h-3 w-3" aria-hidden />
                               VIP
+                            </span>
+                          ) : null}
+                          {accessFlags[row.id]?.length ? (
+                            <span
+                              className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-900"
+                              title={flagsSummary(accessFlags[row.id])}
+                            >
+                              <Accessibility className="h-3 w-3" aria-hidden />
+                              Access
                             </span>
                           ) : null}
                         </div>

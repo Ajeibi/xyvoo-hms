@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
+  Accessibility,
   BedDouble,
   CalendarClock,
   CalendarRange,
@@ -40,6 +41,7 @@ import {
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import { READINESS_LABEL } from "./FrontDeskAssignRoomPicker";
 import { ArrivalIdPhoto } from "./ArrivalIdPhoto";
+import { ArrivalAccessibility } from "./ArrivalAccessibility";
 import { ArrivalKeys } from "./ArrivalKeys";
 import { ArrivalMessages } from "./ArrivalMessages";
 import { ArrivalStayChange } from "./ArrivalStayChange";
@@ -707,6 +709,18 @@ export function FrontDeskArrivalDetailSheet({
               {capabilities.canCheckIn && (r.status === "checked_in" || r.status === "confirmed") ? (
                 <SectionCard icon={KeyRound} meaning="rooms" title="Keys">
                   <ArrivalKeys slug={slug} reservationId={r.id} canIssue={r.status === "checked_in"} />
+                </SectionCard>
+              ) : null}
+
+              {r.status === "confirmed" || r.status === "checked_in" ? (
+                <SectionCard icon={Accessibility} meaning="guests" title="Accessibility">
+                  <ArrivalAccessibility
+                    slug={slug}
+                    reservationId={r.id}
+                    roomCode={r.roomCode}
+                    floor={r.floor}
+                    canEdit={capabilities.canManageRequests}
+                  />
                 </SectionCard>
               ) : null}
 
