@@ -53,6 +53,7 @@ export type HmsSectionKey =
   | "accounts-ar-aging"
   | "accounts-night-audit"
   | "accounts-periods"
+  | "accounts-fixed-assets"
   | "accounts-settings"
   | "maintenance"
   | "maintenance-settings"
@@ -160,6 +161,7 @@ const ADMIN_SECTIONS: HmsSectionKey[] = [
   "accounts-ar-aging",
   "accounts-night-audit",
   "accounts-periods",
+  "accounts-fixed-assets",
   "accounts-settings",
   "maintenance",
   "maintenance-settings",
@@ -399,6 +401,7 @@ export const DEPARTMENT_ROLE_SCOPES: Record<string, DepartmentScopeDefinition> =
       { key: "accounts-ar-aging", icon: "clipboardCheck", label: "AR aging", path: `/hms/${slug}/accounts/ar-aging` },
       { key: "accounts-night-audit", icon: "clipboardCheck", label: "Night audit", path: `/hms/${slug}/accounts/night-audit` },
       { key: "accounts-periods", icon: "clipboardCheck", label: "Period close", path: `/hms/${slug}/accounts/periods` },
+      { key: "accounts-fixed-assets", icon: "clipboardCheck", label: "Fixed assets", path: `/hms/${slug}/accounts/fixed-assets` },
       { key: "accounts-settings", icon: "settings", label: "Settings", path: `/hms/${slug}/accounts/settings` },
     ],
     allowedSections: [
@@ -417,6 +420,7 @@ export const DEPARTMENT_ROLE_SCOPES: Record<string, DepartmentScopeDefinition> =
       "accounts-ar-aging",
       "accounts-night-audit",
       "accounts-periods",
+      "accounts-fixed-assets",
       "accounts-settings",
       "notifications",
     ],

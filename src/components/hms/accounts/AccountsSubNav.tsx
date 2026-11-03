@@ -18,6 +18,7 @@ const TABS = [
   { key: "ar-aging", label: "AR ageing", suffix: "/ar-aging" },
   { key: "night-audit", label: "Night audit", suffix: "/night-audit" },
   { key: "periods", label: "Period close", suffix: "/periods" },
+  { key: "fixed-assets", label: "Fixed assets", suffix: "/fixed-assets" },
   { key: "settings", label: "Settings", suffix: "/settings" },
 ] as const;
 
