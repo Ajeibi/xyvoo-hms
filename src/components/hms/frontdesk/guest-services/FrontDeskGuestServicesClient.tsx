@@ -79,12 +79,15 @@ export function FrontDeskGuestServicesClient({
   tenantId,
   capabilities,
   initialSearch = "",
+  initialOpenOnly = false,
 }: {
   slug: string;
   tenantId: string;
   capabilities: GuestServicesRoleCapabilities;
   /** Deep link from guest profile etc. */
   initialSearch?: string;
+  /** The dashboard's "Open requests" tile hides finished and cancelled requests. */
+  initialOpenOnly?: boolean;
 }) {
   const [data, setData] = useState<GuestServicesListPayload | null>(null);
   const [loading, setLoading] = useState(false);
@@ -95,9 +98,10 @@ export function FrontDeskGuestServicesClient({
     vipOnly?: boolean;
     delayed?: boolean;
     billable?: boolean;
+    openOnly?: boolean;
     dateFrom?: string;
     dateTo?: string;
-  }>({});
+  }>({ openOnly: initialOpenOnly || undefined });
   const [search, setSearch] = useState(initialSearch);
   const [debouncedQ, setDebouncedQ] = useState(initialSearch.trim());
 
@@ -184,6 +188,7 @@ export function FrontDeskGuestServicesClient({
   const filteredRows = useMemo(() => {
     const rows = data?.requests ?? [];
     return rows.filter((r) => {
+      if (filter.openOnly && ["completed", "cancelled"].includes(r.status)) return false;
       if (filter.delayed) {
         if (
           !r.expectedCompletedAt ||
@@ -198,7 +203,7 @@ export function FrontDeskGuestServicesClient({
       }
       return true;
     });
-  }, [data?.requests, filter.delayed, filter.billable]);
+  }, [data?.requests, filter.openOnly, filter.delayed, filter.billable]);
 
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / GUEST_SERVICES_PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);

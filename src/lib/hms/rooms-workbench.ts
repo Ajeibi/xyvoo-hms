@@ -1,5 +1,5 @@
 import type { FrontDeskBoardData, FrontDeskRoomBoardItem } from "@/lib/hms/front-desk-board";
-import { getFrontDeskBoardData, loadFrontDeskRoomBoardItemForUnit } from "@/lib/hms/front-desk-board";
+import { getFrontDeskBoardData, loadFrontDeskRoomBoardItemForUnit, READY_UNIT_STATUSES } from "@/lib/hms/front-desk-board";
 import { formatAuditMessage } from "@/lib/hms/front-desk-ops";
 import { mapRoomReadiness } from "@/lib/hms/arrivals-room";
 import type { HotelRoomTypeSetup } from "@/lib/hms/room-pricing";
@@ -28,6 +28,8 @@ export type RoomsWorkbenchFilters = {
   priorityCleanOnly?: boolean;
   /** Composite: inHouse + overdueCheckout */
   occupied?: boolean;
+  /** Rooms whose unit status is clean, inspected or ready: the front desk "Rooms ready" figure. */
+  readyOnly?: boolean;
 };
 
 export type RoomsWorkbenchPayload = {
@@ -103,6 +105,9 @@ export function filterBoardRooms(
     );
   } else if (filters.displayStatus) {
     rooms = rooms.filter((r) => r.displayStatus === filters.displayStatus);
+  }
+  if (filters.readyOnly) {
+    rooms = rooms.filter((r) => READY_UNIT_STATUSES.includes(r.unitStatus));
   }
   if (filters.priorityCleanOnly) {
     rooms = rooms.filter((r) => {

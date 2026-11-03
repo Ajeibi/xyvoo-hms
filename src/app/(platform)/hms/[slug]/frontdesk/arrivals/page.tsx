@@ -8,8 +8,15 @@ import { normalizePricingSetup } from "@/lib/hms/room-pricing";
 import { getSessionUser } from "@/lib/supabase/auth-server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
-export default async function FrontDeskArrivalsPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function FrontDeskArrivalsPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams?: Promise<{ vipOnly?: string }>;
+}) {
   const { slug } = await params;
+  const sp = searchParams ? await searchParams : {};
   const tenant = await getHotelTenantBySlug(slug);
   const currency = normalizePricingSetup(tenant?.pricing_setup).currency;
 
@@ -75,6 +82,7 @@ export default async function FrontDeskArrivalsPage({ params }: { params: Promis
         capabilities={capabilities}
         checkInStaffOptions={checkInStaffOptions}
         defaultCheckedInByUserId={defaultCheckedInByUserId}
+        initialVipOnly={sp.vipOnly === "true"}
       />
     </HMSLayout>
   );

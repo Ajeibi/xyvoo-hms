@@ -9,7 +9,7 @@ export default async function FrontDeskGuestServicesPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams?: Promise<{ q?: string }>;
+  searchParams?: Promise<{ q?: string; view?: string }>;
 }) {
   const { slug } = await params;
   const sp = searchParams ? await searchParams : {};
@@ -27,6 +27,7 @@ export default async function FrontDeskGuestServicesPage({
         tenantId={tenant?.id ?? ""}
         capabilities={capabilities}
         initialSearch={sp.q ?? ""}
+        initialOpenOnly={sp.view === "open"}
       />
     </HMSLayout>
   );

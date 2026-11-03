@@ -15,6 +15,7 @@ const QuerySchema = z.object({
   vipOnly: z.enum(["true", "false"]).optional(),
   occupied: z.enum(["true", "false"]).optional(),
   priorityCleanOnly: z.enum(["true", "false"]).optional(),
+  readyOnly: z.enum(["true", "false"]).optional(),
 });
 
 export async function GET(req: Request) {
@@ -29,6 +30,7 @@ export async function GET(req: Request) {
       vipOnly: url.searchParams.get("vipOnly") ?? undefined,
       occupied: url.searchParams.get("occupied") ?? undefined,
       priorityCleanOnly: url.searchParams.get("priorityCleanOnly") ?? undefined,
+      readyOnly: url.searchParams.get("readyOnly") ?? undefined,
     });
 
     const auth = await requireHotelApiMember(query.slug);
@@ -44,6 +46,7 @@ export async function GET(req: Request) {
     if (query.vipOnly === "true") filters.vipOnly = true;
     if (query.occupied === "true") filters.occupied = true;
     if (query.priorityCleanOnly === "true") filters.priorityCleanOnly = true;
+    if (query.readyOnly === "true") filters.readyOnly = true;
 
     const payload = await getRoomsWorkbenchData({
       tenantId: auth.tenant.id,

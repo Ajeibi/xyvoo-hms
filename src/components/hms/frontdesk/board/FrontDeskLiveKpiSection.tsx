@@ -4,12 +4,22 @@ import type { FrontDeskKpiTile } from "@/lib/hms/front-desk-board";
 import { FRONT_DESK_ACCENT_TILE_CLASS, type FrontDeskAccent } from "@/lib/hms/frontdesk-capabilities";
 import { AlertTriangle, BedDouble, ChevronRight, CreditCard, FileSpreadsheet, UserPlus, Users } from "lucide-react";
 
-const SCROLL_TARGETS: Record<string, string> = {
-  "arrivals-kpi": "#fd-movement-timeline",
-  "departures-kpi": "#fd-movement-timeline",
-  "overdue-checkouts": "#fd-movement-timeline",
-  "shift-handover-note": "#fd-shift-notes",
-};
+/** Where each tile leads: a spot on this page, or a list already filtered to the tile's figure. */
+function tileHref(slug: string, key: string): string | undefined {
+  const base = `/hms/${slug}/frontdesk`;
+  const targets: Record<string, string> = {
+    "arrivals-kpi": "#fd-movement-timeline",
+    "departures-kpi": "#fd-movement-timeline",
+    "overdue-checkouts": "#fd-movement-timeline",
+    "shift-handover-note": "#fd-shift-notes",
+    "in-house-count": `${base}/stays?view=in-house`,
+    "rooms-ready": `${base}/rooms?status=ready`,
+    "open-requests": `${base}/guest-services?view=open`,
+    "vip-arrivals": `${base}/arrivals?vipOnly=true`,
+    "unpaid-stays": `${base}/stays?view=unpaid`,
+  };
+  return targets[key];
+}
 
 const ACCENT_ICON: Record<FrontDeskAccent, ComponentType<{ className?: string }>> = {
   checkin: UserPlus,
@@ -20,11 +30,11 @@ const ACCENT_ICON: Record<FrontDeskAccent, ComponentType<{ className?: string }>
   admin: FileSpreadsheet,
 };
 
-export function FrontDeskLiveKpiSection({ tiles }: { tiles: FrontDeskKpiTile[] }) {
+export function FrontDeskLiveKpiSection({ slug, tiles }: { slug: string; tiles: FrontDeskKpiTile[] }) {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {tiles.map((tile) => {
-        const href = SCROLL_TARGETS[tile.key];
+        const href = tileHref(slug, tile.key);
         const tone = FRONT_DESK_ACCENT_TILE_CLASS[tile.accent];
         const Icon = ACCENT_ICON[tile.accent];
         const inner = (

@@ -25,6 +25,19 @@ import {
 import { cn } from "@/lib/utils";
 import { StaleDataNotice } from "@/components/hms/StaleDataNotice";
 
+const ROOM_STATUS_OPTIONS = [
+  { value: "available", label: "Available" },
+  { value: "ready", label: "Clean and ready" },
+  { value: "occupied", label: "Occupied" },
+  { value: "inHouse", label: "Guests staying" },
+  { value: "overdueCheckout", label: "Overdue check-out" },
+  { value: "reserved", label: "Reserved" },
+  { value: "dirty", label: "Dirty" },
+  { value: "maintenance", label: "Maintenance" },
+  { value: "outOfService", label: "Out of service" },
+  { value: "priorityClean", label: "Priority clean" },
+];
+
 function canMutateRooms(caps: RoomsRoleCapabilities) {
   return (
     caps.canAssignRoom ||
@@ -54,7 +67,11 @@ export function FrontDeskRoomsClient({
   const searchParams = useSearchParams();
   const [data, setData] = useState(initial);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  // The dashboard tiles open this list already filtered, e.g. ?status=ready.
+  const [statusFilter, setStatusFilter] = useState(() => {
+    const wanted = searchParams.get("status") ?? "";
+    return ROOM_STATUS_OPTIONS.some((o) => o.value === wanted) ? wanted : "";
+  });
   const [floorFilter, setFloorFilter] = useState("");
   const [roomTypeFilter, setRoomTypeFilter] = useState("");
   const [vipOnly, setVipOnly] = useState(false);
@@ -84,6 +101,7 @@ export function FrontDeskRoomsClient({
     if (vipOnly) params.set("vipOnly", "true");
     if (statusFilter === "occupied") params.set("occupied", "true");
     else if (statusFilter === "priorityClean") params.set("priorityCleanOnly", "true");
+    else if (statusFilter === "ready") params.set("readyOnly", "true");
     else if (statusFilter) params.set("displayStatus", statusFilter);
     try {
       const res = await fetch(`/api/hotel/frontdesk/rooms?${params}`);
@@ -250,15 +268,11 @@ export function FrontDeskRoomsClient({
               onChange={(e) => setStatusFilter(e.target.value)}
             >
               <option value="">All statuses</option>
-              <option value="available">Available</option>
-              <option value="occupied">Occupied</option>
-              <option value="inHouse">Guests staying</option>
-              <option value="overdueCheckout">Overdue check-out</option>
-              <option value="reserved">Reserved</option>
-              <option value="dirty">Dirty</option>
-              <option value="maintenance">Maintenance</option>
-              <option value="outOfService">Out of service</option>
-              <option value="priorityClean">Priority clean</option>
+              {ROOM_STATUS_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
             </select>
           </HmsField>
           <div className="flex items-end">

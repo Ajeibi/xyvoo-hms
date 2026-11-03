@@ -195,6 +195,7 @@ export function FrontDeskArrivalsClient({
   capabilities,
   checkInStaffOptions,
   defaultCheckedInByUserId,
+  initialVipOnly = false,
 }: {
   slug: string;
   currency: string;
@@ -203,6 +204,8 @@ export function FrontDeskArrivalsClient({
   capabilities: ArrivalsRoleCapabilities;
   checkInStaffOptions: CheckInStaffOption[];
   defaultCheckedInByUserId: string | null;
+  /** The dashboard's "VIP arrivals" tile opens today's list with only VIP guests. */
+  initialVipOnly?: boolean;
 }) {
   const router = useRouter();
   const [data, setData] = useState(initial);
@@ -213,7 +216,7 @@ export function FrontDeskArrivalsClient({
   const [statusFilter, setStatusFilter] = useState("");
   const [paymentFilter, setPaymentFilter] = useState("");
   const [readinessFilter, setReadinessFilter] = useState("");
-  const [vipOnly, setVipOnly] = useState(false);
+  const [vipOnly, setVipOnly] = useState(initialVipOnly);
   const [sourceFilter, setSourceFilter] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("arrivalAt");
   const [sortAsc, setSortAsc] = useState(true);

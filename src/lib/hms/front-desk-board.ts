@@ -12,6 +12,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { computeFolioBalance, getTenantFolioSettings, mapFolioLineRow, type FolioLineRow } from "@/lib/hms/folio";
 import { creditLimitState } from "@/lib/hms/folio-credit-limits-shared";
 import { assertQueriesSucceeded } from "@/lib/hms/data-unavailable";
+import { isUnpaidStay } from "@/lib/hms/frontdesk-stays";
 
 export type PaymentDisplayStatus = "paid" | "partial" | "unpaid" | "refund_pending" | "unknown";
 
@@ -708,6 +709,9 @@ const DEFAULT_ROOM_FLAGS: RoomUnitFlags = {
   staffRestricted: false,
 };
 
+/** Unit statuses that count as a room ready for a guest (the "Rooms ready" tile and its list). */
+export const READY_UNIT_STATUSES = ["vacant_clean", "inspected", "ready_for_occupancy"];
+
 function kpiRegistry() {
   const block = FRONT_DESK_PAGE_BLOCKS.find(
     (b): b is Extract<typeof b, { type: "section" }> => b.type === "section" && b.id === "dashboard-kpis",
@@ -763,13 +767,13 @@ function buildKpiTiles(params: {
     {
       key: "open-requests",
       value: String(params.openRequests),
-      detail: "Service requests module",
+      detail: params.openRequests > 0 ? "Waiting or being worked on" : "Nothing waiting",
       accent: "incidents",
     },
     {
       key: "vip-arrivals",
       value: String(params.vipArrivalsToday),
-      detail: "VIP flagged today",
+      detail: params.vipArrivalsToday > 0 ? "VIP guests arriving today" : "No VIP arrivals today",
       accent: "guest",
     },
     {
@@ -1042,6 +1046,13 @@ export async function getFrontDeskBoardData(params: {
       .from("reservations")
       .select("id", { count: "exact", head: true })
       .eq("tenant_id", tenantId),
+    // Guest requests still waiting or being worked on, for the "Open requests" tile.
+    supabase
+      .schema("hotel")
+      .from("guest_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("tenant_id", tenantId)
+      .not("status", "in", "(completed,cancelled)"),
   ]);
 
   // A board built from half its data looks complete but is wrong; say it could not load instead.
@@ -1060,6 +1071,7 @@ export async function getFrontDeskBoardData(params: {
     { data: fbOrderRows },
     { data: checkoutRows },
     { count: reservationRecordCount },
+    { count: openRequestCount },
   ] = results;
 
   const rooms = (roomRows ?? []) as RoomUnitRow[];
@@ -1367,9 +1379,7 @@ export async function getFrontDeskBoardData(params: {
 
   const inHouseGuestHeadcount = countInHouseGuestHeadcount(reservations);
 
-  const roomsReady = rooms.filter((u) =>
-    ["vacant_clean", "inspected", "ready_for_occupancy"].includes(u.status),
-  ).length;
+  const roomsReady = rooms.filter((u) => READY_UNIT_STATUSES.includes(u.status)).length;
 
   const arrivalsTodayTotal = reservations.filter(
     (r) => r.status !== "cancelled" && r.status !== "no_show" && inUtcDay(r.arrival_at, now),
@@ -1392,9 +1402,7 @@ export async function getFrontDeskBoardData(params: {
     (r) => r.vip_flag && inUtcDay(r.arrival_at, now) && r.status !== "cancelled",
   ).length;
 
-  const unpaidStays = reservations.filter(
-    (r) => r.status === "checked_in" && r.settlement_method !== "direct_bill" && !paidSomethingReservationIds.has(r.id),
-  ).length;
+  const unpaidStays = reservations.filter((r) => isUnpaidStay(r, paidSomethingReservationIds.has(r.id))).length;
 
   const occupancy: FrontDeskOccupancyStats = {
     totalRooms: rooms.length,
@@ -1414,7 +1422,7 @@ export async function getFrontDeskBoardData(params: {
     inHouseGuests: inHouseGuestHeadcount,
     roomsReady,
     overdueCheckouts: summaryCounts.overdueCheckout,
-    openRequests: 0,
+    openRequests: openRequestCount ?? 0,
     vipArrivalsToday,
     unpaidStays,
   });

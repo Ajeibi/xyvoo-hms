@@ -29,6 +29,11 @@ function capabilityHref(slug: string, key: string): string {
     "arrivals-kpi": `/hms/${slug}/frontdesk#fd-movement-timeline`,
     "departures-kpi": `/hms/${slug}/frontdesk#fd-movement-timeline`,
     "overdue-checkouts": `/hms/${slug}/frontdesk#fd-movement-timeline`,
+    "in-house-count": `/hms/${slug}/frontdesk/stays?view=in-house`,
+    "rooms-ready": `/hms/${slug}/frontdesk/rooms?status=ready`,
+    "open-requests": `/hms/${slug}/frontdesk/guest-services?view=open`,
+    "vip-arrivals": `/hms/${slug}/frontdesk/arrivals?vipOnly=true`,
+    "unpaid-stays": `/hms/${slug}/frontdesk/stays?view=unpaid`,
     "view-live-folio": `/hms/${slug}/frontdesk/folio`,
     "post-manual-charge": `/hms/${slug}/frontdesk/folio`,
     "apply-discount": `/hms/${slug}/frontdesk/folio`,
@@ -46,6 +51,7 @@ function capabilityHref(slug: string, key: string): string {
     "send-receipt": `/hms/${slug}/frontdesk/checkout`,
     "pre-arrival-list": `/hms/${slug}/frontdesk/arrivals`,
     "pre-assign-rooms": `/hms/${slug}/frontdesk/arrivals`,
+    "add-welcome-note": `/hms/${slug}/frontdesk/arrivals`,
     "check-in-search": `/hms/${slug}/frontdesk/arrivals`,
     "room-assignment": `/hms/${slug}/frontdesk/arrivals`,
     "payment-capture": `/hms/${slug}/frontdesk/folio`,
@@ -131,7 +137,7 @@ export function FrontDeskDashboard({
               <FrontDeskSectionHeader id={sectionDomId} eyebrow={block.eyebrow} title={block.title} />
               {block.id === "dashboard-kpis" && boardData ? (
                 <>
-                  <FrontDeskLiveKpiSection tiles={boardData.kpiTiles} />
+                  <FrontDeskLiveKpiSection slug={slug} tiles={boardData.kpiTiles} />
                   {showInventory ? (
                     <p className="mt-3 text-sm text-slate-600">
                       {inventoryRoomCount}{" "}rooms registered. &ldquo;Rooms ready&rdquo; counts each room&apos;s live
