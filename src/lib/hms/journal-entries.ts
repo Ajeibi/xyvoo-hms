@@ -95,6 +95,8 @@ export async function postJournalEntry(
     reference?: string | null;
     createdBy: string;
     lines: JournalEntryLineInput[];
+    /** Set only by the year-end close (and its undo): the fiscal year the entry closes. */
+    closingYear?: number | null;
   },
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   if (!params.memo.trim()) return { ok: false, error: "Memo is required." };
@@ -124,6 +126,7 @@ export async function postJournalEntry(
       memo: params.memo.trim(),
       reference: params.reference ?? null,
       created_by: params.createdBy,
+      ...(params.closingYear ? { closing_year: params.closingYear } : {}),
     })
     .select("id")
     .single();
@@ -161,6 +164,13 @@ export async function reverseJournalEntry(
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   const original = await getJournalEntryDetail(service, params.tenantId, params.journalEntryId);
   if (!original) return { ok: false, error: "Entry not found." };
+  const { data: closing } = await service
+    .schema("hotel")
+    .from("journal_entries")
+    .select("closing_year")
+    .eq("id", original.id)
+    .maybeSingle();
+  if (closing?.closing_year) return { ok: false, error: "This is a year-end closing entry. Use Undo year-end close on the Period close page." };
   if (original.reversedBy) return { ok: false, error: "This entry has already been reversed." };
 
   const result = await postJournalEntry(service, {
@@ -292,7 +302,12 @@ export async function getJournalEntryDetail(
 export async function getTrialBalance(
   service: SupabaseClient,
   tenantId: string,
-  opts?: { asOfDate?: string; dateFrom?: string },
+  opts?: {
+    asOfDate?: string;
+    dateFrom?: string;
+    /** Leave out year-end closing entries, so a closed year's income and expense still show. */
+    excludeClosing?: boolean;
+  },
 ): Promise<TrialBalanceRow[]> {
   const accounts = await service
     .schema("hotel")
@@ -325,10 +340,11 @@ export async function getTrialBalance(
       .sort((a, b) => a.code.localeCompare(b.code));
 
   let entryIdsFilter: string[] | null = null;
-  if (opts?.asOfDate || opts?.dateFrom) {
+  if (opts?.asOfDate || opts?.dateFrom || opts?.excludeClosing) {
     let entryQuery = service.schema("hotel").from("journal_entries").select("id").eq("tenant_id", tenantId);
     if (opts.asOfDate) entryQuery = entryQuery.lte("entry_date", opts.asOfDate);
     if (opts.dateFrom) entryQuery = entryQuery.gte("entry_date", opts.dateFrom);
+    if (opts.excludeClosing) entryQuery = entryQuery.is("closing_year", null);
     const { data: entries } = await entryQuery;
     entryIdsFilter = (entries ?? []).map((e) => e.id as string);
     if (entryIdsFilter.length === 0) return emptyRows();

@@ -31,7 +31,11 @@ export async function getIncomeStatement(
   tenantId: string,
   params: { dateFrom: string; dateTo: string },
 ): Promise<IncomeStatementResult> {
-  const rows = await getTrialBalance(service, tenantId, { dateFrom: params.dateFrom, asOfDate: params.dateTo });
+  const rows = await getTrialBalance(service, tenantId, {
+    dateFrom: params.dateFrom,
+    asOfDate: params.dateTo,
+    excludeClosing: true,
+  });
   const revenueRows = rows.filter((r) => r.type === "revenue");
   const expenseRows = rows.filter((r) => r.type === "expense");
   const totalRevenue = round2(revenueRows.reduce((sum, r) => sum + r.balance, 0));
@@ -43,8 +47,8 @@ export type BalanceSheetResult = {
   assetRows: TrialBalanceRow[];
   liabilityRows: TrialBalanceRow[];
   equityRows: TrialBalanceRow[];
-  /** Revenue minus expense since inception, not yet closed to Retained Earnings (there is no
-   * period-close yet). Shown as its own Equity line so Assets = Liabilities + Equity always
+  /** Revenue minus expense since inception, not yet closed to Retained Earnings (year-end close
+   * moves earlier years into Retained Earnings). Shown as its own Equity line so Assets = Liabilities + Equity always
    * holds — once period-close exists, this must reconcile against whatever posts to Retained
    * Earnings instead of being shown alongside it, or the two would double-count. */
   netIncomeSinceLastClose: number;
@@ -117,8 +121,8 @@ export async function getCashFlowStatement(
   const income = await getIncomeStatement(service, tenantId, params);
 
   const [startRows, endRows] = await Promise.all([
-    getTrialBalance(service, tenantId, { asOfDate: dayBefore(params.dateFrom) }),
-    getTrialBalance(service, tenantId, { asOfDate: params.dateTo }),
+    getTrialBalance(service, tenantId, { asOfDate: dayBefore(params.dateFrom), excludeClosing: true }),
+    getTrialBalance(service, tenantId, { asOfDate: params.dateTo, excludeClosing: true }),
   ]);
   const startByAccount = new Map(startRows.map((r) => [r.accountId, r]));
 

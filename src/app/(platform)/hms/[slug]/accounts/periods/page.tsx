@@ -4,6 +4,7 @@ import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getAccountsCapabilities } from "@/lib/hms/accounts-rbac";
 import { listPeriods } from "@/lib/hms/accounting-periods";
+import { listYearEnds } from "@/lib/hms/year-end-close";
 import { AccountsPeriodsClient } from "@/components/hms/accounts/AccountsPeriodsClient";
 import { HmsPage, HmsPageHeader } from "@/components/hms/hms-ui";
 
@@ -22,14 +23,17 @@ export default async function AccountsPeriodsPage({ params }: { params: Promise<
   }
 
   const caps = getAccountsCapabilities({ membershipRole: access.role ?? "staff", departmentRole: access.departmentRole });
-  const periods = await listPeriods(createServerSupabaseClient(), tenant.id);
+  const service = createServerSupabaseClient();
+  const today = new Date().toISOString().slice(0, 10);
+  const [periods, yearEnds] = await Promise.all([listPeriods(service, tenant.id), listYearEnds(service, tenant.id, today)]);
 
   return (
     <HMSLayout slug={slug} requiredSection="accounts-periods">
       <AccountsPeriodsClient
         slug={slug}
         periods={periods}
-        today={new Date().toISOString().slice(0, 10)}
+        yearEnds={yearEnds}
+        today={today}
         canClose={caps.canClosePeriod}
         canReopen={caps.canReopenPeriod}
         canAccessAllDepartments={access.canAccessAllDepartments}
