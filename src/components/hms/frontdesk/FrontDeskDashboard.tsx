@@ -52,6 +52,7 @@ function capabilityHref(slug: string, key: string): string {
     "pre-arrival-list": `/hms/${slug}/frontdesk/arrivals`,
     "pre-assign-rooms": `/hms/${slug}/frontdesk/arrivals`,
     "add-welcome-note": `/hms/${slug}/frontdesk/arrivals`,
+    "id-verification": `/hms/${slug}/frontdesk/arrivals`,
     "check-in-search": `/hms/${slug}/frontdesk/arrivals`,
     "room-assignment": `/hms/${slug}/frontdesk/arrivals`,
     "payment-capture": `/hms/${slug}/frontdesk/folio`,

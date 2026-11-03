@@ -11,6 +11,7 @@ import {
   ExternalLink,
   Gift,
   History,
+  IdCard,
   Loader2,
   StickyNote,
 } from "lucide-react";
@@ -35,6 +36,7 @@ import {
 } from "@/components/hms/frontdesk/board/payment-styles";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import { READINESS_LABEL } from "./FrontDeskAssignRoomPicker";
+import { ArrivalIdPhoto } from "./ArrivalIdPhoto";
 import { ArrivalWelcomeNote } from "./ArrivalWelcomeNote";
 import { cn } from "@/lib/utils";
 import { HmsAlert, HmsField, HmsIconBadge, HmsPill, hmsInput } from "@/components/hms/hms-ui";
@@ -669,6 +671,16 @@ export function FrontDeskArrivalDetailSheet({
                       Add request
                     </Button>
                   </div>
+                </SectionCard>
+              ) : null}
+
+              {capabilities.canManageRequests ? (
+                <SectionCard icon={IdCard} meaning="guests" title="ID photo">
+                  <ArrivalIdPhoto
+                    slug={slug}
+                    reservationId={r.id}
+                    canAdd={r.status === "confirmed" || r.status === "checked_in"}
+                  />
                 </SectionCard>
               ) : null}
 
