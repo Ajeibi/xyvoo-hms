@@ -265,6 +265,12 @@ export const DEPARTMENT_ROLE_SCOPES: Record<string, DepartmentScopeDefinition> =
         label: "Order history",
         path: `/hms/${slug}/restaurant-bar/history`,
       },
+      {
+        key: "fb-guest-requests",
+        icon: "clipboardCheck",
+        label: "Guest requests",
+        path: `/hms/${slug}/restaurant-bar/guest-requests`,
+      },
     ],
     allowedSections: ["restaurant-bar", "notifications"],
   },

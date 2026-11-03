@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Calculator, ClipboardList, HandCoins, History, LayoutGrid, Settings, ShoppingBasket } from "lucide-react";
+import { BellRing, Calculator, ClipboardList, HandCoins, History, LayoutGrid, Settings, ShoppingBasket } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TABS = [
@@ -14,6 +14,12 @@ const TABS = [
     label: "Order history",
     icon: History,
     path: (slug: string) => `/hms/${slug}/restaurant-bar/history`,
+  },
+  {
+    key: "guest-requests",
+    label: "Guest requests",
+    icon: BellRing,
+    path: (slug: string) => `/hms/${slug}/restaurant-bar/guest-requests`,
   },
   { key: "tips", label: "Tips", icon: HandCoins, path: (slug: string) => `/hms/${slug}/restaurant-bar/tips` },
   { key: "cash-up", label: "Cash-up", icon: Calculator, path: (slug: string) => `/hms/${slug}/restaurant-bar/cash-up` },

@@ -9,6 +9,7 @@ import {
   ClipboardList,
   CreditCard,
   ExternalLink,
+  Gift,
   History,
   Loader2,
   StickyNote,
@@ -34,6 +35,7 @@ import {
 } from "@/components/hms/frontdesk/board/payment-styles";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import { READINESS_LABEL } from "./FrontDeskAssignRoomPicker";
+import { ArrivalWelcomeNote } from "./ArrivalWelcomeNote";
 import { cn } from "@/lib/utils";
 import { HmsAlert, HmsField, HmsIconBadge, HmsPill, hmsInput } from "@/components/hms/hms-ui";
 import type { HmsMeaning } from "@/components/hms/meaning";
@@ -667,6 +669,16 @@ export function FrontDeskArrivalDetailSheet({
                       Add request
                     </Button>
                   </div>
+                </SectionCard>
+              ) : null}
+
+              {capabilities.canManageRequests ? (
+                <SectionCard icon={Gift} meaning="guests" title="Welcome note">
+                  <ArrivalWelcomeNote
+                    slug={slug}
+                    reservationId={r.id}
+                    canAdd={r.status === "confirmed" || r.status === "checked_in"}
+                  />
                 </SectionCard>
               ) : null}
 

@@ -152,7 +152,7 @@ const REQUEST_STATUS_TONE: Record<string, "slate" | "green" | "amber" | "red" | 
   escalated: "red",
 };
 
-function GuestRequestCard({
+export function GuestRequestCard({
   row,
   busy,
   onOpen,
