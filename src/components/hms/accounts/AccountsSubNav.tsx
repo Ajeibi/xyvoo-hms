@@ -19,6 +19,7 @@ const TABS = [
   { key: "night-audit", label: "Night audit", suffix: "/night-audit" },
   { key: "periods", label: "Period close", suffix: "/periods" },
   { key: "fixed-assets", label: "Fixed assets", suffix: "/fixed-assets" },
+  { key: "budgets", label: "Budgets", suffix: "/budgets" },
   { key: "settings", label: "Settings", suffix: "/settings" },
 ] as const;
 
