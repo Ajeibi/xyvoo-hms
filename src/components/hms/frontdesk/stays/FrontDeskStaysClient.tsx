@@ -17,6 +17,8 @@ import {
 import { HmsFilterChips } from "@/components/hms/hms-ui-client";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import type { InHouseStayRow, StaysView } from "@/lib/hms/frontdesk-stays";
+import { getArrivalsCapabilities } from "@/lib/hms/arrivals-rbac";
+import { FrontDeskArrivalDetailSheet } from "@/components/hms/frontdesk/arrivals/FrontDeskArrivalDetailSheet";
 
 function formatDay(iso: string) {
   return new Date(iso).toLocaleString("en-GB", { day: "2-digit", month: "short" });
@@ -35,6 +37,9 @@ export function FrontDeskStaysClient({
 }) {
   const router = useRouter();
   const [view, setView] = useState<StaysView>(initialView);
+  const [openId, setOpenId] = useState<string | null>(null);
+  // The server checks the real role on every change; this only decides what the sheet shows.
+  const capabilities = getArrivalsCapabilities("Front Desk");
 
   const unpaidCount = rows.filter((r) => r.unpaid).length;
   const guestCount = rows.reduce((sum, r) => sum + r.guests, 0);
@@ -115,7 +120,8 @@ export function FrontDeskStaysClient({
                   <th scope="col" className="py-3 pr-4">Room</th>
                   <th scope="col" className="py-3 pr-4">Stay</th>
                   <th scope="col" className="py-3 pr-4 text-right">Balance</th>
-                  <th scope="col" className="py-3 pr-6 text-right">Status</th>
+                  <th scope="col" className="py-3 pr-4 text-right">Status</th>
+                  <th scope="col" className="py-3 pr-6 text-right">Manage</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -158,7 +164,7 @@ export function FrontDeskStaysClient({
                       </span>
                       <span className="block text-xs text-slate-600">{row.balance > 0 ? "To pay" : "Settled"}</span>
                     </td>
-                    <td className="py-3 pr-6 text-right">
+                    <td className="py-3 pr-4 text-right">
                       <div className="flex flex-col items-end gap-1">
                         {row.unpaid ? <HmsPill tone="amber">Nothing paid yet</HmsPill> : null}
                         {row.isOverdue ? (
@@ -169,6 +175,11 @@ export function FrontDeskStaysClient({
                         ) : null}
                       </div>
                     </td>
+                    <td className="py-3 pr-6 text-right">
+                      <button type="button" className={hmsButton.secondary} onClick={() => setOpenId(row.reservationId)}>
+                        Dates and keys
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -176,6 +187,20 @@ export function FrontDeskStaysClient({
           </div>
         )}
       </HmsCard>
+
+      <FrontDeskArrivalDetailSheet
+        slug={slug}
+        reservationId={openId}
+        open={openId !== null}
+        onOpenChange={(o) => {
+          if (!o) setOpenId(null);
+        }}
+        onCheckIn={() => undefined}
+        onAssignRoom={() => undefined}
+        onRefresh={() => router.refresh()}
+        capabilities={capabilities}
+        currency={currency}
+      />
     </HmsPage>
   );
 }

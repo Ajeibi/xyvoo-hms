@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
   BedDouble,
+  CalendarClock,
   CalendarRange,
   CircleUser,
   ClipboardList,
@@ -39,6 +40,7 @@ import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import { READINESS_LABEL } from "./FrontDeskAssignRoomPicker";
 import { ArrivalIdPhoto } from "./ArrivalIdPhoto";
 import { ArrivalKeys } from "./ArrivalKeys";
+import { ArrivalStayChange } from "./ArrivalStayChange";
 import { ArrivalWelcomeNote } from "./ArrivalWelcomeNote";
 import { cn } from "@/lib/utils";
 import { HmsAlert, HmsField, HmsIconBadge, HmsPill, hmsInput } from "@/components/hms/hms-ui";
@@ -682,6 +684,20 @@ export function FrontDeskArrivalDetailSheet({
                     slug={slug}
                     reservationId={r.id}
                     canAdd={r.status === "confirmed" || r.status === "checked_in"}
+                  />
+                </SectionCard>
+              ) : null}
+
+              {capabilities.canCheckIn && (r.status === "checked_in" || r.status === "confirmed") ? (
+                <SectionCard icon={CalendarClock} meaning="rooms" title="Change dates">
+                  <ArrivalStayChange
+                    slug={slug}
+                    reservationId={r.id}
+                    departureDate={r.departureAt.slice(0, 10)}
+                    onChanged={() => {
+                      onRefresh();
+                      void load();
+                    }}
                   />
                 </SectionCard>
               ) : null}
