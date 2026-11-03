@@ -53,6 +53,7 @@ export type HmsSectionKey =
   | "accounts-ar-aging"
   | "accounts-night-audit"
   | "accounts-periods"
+  | "accounts-exports"
   | "accounts-recurring"
   | "accounts-tax"
   | "accounts-budgets"
@@ -165,6 +166,10 @@ const ADMIN_SECTIONS: HmsSectionKey[] = [
   "accounts-night-audit",
   "accounts-periods",
   "accounts-fixed-assets",
+  "accounts-budgets",
+  "accounts-tax",
+  "accounts-recurring",
+  "accounts-exports",
   "accounts-settings",
   "maintenance",
   "maintenance-settings",
@@ -408,6 +413,7 @@ export const DEPARTMENT_ROLE_SCOPES: Record<string, DepartmentScopeDefinition> =
       { key: "accounts-budgets", icon: "clipboardCheck", label: "Budgets", path: `/hms/${slug}/accounts/budgets` },
       { key: "accounts-tax", icon: "clipboardCheck", label: "Tax reports", path: `/hms/${slug}/accounts/tax` },
       { key: "accounts-recurring", icon: "clipboardCheck", label: "Recurring", path: `/hms/${slug}/accounts/recurring` },
+      { key: "accounts-exports", icon: "clipboardCheck", label: "Exports", path: `/hms/${slug}/accounts/exports` },
       { key: "accounts-settings", icon: "settings", label: "Settings", path: `/hms/${slug}/accounts/settings` },
     ],
     allowedSections: [
@@ -427,6 +433,10 @@ export const DEPARTMENT_ROLE_SCOPES: Record<string, DepartmentScopeDefinition> =
       "accounts-night-audit",
       "accounts-periods",
       "accounts-fixed-assets",
+      "accounts-budgets",
+      "accounts-tax",
+      "accounts-recurring",
+      "accounts-exports",
       "accounts-settings",
       "notifications",
     ],

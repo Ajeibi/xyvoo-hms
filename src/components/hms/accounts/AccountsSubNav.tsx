@@ -22,6 +22,7 @@ const TABS = [
   { key: "budgets", label: "Budgets", suffix: "/budgets" },
   { key: "tax", label: "Tax reports", suffix: "/tax" },
   { key: "recurring", label: "Recurring", suffix: "/recurring" },
+  { key: "exports", label: "Exports", suffix: "/exports" },
   { key: "settings", label: "Settings", suffix: "/settings" },
 ] as const;
 
