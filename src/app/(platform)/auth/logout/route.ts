@@ -10,5 +10,7 @@ export async function POST(request: Request) {
   const requested = new URL(request.url).searchParams.get("redirect") || "";
   const destination = ALLOWED_REDIRECTS.has(requested) ? requested : "/auth/login";
   const url = new URL(destination, request.url);
-  return NextResponse.redirect(url);
+  // 303 makes the browser follow with GET. The default 307 replays the POST on
+  // the login page, which only serves GET and answers 405 in production.
+  return NextResponse.redirect(url, 303);
 }
