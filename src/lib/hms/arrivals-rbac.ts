@@ -15,7 +15,8 @@ export type ArrivalsRoleCapabilities = {
 export function getArrivalsCapabilities(role: string): ArrivalsRoleCapabilities {
   const admin = isAdminLikeRole(role);
   const accountant = role === "Accountant" || role === "accountant";
-  const manager = admin || role === "Manager" || role === "manager" || role === "General Manager";
+  const manager =
+    admin || role === "Manager" || role === "manager" || role === "General Manager" || role === "Admin / GM" || role === "Owner";
 
   return {
     canCheckIn: !accountant,
