@@ -12,8 +12,9 @@ import {
   WAITLIST_PATH,
   waitlistProductFor,
 } from "@/lib/auth-lock";
+import { HOTEL_PREVIEW_COOKIE, HOTEL_PREVIEW_PARAM, HOTEL_SITE_HOST_HEADER, hotelRewritePath } from "@/lib/hms/site/constants";
+import { resolveSiteHost } from "@/lib/hms/site/host";
 import {
-  getStoreSlugFromHost,
   STOREFRONT_HOST_HEADER,
   STOREFRONT_PATH_HEADER,
   STOREFRONT_PREVIEW_COOKIE,
@@ -74,13 +75,33 @@ export async function proxy(request: NextRequest) {
   headers.delete(STOREFRONT_HOST_HEADER);
   headers.delete(STOREFRONT_PATH_HEADER);
   headers.delete(STOREFRONT_LANG_HEADER);
+  headers.delete(HOTEL_SITE_HOST_HEADER);
   // ?lang=fr on a shop page: show it in that language (the shop checks it offers it).
   const langParam = request.nextUrl.searchParams.get(SHOP_LANGUAGE_PARAM);
   if (isShopLanguage(langParam)) headers.set(STOREFRONT_LANG_HEADER, langParam);
 
-  // <store>.getxyvoo.com: serve the store's pages from /shop/<store>. Stores are
-  // public, so the pre-launch lock and sign-in checks below don't apply.
-  const storeSlug = getStoreSlugFromHost(request.headers.get("host"));
+  // <label>.getxyvoo.com is a hotel's website or a store. Both are public, so the
+  // pre-launch lock and sign-in checks below don't apply.
+  const site = await resolveSiteHost(request.headers.get("host"));
+
+  // <hotel>.getxyvoo.com: serve the hotel's website from /stay/<hotel>. A hotel that
+  // isn't published (or never existed) is answered by that route with a plain 404, never by a store.
+  if (site?.kind === "hotel") {
+    if (site.movedTo) {
+      // Swap the first label of the host as it arrived, so the port and root domain (localhost in development) stay.
+      const host = (request.headers.get("host") || "").replace(/^[^.:]+/, site.movedTo);
+      return NextResponse.redirect(new URL(`${request.nextUrl.pathname}${request.nextUrl.search}`, `${request.nextUrl.protocol}//${host}`));
+    }
+    const target = hotelRewritePath(site.slug, request.nextUrl.pathname);
+    if (!target) return NextResponse.next({ request: { headers } });
+    headers.set(HOTEL_SITE_HOST_HEADER, site.slug);
+    const url = request.nextUrl.clone();
+    url.pathname = target;
+    return NextResponse.rewrite(url, { request: { headers } });
+  }
+
+  // <store>.getxyvoo.com: serve the store's pages from /shop/<store>.
+  const storeSlug = site?.slug;
   if (storeSlug) {
     const target = storefrontRewritePath(storeSlug, request.nextUrl.pathname);
     if (!target) return NextResponse.next({ request: { headers } });
@@ -103,6 +124,20 @@ export async function proxy(request: NextRequest) {
     const cookie = { path: `/shop/${shopMatch[1]}`, httpOnly: true, sameSite: "lax" as const, secure: request.nextUrl.protocol === "https:" };
     if (previewParam === "1") response.cookies.set(STOREFRONT_PREVIEW_COOKIE, "1", cookie);
     else response.cookies.set(STOREFRONT_PREVIEW_COOKIE, "", { ...cookie, maxAge: 0 });
+    return response;
+  }
+
+  // /stay/<hotel>?hspreview=1 (or =0): the same for a hotel's draft website. The hotel only
+  // serves its draft to signed-in staff of that hotel.
+  const hotelPreviewParam = request.nextUrl.searchParams.get(HOTEL_PREVIEW_PARAM);
+  const stayMatch = request.nextUrl.pathname.match(/^\/stay\/([a-z0-9-]+)/i);
+  if (hotelPreviewParam !== null && stayMatch) {
+    const url = request.nextUrl.clone();
+    url.searchParams.delete(HOTEL_PREVIEW_PARAM);
+    const response = NextResponse.redirect(url);
+    const cookie = { path: `/stay/${stayMatch[1]}`, httpOnly: true, sameSite: "lax" as const, secure: request.nextUrl.protocol === "https:" };
+    if (hotelPreviewParam === "1") response.cookies.set(HOTEL_PREVIEW_COOKIE, "1", cookie);
+    else response.cookies.set(HOTEL_PREVIEW_COOKIE, "", { ...cookie, maxAge: 0 });
     return response;
   }
 

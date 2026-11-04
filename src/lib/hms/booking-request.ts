@@ -13,7 +13,8 @@ const shortText = (max: number) => z.string().trim().max(max);
 
 export const bookingRequestSchema = z
   .object({
-    hotelSlug: shortText(80).min(1),
+    /** Not trusted: the hotel comes from the site's host. If the page sends one, it must agree with it. */
+    hotelSlug: shortText(80).optional().or(z.literal("")),
     room: shortText(120).min(1),
     ratePlan: shortText(80).optional().or(z.literal("")),
     checkIn: isoDate,

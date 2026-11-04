@@ -203,6 +203,9 @@ const HOTEL_TEMPLATES: WebsiteTemplate[] = [
 
 export const WEBSITE_TEMPLATES: WebsiteTemplate[] = [...STOREFRONT_TEMPLATES, ...HOTEL_TEMPLATES];
 
+/** The templates a hotel can pick for its website, in picker order. */
+export const HOTEL_WEBSITE_TEMPLATES: WebsiteTemplate[] = HOTEL_TEMPLATES;
+
 export function getWebsiteTemplate(slug: string): WebsiteTemplate | undefined {
   return WEBSITE_TEMPLATES.find((t) => t.slug === slug);
 }

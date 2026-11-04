@@ -1,35 +1,22 @@
 import { shopTenantChanged } from "@/lib/store/site/shop-changed";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { isReservedSubdomain } from "@/lib/store/subdomain";
+import { checkAddressAvailable, type AddressCheck } from "@/lib/address-namespace";
 
 /**
  * Store web addresses (tenants.subdomain) and the old addresses that still
  * redirect after a change (store.slug_redirects, kept for 90 days).
  */
 
-export type SlugCheck = { available: true } | { available: false; reason: string };
+export type SlugCheck = AddressCheck;
 
 /**
- * Whether a store can use this address: not reserved, not another tenant's,
- * and not another store's recently changed address. `slug` must already have
- * passed storeSubdomainSchema (it goes into a PostgREST filter).
+ * Whether a store can use this address. Stores and hotels share one set of
+ * addresses, so this is the shared check (src/lib/address-namespace.ts): a hotel's
+ * website address blocks a store too. `slug` must already have passed storeSubdomainSchema.
  */
-export async function checkSlugAvailable(slug: string, ownTenantId: string | null, db: SupabaseClient = createServerSupabaseClient()): Promise<SlugCheck> {
-  if (isReservedSubdomain(slug)) return { available: false, reason: "That address is reserved. Please choose another." };
-
-  let tenants = db.from("tenants").select("id").or(`subdomain.eq.${slug},name.eq.${slug}`).limit(1);
-  if (ownTenantId) tenants = tenants.neq("id", ownTenantId);
-  const [taken, redirect] = await Promise.all([
-    tenants,
-    db.schema("store").from("slug_redirects").select("tenant_id").eq("old_slug", slug).gt("expires_at", new Date().toISOString()).maybeSingle(),
-  ]);
-
-  if (taken.data?.length) return { available: false, reason: "That address is already taken." };
-  if (redirect.data && redirect.data.tenant_id !== ownTenantId) {
-    return { available: false, reason: "That address was used by another shop recently. Please choose another." };
-  }
-  return { available: true };
+export function checkSlugAvailable(slug: string, ownTenantId: string | null, db: SupabaseClient = createServerSupabaseClient()): Promise<SlugCheck> {
+  return checkAddressAvailable(slug, ownTenantId, db);
 }
 
 /** The store an old address now points to, if it changed within the last 90 days. */

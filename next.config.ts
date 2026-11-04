@@ -34,6 +34,8 @@ const nextConfig: NextConfig = {
   // Receipts and report PDFs are made in API routes and read these fonts from disk.
   outputFileTracingIncludes: {
     "/api/**/*": ["./src/assets/fonts/**/*"],
+    // A hotel's website reads its template's pages from disk.
+    "/stay/**/*": ["./public/template-previews/{coral-tide,fernhollow,aldwin}/*.html"],
   },
   images: {
     remotePatterns: supabaseHost

@@ -16,6 +16,8 @@ import { BedDouble, CalendarDays, ChartNoAxesColumn, Users } from "lucide-react"
 import HMSOverviewCards from "@/components/hms/dashboard/HMSOverviewCards";
 import HMSPricingRulesCard from "@/components/hms/dashboard/HMSPricingRulesCard";
 import HMSQuickLinks from "@/components/hms/dashboard/HMSQuickLinks";
+import HMSWebsiteCard from "@/components/hms/dashboard/HMSWebsiteCard";
+import { getHotelSite } from "@/lib/hms/site/site";
 import HMSRoomsPricingCard from "@/components/hms/dashboard/HMSRoomsPricingCard";
 import HMSSetupModal from "@/components/hms/HMSSetupModal";
 import HMSTour from "@/components/hms/HMSTour";
@@ -58,6 +60,9 @@ export default async function HMSDashboardPage({ params }: { params: Promise<{ s
     setupSummary.isOwnerOrAdmin && fbSettings && !fbSettings.kitchenOverdueMinutesConfigured
       ? `/hms/${slug}/kitchen/settings`
       : null;
+  // Until the hotel's website is published, owners and admins get a pointer to set it up (hidden if the site tables aren't there yet).
+  const showWebsiteCard =
+    tenant && setupSummary.isOwnerOrAdmin ? await getHotelSite(tenant.id).then((site) => !site?.published, () => false) : false;
   await maybeLogHotelDashboardDebug({
     slug,
     isOwnerOrAdmin: setupSummary.isOwnerOrAdmin,
@@ -133,6 +138,7 @@ export default async function HMSDashboardPage({ params }: { params: Promise<{ s
         />
 
         <div className="mt-6 space-y-4">
+          {showWebsiteCard ? <HMSWebsiteCard slug={slug} /> : null}
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white px-5 py-4 shadow-sm">
             <p className="text-sm text-slate-600">
               These figures match the reports. For a day, the month or the year against last year and budget, open the manager&apos;s report.

@@ -20,8 +20,10 @@ const DEVICES: { id: Device; label: string; icon: LucideIcon; widths: (number | 
  * Framed, fully interactive preview of a website template with a device-size
  * switcher and page picker. The template is same-origin static HTML, so the
  * picker can follow the visitor as they click around inside the frame.
+ * With `choose` (a hotel picking its website in the dashboard) the "all templates" and
+ * "start" links give way to a button that picks this template.
  */
-export function TemplatePreviewer({ template }: { template: WebsiteTemplate }) {
+export function TemplatePreviewer({ template, choose }: { template: WebsiteTemplate; choose?: { chosen: boolean; busy?: boolean; onChoose: () => void } }) {
   const frameRef = useRef<HTMLIFrameElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const [device, setDevice] = useState<Device>("desktop");
@@ -74,13 +76,15 @@ export function TemplatePreviewer({ template }: { template: WebsiteTemplate }) {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
         <div className="flex flex-wrap items-center gap-3">
-          <Link
-            href="/templates"
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm font-semibold text-xyvoo-navy/70 transition-colors hover:text-xyvoo-navy"
-          >
-            <ArrowLeft className="h-4 w-4" aria-hidden />
-            All templates
-          </Link>
+          {!choose && (
+            <Link
+              href="/templates"
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl px-2 text-sm font-semibold text-xyvoo-navy/70 transition-colors hover:text-xyvoo-navy"
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden />
+              All templates
+            </Link>
+          )}
           <label className="flex items-center gap-2 text-sm font-semibold text-xyvoo-navy">
             <span>Page</span>
             <select
@@ -109,14 +113,26 @@ export function TemplatePreviewer({ template }: { template: WebsiteTemplate }) {
             <ExternalLink className="h-4 w-4" aria-hidden />
             <span className="sr-only">(opens in a new tab)</span>
           </a>
-          <Link
-            href={template.kind === "hotel" ? XYVOO_AUTH_ROUTES.hms.register : XYVOO_AUTH_ROUTES.storefront.register}
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-sm font-bold text-xyvoo-navy transition-opacity hover:opacity-90"
-            style={{ background: "var(--xyvoo-teal-product)" }}
-          >
-            Start with this template
-            <ArrowRight className="h-4 w-4" aria-hidden />
-          </Link>
+          {choose ? (
+            <button
+              type="button"
+              disabled={choose.chosen || choose.busy}
+              onClick={choose.onChoose}
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-sm font-bold text-xyvoo-navy transition-opacity hover:opacity-90 disabled:opacity-60"
+              style={{ background: "var(--xyvoo-teal-product)" }}
+            >
+              {choose.chosen ? "Your template" : choose.busy ? "Saving…" : "Use this template"}
+            </button>
+          ) : (
+            <Link
+              href={template.kind === "hotel" ? XYVOO_AUTH_ROUTES.hms.register : XYVOO_AUTH_ROUTES.storefront.register}
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-sm font-bold text-xyvoo-navy transition-opacity hover:opacity-90"
+              style={{ background: "var(--xyvoo-teal-product)" }}
+            >
+              Start with this template
+              <ArrowRight className="h-4 w-4" aria-hidden />
+            </Link>
+          )}
         </div>
       </div>
 

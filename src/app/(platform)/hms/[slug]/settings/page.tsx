@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BedDouble, Boxes, Building2, ChefHat, Package, ShieldCheck, Soup, Truck, Users, Wine } from "lucide-react";
+import { BedDouble, Boxes, Building2, ChefHat, Globe, Package, ShieldCheck, Soup, Truck, Users, Wine } from "lucide-react";
 import HMSLayout from "@/components/hms/HMSLayout";
 import { HmsEmptyState, HmsPage, HmsPageHeader, hmsButton } from "@/components/hms/hms-ui";
 import { HMS_MEANING, type HmsMeaning } from "@/components/hms/meaning";
 import DepartmentAccessSetup from "@/components/hms/DepartmentAccessSetup";
 import { SmartLockSettingsCard } from "@/components/hms/settings/SmartLockSettingsCard";
+import { WebsiteSettingsCard } from "@/components/hms/settings/WebsiteSettingsCard";
+import { loadWebsiteState } from "@/lib/hms/site/state";
 import HotelBrandingSetup from "@/components/hms/HotelBrandingSetup";
 import HotelRoomPricingSetup from "@/components/hms/HotelRoomPricingSetup";
 import { InventoryLocationsClient } from "@/components/hms/inventory/InventoryLocationsClient";
@@ -40,6 +42,7 @@ export const metadata: Metadata = {
 const SETTINGS_GROUPS: { id: string; label: string; meaning: HmsMeaning }[] = [
   { id: "general-setup", label: "General", meaning: "neutral" },
   { id: "front-desk-setup", label: "Front desk & reservations", meaning: "rooms" },
+  { id: "website-setup-section", label: "Website", meaning: "neutral" },
   { id: "kitchen-restaurant-setup", label: "Kitchen & restaurant", meaning: "food" },
   { id: "inventory-procurement-setup", label: "Inventory & procurement", meaning: "stock" },
   { id: "staff-access-setup", label: "Staff & access", meaning: "team" },
@@ -63,6 +66,8 @@ export default async function SettingsPage({ params }: { params: Promise<{ slug:
   const roomTypes = normalizeRoomTypes(tenant?.room_types);
   const pricingSetup = normalizePricingSetup(tenant?.pricing_setup);
   const floorPlan = normalizeFloorPlan(tenant?.floor_plan);
+
+  const websiteState = tenant && access.isOwnerOrAdmin ? await loadWebsiteState(tenant, slug).catch((error) => (console.error("[settings] website section hidden", error), null)) : null;
 
   const [invLocations, invLocationTypes, invUnits, invItemTypes, invSuppliers, guestServiceCategories] = tenant
     ? await (async () => {
@@ -146,6 +151,20 @@ export default async function SettingsPage({ params }: { params: Promise<{ slug:
             <GuestServiceCategoriesManager slug={slug} rows={guestServiceCategories} />
             <SmartLockSettingsCard slug={slug} />
           </section>
+
+          {websiteState ? (
+            <section id="website-setup-section" aria-labelledby="website-setup-title" className="scroll-mt-24 space-y-4">
+              <SettingsGroupHeader
+                id="website-setup-title"
+                icon={Globe}
+                meaning="neutral"
+                title="Website"
+                subtitle="Your hotel's public website: pick a template, choose its address and put it live. Guests ask to book; the front desk replies."
+                info="Booking requests from your website are emailed to your reservations address and kept for the front desk. Nothing is reserved and no payment is taken online."
+              />
+              <WebsiteSettingsCard slug={slug} initial={websiteState} />
+            </section>
+          ) : null}
 
           <section id="kitchen-restaurant-setup" aria-labelledby="kitchen-restaurant-setup-title" className="scroll-mt-24 space-y-4">
             <SettingsGroupHeader

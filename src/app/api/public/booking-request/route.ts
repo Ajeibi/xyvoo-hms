@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { bookingReference, bookingRequestSchema, guestEmail, hotelEmail } from "@/lib/hms/booking-request";
+import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
+import { hotelSlugForRequest, insertBookingRequest } from "@/lib/hms/site/booking";
+import { getHotelSite } from "@/lib/hms/site/site";
 import { sendBookingRequestEmail } from "@/lib/mail/mailtrap";
 import { clientIp, rateLimitShared } from "@/lib/rate-limit";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -9,8 +12,10 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
  * POST /api/public/booking-request
  *
  * Public booking-request endpoint for hotel websites. No payment and no automatic
- * reservation: the hotel is emailed the request (reply-to set to the guest) and the
- * guest gets an acknowledgement saying the stay is not yet confirmed.
+ * reservation: the request is stored for the hotel (pending), the hotel's reservations
+ * address is emailed (reply-to set to the guest) and the guest gets an acknowledgement
+ * saying the stay is not yet confirmed. The hotel is the one whose website the request
+ * came from, not one named in the body.
  */
 export async function POST(request: Request) {
   const limit = await rateLimitShared(`booking-request:${clientIp(request)}`, 5, 10 * 60 * 1000);
@@ -40,41 +45,52 @@ export async function POST(request: Request) {
   }
   const req = parsed.data;
 
-  // Honeypot filled in: pretend success so bots learn nothing, but send nothing.
+  // Honeypot filled in: pretend success so bots learn nothing, but store and send nothing.
   if (req.company) return NextResponse.json({ ok: true, reference: bookingReference() });
 
   try {
-    const tenant = await getHotelTenantBySlug(req.hotelSlug);
-    if (!tenant) return NextResponse.json({ error: "Hotel not found." }, { status: 404 });
-    const hotelName = tenant.display_name?.trim() || tenant.name?.trim() || req.hotelSlug;
+    const hotelSlug = await hotelSlugForRequest(request);
+    if (!hotelSlug) return NextResponse.json({ error: "Send the booking request from the hotel's website." }, { status: 400 });
 
-    // Reservations go to the account owner's email until hotels have a dedicated
-    // reservations address setting.
-    const service = createServerSupabaseClient();
-    const { data: profile } = await service
-      .schema("hotel")
-      .from("profiles")
-      .select("user_id")
-      .eq("tenant_id", tenant.id)
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
-    const ownerId = (profile as { user_id?: string } | null)?.user_id;
-    const owner = ownerId ? await service.auth.admin.getUserById(ownerId) : null;
-    const hotelInbox = owner?.data.user?.email;
-    if (!hotelInbox) {
-      return NextResponse.json({ error: "This hotel can't take online booking requests yet. Please contact them directly." }, { status: 503 });
+    const tenant = await getHotelTenantBySlug(hotelSlug);
+    const site = tenant ? await getHotelSite(tenant.id) : null;
+    if (!tenant || !site) return NextResponse.json({ error: "Hotel not found." }, { status: 404 });
+
+    // The page may name its hotel (older pages do); it has to be the one it was served for.
+    const named = req.hotelSlug?.toLowerCase();
+    if (named && named !== hotelSlug.toLowerCase() && named !== site.address) {
+      return NextResponse.json({ error: "This request doesn't match the website it was sent from." }, { status: 400 });
     }
 
-    const reference = bookingReference();
+    // A draft site takes requests only from signed-in staff of that hotel (the preview).
+    if (!site.published && "error" in (await requireHotelApiMember(hotelSlug))) {
+      return NextResponse.json({ error: "Hotel not found." }, { status: 404 });
+    }
+    if (!site.reservationsEmail) {
+      return NextResponse.json({ error: "This hotel can't take online booking requests yet. Please contact them directly." }, { status: 503 });
+    }
+    const hotelName = tenant.display_name?.trim() || tenant.name?.trim() || hotelSlug;
+
+    // Store first, mail second: whatever happens to the emails, the hotel still has the request.
+    const service = createServerSupabaseClient();
+    const reference = await insertBookingRequest(service, { tenantId: tenant.id, request: req, templateId: site.templateId });
+
     const toHotel = hotelEmail(req, reference, hotelName);
     const toGuest = guestEmail(req, reference, hotelName);
-
-    await sendBookingRequestEmail({ to: hotelInbox, replyTo: req.guest.email, ...toHotel });
-    await sendBookingRequestEmail({ to: req.guest.email, replyTo: hotelInbox, ...toGuest });
+    const hotelSent = await sendBookingRequestEmail({ to: site.reservationsEmail, replyTo: req.guest.email, ...toHotel }).then(
+      () => true,
+      (error) => (console.error("[booking-request] hotel email failed", { reference, error }), false),
+    );
+    if (hotelSent) {
+      await service.schema("hotel").from("booking_requests").update({ hotel_emailed_at: new Date().toISOString() }).eq("tenant_id", tenant.id).eq("reference", reference);
+    }
+    await sendBookingRequestEmail({ to: req.guest.email, replyTo: site.reservationsEmail, ...toGuest }).catch((error) =>
+      console.error("[booking-request] guest email failed", { reference, error }),
+    );
 
     return NextResponse.json({ ok: true, reference });
-  } catch {
+  } catch (error) {
+    console.error("[booking-request] failed", error);
     return NextResponse.json({ error: "We couldn't send your request. Please try again or contact the hotel directly." }, { status: 500 });
   }
 }

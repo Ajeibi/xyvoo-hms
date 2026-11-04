@@ -122,8 +122,9 @@ export function storefrontRewritePath(slug: string, pathname: string): string | 
 }
 
 /**
- * Returns the store slug when `host` is a storefront subdomain of the root domain
- * (or of `localhost` in development), otherwise null. Ports are ignored.
+ * Returns the address label when `host` is a subdomain of the root domain (or of
+ * `localhost` in development), otherwise null. Ports are ignored. The label is a
+ * store's or a hotel's address: src/lib/hms/site/host.ts says which.
  */
 export function getStoreSlugFromHost(host: string | null, rootDomain = STOREFRONT_ROOT_DOMAIN) {
   if (!host) return null;
