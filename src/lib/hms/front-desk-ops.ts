@@ -1,7 +1,8 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { departmentScopeForRole } from "@/lib/hms/guest-services-rbac";
+import { sendAlert, type AlertInput, type AlertSeverity } from "@/lib/hms/alerts";
 
-export type NotificationSeverity = "info" | "warning" | "critical";
+export type NotificationSeverity = AlertSeverity;
 
 /** Postgrest `.or()` filter restricting notifications to what a department-scoped viewer
  * (Housekeeping/Maintenance/F&B) should see — their own department's targeted notifications,
@@ -14,35 +15,11 @@ export function notificationVisibilityFilter(departmentRole: string | null): str
   return `department.is.null,department.eq.${scope}`;
 }
 
-export type EmitNotificationInput = {
-  tenantId: string;
-  type: string;
-  title: string;
-  body: string;
-  severity?: NotificationSeverity;
-  entityType?: string;
-  entityId?: string;
-  metadata?: Record<string, unknown>;
-  /** Restricts visibility to staff scoped to this department (housekeeping/maintenance/
-   * food_beverage, per `departmentScopeForRole`); omit/null for a tenant-wide notification
-   * everyone sees, same as before this field existed. */
-  department?: string | null;
-};
+export type EmitNotificationInput = AlertInput;
 
+/** Kept so existing callers keep working; it is `sendAlert` (src/lib/hms/alerts.ts) underneath. */
 export async function emitNotification(input: EmitNotificationInput) {
-  const supabase = createServerSupabaseClient();
-  const { error } = await supabase.schema("hotel").from("notifications").insert({
-    tenant_id: input.tenantId,
-    type: input.type,
-    title: input.title,
-    body: input.body,
-    severity: input.severity ?? "info",
-    entity_type: input.entityType ?? null,
-    entity_id: input.entityId ?? null,
-    metadata: input.metadata ?? {},
-    department: input.department ?? null,
-  });
-  if (error) console.warn("[emitNotification]", error);
+  await sendAlert(input);
 }
 
 export type AuditLogInput = {

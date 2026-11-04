@@ -52,6 +52,19 @@ export function HmsNotificationsBell({
     if (open) void load();
   }, [open, load]);
 
+  // Live: look again every 30 seconds while the tab is showing, and as soon as it comes back.
+  useEffect(() => {
+    const tick = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    const timer = window.setInterval(tick, 30_000);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, [load]);
+
   useEffect(() => {
     const onRefresh = () => void load();
     window.addEventListener(REFRESH_NOTIFICATIONS_EVENT, onRefresh);

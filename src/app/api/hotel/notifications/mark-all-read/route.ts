@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
 import { notificationVisibilityFilter } from "@/lib/hms/front-desk-ops";
 import { markNotificationsRead } from "@/lib/hms/notification-reads";
+import { groupsForRole, roleGroupFilter } from "@/lib/hms/notification-catalogue";
 
 const BodySchema = z.object({ slug: z.string().min(1) });
 
@@ -19,6 +20,8 @@ export async function POST(req: Request) {
 
     const scopeFilter = notificationVisibilityFilter(auth.departmentRole);
     if (scopeFilter) query = query.or(scopeFilter);
+    const roleFilter = roleGroupFilter(groupsForRole(auth.role, auth.departmentRole));
+    if (roleFilter) query = query.or(roleFilter);
 
     const { data, error } = await query;
     if (error) return NextResponse.json({ error: "Update failed." }, { status: 500 });

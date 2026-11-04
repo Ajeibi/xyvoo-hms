@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
 import { notificationVisibilityFilter, writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { getReadNotificationIds } from "@/lib/hms/notification-reads";
+import { groupsForRole, roleGroupFilter } from "@/lib/hms/notification-catalogue";
 
 const BodySchema = z.object({
   slug: z.string().min(1),
@@ -18,12 +19,14 @@ export async function DELETE(req: Request) {
     // Scoped the same way the list is, so clearing never removes a notification this
     // viewer couldn't see in the first place (they belong to another department).
     const scopeFilter = notificationVisibilityFilter(auth.departmentRole);
+    const roleFilter = roleGroupFilter(groupsForRole(auth.role, auth.departmentRole));
 
     if (body.mode === "read") {
       // Read state is per-user now (notification_reads) — "clear read" removes only what
       // *this* viewer has read, not a tenant-wide read_at that no longer gets written to.
       let idsQuery = auth.service.schema("hotel").from("notifications").select("id").eq("tenant_id", auth.tenant.id);
       if (scopeFilter) idsQuery = idsQuery.or(scopeFilter);
+      if (roleFilter) idsQuery = idsQuery.or(roleFilter);
       const { data: visibleIdsData } = await idsQuery;
       const visibleIds = (visibleIdsData ?? []).map((n) => n.id as string);
       const readIds = await getReadNotificationIds(auth.service, auth.tenant.id, auth.user.id, visibleIds);
@@ -39,6 +42,7 @@ export async function DELETE(req: Request) {
     } else {
       let query = auth.service.schema("hotel").from("notifications").delete().eq("tenant_id", auth.tenant.id);
       if (scopeFilter) query = query.or(scopeFilter);
+      if (roleFilter) query = query.or(roleFilter);
       const { error } = await query;
       if (error) return NextResponse.json({ error: "Could not clear notifications." }, { status: 500 });
     }

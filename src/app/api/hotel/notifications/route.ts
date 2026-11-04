@@ -3,6 +3,8 @@ import { z } from "zod";
 import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
 import { notificationVisibilityFilter } from "@/lib/hms/front-desk-ops";
 import { getReadNotificationIds, markNotificationRead } from "@/lib/hms/notification-reads";
+import { alertPath, groupsForRole, roleGroupFilter } from "@/lib/hms/notification-catalogue";
+import { hideMutedFilter, mutedInAppGroups } from "@/lib/hms/notification-preferences";
 
 export async function GET(req: Request) {
   const slug = new URL(req.url).searchParams.get("slug");
@@ -19,6 +21,10 @@ export async function GET(req: Request) {
 
   const scopeFilter = notificationVisibilityFilter(auth.departmentRole);
   if (scopeFilter) query = query.or(scopeFilter);
+  const roleFilter = roleGroupFilter(groupsForRole(auth.role, auth.departmentRole));
+  if (roleFilter) query = query.or(roleFilter);
+  const mutedFilter = hideMutedFilter(await mutedInAppGroups(auth.service, auth.tenant.id, auth.user.id));
+  if (mutedFilter) query = query.or(mutedFilter);
 
   const { data, error } = await query.order("created_at", { ascending: false }).limit(30);
 
@@ -40,6 +46,7 @@ export async function GET(req: Request) {
     severity: n.severity,
     createdAt: n.created_at,
     read: readIds.has(n.id),
+    href: alertPath(slug, n.type),
   }));
   const unreadCount = notifications.filter((n) => !n.read).length;
 

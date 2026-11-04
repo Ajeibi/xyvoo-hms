@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { CircleAlert, Info, TriangleAlert } from "lucide-react";
 import { HMS_MEANING } from "@/components/hms/meaning";
 
@@ -10,6 +11,8 @@ export type NotificationListItemData = {
   severity: string;
   createdAt: string;
   read: boolean;
+  /** The screen the alert is about, when it has one. */
+  href?: string;
 };
 
 /** Urgent alerts carry the "needs someone now" colour; everything else stays calm. */
@@ -60,6 +63,15 @@ export function NotificationListItem({
         {!compact ? <p className="mt-1 text-sm text-slate-700">{item.body}</p> : null}
         <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
           <time dateTime={item.createdAt}>{time}</time>
+          {item.href ? (
+            <Link
+              href={item.href}
+              onClick={() => (!item.read && onMarkRead ? onMarkRead(item.id) : undefined)}
+              className="rounded font-medium text-blue-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            >
+              Open<span className="sr-only">: {item.title}</span>
+            </Link>
+          ) : null}
           {!item.read && onMarkRead ? (
             <button
               type="button"
