@@ -51,7 +51,7 @@ export function TaxExemptionsFieldset({
         state-specific consumption or occupancy charges. <strong>Stamp / processing</strong> — reserved for
         stamp or processing rules (currently 0 unless you extend rates).
       </p>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="flex items-start gap-2">
           <input
             id="taxExemptVat"
@@ -117,7 +117,7 @@ export function TaxExemptionsFieldset({
           </div>
         </div>
       </div>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <CheckInFieldLabelRow
             htmlFor="taxExemptionReason"
@@ -173,7 +173,7 @@ export function ReleaseExtensionFieldset({
           text="Controls for guarantee release and minimum cash required before extending a stay—protects the hotel when guests stay on without a fresh deposit."
         />
       </legend>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <CheckInFieldLabelRow
             htmlFor="guaranteeReleaseDate"
@@ -304,7 +304,7 @@ export function DocumentationFieldset({ voucherNumber }: { voucherNumber?: strin
       <p className="text-xs text-slate-500">
         Folio # and registration # are generated when you save. Voucher # is optional external reference.
       </p>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <CheckInFieldLabelRow
             htmlFor="voucherNumber"

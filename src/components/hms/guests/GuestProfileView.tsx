@@ -140,7 +140,7 @@ export function GuestProfileView({
 
       {m.staysStarted > 0 ? (
         <HmsCard id="guest-spend" icon={CalendarClock} meaning="money" title="Spend and habits" description="Worked out from their bills, not just the room price.">
-          <dl className="grid gap-x-8 gap-y-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
+          <dl className="grid grid-cols-1 gap-x-8 gap-y-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
             <Fact label="Average per stay">{money(m.spend / m.staysStarted)}</Fact>
             <Fact label="Average room rate a night">{money(m.nights > 0 ? m.roomSpend / m.nights : 0)}</Fact>
             <Fact label="Usual room type">{m.favouriteRoomType ?? <Nothing />}</Fact>

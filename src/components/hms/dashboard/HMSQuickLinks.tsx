@@ -86,7 +86,7 @@ export default function HMSQuickLinks({ slug }: { slug: string }) {
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {QUICK_LINKS.map(({ key, label, description, icon: Icon, path, tourTarget, meaning }) => {
           const tone = HMS_MEANING[meaning];
           return (

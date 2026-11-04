@@ -34,7 +34,7 @@ export function BlockPanel({
         <option value="soft">Soft block</option>
         <option value="maintenance_hold">Maintenance hold</option>
       </select>
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <Input type="datetime-local" value={blockStart} onChange={(e) => onBlockStartChange(e.target.value)} />
         <Input type="datetime-local" value={blockEnd} onChange={(e) => onBlockEndChange(e.target.value)} />
       </div>

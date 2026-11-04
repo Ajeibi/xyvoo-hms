@@ -183,7 +183,7 @@ function NewGroupCard({
             ))}
           </ul>
 
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <HmsField id="group-name" label="Group name">
               <input id="group-name" className={hmsInput} maxLength={80} value={name} onChange={(e) => setName(e.target.value)} />
             </HmsField>
@@ -360,7 +360,7 @@ function GroupCard({
 
         {canPay ? (
           <form
-            className="grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-end"
+            className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-end"
             onSubmit={(e) => {
               e.preventDefault();
               void pay();

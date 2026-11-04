@@ -50,7 +50,7 @@ export function WalkInAccompanyingAdultCard({
       <p className="mb-3 text-sm font-semibold text-slate-900">
         Guest {guestNumber} <span className="font-normal text-slate-500">(adult)</span>
       </p>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <CheckInFieldLabelRow htmlFor={`adult-${guestNumber}-title`} helpTitle="Title" helpText="Optional salutation.">
             Title
@@ -223,7 +223,7 @@ export function WalkInMinorGuestCard({
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
       <p className="mb-3 text-sm font-semibold text-slate-900">{label}</p>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <label className="text-sm font-medium text-slate-700">
             First name <span className="text-rose-600">*</span>

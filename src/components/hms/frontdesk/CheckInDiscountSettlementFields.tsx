@@ -58,7 +58,7 @@ export function DiscountFieldset({
           text="Percentage off the nightly room BAR before taxes. Scope controls which nights receive the discount (all, first, last, or first and last night)."
         />
       </legend>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <CheckInFieldLabelRow
             htmlFor="discountPercent"
@@ -141,7 +141,7 @@ export function SettlementBillingFieldset({
           text="How the guest or a company will settle the bill. Payments are taken at the desk and recorded on the bill; nothing is charged from here."
         />
       </legend>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {SETTLEMENT_OPTIONS.map((opt) => (
           <div
             key={opt.value}
@@ -165,7 +165,7 @@ export function SettlementBillingFieldset({
           </div>
         ))}
       </div>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <CheckInFieldLabelRow
             htmlFor="settlementType"

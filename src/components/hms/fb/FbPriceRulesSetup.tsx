@@ -311,7 +311,7 @@ export function FbPriceRulesSetup({
           className="mt-4 space-y-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4"
           aria-label={editing.id ? `Edit ${form.name}` : "New price rule"}
         >
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <HmsField id="fb-price-name" label="Name" hint="Shown on the till and the bill.">
               <input
                 id="fb-price-name"
@@ -402,7 +402,7 @@ export function FbPriceRulesSetup({
             </div>
           </fieldset>
 
-          <div className="grid gap-4 sm:grid-cols-[repeat(4,minmax(0,1fr))]">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-[repeat(4,minmax(0,1fr))]">
             <HmsField id="fb-price-start" label="From">
               <input
                 id="fb-price-start"

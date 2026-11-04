@@ -45,7 +45,7 @@ export function SendOfferCard({ slug, options, recent }: { slug: string; options
 
   return (
     <HmsCard id="send-offer" icon={Mail} meaning="guests" title="Send an offer by email" description="Goes only to guests who agreed to email offers. Every email has a link to stop them.">
-      <div className="grid gap-4">
+      <div className="grid grid-cols-1 gap-4">
         <HmsField id="offer-group" label="Who to send to">
           <select id="offer-group" className={hmsInput} value={key} onChange={(e) => setKey(e.target.value)}>
             {options.map((o) => (

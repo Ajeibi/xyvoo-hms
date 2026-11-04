@@ -95,8 +95,8 @@ export function FrontDeskMovementTimeline({
   departures: FrontDeskMovementItem[];
 }) {
   return (
-    <section className="grid gap-4 lg:grid-cols-2" aria-label="Arrival and departure timeline" id="fd-movement-timeline">
-      <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
+    <section className="grid grid-cols-1 gap-4 lg:grid-cols-2" aria-label="Arrival and departure timeline" id="fd-movement-timeline">
+      <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm sm:p-6">
         <div className="flex items-start gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
             <LogIn className="h-5 w-5" aria-hidden />
@@ -115,7 +115,7 @@ export function FrontDeskMovementTimeline({
           />
         </div>
       </div>
-      <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
+      <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm sm:p-6">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-600">

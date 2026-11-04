@@ -549,7 +549,7 @@ export function InventoryItemsClient({
             <DialogTitle>{editingItemId ? "Edit item" : "New item"}</DialogTitle>
           </DialogHeader>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className={editingItemId ? "sm:col-span-2" : ""}>
               <HmsField id="inventory-item-sku" label="SKU" hint={editingItemId ? "The SKU can't be changed once the item exists." : undefined}>
                 <input

@@ -126,7 +126,7 @@ export function AccountsBankReconciliationListClient({
                 }
               >
                 {reconciliations.length > 0 ? (
-                  <table className="w-full text-left text-sm">
+                  <div className="overflow-x-auto"><table className="w-full text-left text-sm">
                     <caption className="sr-only">Recent reconciliations for {account.name}</caption>
                     <thead className="border-b border-slate-200 text-sm font-medium text-slate-600">
                       <tr>
@@ -155,7 +155,7 @@ export function AccountsBankReconciliationListClient({
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                  </table></div>
                 ) : (
                   <p className="text-sm text-slate-600">No reconciliations yet for this account.</p>
                 )}

@@ -58,7 +58,7 @@ export function ArrivalOnlineCheckIn({ slug, reservationId, canSend }: { slug: s
       </div>
 
       {done ? (
-        <dl className="grid gap-2 text-sm sm:grid-cols-2">
+        <dl className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
           <div><dt className="text-xs text-slate-600">Phone</dt><dd className="text-slate-900">{info.phone ?? "–"}</dd></div>
           <div><dt className="text-xs text-slate-600">Email</dt><dd className="text-slate-900">{info.email ?? "–"}</dd></div>
           <div><dt className="text-xs text-slate-600">Country</dt><dd className="text-slate-900">{info.nationality ? countryName(info.nationality) : "–"}</dd></div>

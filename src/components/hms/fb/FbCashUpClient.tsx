@@ -215,7 +215,7 @@ export function FbCashUpClient({
       ) : null}
 
       {data ? (
-        <section aria-labelledby="fb-cashup-tills" className="grid gap-4 md:grid-cols-2">
+        <section aria-labelledby="fb-cashup-tills" className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <h2 id="fb-cashup-tills" className="sr-only">
             Tills
           </h2>

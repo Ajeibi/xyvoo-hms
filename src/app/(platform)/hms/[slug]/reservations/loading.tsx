@@ -8,7 +8,7 @@ export default function ReservationsLoading() {
     <div className="px-8 py-8">
       <PageHeaderSkeleton withAction />
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="rounded-2xl border border-slate-200 bg-white p-4">
             <Skeleton className={`h-3 w-20 ${sk}`} />

@@ -388,7 +388,7 @@ export function AccountsBankReconciliationDetailClient({
         {detail.unmatchedJournalLines.length === 0 ? (
           <p className="px-5 py-4 text-sm text-slate-600 sm:px-6">Nothing outstanding.</p>
         ) : (
-          <table className="w-full text-left text-sm">
+          <div className="overflow-x-auto"><table className="w-full text-left text-sm">
             <thead className="border-b border-slate-200 bg-slate-50 text-sm font-medium text-slate-600">
               <tr>
                 <th scope="col" className="px-5 py-3">Date</th>
@@ -405,7 +405,7 @@ export function AccountsBankReconciliationDetailClient({
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
       </HmsCard>
 

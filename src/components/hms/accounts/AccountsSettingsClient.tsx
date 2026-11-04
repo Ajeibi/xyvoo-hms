@@ -116,7 +116,7 @@ export function AccountsSettingsClient({
 
         <div className="mt-5 border-t border-slate-100 pt-5">
           <h3 className="text-sm font-semibold text-slate-900">Add a threshold</h3>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <HmsField id="threshold-department" label="Department">
               <input id="threshold-department" className={hmsInput} value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="Department" />
             </HmsField>

@@ -30,6 +30,18 @@ export type StatusRowItem = {
   value?: string;
 };
 
+/**
+ * A chart that keeps a readable width on phones and scrolls sideways inside its card,
+ * so every label and point stays visible. From the tablet width up it just fills the card.
+ */
+export function ChartScroll({ height, minWidth = "min-w-[600px]", children }: { height: string; minWidth?: string; children: ReactNode }) {
+  return (
+    <div className="overflow-x-auto overscroll-x-contain" tabIndex={0} role="group" aria-label="Chart, scroll sideways for the full range">
+      <div className={`${height} ${minWidth} md:min-w-0`}>{children}</div>
+    </div>
+  );
+}
+
 export type AnalyticsIcon = React.ComponentType<{ className?: string }>;
 
 export function AnalyticsCard({
@@ -48,7 +60,7 @@ export function AnalyticsCard({
 }) {
   const tone = HMS_MEANING[meaning];
   return (
-    <section className="h-full rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/40">
+    <section className="h-full rounded-[28px] border border-slate-200 bg-white p-3 sm:p-6 shadow-sm shadow-slate-200/40">
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-3">
           <div aria-hidden className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ring-1 ring-slate-200/60 ${tone.tint} ${tone.icon}`}>

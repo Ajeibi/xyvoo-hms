@@ -31,9 +31,9 @@ export function SubNavSkeleton({ count = 5 }: { count?: number }) {
 
 export function StatTilesSkeleton({ count = 4 }: { count?: number }) {
   return (
-    <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+    <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="rounded-2xl border border-slate-200 bg-white p-5">
+        <div key={i} className="rounded-2xl border border-slate-200 bg-white p-3 sm:p-5">
           <Skeleton className={`h-3 w-24 ${sk}`} />
           <Skeleton className={`mt-3 h-7 w-16 ${sk}`} />
           <Skeleton className={`mt-2 h-4 w-full ${sk}`} />
@@ -66,7 +66,7 @@ export function TableSkeleton({ rows = 6, cols = 4 }: { rows?: number; cols?: nu
 
 export function CardBlockSkeleton({ lines = 3, className = "" }: { lines?: number; className?: string }) {
   return (
-    <div className={`rounded-2xl border border-slate-200 bg-white p-5 ${className}`}>
+    <div className={`rounded-2xl border border-slate-200 bg-white p-3 sm:p-5 ${className}`}>
       <Skeleton className={`h-4 w-32 ${sk}`} />
       <div className="mt-4 space-y-2">
         {Array.from({ length: lines }).map((_, i) => (
@@ -80,7 +80,7 @@ export function CardBlockSkeleton({ lines = 3, className = "" }: { lines?: numbe
 /** Matches DepartmentDashboardScaffold's shape (maintenance, HR, revenue). */
 export function DepartmentDashboardSkeleton() {
   return (
-    <div className="mx-auto w-full max-w-6xl px-8 py-8">
+    <div className="mx-auto w-full max-w-6xl px-3 py-4 sm:px-8 sm:py-8">
       <PageHeaderSkeleton />
       <div className="mt-6 flex flex-col items-center rounded-2xl border border-slate-200 bg-white px-6 py-10">
         <Skeleton className={`h-16 w-16 rounded-2xl ${sk}`} />

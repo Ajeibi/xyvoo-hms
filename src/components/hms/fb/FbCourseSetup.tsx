@@ -88,7 +88,7 @@ export function FbCourseSetup({
                 {groups.length > 1 ? (
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-600">{outlet.name}</p>
                 ) : null}
-                <ul className="grid gap-2 sm:grid-cols-2">
+                <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {cats.map((cat) => {
                     const id = `course-${cat.id}`;
                     return (

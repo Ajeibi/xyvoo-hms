@@ -80,7 +80,7 @@ export function FrontDeskShiftNotes({
   return (
     <section
       id="fd-shift-notes"
-      className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6"
+      className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm sm:p-6"
     >
       <p className="text-sm font-medium text-slate-600">Handover</p>
       <h2 className="mt-1 text-lg font-semibold text-slate-900">Shift notes</h2>

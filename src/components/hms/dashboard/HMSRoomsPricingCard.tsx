@@ -87,7 +87,7 @@ export default function HMSRoomsPricingCard({
         </div>
       </div>
 
-      <dl className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <dl className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <SummaryPill
           label="Configured rooms"
           value={`${summary.configuredRooms}/${summary.totalRooms}`}
@@ -107,7 +107,7 @@ export default function HMSRoomsPricingCard({
       </dl>
 
       {roomTypes.length ? (
-        <ul className="mt-6 grid gap-3 xl:grid-cols-2">
+        <ul className="mt-6 grid grid-cols-1 gap-3 xl:grid-cols-2">
           {roomTypes.map((roomType) => (
             <li key={roomType.id} className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
               <div className="flex items-start justify-between gap-4">

@@ -109,7 +109,7 @@ export function HmsSectionIntro({
   if (hidden) return null;
   const tone = HMS_MEANING[meaning];
   return (
-    <section aria-labelledby={`hms-intro-${id}`} className={`relative flex flex-col gap-4 rounded-2xl p-5 sm:flex-row sm:items-center ${tone.tint}`}>
+    <section aria-labelledby={`hms-intro-${id}`} className={`relative flex flex-col gap-4 rounded-2xl p-3 sm:p-5 sm:flex-row sm:items-center ${tone.tint}`}>
       {art ? (
         <span className={`hidden shrink-0 sm:block ${tone.icon}`}>
           <Illustration name={art} />

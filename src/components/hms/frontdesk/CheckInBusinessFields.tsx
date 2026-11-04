@@ -28,7 +28,7 @@ export function SeasonRateTypeFieldset({
           text="Season or campaign code tags the stay for revenue analysis. Rate type (e.g. walk-in BAR, corporate) tells the PMS how this booking was priced versus rack or promo."
         />
       </legend>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <CheckInFieldLabelRow
             htmlFor="seasonCode"
@@ -97,7 +97,7 @@ export function BusinessSourceFieldset({
           text="Who the guest is (segment), how they found you (source), the booking site, and the travel agent who earns commission on the stay."
         />
       </legend>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <CheckInFieldLabelRow
             htmlFor="marketSegment"

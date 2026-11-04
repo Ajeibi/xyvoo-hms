@@ -204,7 +204,7 @@ export function FrontDeskOnlineCheckInClient({ slug }: { slug: string }) {
               void saveSettings();
             }}
           >
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <HmsField id="oc-policy" label="Who must add a photo of their ID?">
                 <select id="oc-policy" className={hmsInput} value={draft.idPolicy} onChange={(e) => setDraft({ ...draft, idPolicy: e.target.value as IdPolicy })}>
                   {ID_POLICIES.map((p) => (

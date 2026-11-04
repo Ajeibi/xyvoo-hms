@@ -32,6 +32,8 @@ import type { ArrivalsRoleCapabilities } from "@/lib/hms/arrivals-rbac";
 
 const SEARCH_DEBOUNCE_MS = 350;
 
+const canCheckInSpan = (canCheckIn: boolean) => (canCheckIn ? "" : "col-span-2");
+
 const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2";
 
 type StatusFilter = ReservationListRow["status"] | null;
@@ -136,18 +138,19 @@ export function ReservationsListClient({
         title="Reservations"
         description="Every booking, from guests on their way to guests who have already left."
         actions={
-          <>
-            <Link href={`/hms/${slug}/reservations/calendar`} className={`${hmsButton.secondary} ${focusRing}`}>
+          // Phones: Calendar and Group allotments share a row, New reservation fills the next.
+          <div className="grid w-full grid-cols-2 gap-2 sm:contents">
+            <Link href={`/hms/${slug}/reservations/calendar`} className={`${hmsButton.secondary} ${focusRing} w-full px-3 sm:w-auto sm:px-4`}>
               Calendar
             </Link>
-            <Link href={`/hms/${slug}/reservations/allotments`} className={`${hmsButton.secondary} ${focusRing}`}>
+            <Link href={`/hms/${slug}/reservations/allotments`} className={`${hmsButton.secondary} ${focusRing} w-full px-3 sm:w-auto sm:px-4`}>
               Group allotments
             </Link>
-            <Link href={`/hms/${slug}/reservations/new`} className={`${hmsButton.primary} ${focusRing}`}>
+            <Link href={`/hms/${slug}/reservations/new`} className={`${hmsButton.primary} ${focusRing} col-span-2 w-full sm:col-span-1 sm:w-auto`}>
               <Plus className="h-4 w-4" aria-hidden />
               New reservation
             </Link>
-          </>
+          </div>
         }
       />
 
@@ -182,7 +185,7 @@ export function ReservationsListClient({
         />
       </HmsStatStrip>
 
-      <div className="space-y-3">
+      <div className="space-y-4 sm:space-y-3">
         <div className="max-w-md">
           <label htmlFor="reservations-search" className="mb-1 block text-sm font-medium text-slate-800">
             Search bookings
@@ -206,16 +209,16 @@ export function ReservationsListClient({
           value={chipValue}
           onChange={(v) => setStatusFilter(v === "all" ? null : v)}
         />
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="text-sm font-medium text-slate-800">
+        <div className="grid grid-cols-2 items-end gap-x-3 gap-y-4 lg:grid-cols-4 lg:gap-y-3">
+          <label className="min-w-0 text-sm font-medium text-slate-800">
             Arriving from
             <input type="date" className={`${hmsInput} mt-1`} value={query.from} max={query.to || undefined} onChange={(e) => navigate({ from: e.target.value, page: 1 })} />
           </label>
-          <label className="text-sm font-medium text-slate-800">
+          <label className="min-w-0 text-sm font-medium text-slate-800">
             Arriving up to
             <input type="date" className={`${hmsInput} mt-1`} value={query.to} min={query.from || undefined} onChange={(e) => navigate({ to: e.target.value, page: 1 })} />
           </label>
-          <label className="text-sm font-medium text-slate-800">
+          <label className="min-w-0 text-sm font-medium text-slate-800">
             Booked through
             <select className={`${hmsInput} mt-1`} value={query.source} onChange={(e) => navigate({ source: e.target.value, page: 1 })}>
               <option value="">Any</option>
@@ -226,7 +229,7 @@ export function ReservationsListClient({
               ))}
             </select>
           </label>
-          <label className="text-sm font-medium text-slate-800">
+          <label className="min-w-0 text-sm font-medium text-slate-800">
             Room type
             <select className={`${hmsInput} mt-1`} value={query.roomType} onChange={(e) => navigate({ roomType: e.target.value, page: 1 })}>
               <option value="">Any</option>
@@ -238,7 +241,7 @@ export function ReservationsListClient({
             </select>
           </label>
           {query.from || query.to || query.source || query.roomType ? (
-            <button type="button" className={hmsButton.small} onClick={() => navigate({ from: "", to: "", source: "", roomType: "", page: 1 })}>
+            <button type="button" className={`${hmsButton.small} col-span-2 w-full lg:col-span-4 lg:w-auto lg:justify-self-start`} onClick={() => navigate({ from: "", to: "", source: "", roomType: "", page: 1 })}>
               Clear these
             </button>
           ) : null}
@@ -290,8 +293,103 @@ export function ReservationsListClient({
               />
             )
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1240px] text-left text-sm">
+            <>
+            <ul className="divide-y divide-slate-100 md:hidden" aria-label={`Bookings, ${filteredCount} found`}>
+              {pageRows.map((row) => (
+                <li key={row.id} className="space-y-3 px-3 py-3.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <Link
+                        href={`/hms/${slug}/reservations/${row.id}`}
+                        className={`rounded text-base font-semibold leading-snug text-slate-900 hover:text-blue-700 hover:underline ${focusRing}`}
+                      >
+                        {row.guestName}
+                      </Link>
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                        <button
+                          type="button"
+                          className={`inline-flex items-center gap-1 rounded font-mono text-xs text-slate-600 hover:text-slate-900 hover:underline ${focusRing}`}
+                          onClick={() => {
+                            void navigator.clipboard.writeText(row.confirmationCode);
+                            toastSuccess("Confirmation code copied");
+                          }}
+                          aria-label={`Copy confirmation code ${row.confirmationCode}`}
+                        >
+                          {row.confirmationCode}
+                          <Copy className="h-3 w-3" aria-hidden />
+                        </button>
+                        {row.vipFlag ? <HmsPill tone="amber">VIP</HmsPill> : null}
+                      </div>
+                    </div>
+                    <HmsPill tone={STATUS_TONE[row.status]}>{STATUS_LABELS[row.status]}</HmsPill>
+                  </div>
+
+                  <dl className="grid grid-cols-2 gap-x-3 gap-y-3 rounded-xl bg-slate-50/80 p-3 text-sm ring-1 ring-slate-200/70">
+                    <div className="min-w-0">
+                      <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">Arrival</dt>
+                      <dd className="mt-0.5 font-medium text-slate-900">{formatBoardDateTime(row.arrivalAt)}</dd>
+                    </div>
+                    <div className="min-w-0">
+                      <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">Departure</dt>
+                      <dd className="mt-0.5 font-medium text-slate-900">{formatBoardDateTime(row.departureAt)}</dd>
+                    </div>
+                    <div className="min-w-0">
+                      <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">Room</dt>
+                      <dd className="mt-0.5 text-slate-900">
+                        <span className="font-medium">{row.roomCode ?? "Not assigned"}</span>
+                        <span className="block text-xs text-slate-600">{row.roomTypeName}</span>
+                      </dd>
+                    </div>
+                    <div className="min-w-0">
+                      <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">Stay</dt>
+                      <dd className="mt-0.5 tabular-nums text-slate-900">
+                        {row.nights} {row.nights === 1 ? "night" : "nights"}
+                        <span className="block text-xs text-slate-600">
+                          {row.partySize} {row.partySize === 1 ? "guest" : "guests"}
+                        </span>
+                      </dd>
+                    </div>
+                  </dl>
+
+                  <dl className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="min-w-0">
+                      <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">Room charges</dt>
+                      <dd className="mt-0.5 break-words font-semibold tabular-nums text-slate-900">
+                        {formatPricingAmount(row.totalRoomCharges, currency)}
+                      </dd>
+                    </div>
+                    <div className="min-w-0">
+                      <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">Booked through</dt>
+                      <dd className="mt-0.5 capitalize text-slate-800">{row.source.replace(/_/g, " ")}</dd>
+                    </div>
+                  </dl>
+
+                  {row.status === "confirmed" ? (
+                    <div className="grid grid-cols-2 gap-2 border-t border-slate-200/70 pt-3">
+                      {capabilities.canCheckIn ? (
+                        <Link
+                          href={`/hms/${slug}/reservations/${row.id}/check-in`}
+                          className={`${hmsButton.primary} w-full px-3 py-2 ${focusRing}`}
+                          aria-label={`Check in ${row.guestName}`}
+                        >
+                          Check in
+                        </Link>
+                      ) : null}
+                      <button
+                        type="button"
+                        className={`${hmsButton.secondary} w-full border-red-200 px-3 py-2 text-red-700 hover:bg-red-50 ${canCheckInSpan(capabilities.canCheckIn)} ${focusRing}`}
+                        aria-label={`Cancel booking for ${row.guestName}`}
+                        onClick={() => setCancelRow(row)}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+            <div className="hidden overflow-x-auto md:block">
+              <table data-no-stack className="w-full min-w-[1240px] text-left text-sm">
                 <caption className="sr-only">Bookings, {filteredCount} found</caption>
                 <thead className="bg-slate-50 text-sm text-slate-700">
                   <tr>
@@ -384,6 +482,7 @@ export function ReservationsListClient({
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </div>
       </HmsCard>

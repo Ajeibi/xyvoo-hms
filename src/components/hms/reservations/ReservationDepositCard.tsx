@@ -260,7 +260,7 @@ export function ReservationDepositCard({ slug, reservationId, currency }: { slug
         {open ? (
           <fieldset className="space-y-3 rounded-xl border border-slate-200 p-3">
             <legend className="px-1 font-semibold text-slate-900">Take a deposit</legend>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label htmlFor={`${ids}-amount`} className="mb-1 block font-medium text-slate-800">
                   Amount ({currency})

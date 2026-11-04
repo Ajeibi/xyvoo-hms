@@ -45,7 +45,7 @@ export default function HMSOverviewCards({
         data-tour="dashboard-header"
         className="overflow-hidden rounded-[28px] border border-slate-200 bg-gradient-to-br from-white via-white to-sky-50/70 shadow-sm"
       >
-        <div className="px-6 py-6 sm:px-7">
+        <div className="px-3 py-3 sm:px-7 sm:py-6">
           <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
             <div className="max-w-2xl">
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-700">
@@ -70,7 +70,7 @@ export default function HMSOverviewCards({
             </Link>
           </div>
 
-          <div data-tour="dashboard-kpis" className="mt-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
+          <div data-tour="dashboard-kpis" className="mt-4 grid grid-cols-2 gap-2 sm:mt-6 sm:gap-3 xl:grid-cols-4">
             {orderedCards.map(({ icon, label, value, description, meaning }) => (
               <HmsStatTile key={label} icon={icon} label={label} value={value} hint={description} meaning={meaning} />
             ))}

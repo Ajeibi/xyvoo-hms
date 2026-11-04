@@ -22,7 +22,7 @@ export function UnsubscribeForm({ token }: { token: string }) {
   };
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div className="rounded-2xl border border-slate-200 bg-white p-3 sm:p-6 shadow-sm">
       <h1 className="font-heading text-xl font-semibold text-slate-900">
         {state === "done" ? "You won't get marketing messages" : "Stop marketing messages?"}
       </h1>

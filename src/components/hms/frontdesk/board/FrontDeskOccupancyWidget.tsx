@@ -27,7 +27,7 @@ export function FrontDeskOccupancyWidget({ stats }: { stats: FrontDeskOccupancyS
   };
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
+    <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm sm:p-6">
       <p className="text-sm font-medium text-slate-600">Occupancy</p>
       <div className="mt-4 flex flex-col gap-6 lg:flex-row lg:items-center">
         <div className="mx-auto h-[140px] w-[140px] shrink-0 lg:mx-0">

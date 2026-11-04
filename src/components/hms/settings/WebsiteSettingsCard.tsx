@@ -66,7 +66,7 @@ export function WebsiteSettingsCard({ slug, initial }: { slug: string; initial: 
       <div className="space-y-8">
         <section className="space-y-3">
           <h3 className="text-sm font-semibold text-slate-900">Template</h3>
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             {HOTEL_WEBSITE_TEMPLATES.map((t) => {
               const chosen = site.templateId === t.slug;
               return (

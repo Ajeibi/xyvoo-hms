@@ -102,7 +102,7 @@ export function GuestLoyaltyClient({
             <input type="checkbox" className="h-4 w-4" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} disabled={!canManage} />
             Loyalty is on
           </label>
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <HmsField id="loy-spend" label="Spend that earns one point" hint="For example 1000 means one point for every 1,000 billed.">
               <input id="loy-spend" type="number" min={1} step="any" className={hmsInput} value={spendPerPoint} onChange={(e) => setSpendPerPoint(e.target.value)} disabled={!canManage} />
             </HmsField>
@@ -119,7 +119,7 @@ export function GuestLoyaltyClient({
             <p className="mb-3 text-sm text-slate-600">A guest reaches a tier by the points they have earned in all. Spending points never lowers their tier.</p>
             <ul className="space-y-3">
               {tiers.map((t, i) => (
-                <li key={i} className="grid gap-3 rounded-xl border border-slate-200 p-3 sm:grid-cols-12">
+                <li key={i} className="grid grid-cols-1 gap-3 rounded-xl border border-slate-200 p-3 sm:grid-cols-12">
                   <div className="sm:col-span-3">
                     <label htmlFor={`tier-name-${i}`} className="mb-1 block text-sm font-medium text-slate-800">Name</label>
                     <input id={`tier-name-${i}`} className={hmsInput} value={t.name} onChange={(e) => setTiers((p) => p.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} disabled={!canManage} />

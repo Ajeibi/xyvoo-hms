@@ -71,7 +71,7 @@ export function HousekeepingRoomTypeParsClient({
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 pb-8 sm:px-6 lg:px-8">
+    <div className="mx-auto w-full max-w-6xl px-3 pb-4 sm:px-6 sm:pb-8 lg:px-8">
       <HmsCard
         id="hk-room-type-pars"
         title="Supplies for each room type"

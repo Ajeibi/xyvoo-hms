@@ -131,11 +131,11 @@ export function HmsNotificationsBell({
           className="relative h-10 w-10 rounded-xl text-slate-600"
           aria-label={`Notifications${unread > 0 ? `, ${unread} unread` : ""}`}
         >
-          <Bell className="h-5 w-5" aria-hidden />
+          <Bell className="h-6 w-6" aria-hidden />
           {unread > 0 ? (
             <span
               aria-hidden
-              className="absolute right-1 top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-xyvoo-blue px-1 text-[11px] font-bold text-white ring-2 ring-white"
+              className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-xyvoo-blue px-1 text-[10px] font-bold text-white ring-2 ring-white"
             >
               {unread > 9 ? "9+" : unread}
             </span>

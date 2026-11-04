@@ -515,7 +515,7 @@ export function AccountsCustomerInvoicesClient({
                 ))}
               </select>
             </HmsField>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <HmsField id="inv-subtotal" label="Subtotal">
                 <input
                   id="inv-subtotal"

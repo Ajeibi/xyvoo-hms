@@ -370,7 +370,7 @@ export function FrontDeskRoomDetailSheet({
                 <CardHeader>
                   <CardTitle className="text-base">Room information</CardTitle>
                 </CardHeader>
-                <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
+                <CardContent className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
                   <div>
                     <p className="text-xs text-slate-500">Room number</p>
                     <p className="font-medium">{room.roomCode}</p>
@@ -446,7 +446,7 @@ export function FrontDeskRoomDetailSheet({
                 <CardHeader>
                   <CardTitle className="text-base">Housekeeping</CardTitle>
                 </CardHeader>
-                <CardContent className="grid gap-2 text-sm sm:grid-cols-2">
+                <CardContent className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
                   <div>
                     <p className="text-xs text-slate-500">Status</p>
                     <p className="font-medium">

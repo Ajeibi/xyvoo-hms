@@ -48,7 +48,7 @@ export function NightAuditReportView({ report, onClose }: { report: AuditReport;
         {r.automatic ? "Closed automatically" : "Closed by staff"} on {new Date(r.generatedAt).toLocaleString("en-GB")}.
         {r.overrideReason ? ` Reason given for closing with things open: ${r.overrideReason}` : ""}
       </p>
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <Block title="Rooms">
           <Row label="Rooms sold" value={`${r.rooms.sold} of ${r.rooms.total}`} />
           <Row label="Occupancy" value={`${r.rooms.occupancyPercent}%`} />
@@ -78,7 +78,7 @@ export function NightAuditReportView({ report, onClose }: { report: AuditReport;
         </Block>
       </div>
 
-      <div className="mt-6 grid gap-6 md:grid-cols-2">
+      <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
         <section aria-label="No-shows">
           <h3 className="mb-1 text-sm font-semibold text-slate-900">No-shows ({r.noShows.length})</h3>
           {r.noShows.length === 0 ? (

@@ -21,7 +21,7 @@ export function FbPosSkeleton() {
         <Skeleton className={`h-10 w-full rounded-lg ${sk}`} />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_340px]">
         <div className="space-y-4">
           {[0, 1].map((i) => (
             <div key={i} className="rounded-2xl border border-slate-200 bg-white p-4">
@@ -110,7 +110,7 @@ export function FbOrdersSkeleton() {
 
 export function FbSettingsSkeleton() {
   return (
-    <div className="w-full space-y-6 px-6 py-6">
+    <div className="w-full space-y-6 px-3 py-3 sm:px-6 sm:py-6">
       <div className="space-y-2">
         <Skeleton className={`h-7 w-36 ${sk}`} />
         <Skeleton className={`h-4 w-56 ${sk}`} />
@@ -121,14 +121,14 @@ export function FbSettingsSkeleton() {
         <Skeleton className={`h-10 w-16 rounded-xl ${sk}`} />
       </div>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+      <section className="rounded-2xl border border-slate-200 bg-white p-3 sm:p-5">
         <Skeleton className={`h-4 w-32 ${sk}`} />
         <Skeleton className={`mt-3 h-4 w-64 ${sk}`} />
       </section>
 
-      <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5">
+      <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-3 sm:p-5">
         <Skeleton className={`h-4 w-28 ${sk}`} />
-        <div className="grid gap-3 md:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
           <Skeleton className={`h-10 rounded-md ${sk}`} />
           <Skeleton className={`h-10 rounded-md ${sk}`} />
           <Skeleton className={`h-10 rounded-md ${sk}`} />
@@ -144,7 +144,7 @@ export function FbSettingsSkeleton() {
         </div>
       </section>
 
-      <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5">
+      <section className="space-y-3 rounded-2xl border border-slate-200 bg-white p-3 sm:p-5">
         <Skeleton className={`h-4 w-36 ${sk}`} />
         <div className="flex flex-wrap gap-2">
           <Skeleton className={`h-10 w-[120px] rounded-md ${sk}`} />
@@ -163,7 +163,7 @@ export function FbSettingsSkeleton() {
 
 export function KitchenKdsSkeleton() {
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {Array.from({ length: 8 }).map((_, i) => (
         <div key={i} className="rounded-2xl border-2 border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-start justify-between">

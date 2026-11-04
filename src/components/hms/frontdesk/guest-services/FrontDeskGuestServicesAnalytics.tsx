@@ -77,7 +77,7 @@ export function FrontDeskGuestServicesAnalytics({ slug }: { slug: string }) {
         <HmsStatTile label="Requests looked at" value={data.totalSampled} icon={ListChecks} meaning="guests" />
       </div>
       {topCategories.length > 0 || topTypes.length > 0 || byAssignee.length > 0 ? (
-        <div className="mt-5 grid gap-5 border-t border-slate-100 pt-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-5 grid grid-cols-1 gap-5 border-t border-slate-100 pt-5 sm:grid-cols-2 lg:grid-cols-3">
           {topCategories.length > 0 ? (
             <CountList title="Most asked-for kinds" items={topCategories.map(([k, v]) => ({ key: k, label: k.replace(/_/g, " "), count: v }))} />
           ) : null}

@@ -167,7 +167,7 @@ export function FrontDeskUpsellsClient({ slug }: { slug: string }) {
               void create();
             }}
           >
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <HmsField id="up-kind" label="Kind">
                 <select id="up-kind" className={hmsInput} value={kind} onChange={(e) => setKind(e.target.value as UpsellKind)}>
                   {UPSELL_KINDS.map((k) => (

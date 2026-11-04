@@ -524,3 +524,70 @@
 .dash-root :where(h1, h2, h3) {
   font-family: var(--font-dash-heading), var(--font-sans);
 }
+
+/*
+ * Hotel dashboard: below the tablet width, data tables stack into cards (each cell carries its
+ * column name above its value) instead of scrolling sideways. ResponsiveTables.tsx marks the
+ * tables and labels the cells. These rules are unlayered so they beat the table's own utilities
+ * (min-w-*, whitespace-nowrap, px-*, text-right).
+ */
+@media (max-width: 47.99rem) {
+  table[data-stack] {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+  table[data-stack] > caption {
+    display: block;
+  }
+  /* The header row stays for screen readers; each cell now carries its own label. */
+  table[data-stack] > thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  table[data-stack] > tbody,
+  table[data-stack] > tfoot,
+  table[data-stack] > tbody > tr,
+  table[data-stack] > tfoot > tr {
+    display: block;
+    min-width: 0;
+  }
+  table[data-stack] > tbody > tr,
+  table[data-stack] > tfoot > tr {
+    padding: 0.625rem 0;
+    border-bottom: 1px solid var(--color-slate-200, #e2e8f0);
+  }
+  table[data-stack] > tbody > tr:last-child {
+    border-bottom: 0;
+  }
+  table[data-stack] > tbody > tr > :is(td, th),
+  table[data-stack] > tfoot > tr > :is(td, th) {
+    display: block;
+    width: auto;
+    min-width: 0;
+    max-width: 100%;
+    padding: 0.25rem 1rem;
+    text-align: left;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    border: 0;
+  }
+  table[data-stack] > tbody > tr > :is(td, th):empty {
+    display: none;
+  }
+  table[data-stack] > tbody > tr > [data-label]::before,
+  table[data-stack] > tfoot > tr > [data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 0.125rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-slate-600, #475569);
+  }
+}

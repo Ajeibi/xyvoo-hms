@@ -100,7 +100,7 @@ export function HousekeepingLostFoundClient({
       <HousekeepingSubNav slug={slug} canAccessAllDepartments={canAccessAllDepartments} />
 
       <HmsCard id="hk-lost-found-log" title="Log a found item" icon={PackagePlus} meaning="guests">
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <HmsField id="hk-lf-room" label="Room" optional>
             <input id="hk-lf-room" className={hmsInput} value={roomCode} onChange={(e) => setRoomCode(e.target.value)} />
           </HmsField>

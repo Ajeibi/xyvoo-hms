@@ -10,7 +10,7 @@ import { formatAuditMessage } from "@/lib/hms/front-desk-ops";
 import { computeFolioBalance, getFolioForReservation, mapFolioLineRow, type FolioLineRow } from "@/lib/hms/folio";
 import { mapRoomReadiness, type RoomUnitSnapshot } from "@/lib/hms/arrivals-room";
 import { maybeEmitArrivalAlerts } from "@/lib/hms/arrivals-alerts";
-import { formatPricingAmount } from "@/lib/hms/room-pricing";
+import { formatPricingAmount, normalizeRoomTypes } from "@/lib/hms/room-pricing";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { assertQueriesSucceeded } from "@/lib/hms/data-unavailable";
 
@@ -52,6 +52,8 @@ export type ArrivalWorkbenchRow = {
   departureAt: string;
   nights: number;
   roomTypeCode: string;
+  /** The room type's name as the hotel set it up (falls back to the code). */
+  roomTypeName: string;
   roomUnitId: string | null;
   roomCode: string | null;
   floor: number | null;
@@ -103,6 +105,7 @@ export type ArrivalDetailPayload = {
     adults: number;
     childrenCount: number;
     roomTypeCode: string;
+    roomTypeName: string;
     roomUnitId: string | null;
     roomCode: string | null;
     floor: number | null;
@@ -308,6 +311,15 @@ function applyFilters(
   return out;
 }
 
+/** Room type id to the name the hotel gave it, for showing "Deluxe King" instead of its code. */
+async function loadRoomTypeNames(
+  supabase: ReturnType<typeof createServerSupabaseClient>,
+  tenantId: string,
+): Promise<Map<string, string>> {
+  const { data } = await supabase.from("tenants").select("room_types").eq("id", tenantId).maybeSingle();
+  return new Map(normalizeRoomTypes(data?.room_types).map((t) => [t.id, t.name]));
+}
+
 export async function getArrivalsWorkbenchData(params: {
   tenantId: string;
   currency: string;
@@ -328,6 +340,8 @@ export async function getArrivalsWorkbenchData(params: {
 
   const guestSelect =
     "id,title,first_name,last_name,nationality,phone,email,id_number,tags";
+
+  const roomTypeNames = await loadRoomTypeNames(supabase, params.tenantId);
 
   const results = await Promise.all([
     // Each arrival brings its own folio lines (rather than every folio line the hotel has ever posted).
@@ -413,6 +427,7 @@ export async function getArrivalsWorkbenchData(params: {
       departureAt: r.departure_at,
       nights: r.nights,
       roomTypeCode: r.room_type_code,
+      roomTypeName: roomTypeNames.get(r.room_type_code) ?? r.room_type_code,
       roomUnitId: r.room_unit_id,
       roomCode: room?.room_code ?? null,
       floor: room?.floor ?? null,
@@ -635,6 +650,9 @@ export async function getArrivalDetail(params: {
       adults: reservation.adults,
       childrenCount: countChildren(reservation.children_json),
       roomTypeCode: reservation.room_type_code,
+      roomTypeName:
+        (await loadRoomTypeNames(supabase, params.tenantId)).get(reservation.room_type_code) ??
+        reservation.room_type_code,
       roomUnitId: reservation.room_unit_id,
       roomCode: room?.room_code ?? null,
       floor: room?.floor ?? null,

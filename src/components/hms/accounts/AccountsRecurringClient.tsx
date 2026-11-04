@@ -104,7 +104,7 @@ export function AccountsRecurringClient({
       >
         {adding ? (
           <div className="space-y-3 border-b border-slate-100 p-5">
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <HmsField id="rc-name" label="Name"><input id="rc-name" className={hmsInput} value={name} onChange={(e) => setName(e.target.value)} /></HmsField>
               <HmsField id="rc-day" label="Day of month (1 to 28)"><input id="rc-day" type="number" min="1" max="28" className={hmsInput} value={day} onChange={(e) => setDay(e.target.value)} /></HmsField>
               <HmsField id="rc-start" label="Starts"><input id="rc-start" type="month" className={hmsInput} value={startMonth.slice(0, 7)} onChange={(e) => setStartMonth(`${e.target.value}-01`)} /></HmsField>
@@ -114,7 +114,7 @@ export function AccountsRecurringClient({
               <>
                 <HmsField id="rc-memo" label="Memo"><input id="rc-memo" className={hmsInput} value={memo} onChange={(e) => setMemo(e.target.value)} /></HmsField>
                 {lines.map((l, i) => (
-                  <div key={i} className="grid gap-2 sm:grid-cols-[1fr_8rem_8rem]">
+                  <div key={i} className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_8rem_8rem]">
                     <select aria-label={`Line ${i + 1} account`} className={hmsInput} value={l.accountId} onChange={(e) => setLines((ls) => ls.map((x, j) => (j === i ? { ...x, accountId: e.target.value } : x)))}>
                       <option value="">Account</option>
                       {accounts.map((a) => (<option key={a.id} value={a.id}>{a.label}</option>))}
@@ -129,7 +129,7 @@ export function AccountsRecurringClient({
                 </div>
               </>
             ) : (
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
                 <HmsField id="rc-vendor" label="Vendor"><select id="rc-vendor" className={hmsInput} value={vendorId} onChange={(e) => setVendorId(e.target.value)}><option value="">Pick one</option>{vendors.map((v) => (<option key={v.id} value={v.id}>{v.name}</option>))}</select></HmsField>
                 <HmsField id="rc-expense" label="Expense account"><select id="rc-expense" className={hmsInput} value={expenseId} onChange={(e) => setExpenseId(e.target.value)}><option value="">Pick one</option>{accounts.filter((a) => a.type === "expense").map((a) => (<option key={a.id} value={a.id}>{a.label}</option>))}</select></HmsField>
                 <HmsField id="rc-dept" label="Department"><select id="rc-dept" className={hmsInput} value={department} onChange={(e) => setDepartment(e.target.value)}>{ACCOUNTS_DEPARTMENTS.map((d) => (<option key={d} value={d}>{d}</option>))}</select></HmsField>

@@ -565,7 +565,7 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
                 onChanged={() => void loadFolio(payload.reservation.id)}
               />
 
-              <div className="grid gap-6 lg:grid-cols-2">
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 <div className="space-y-6">
                   <HmsCard id="folio-charge" icon={Plus} meaning="money" title="Add a charge" description="For extras such as room service, laundry or minibar.">
                     <form onSubmit={postCharge} className="space-y-4">
@@ -637,7 +637,7 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
                   />
                   <HmsCard id="folio-fx-payment" icon={Coins} meaning="money" title="Take a payment in another currency">
                     <form onSubmit={postFxPayment} className="space-y-4">
-                      <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <F id="fx-amount" label="Amount received">
                           <input id="fx-amount" name="originalAmount" type="number" step="0.01" min="0.01" required className={hmsInput} />
                         </F>
@@ -715,7 +715,7 @@ const sk = "bg-slate-200";
 function FolioSkeleton() {
   return (
     <div className="space-y-6" aria-hidden>
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <section className="rounded-2xl border border-slate-200 bg-white p-3 sm:p-6 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-2">
             <Skeleton className={`h-5 w-48 ${sk}`} />
@@ -751,22 +751,22 @@ function FolioSkeleton() {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3">
+      <section className="rounded-2xl border border-slate-200 bg-white p-3 sm:p-5 space-y-3">
         <Skeleton className={`h-4 w-40 ${sk}`} />
         <Skeleton className={`h-10 w-full rounded-md ${sk}`} />
         <Skeleton className={`h-10 w-full rounded-md ${sk}`} />
         <Skeleton className={`h-10 w-full rounded-md ${sk}`} />
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="rounded-2xl border border-slate-200 bg-white p-3 sm:p-5 space-y-3">
           <Skeleton className={`h-4 w-28 ${sk}`} />
           <Skeleton className={`h-10 w-full rounded-md ${sk}`} />
           <Skeleton className={`h-10 w-full rounded-md ${sk}`} />
           <Skeleton className={`h-10 w-full rounded-md ${sk}`} />
           <Skeleton className={`h-10 w-24 rounded-md ${sk}`} />
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 space-y-3">
+        <div className="rounded-2xl border border-slate-200 bg-white p-3 sm:p-5 space-y-3">
           <Skeleton className={`h-4 w-32 ${sk}`} />
           <Skeleton className={`h-10 w-full rounded-md ${sk}`} />
           <Skeleton className={`h-10 w-full rounded-md ${sk}`} />
@@ -1153,7 +1153,7 @@ function CorporateBillingForm({
   return (
     <HmsCard id="folio-company-billing" icon={Building2} meaning="money" title="Company billing" description="Fill this in when a company is paying for some or all of the stay. Travel agents have their own card.">
       <form onSubmit={submit} className="space-y-4">
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <F id="bill-to-account" label="Company account" optional>
             <input id="bill-to-account" name="billToAccount" defaultValue={payload.reservation.billToAccount ?? ""} className={hmsInput} />
           </F>

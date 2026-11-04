@@ -27,11 +27,11 @@ export function FrontDeskPropertySnapshot({
 
   return (
     <section
-      className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6"
+      className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm sm:p-6"
       aria-label="Property snapshot metrics"
     >
       <p className="text-sm font-medium text-slate-600">Property metrics</p>
-      <div className="mt-5 grid gap-4 sm:grid-cols-2">
+      <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
         {items.map((item) => (
           <div
             key={item.label}

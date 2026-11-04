@@ -112,12 +112,12 @@ export function OnlineCheckInForm({ token }: { token: string }) {
     }
   }
 
-  if (problem) return <p role="alert" className="rounded-2xl border border-slate-200 bg-white p-6 text-slate-800">{problem}</p>;
+  if (problem) return <p role="alert" className="rounded-2xl border border-slate-200 bg-white p-3 sm:p-6 text-slate-800">{problem}</p>;
   if (!stay) return <Loader2 className="mx-auto h-6 w-6 animate-spin text-slate-500" aria-label="Loading" />;
 
   if (done || stay.completed) {
     return (
-      <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-6 text-center">
+      <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-3 sm:p-6 text-center">
         <CheckCircle2 className="mx-auto h-10 w-10 text-green-600" aria-hidden />
         <h1 className="font-heading text-xl font-bold text-slate-900">You are checked in online</h1>
         <p className="text-slate-700">
@@ -130,7 +130,7 @@ export function OnlineCheckInForm({ token }: { token: string }) {
     );
   }
   if (stay.status !== "confirmed") {
-    return <p className="rounded-2xl border border-slate-200 bg-white p-6 text-slate-800">This booking can no longer be checked in online. Please see the front desk.</p>;
+    return <p className="rounded-2xl border border-slate-200 bg-white p-3 sm:p-6 text-slate-800">This booking can no longer be checked in online. Please see the front desk.</p>;
   }
 
   const needId = idRequired(stay.idPolicy, nationality, stay.hotelCountry);
@@ -138,7 +138,7 @@ export function OnlineCheckInForm({ token }: { token: string }) {
 
   return (
     <form
-      className="space-y-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+      className="space-y-6 rounded-2xl border border-slate-200 bg-white p-3 sm:p-6 shadow-sm"
       onSubmit={(e) => {
         e.preventDefault();
         void submit();
@@ -162,7 +162,7 @@ export function OnlineCheckInForm({ token }: { token: string }) {
         </p>
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <label className="space-y-1 text-sm font-medium text-slate-900">
           Phone number
           <input className={fieldClass} inputMode="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />

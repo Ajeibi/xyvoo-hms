@@ -82,7 +82,7 @@ export function AccountsDepartmentPnlClient({
         <button type="button" className={hmsButton.secondary} disabled={loading} onClick={() => void run()}>{loading ? "Loading…" : "Run report"}</button>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {result.departments.map((d) => (
           <HmsCard key={d.department} id={`pnl-${d.department}`} title={d.label} icon={Layers} meaning="money">
             {d.revenueRows.length + d.costRows.length === 0 ? (

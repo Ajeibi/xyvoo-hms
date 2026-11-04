@@ -51,7 +51,7 @@ export function FrontDeskCapabilityCard({
     <Link
       href={href}
       className={cn(
-        "group block rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm transition-all",
+        "group block rounded-2xl border border-slate-200/80 bg-white p-3 sm:p-5 shadow-sm transition-all",
         "hover:-translate-y-0.5 hover:shadow-md",
         ACCENT_HOVER_BORDER[accent],
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2",

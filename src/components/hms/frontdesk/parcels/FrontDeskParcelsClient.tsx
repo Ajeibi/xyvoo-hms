@@ -73,7 +73,7 @@ function LogParcel({ slug, recipients, onLogged }: { slug: string; recipients: M
         void submit();
       }}
     >
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <HmsField id="parcel-guest" label="For">
           <select id="parcel-guest" className={hmsInput} value={reservationId} onChange={(e) => setReservationId(e.target.value)}>
             <option value="">Someone else (type a name)</option>

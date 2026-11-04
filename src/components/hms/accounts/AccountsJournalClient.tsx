@@ -248,7 +248,7 @@ export function AccountsJournalClient({
             <DialogTitle>New journal entry</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <HmsField id="je-date" label="Date">
                 <input id="je-date" type="date" className={hmsInput} value={entryDate} onChange={(e) => setEntryDate(e.target.value)} />
               </HmsField>
@@ -399,7 +399,7 @@ export function AccountsJournalClient({
                   {detail.reference ? ` · Ref ${detail.reference}` : ""}
                 </p>
               </div>
-              <table className="w-full overflow-hidden rounded-xl border border-slate-200 text-sm">
+              <div className="overflow-x-auto"><table className="w-full overflow-hidden rounded-xl border border-slate-200 text-sm">
                 <thead className="border-b border-slate-200 bg-slate-50 text-left font-medium text-slate-600">
                   <tr>
                     <th scope="col" className="px-3 py-2">Account</th>
@@ -428,7 +428,7 @@ export function AccountsJournalClient({
                     </tr>
                   </tfoot>
                 ) : null}
-              </table>
+              </table></div>
               {!detailBalanced ? (
                 <p role="alert" className="flex items-center gap-1.5 rounded-xl bg-rose-50 px-3 py-2 text-sm font-medium text-rose-800">
                   <CircleAlert className="h-4 w-4 shrink-0" aria-hidden />

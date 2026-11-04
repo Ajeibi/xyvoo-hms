@@ -47,11 +47,11 @@ export function ProcurementBudgetsClient({ slug, budgets, currency }: { slug: st
           meaning="money"
           actions={newButton}
         >
-          <ul className="grid gap-4 md:grid-cols-2">
+          <ul className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {budgets.map((b) => {
               const status = budgetStatus(b.percentUsed);
               return (
-                <li key={b.id} className={`rounded-2xl border p-5 ${status.border}`}>
+                <li key={b.id} className={`rounded-2xl border p-3 sm:p-5 ${status.border}`}>
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0">
                       <h3 className="font-heading text-base font-semibold text-slate-900">{b.department}</h3>
@@ -183,7 +183,7 @@ function NewBudgetDialog({
               <input id="budget-custom-department" className={hmsInput} value={customDepartment} onChange={(e) => setCustomDepartment(e.target.value)} />
             </HmsField>
           ) : null}
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <HmsField id="budget-period-start" label="Period start">
               <input id="budget-period-start" type="date" className={hmsInput} value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} />
             </HmsField>

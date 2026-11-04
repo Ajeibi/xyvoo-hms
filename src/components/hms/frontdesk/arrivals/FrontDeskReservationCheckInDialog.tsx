@@ -119,7 +119,7 @@ export function FrontDeskReservationCheckInDialog({
         {error ? <HmsAlert message={error} /> : null}
 
         {step === "verify" && detail ? (
-          <dl className="grid gap-3 rounded-xl bg-sky-50 p-4 text-sm sm:grid-cols-2">
+          <dl className="grid grid-cols-1 gap-3 rounded-xl bg-sky-50 p-4 text-sm sm:grid-cols-2">
             <div>
               <dt className="text-slate-600">Arrival</dt>
               <dd className="font-medium text-slate-900">

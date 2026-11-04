@@ -471,7 +471,7 @@ export function InventoryStockClient({
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <p className="mb-1 block text-sm font-medium text-slate-800">Item</p>
                 <InventoryItemPicker
@@ -499,7 +499,7 @@ export function InventoryStockClient({
                 </Select>
               </HmsField>
             </div>
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <HmsField id="inventory-stock-setup-par" label="Par level">
                 <input
                   id="inventory-stock-setup-par"

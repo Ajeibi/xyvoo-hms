@@ -110,7 +110,7 @@ function NewAllotmentForm({ slug, roomTypes, today, onDone }: { slug: string; ro
 
   const field = "block text-sm font-medium text-slate-800";
   return (
-    <form onSubmit={submit} className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:grid-cols-2">
+    <form onSubmit={submit} className="grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:grid-cols-2">
       <label className={`${field} sm:col-span-2`}>
         Group or company
         <input className={`${hmsInput} mt-1`} value={f.name} onChange={set("name")} required maxLength={120} />

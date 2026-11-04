@@ -139,7 +139,7 @@ function DetailSkeleton() {
     <div className="space-y-4 p-6">
       <Skeleton className="h-8 w-48" />
       <Skeleton className="h-4 w-64" />
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Skeleton className="h-40 rounded-xl" />
         <Skeleton className="h-40 rounded-xl" />
       </div>
@@ -371,10 +371,10 @@ export function FrontDeskArrivalDetailSheet({
 
           {detail && r ? (
             <div className="space-y-4 p-6">
-              <div className="grid gap-4 lg:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <SectionCard icon={CircleUser} meaning="guests" title="Guest">
                   {g ? (
-                    <dl className="grid gap-4 sm:grid-cols-2">
+                    <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <DetailField label="Name" value={g.displayName} className="sm:col-span-2" />
                       <DetailField label="Phone" value={g.phone} />
                       <DetailField label="Email" value={g.email} />
@@ -404,7 +404,7 @@ export function FrontDeskArrivalDetailSheet({
                 </SectionCard>
 
                 <SectionCard icon={CalendarRange} meaning="rooms" title="Stay">
-                  <dl className="grid gap-4 sm:grid-cols-2">
+                  <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <DetailField
                       label="Arrival"
                       value={new Date(r.arrivalAt).toLocaleString("en-US", {
@@ -459,12 +459,12 @@ export function FrontDeskArrivalDetailSheet({
                   ) : null
                 }
               >
-                <dl className="grid gap-4 sm:grid-cols-3">
+                <dl className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                   <DetailField
                     label="Assignment"
                     value={r.roomCode ? `Room ${r.roomCode}` : "Not assigned"}
                   />
-                  <DetailField label="Type" value={r.roomTypeCode} />
+                  <DetailField label="Type" value={r.roomTypeName} />
                   <DetailField label="Floor" value={r.floor != null ? String(r.floor) : null} />
                   {r.unitStatus ? <DetailField label="Unit status" value={r.unitStatus} /> : null}
                   {r.roomReadiness ? (
@@ -477,7 +477,7 @@ export function FrontDeskArrivalDetailSheet({
                 {(r.roomPreferencesText || r.dietaryNotes || r.accessibilityNotes) ? (
                   <>
                     <Separator className="my-4" />
-                    <dl className="grid gap-3">
+                    <dl className="grid grid-cols-1 gap-3">
                       {r.roomPreferencesText ? (
                         <DetailField label="Room preferences" value={r.roomPreferencesText} />
                       ) : null}
@@ -659,7 +659,7 @@ export function FrontDeskArrivalDetailSheet({
                       <HmsAlert message={requestError} />
                     </div>
                   ) : null}
-                  <div className="mt-4 grid gap-3 sm:grid-cols-[auto_1fr_auto] sm:items-end">
+                  <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-[auto_1fr_auto] sm:items-end">
                     <HmsField id="arrival-request-department" label="Department">
                       <select
                         id="arrival-request-department"

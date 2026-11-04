@@ -34,7 +34,7 @@ import type {
   RoomStatusItem,
 } from "./dashboard-analytics-types";
 import type { MetricTileItem, StatusRowItem, SummaryTileItem } from "./shared";
-import { AnalyticsCard, MetricTile, StatusRow, SummaryTile, capitalize } from "./shared";
+import { AnalyticsCard, ChartScroll, MetricTile, StatusRow, SummaryTile, capitalize } from "./shared";
 
 const DASHBOARD_PERIODS: DashboardPeriod[] = ["day", "week", "month"];
 
@@ -85,7 +85,7 @@ export function ReservationsFrontDeskCard({ items }: { items: MetricTileItem[] }
       title="Reservations & Front Desk"
       description="Daily movement from reservations (UTC day boundaries)."
     >
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {items.map((item) => (
           <MetricTile key={item.label} {...item} meaning={item.meaning ?? "rooms"} />
         ))}
@@ -161,9 +161,8 @@ export function OccupancyStatisticsCard({
       title="Occupancy Statistics"
       description={description}
     >
-      <div className="h-[340px]">
-        <Line data={occupancyData} options={occupancyOptions} />
-      </div>
+      <ChartScroll height="h-[340px]">
+        <Line data={occupancyData} options={occupancyOptions} /></ChartScroll>
     </AnalyticsCard>
   );
 }
@@ -201,9 +200,9 @@ export function RoomStatusCard({
       meaning="rooms"
       description={description}
     >
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3">
         {items.map((item) => (
-          <div key={item.label} className={`rounded-2xl px-4 py-4 ${roomStatusTone(item.label).tint}`}>
+          <div key={item.label} className={`rounded-2xl px-3 py-3 sm:px-4 sm:py-4 ${roomStatusTone(item.label).tint}`}>
             <p className="flex items-center gap-1.5 text-xs font-medium text-slate-700">
               <span aria-hidden className={`h-2 w-2 rounded-full ${roomStatusTone(item.label).dot}`} />
               {item.label}
@@ -282,9 +281,8 @@ export function FloorStatusCard({
       description={description}
     >
       <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-        <div className="h-[220px] min-w-0 flex-1">
-          <Bar data={floorStatusData} options={floorStatusOptions} />
-        </div>
+        <div className="min-w-0 flex-1"><ChartScroll height="h-[220px]" minWidth="min-w-[420px]">
+          <Bar data={floorStatusData} options={floorStatusOptions} /></ChartScroll></div>
         <div className="space-y-3">
           {items.map((item) => (
             <div key={item.label} className="flex items-center gap-3">
@@ -318,7 +316,7 @@ export function FoodBeverageCard({
         <PeriodToggle value={period} onChange={setPeriod} />
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {items.map((item) => (
           <MetricTile key={item.label} {...item} meaning={item.meaning ?? "food"} />
         ))}
@@ -371,7 +369,7 @@ export function KitchenCard({
         </Link>
       ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {items.map((item) => (
           <MetricTile key={item.label} {...item} meaning={item.meaning ?? "food"} />
         ))}
@@ -400,7 +398,7 @@ export function InventoryWatchCard({
       title="Inventory Watch"
       description="Stock visibility for housekeeping and consumables."
     >
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {summary.map((item) => (
           <SummaryTile key={item.label} {...item} meaning={item.meaning ?? "stock"} />
         ))}
@@ -423,7 +421,7 @@ export function AttentionCenterCard({ alerts }: { alerts: StatusRowItem[] }) {
       meaning="attention"
       description="Exceptions derived from room status and recent reservation outcomes."
     >
-      <div className="grid gap-3">
+      <div className="grid grid-cols-1 gap-3">
         {alerts.length === 0 ? (
           <p className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-4 text-sm text-slate-600">
             No alerts to display.

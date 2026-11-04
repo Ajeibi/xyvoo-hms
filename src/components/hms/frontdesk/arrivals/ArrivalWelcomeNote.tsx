@@ -142,7 +142,7 @@ export function ArrivalWelcomeNote({
           {WELCOME_NOTE_DEPARTMENTS.map((dept) => (
             <fieldset key={dept}>
               <legend className="text-sm font-semibold text-slate-900">{WELCOME_NOTE_DEPARTMENT_LABELS[dept]}</legend>
-              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {WELCOME_NOTE_ITEMS.filter((i) => i.department === dept).map((item) => (
                   <label
                     key={item.key}
@@ -164,7 +164,7 @@ export function ArrivalWelcomeNote({
             </fieldset>
           ))}
 
-          <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
             <HmsField id="welcome-custom" label="Something else" hint="Optional. Type what you want sent.">
               <input
                 id="welcome-custom"

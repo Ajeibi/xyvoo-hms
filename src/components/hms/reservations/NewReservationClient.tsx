@@ -240,10 +240,10 @@ export function NewReservationClient({
   }
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[1fr_20rem]">
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1fr_20rem]">
       <div className="space-y-5">
         <HmsCard id="booking-stay" icon={CalendarDays} meaning="rooms" title="1. The stay" description="Dates and who is coming. The rooms free for those nights show below.">
-          <div className="grid gap-4 sm:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
             <div>
               <Label htmlFor={`${ids}-arr`}>Arrival</Label>
               <input id={`${ids}-arr`} type="date" min={today} className={hmsInput} value={arrival} onChange={(e) => {
@@ -292,7 +292,7 @@ export function NewReservationClient({
           ) : avail.types.length === 0 ? (
             <p className="text-sm text-slate-600">Set up your room types in hotel settings first.</p>
           ) : (
-            <ul className={`grid gap-3 sm:grid-cols-2 ${loading ? "opacity-60" : ""}`} aria-busy={loading}>
+            <ul className={`grid grid-cols-1 gap-3 sm:grid-cols-2 ${loading ? "opacity-60" : ""}`} aria-busy={loading}>
               {avail.types.map((t) => {
                 const out = t.roomsLeft <= 0;
                 const isSel = t.id === typeId;
@@ -337,7 +337,7 @@ export function NewReservationClient({
           )}
 
           {selected ? (
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <Label htmlFor={`${ids}-room`}>A particular room (optional)</Label>
                 <select id={`${ids}-room`} className={hmsInput} value={roomId} onChange={(e) => setRoomId(e.target.value)}>
@@ -444,7 +444,7 @@ export function NewReservationClient({
               )}
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <Label htmlFor={`${ids}-fn`}>First name</Label>
                 <input id={`${ids}-fn`} className={hmsInput} value={first} onChange={(e) => setFirst(e.target.value)} autoComplete="off" />
@@ -467,7 +467,7 @@ export function NewReservationClient({
         </HmsCard>
 
         <HmsCard id="booking-details" icon={CalendarDays} meaning="rooms" title="4. Details">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <Label htmlFor={`${ids}-src`}>Where did the booking come from?</Label>
               <select id={`${ids}-src`} className={hmsInput} value={source} onChange={(e) => setSource(e.target.value as BookingSource)}>

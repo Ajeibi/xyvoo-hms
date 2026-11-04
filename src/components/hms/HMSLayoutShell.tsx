@@ -49,6 +49,7 @@ import {
 import { HmsNotificationsBell } from "@/components/hms/header/HmsNotificationsBell";
 import { HmsQuickActionsMenu } from "@/components/hms/header/HmsQuickActionsMenu";
 import { HMS_MEANING, NAV_ICON_MEANING } from "@/components/hms/meaning";
+import { ResponsiveTables } from "@/components/hms/ResponsiveTables";
 
 type HMSLayoutShellProps = {
   children: React.ReactNode;
@@ -139,6 +140,7 @@ export default function HMSLayoutShell({
   const sidebarRef = useRef<HTMLElement | null>(null);
   const sidebarId = `hms-sidebar-${slug}`;
   const [frontDeskNavOpen, setFrontDeskNavOpen] = useState(false);
+  const frontDeskDrawerRef = useRef<HTMLElement | null>(null);
   const logoutFormId = `hms-account-logout-${slug}`;
   const mainRef = useRef<HTMLElement | null>(null);
   const showFrontDeskNavShortcut = canAccessAllDepartments && showFrontDeskCta;
@@ -148,6 +150,7 @@ export default function HMSLayoutShell({
   if (lastPathname !== pathname) {
     setLastPathname(pathname);
     setMobileNavOpen(false);
+    if (!isDesktop) setFrontDeskNavOpen(false);
   }
 
   const closeMobileNav = useCallback(() => {
@@ -202,6 +205,19 @@ export default function HMSLayoutShell({
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [mobileNavOpen, closeMobileNav]);
+
+  // Phones: the front desk links drawer takes focus when it opens and Escape closes it.
+  useEffect(() => {
+    if (isDesktop || !frontDeskNavOpen) return;
+    frontDeskDrawerRef.current?.querySelector<HTMLElement>("a[href], button:not([disabled])")?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      setFrontDeskNavOpen(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [isDesktop, frontDeskNavOpen]);
 
   useEffect(() => {
     const onOpenCheckout = (e: Event) => {
@@ -311,7 +327,7 @@ export default function HMSLayoutShell({
         <div
           aria-hidden
           onClick={closeMobileNav}
-          className="fixed inset-0 z-40 bg-slate-900/40 md:hidden"
+          className="fixed inset-0 z-40 bg-slate-950/75 md:hidden"
         />
       ) : null}
 
@@ -377,6 +393,7 @@ export default function HMSLayoutShell({
                 title={label}
                 aria-label={label}
                 data-tour={tourTarget}
+                onClick={() => setMobileNavOpen(false)}
                 aria-current={active ? "page" : undefined}
                 className={`flex items-center gap-3 rounded-xl px-2.5 py-2 text-sm font-medium transition-colors md:py-1.5 ${
                   sidebarOpen ? "" : "md:justify-center md:gap-0 md:px-0"
@@ -399,6 +416,7 @@ export default function HMSLayoutShell({
               href={homePath}
               title="Back to Dashboard"
               aria-label="Back to Dashboard"
+              onClick={() => setMobileNavOpen(false)}
               className={`flex items-center gap-2 px-3 py-2 text-xs text-slate-400 transition-colors hover:text-slate-600 ${
                 sidebarOpen ? "" : "md:justify-center md:gap-0 md:px-0 md:py-3"
               }`}
@@ -432,17 +450,17 @@ export default function HMSLayoutShell({
                 <Menu className="h-5 w-5" />
               </Button>
 
-              <div className="relative w-full max-w-xl">
+              <div className="relative min-w-0 w-full max-w-xl">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input
                   type="search"
                   placeholder="Search guests, reservations, rooms..."
-                  className="h-10 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 text-sm text-slate-800 outline-none transition-colors focus:border-blue-300 focus:bg-white"
+                  className="h-10 w-full min-w-0 rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 text-sm text-slate-800 outline-none transition-colors focus:border-blue-300 focus:bg-white"
                 />
               </div>
             </div>
 
-            <div className="flex shrink-0 items-center gap-2 sm:gap-4">
+            <div className="flex shrink-0 items-center gap-1 sm:gap-4">
               <form id={logoutFormId} action="/auth/logout" method="post" hidden />
 
               {showFrontDeskCta ? (
@@ -554,21 +572,48 @@ export default function HMSLayoutShell({
           </div>
         </header>
 
-        <main ref={mainRef} className="min-h-0 flex-1 overflow-y-auto">{children}</main>
+        <main ref={mainRef} className="min-h-0 min-w-0 flex-1 overflow-y-auto pb-12 max-md:break-words sm:pb-0">{children}</main>
+        <ResponsiveTables />
       </div>
+
+      {showFrontDeskNavShortcut && frontDeskNavOpen ? (
+        <div
+          aria-hidden
+          onClick={() => setFrontDeskNavOpen(false)}
+          className="fixed inset-0 z-40 bg-slate-950/75 md:hidden"
+        />
+      ) : null}
 
       {showFrontDeskNavShortcut ? (
         <aside
-          className={`flex shrink-0 flex-col overflow-hidden bg-white transition-[width,border-color] duration-300 max-md:fixed max-md:inset-y-0 max-md:right-0 max-md:z-50 ${
-            frontDeskNavOpen ? "w-56 border-l border-slate-200 max-md:shadow-xl" : "w-0 border-l-0"
+          ref={frontDeskDrawerRef}
+          aria-label="Front desk links"
+          role={!isDesktop && frontDeskNavOpen ? "dialog" : undefined}
+          aria-modal={!isDesktop && frontDeskNavOpen ? true : undefined}
+          // A closed drawer is off screen: keep it out of the Tab order and screen readers.
+          inert={!frontDeskNavOpen}
+          className={`flex shrink-0 flex-col overflow-hidden bg-white md:transition-[width,border-color] md:duration-300 max-md:fixed max-md:inset-y-0 max-md:right-0 max-md:z-50 max-md:w-56 max-md:max-w-[85vw] max-md:transition-transform max-md:duration-300 ${
+            frontDeskNavOpen
+              ? "border-slate-200 max-md:translate-x-0 max-md:shadow-xl md:w-56 md:border-l"
+              : "max-md:translate-x-full md:w-0 md:border-l-0"
           }`}
         >
-          <div className="flex h-18 w-56 shrink-0 items-center border-b border-slate-200 px-5">
+          <div className="flex h-18 w-full shrink-0 items-center justify-between gap-2 border-b border-slate-200 px-5 md:w-56">
             <p className="truncate text-xs font-semibold uppercase tracking-wider text-slate-400">
               Front desk links
             </p>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => setFrontDeskNavOpen(false)}
+              className="size-9 shrink-0 rounded-xl text-slate-500 md:hidden"
+              aria-label="Close front desk links"
+            >
+              <X className="h-5 w-5" />
+            </Button>
           </div>
-          <nav className="min-h-0 w-56 flex-1 space-y-0.5 overflow-y-auto px-3 py-3">
+          <nav className="min-h-0 w-full flex-1 space-y-0.5 overflow-y-auto px-3 py-3 md:w-56">
             {frontDeskNavItems.map(({ key, icon, label, path }) => {
               const Icon = ICON_MAP[icon];
               const active = pathname === path || pathname.startsWith(`${path}/`);
@@ -576,8 +621,11 @@ export default function HMSLayoutShell({
                 <Link
                   key={key}
                   href={path}
+                  onClick={() => {
+                    if (!isDesktop) setFrontDeskNavOpen(false);
+                  }}
                   aria-current={active ? "page" : undefined}
-                  className={`flex items-center gap-3 rounded-xl px-2.5 py-1.5 text-sm font-medium transition-colors ${
+                  className={`flex items-center gap-3 rounded-xl px-2.5 py-2 text-sm font-medium transition-colors md:py-1.5 ${
                     active
                       ? "bg-blue-50 text-blue-900"
                       : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"

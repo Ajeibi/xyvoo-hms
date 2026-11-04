@@ -215,7 +215,7 @@ export function FolioWindowsPanel({
         <p className="mt-0.5 text-xs text-slate-600">
           New charges go to the payer you choose here. Changing a rule also moves the matching charges already on the bill, except ones moved by hand.
         </p>
-        <dl className="mt-2 grid gap-2 text-sm sm:grid-cols-[1fr_auto] sm:items-center">
+        <dl className="mt-2 grid grid-cols-1 gap-2 text-sm sm:grid-cols-[1fr_auto] sm:items-center">
           {CHARGE_GROUPS.map((g: ChargeGroup) => {
             const current = rules.find((r) => r.chargeGroup === g)?.targetWindow ?? "";
             return (

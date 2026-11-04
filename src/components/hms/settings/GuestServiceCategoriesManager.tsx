@@ -198,7 +198,7 @@ export function GuestServiceCategoriesManager({
         )}
       </div>
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-[1fr_200px_auto] sm:items-end">
+      <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-[1fr_200px_auto] sm:items-end">
         <HmsField id="guest-service-new-name" label="New category">
           <input
             id="guest-service-new-name"

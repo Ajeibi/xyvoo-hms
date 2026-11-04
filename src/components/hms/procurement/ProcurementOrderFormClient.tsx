@@ -201,7 +201,7 @@ export function ProcurementOrderFormClient({
       </div>
 
       <HmsCard id="po-details" title="Order details" description="Who you're buying from and which department pays." icon={Truck} meaning="stock">
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <HmsField id="po-vendor" label="Vendor">
             <Select value={vendorId} onValueChange={setVendorId}>
               <SelectTrigger id="po-vendor" aria-required className={selectTrigger}>

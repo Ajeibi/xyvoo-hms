@@ -7,7 +7,7 @@ export default function FrontDeskLoading() {
       <PageHeaderSkeleton />
       <StatTilesSkeleton count={4} />
 
-      <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <div key={i} className="rounded-2xl border border-slate-200 bg-white p-4">
             <Skeleton className="h-4 w-24 bg-slate-200" />

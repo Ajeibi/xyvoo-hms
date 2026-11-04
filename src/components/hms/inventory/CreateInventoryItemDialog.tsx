@@ -147,7 +147,7 @@ export function CreateInventoryItemDialog({
             Loading…
           </p>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <HmsField id={`${uid}-sku`} label="SKU">
               <input id={`${uid}-sku`} className={hmsInput} value={sku} onChange={(e) => setSku(e.target.value)} placeholder="e.g. LIN-0001" />
             </HmsField>

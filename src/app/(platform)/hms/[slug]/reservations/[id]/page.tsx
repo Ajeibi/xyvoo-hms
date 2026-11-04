@@ -120,10 +120,10 @@ export default async function ReservationDetailPage({
           }
         />
 
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <HmsCard id="reservation-guest" icon={UserRound} meaning="guests" title="Guest">
             {g ? (
-              <dl className="grid gap-4 sm:grid-cols-2">
+              <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field label="Name" value={g.displayName} />
                 <Field label="Phone" value={g.phone} />
                 <Field label="Email" value={g.email} />
@@ -137,7 +137,7 @@ export default async function ReservationDetailPage({
           </HmsCard>
 
           <HmsCard id="reservation-stay" icon={BedDouble} meaning="rooms" title="Stay">
-            <dl className="grid gap-4 sm:grid-cols-2">
+            <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Room" value={r.roomCode ? `${r.roomCode} (floor ${r.floor})` : "Not assigned yet"} />
               <Field
                 label="Room readiness"
@@ -159,7 +159,7 @@ export default async function ReservationDetailPage({
             title="Guest bill"
             actions={<HmsPill tone={PAYMENT_TONE[folio.displayStatus]}>{PAYMENT_STATUS_LABEL[folio.displayStatus]}</HmsPill>}
           >
-            <dl className="grid gap-3 sm:grid-cols-3">
+            <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="rounded-xl bg-slate-50 p-3">
                 <Field label="Charges" value={formatPricingAmount(folio.charges, pricing.currency)} />
               </div>
@@ -187,7 +187,7 @@ export default async function ReservationDetailPage({
           />
 
           <HmsCard id="reservation-notes" icon={NotebookPen} meaning="guests" title="Notes">
-            <dl className="grid gap-4">
+            <dl className="grid grid-cols-1 gap-4">
               <Field label="Guest remarks" value={r.guestRemarks} />
               <Field label="Room preferences" value={r.roomPreferencesText} />
               <Field label="VIP notes" value={r.vipNotes} />

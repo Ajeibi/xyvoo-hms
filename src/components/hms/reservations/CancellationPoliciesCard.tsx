@@ -190,7 +190,7 @@ function Row({
   return (
     <li className="py-3">
       <p className="font-medium text-slate-900">{label}</p>
-      <div className="mt-2 grid gap-3 sm:grid-cols-2">
+      <div className="mt-2 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label htmlFor={`${ids}-free`} className="mb-1 block text-slate-700">
             Free to cancel up to this many days before arrival

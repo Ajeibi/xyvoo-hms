@@ -640,7 +640,7 @@ export default function HotelRoomPricingSetup({
       ref={roomsPricingFormRef}
       onSubmit={handleSave}
       aria-labelledby="rooms-pricing-setup-title"
-      className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6 space-y-6 scroll-mt-24"
+      className="rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm sm:p-6 space-y-6 scroll-mt-24"
     >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex min-w-0 items-start gap-3">
@@ -689,7 +689,7 @@ export default function HotelRoomPricingSetup({
 
       <div
         id="floor-plan-setup"
-        className="scroll-mt-24 rounded-2xl border border-slate-200 bg-sky-50/40 p-5 space-y-4"
+        className="scroll-mt-24 rounded-2xl border border-slate-200 bg-sky-50/40 p-3 sm:p-5 space-y-4"
       >
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex gap-3">

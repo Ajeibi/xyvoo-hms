@@ -27,6 +27,7 @@ import {
   capitalize,
   formatCompactAmount,
   sumValues,
+  ChartScroll,
   type MetricTileItem,
 } from "./shared";
 
@@ -228,12 +229,11 @@ export default function FinancialPerformanceSection({
 
       <div className="mt-5 space-y-4">
         <div className="rounded-2xl border border-slate-200 bg-white px-3 py-4">
-          <div className="h-[360px]">
-            <Line data={financialLineChartData} options={financialChartOptions} />
-          </div>
+          <ChartScroll height="h-[360px]">
+            <Line data={financialLineChartData} options={financialChartOptions} /></ChartScroll>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {financialHighlights.map((item) => (
             <MetricTile key={item.label} {...item} />
           ))}

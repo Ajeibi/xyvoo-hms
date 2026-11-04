@@ -81,7 +81,7 @@ export function HmsPageHeader({
         <h1 className="font-heading text-2xl font-bold tracking-tight text-slate-900 sm:text-[1.75rem]">{title}</h1>
         {description ? <p className="mt-1 text-base text-slate-600">{description}</p> : null}
       </div>
-      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+      {actions ? <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">{actions}</div> : null}
     </header>
   );
 }
@@ -114,10 +114,10 @@ export function HmsCard({
   return (
     <section
       aria-labelledby={title ? titleId : undefined}
-      className={`rounded-2xl border border-slate-200/80 bg-white shadow-sm ${flush ? "overflow-hidden" : "p-5 sm:p-6"} ${className}`}
+      className={`rounded-2xl border border-slate-200/80 bg-white shadow-sm ${flush ? "overflow-hidden" : "p-3 sm:p-6"} ${className}`}
     >
       {title ? (
-        <div className={`flex flex-wrap items-start justify-between gap-3 ${flush ? "border-b border-slate-100 px-5 py-4 sm:px-6" : "mb-4"}`}>
+        <div className={`flex flex-wrap items-start justify-between gap-3 ${flush ? "border-b border-slate-100 px-3 py-3 sm:px-6 sm:py-4" : "mb-4"}`}>
           <div className="flex min-w-0 items-start gap-3">
             {Icon ? (
               <span aria-hidden className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${tone.tint} ${tone.icon} ring-1 ring-slate-200/60 shadow-xs`}>
@@ -198,5 +198,5 @@ export function HmsStatStrip({ label, children, columns = 4 }: { label: string; 
 
 /** The standard page frame: consistent gutters and spacing between sections. */
 export function HmsPage({ children, wide = false }: { children: React.ReactNode; wide?: boolean }) {
-  return <div className={`mx-auto w-full space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8 ${wide ? "max-w-[1500px]" : "max-w-6xl"}`}>{children}</div>;
+  return <div className={`mx-auto w-full space-y-6 px-3 py-3 sm:px-6 sm:py-8 lg:px-8 ${wide ? "max-w-[1500px]" : "max-w-6xl"}`}>{children}</div>;
 }

@@ -141,7 +141,7 @@ export function ArrivalKeys({
 
       {canIssue ? (
         <form
-          className="grid gap-3 border-t border-slate-100 pt-4 sm:grid-cols-[auto_1fr_auto] sm:items-end"
+          className="grid grid-cols-1 gap-3 border-t border-slate-100 pt-4 sm:grid-cols-[auto_1fr_auto] sm:items-end"
           onSubmit={async (e) => {
             e.preventDefault();
             if (await call("POST", { keyType, label: label.trim() || undefined })) {

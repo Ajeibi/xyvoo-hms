@@ -100,7 +100,7 @@ export function FbBillRatesSetup({
       description="Added to restaurant and bar bills. Changes apply to bills opened from now on; open bills keep the rates they started with."
       className="mt-6 scroll-mt-24"
     >
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {rateInput("fb-rate-service", "Service charge", service, setService, FB_RATE_LIMITS.service, "Added on top of menu prices.")}
         {rateInput("fb-rate-levy", "State levy", levy, setLevy, FB_RATE_LIMITS.levy, "Consumption or hospitality levy.")}
         {rateInput("fb-rate-vat", "VAT", vat, setVat, FB_RATE_LIMITS.vat, "Nigeria's standard rate is 7.5%.")}

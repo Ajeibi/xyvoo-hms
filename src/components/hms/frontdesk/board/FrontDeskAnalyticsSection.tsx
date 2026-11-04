@@ -15,7 +15,7 @@ import {
 import { Bar, Doughnut, Line } from "react-chartjs-2";
 import { BarChart3, TrendingUp } from "lucide-react";
 import type { FrontDeskAnalytics } from "@/lib/hms/front-desk-board";
-import { AnalyticsCard } from "@/components/hms/dashboard/analytics/shared";
+import { AnalyticsCard, ChartScroll } from "@/components/hms/dashboard/analytics/shared";
 
 ChartJS.register(
   ArcElement,
@@ -111,15 +111,14 @@ export function FrontDeskAnalyticsSection({ analytics }: { analytics: FrontDeskA
 
   return (
     <section className="space-y-4" aria-label="Analytics">
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <AnalyticsCard
           icon={TrendingUp}
           title="Occupancy trend"
           description="Monthly occupancy from reservation room-nights vs inventory."
         >
-          <div className="h-[220px]">
-            <Line data={occupancyData} options={lineOptions} />
-          </div>
+          <ChartScroll height="h-[220px]">
+            <Line data={occupancyData} options={lineOptions} /></ChartScroll>
           <p className="mt-3 text-sm text-slate-600">
             Current occupancy: <span className="font-semibold text-slate-900">{analytics.occupancyRate}%</span>
             {" · "}
@@ -147,15 +146,14 @@ export function FrontDeskAnalyticsSection({ analytics }: { analytics: FrontDeskA
         </AnalyticsCard>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <AnalyticsCard
           icon={BarChart3}
           title="Daily check-ins"
           description="Completed check-ins over the last 7 days (UTC)."
         >
-          <div className="h-[200px]">
-            <Bar data={checkInBar} options={barOptions} />
-          </div>
+          <ChartScroll height="h-[200px]" minWidth="min-w-[480px]">
+            <Bar data={checkInBar} options={barOptions} /></ChartScroll>
         </AnalyticsCard>
 
         <AnalyticsCard
@@ -163,9 +161,8 @@ export function FrontDeskAnalyticsSection({ analytics }: { analytics: FrontDeskA
           title="Daily check-outs"
           description="Completed check-outs over the last 7 days (UTC)."
         >
-          <div className="h-[200px]">
-            <Bar data={checkOutBar} options={barOptions} />
-          </div>
+          <ChartScroll height="h-[200px]" minWidth="min-w-[480px]">
+            <Bar data={checkOutBar} options={barOptions} /></ChartScroll>
         </AnalyticsCard>
       </div>
     </section>

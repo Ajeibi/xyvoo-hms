@@ -647,7 +647,7 @@ function CreateIncidentDialog({
               ))}
             </select>
           </HmsField>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <HmsField id="incident-code" label="Confirmation code" optional>
               <input id="incident-code" className={hmsInput} value={confirmationCode} onChange={(e) => setConfirmationCode(e.target.value)} />
             </HmsField>
@@ -1399,7 +1399,7 @@ function CreateWaitlistDialog({
             />
             {tried && !guestName.trim() ? <FieldError id="waitlist-name-error">Enter the guest&apos;s name.</FieldError> : null}
           </HmsField>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <HmsField id="waitlist-phone" label="Phone" optional>
               <input id="waitlist-phone" type="tel" className={hmsInput} value={phone} onChange={(e) => setPhone(e.target.value)} />
             </HmsField>
@@ -1417,7 +1417,7 @@ function CreateWaitlistDialog({
               ))}
             </select>
           </HmsField>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <HmsField id="waitlist-arrival" label="Arriving">
               <input
                 id="waitlist-arrival"

@@ -93,12 +93,12 @@ export function FrontDeskDashboard({
   const showInventory = area === "overview" && inventoryRoomCount != null && inventoryRoomCount > 0;
 
   return (
-    <div className="mx-auto w-full max-w-[1500px] px-6 py-8 sm:px-8">
+    <div className="mx-auto w-full max-w-[1500px] px-3 py-2 sm:px-8 sm:py-8">
       <section
         className="overflow-hidden rounded-[28px] border border-slate-200 bg-gradient-to-br from-white via-white to-sky-50/70 shadow-sm shadow-slate-200/30"
         aria-labelledby="fd-hero-title"
       >
-        <div className="px-6 py-6 sm:px-7 sm:py-7">
+        <div className="px-3 py-3 sm:px-7 sm:py-7">
           <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
             <span aria-hidden className="h-2 w-2 rounded-full bg-sky-500" />
             Front desk
@@ -144,7 +144,7 @@ export function FrontDeskDashboard({
           return (
             <section
               key={block.id}
-              className="scroll-mt-6 overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6"
+              className="scroll-mt-6 overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm sm:p-6"
               aria-labelledby={sectionDomId}
             >
               <FrontDeskSectionHeader id={sectionDomId} eyebrow={block.eyebrow} title={block.title} />

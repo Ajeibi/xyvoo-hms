@@ -82,7 +82,7 @@ export function GuestLoyaltyCard({
       {loyalty.tier?.perks ? <p className="mt-1 text-sm text-slate-700">Perks: {loyalty.tier.perks}</p> : null}
 
       {canManage && settings.enabled ? (
-        <form onSubmit={submit} className="mt-4 grid gap-3 rounded-xl border border-slate-200 p-4 sm:grid-cols-6" aria-label="Spend or adjust points">
+        <form onSubmit={submit} className="mt-4 grid grid-cols-1 gap-3 rounded-xl border border-slate-200 p-4 sm:grid-cols-6" aria-label="Spend or adjust points">
           <div className="sm:col-span-2">
             <label htmlFor="loy-kind" className="mb-1 block text-sm font-medium text-slate-800">What to do</label>
             <select id="loy-kind" className={hmsInput} value={kind} onChange={(e) => setKind(e.target.value as "redeem" | "adjust")}>

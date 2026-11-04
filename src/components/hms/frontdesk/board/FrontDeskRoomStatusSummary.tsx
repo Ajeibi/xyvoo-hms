@@ -45,7 +45,7 @@ export function FrontDeskRoomStatusSummary({
   return (
     <>
       <section
-        className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6"
+        className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm sm:p-6"
         aria-label="Room status summary"
       >
         <p className="text-sm font-medium text-slate-600">Room status</p>

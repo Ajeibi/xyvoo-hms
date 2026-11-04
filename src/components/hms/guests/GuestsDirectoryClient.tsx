@@ -154,7 +154,7 @@ export function GuestsDirectoryClient({
       </HmsStatStrip>
 
       <div className="space-y-3">
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div className="sm:col-span-2">
             <label htmlFor="guests-search" className="mb-1 block text-sm font-medium text-slate-800">
               Search guests
@@ -264,8 +264,73 @@ export function GuestsDirectoryClient({
             />
           )
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-left text-sm">
+          <>
+          <ul className="divide-y divide-slate-100 md:hidden" aria-label={`Guests, ${payload.total} found`}>
+            {payload.rows.map((g) => (
+              <li
+                key={g.id}
+                className="space-y-3 px-3 py-3.5 transition-colors active:bg-amber-50/40"
+                onClick={() => router.push(`/hms/${slug}/guests/${g.id}`)}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <Link
+                      href={`/hms/${slug}/guests/${g.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className={`rounded text-base font-semibold leading-snug text-slate-900 hover:text-blue-700 hover:underline ${focusRing}`}
+                    >
+                      {g.displayName}
+                    </Link>
+                    {g.companyName ? <p className="mt-0.5 text-xs text-slate-600">{g.companyName}</p> : null}
+                    {g.isVip || g.tier ? (
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        {g.isVip ? <HmsPill tone="amber">VIP</HmsPill> : null}
+                        {g.tier ? <HmsPill tone="blue">{g.tier}</HmsPill> : null}
+                      </div>
+                    ) : null}
+                  </div>
+                  {g.openRequestCount > 0 ? <HmsPill tone="amber">{g.openRequestCount} open</HmsPill> : null}
+                </div>
+
+                {g.phone || g.email ? (
+                  <div className="space-y-0.5 text-sm text-slate-700">
+                    {g.phone ? <p>{g.phone}</p> : null}
+                    {g.email ? <p className="break-all text-slate-600">{g.email}</p> : null}
+                  </div>
+                ) : null}
+
+                {g.tags.length > 0 || g.canMarket ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {g.tags.map((t) => (
+                      <HmsPill key={t}>{t}</HmsPill>
+                    ))}
+                    {g.canMarket ? <HmsPill tone="green">Offers OK</HmsPill> : null}
+                  </div>
+                ) : null}
+
+                <dl className="grid grid-cols-2 gap-x-3 gap-y-3 rounded-xl bg-slate-50/80 p-3 text-sm ring-1 ring-slate-200/70">
+                  <div className="min-w-0">
+                    <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">Stays</dt>
+                    <dd className="mt-0.5 font-medium tabular-nums text-slate-900">{g.visitCount}</dd>
+                  </div>
+                  <div className="min-w-0">
+                    <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">Spent</dt>
+                    <dd className="mt-0.5 break-words font-medium tabular-nums text-slate-900">
+                      {g.spend > 0 ? g.spend.toLocaleString("en-NG", { maximumFractionDigits: 0 }) : <Nothing />}
+                    </dd>
+                  </div>
+                  <div className="col-span-2 min-w-0">
+                    <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">Last stay</dt>
+                    <dd className="mt-0.5 text-slate-900">
+                      {g.lastStayAt ? formatBoardDateTime(g.lastStayAt) : <Nothing />}
+                    </dd>
+                  </div>
+                </dl>
+              </li>
+            ))}
+          </ul>
+          <div className="hidden overflow-x-auto md:block">
+            <table data-no-stack className="w-full min-w-[900px] text-left text-sm">
               <caption className="sr-only">Guests, {payload.total} found</caption>
               <thead className="bg-slate-50 text-sm text-slate-700">
                 <tr>
@@ -337,6 +402,7 @@ export function GuestsDirectoryClient({
               </tbody>
             </table>
           </div>
+          </>
         )}
       </HmsCard>
 

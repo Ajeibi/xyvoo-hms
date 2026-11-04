@@ -174,7 +174,7 @@ function PolicyRow({
     <li className="py-3">
       <fieldset className="space-y-3 rounded-xl border border-slate-200 p-3">
         <legend className="px-1 font-semibold text-slate-900">Deposit for {label === "Every booking" ? "every booking" : label}</legend>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div>
             <label htmlFor={`${ids}-kind`} className="mb-1 block font-medium text-slate-800">
               Deposit

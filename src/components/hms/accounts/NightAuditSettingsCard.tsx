@@ -42,7 +42,7 @@ export function NightAuditSettingsCard({ slug, settings, businessDate, today }: 
 
   return (
     <HmsCard id="night-audit-settings-shared" title="Night audit settings" icon={Settings2} meaning="money" className="print:hidden">
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <fieldset className="space-y-3">
           <legend className="text-sm font-semibold text-slate-900">Run by itself</legend>
           <label className="flex items-start gap-2 text-sm text-slate-700">

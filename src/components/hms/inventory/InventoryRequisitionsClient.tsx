@@ -480,7 +480,7 @@ function NewRequisitionDialog({
         </DialogHeader>
 
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <HmsField id="inventory-requisition-department" label="Requesting department">
                 <Select value={department} onValueChange={setDepartment}>
@@ -549,7 +549,7 @@ function NewRequisitionDialog({
                     key={line.key}
                     className="grid grid-cols-12 items-center gap-2 rounded-xl border border-slate-200 p-2"
                   >
-                    <div className="col-span-7">
+                    <div className="col-span-12 sm:col-span-7">
                       <InventoryItemPicker
                         slug={slug}
                         items={items}
@@ -560,7 +560,7 @@ function NewRequisitionDialog({
                         placeholder="Select item"
                       />
                     </div>
-                    <div className="col-span-4">
+                    <div className="col-span-9 sm:col-span-4">
                       <input
                         type="number"
                         min="0"
@@ -572,7 +572,7 @@ function NewRequisitionDialog({
                         placeholder="Qty"
                       />
                     </div>
-                    <div className="col-span-1 flex justify-end">
+                    <div className="col-span-3 flex justify-end sm:col-span-1">
                       <Button
                         type="button"
                         variant="ghost"
@@ -684,7 +684,7 @@ function IssueRequisitionDialog({
         <div className="space-y-2">
           {lines.map((l) => (
             <div key={l.id} className="grid grid-cols-12 items-center gap-2 rounded-xl border border-slate-200 p-3">
-              <div className="col-span-7 text-sm text-slate-900">
+              <div className="col-span-12 sm:col-span-7 text-sm text-slate-900">
                 <label htmlFor={`inventory-issue-${l.id}`} className="font-medium">
                   {l.item_name} <span className="text-xs font-normal text-slate-600">({l.item_sku})</span>
                 </label>
@@ -692,7 +692,7 @@ function IssueRequisitionDialog({
                   Requested {l.qty_requested} {l.unit_of_measure} · issued {l.qty_issued}
                 </p>
               </div>
-              <div className="col-span-5">
+              <div className="col-span-12 sm:col-span-5">
                 <input
                   id={`inventory-issue-${l.id}`}
                   type="number"

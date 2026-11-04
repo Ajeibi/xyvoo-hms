@@ -241,7 +241,7 @@ export function MyAlertsClient({ slug }: { slug: string }) {
       </HmsCard>
 
       <HmsCard id="contact" title="Where we reach you" description="Email goes to the address you sign in with." icon={Mail}>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="alerts-email" className="mb-1 block text-sm font-medium text-slate-800">Email</label>
             <input id="alerts-email" className={`${input} bg-slate-50`} value={data.email ?? ""} readOnly />
@@ -305,7 +305,7 @@ export function MyAlertsClient({ slug }: { slug: string }) {
             Hold my alerts during quiet hours
           </label>
           {settings.quietEnabled ? (
-            <div className="grid max-w-md gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 max-w-md gap-4 sm:grid-cols-2">
               <div>
                 <label htmlFor="quiet-start" className="mb-1 block text-sm font-medium text-slate-800">From</label>
                 <input id="quiet-start" type="time" className={input} value={settings.quietStart} onChange={(e) => patch({ quietStart: e.target.value })} />

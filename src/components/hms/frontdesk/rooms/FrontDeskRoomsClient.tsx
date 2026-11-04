@@ -170,7 +170,7 @@ export function FrontDeskRoomsClient({
   const eyebrow = layoutTitleVariant === "topNav" ? "Rooms" : "Front desk";
 
   return (
-    <div className="mx-auto w-full max-w-[1500px] space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+    <div className="mx-auto w-full max-w-[1500px] space-y-6 px-3 py-3 sm:px-6 sm:py-8 lg:px-8">
       <HmsPageHeader
         eyebrow={eyebrow}
         meaning="rooms"
@@ -213,7 +213,7 @@ export function FrontDeskRoomsClient({
       <FrontDeskMaintenanceInsights slug={slug} onSelectRoom={selectRoomById} />
 
       <HmsCard id="rooms-filters" icon={ListFilter} meaning="rooms" title="Find a room">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div className="sm:col-span-2">
             <label htmlFor="rooms-search" className="mb-1 block text-sm font-medium text-slate-800">
               Search

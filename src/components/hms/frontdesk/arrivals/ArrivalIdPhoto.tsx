@@ -139,7 +139,7 @@ export function ArrivalIdPhoto({ slug, reservationId, canAdd }: { slug: string; 
       {photos.length === 0 ? (
         <p className="text-sm text-slate-600">No ID photo has been taken for this booking yet.</p>
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2">
+        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {photos.map((p) => (
             <li key={p.id} className="rounded-xl border border-slate-200 bg-white p-2">
               {p.url ? (

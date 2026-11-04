@@ -72,11 +72,11 @@ export function StayFeedbackForm({ token }: { token: string }) {
     }
   }
 
-  if (problem) return <p role="alert" className="rounded-2xl border border-slate-200 bg-white p-6 text-slate-800">{problem}</p>;
+  if (problem) return <p role="alert" className="rounded-2xl border border-slate-200 bg-white p-3 sm:p-6 text-slate-800">{problem}</p>;
   if (!form) return <Loader2 className="mx-auto h-6 w-6 animate-spin text-slate-500" aria-label="Loading" />;
   if (done || form.answered) {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center">
+      <div className="rounded-2xl border border-slate-200 bg-white p-3 sm:p-6 text-center">
         <h1 className="font-heading text-xl font-bold text-slate-900">Thank you</h1>
         <p className="mt-2 text-slate-700">
           {done ? `Your feedback has reached ${form.hotel}.` : `You have already sent your feedback to ${form.hotel}.`} We read every answer.
@@ -87,7 +87,7 @@ export function StayFeedbackForm({ token }: { token: string }) {
 
   return (
     <form
-      className="space-y-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+      className="space-y-6 rounded-2xl border border-slate-200 bg-white p-3 sm:p-6 shadow-sm"
       onSubmit={(e) => {
         e.preventDefault();
         void submit();

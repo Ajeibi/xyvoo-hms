@@ -177,7 +177,7 @@ export function KitchenSettingsClient({
   }, [categories]);
 
   return (
-    <div className="w-full max-w-5xl space-y-6 px-4 py-6 sm:px-6">
+    <div className="w-full max-w-5xl space-y-6 px-3 py-3 sm:px-6 sm:py-6">
       <HmsPageHeader
         eyebrow="Kitchen"
         meaning="food"

@@ -442,7 +442,7 @@ export function FrontDeskArrivalsClient({
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1500px] space-y-6 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+    <div className="mx-auto w-full max-w-[1500px] space-y-6 px-3 py-3 sm:px-6 sm:py-8 lg:px-8">
       <HmsPageHeader
         eyebrow="Front desk"
         meaning="rooms"
@@ -538,7 +538,7 @@ export function FrontDeskArrivalsClient({
 
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-slate-900">Narrow the list</h3>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               <FilterField id="arrivals-status" label="Status">
                 <FrontDeskPopoverSelect
                   id="arrivals-status"
@@ -674,8 +674,162 @@ export function FrontDeskArrivalsClient({
             }
           />
         ) : (
-        <div className="overflow-x-auto pb-0.5">
-        <table className="min-w-[1900px] w-full border-collapse text-left">
+        <>
+        <ul className="divide-y divide-slate-100 md:hidden" aria-label={`Arrivals, ${data.rangeLabel}`}>
+          {pageRows.map((row, index) => {
+            const surface = arrivalRowSurfaceClasses(row.highlight, index);
+            const movement = movementBadgeVariant(row.highlight);
+            return (
+              <li
+                key={row.id}
+                onClick={() => openDetail(row)}
+                className={cn("space-y-3 px-3 py-3.5 transition-colors active:bg-slate-100/70", surface)}
+              >
+                <div className="flex items-start gap-3">
+                  {capabilities.canBulkActions ? (
+                    <input
+                      type="checkbox"
+                      className="mt-1 h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300"
+                      checked={selectedIds.has(row.id)}
+                      onChange={() => toggleSelect(row.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label={`Select ${row.guestName}`}
+                    />
+                  ) : null}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-base font-semibold leading-snug text-slate-900">{row.guestName}</p>
+                    <p className="mt-0.5 text-xs text-slate-600">
+                      <span className="font-mono font-medium text-slate-800">{row.confirmationCode}</span>
+                      {" · "}
+                      {row.bookingSourceLabel}
+                      {" · booked "}
+                      {formatUtcDate(row.bookingDate)}
+                    </p>
+                  </div>
+                  <HmsPill tone={STATUS_TONE[row.status] ?? "slate"}>{STATUS_LABEL[row.status] ?? row.status}</HmsPill>
+                </div>
+
+                {row.isVip || onlineDone.has(row.id) || accessFlags[row.id]?.length ? (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {row.isVip ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">
+                        <Star className="h-3 w-3" aria-hidden />
+                        VIP
+                      </span>
+                    ) : null}
+                    {onlineDone.has(row.id) ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-900">
+                        <CheckCircle2 className="h-3 w-3" aria-hidden />
+                        Checked in online
+                      </span>
+                    ) : null}
+                    {accessFlags[row.id]?.length ? (
+                      <span
+                        className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-900"
+                        title={flagsSummary(accessFlags[row.id])}
+                      >
+                        <Accessibility className="h-3 w-3" aria-hidden />
+                        Access
+                      </span>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                <dl className="grid grid-cols-2 gap-x-3 gap-y-3 rounded-xl bg-slate-50/80 p-3 text-sm ring-1 ring-slate-200/70">
+                  <div className="col-span-2 min-w-0">
+                    <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">Arrival</dt>
+                    <dd className="mt-0.5 flex flex-wrap items-center gap-2">
+                      <span className="font-medium text-slate-900">{formatUtcDateTime(row.arrivalAt)}</span>
+                      <ArrivalMovementBadge variant={movement} />
+                    </dd>
+                  </div>
+                  <div className="min-w-0">
+                    <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">Departure</dt>
+                    <dd className="mt-0.5 text-slate-900">
+                      {formatUtcDate(row.departureAt)}
+                      <span className="text-slate-600"> · {row.nights} {row.nights === 1 ? "night" : "nights"}</span>
+                    </dd>
+                  </div>
+                  <div className="min-w-0">
+                    <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">Guests</dt>
+                    <dd className="mt-0.5 tabular-nums text-slate-900">{row.partySize}</dd>
+                  </div>
+                  <div className="min-w-0">
+                    <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">Room</dt>
+                    <dd className="mt-0.5 font-medium text-slate-900">{row.roomCode ?? "Not assigned"}</dd>
+                  </div>
+                  <div className="min-w-0">
+                    <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">Room type</dt>
+                    <dd className="mt-0.5 text-slate-900">
+                      {row.roomTypeName}
+                      {row.floor != null ? <span className="text-slate-600"> · Floor {row.floor}</span> : null}
+                    </dd>
+                  </div>
+                </dl>
+
+                <dl className="grid grid-cols-3 gap-2 text-sm">
+                  <div className="min-w-0">
+                    <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">Total</dt>
+                    <dd className="mt-0.5 break-words font-medium tabular-nums text-slate-900">
+                      {formatPricingAmount(row.totalCharges, currency)}
+                    </dd>
+                  </div>
+                  <div className="min-w-0">
+                    <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">Paid</dt>
+                    <dd className="mt-0.5 break-words tabular-nums text-slate-700">
+                      {formatPricingAmount(row.amountPaid, currency)}
+                    </dd>
+                  </div>
+                  <div className="min-w-0">
+                    <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">Balance</dt>
+                    <dd className="mt-0.5 flex items-center gap-1.5 break-words font-semibold tabular-nums text-slate-900">
+                      <span
+                        aria-hidden
+                        className={`h-2.5 w-2.5 shrink-0 rounded-full ${PAYMENT_DOT_CLASS[row.paymentStatus]}`}
+                        title={PAYMENT_STATUS_LABEL[row.paymentStatus]}
+                      />
+                      <span className="sr-only">{PAYMENT_STATUS_LABEL[row.paymentStatus]}: </span>
+                      {formatPricingAmount(row.outstandingBalance, currency)}
+                    </dd>
+                  </div>
+                </dl>
+
+                <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                  <span className="rounded-full bg-white px-2 py-0.5 font-medium text-slate-700 ring-1 ring-slate-200">
+                    Check-in: {PROGRESS_LABEL[row.checkInProgress] ?? row.checkInProgress}
+                  </span>
+                  {row.roomReadiness ? (
+                    <span className="rounded-full bg-white px-2 py-0.5 font-medium text-slate-700 ring-1 ring-slate-200">
+                      Room: {READINESS_LABEL[row.roomReadiness] ?? row.roomReadiness}
+                    </span>
+                  ) : null}
+                  {row.openRequestCount > 0 ? (
+                    <span className="rounded-full bg-violet-100 px-2 py-0.5 font-medium text-violet-900">
+                      {row.openRequestCount} open {row.openRequestCount === 1 ? "request" : "requests"}
+                    </span>
+                  ) : null}
+                </div>
+
+                <p className="break-words text-xs text-slate-600">
+                  {[row.phone, row.email, row.nationality].filter(Boolean).join(" · ")}
+                </p>
+
+                <div className="border-t border-slate-200/70 pt-3" onClick={(e) => e.stopPropagation()}>
+                  <FrontDeskArrivalRowActions
+                    slug={slug}
+                    row={row}
+                    capabilities={capabilities}
+                    onDetail={() => openDetail(row)}
+                    onAssign={() => openAssign(row)}
+                    onCheckIn={() => openCheckIn(row)}
+                  />
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+        <div className="hidden overflow-x-auto pb-0.5 md:block">
+        <table data-no-stack className="min-w-[1900px] w-full border-collapse text-left">
           <caption className="sr-only">Arrivals, {data.rangeLabel}</caption>
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
@@ -814,7 +968,7 @@ export function FrontDeskArrivalsClient({
                     <td className={cn(TD, "whitespace-nowrap text-xs", surface)}>{formatUtcDate(row.departureAt)}</td>
                     <td className={cn(TD, "text-center text-sm font-medium tabular-nums", surface)}>{row.nights}</td>
                     <td className={cn(TD, "whitespace-nowrap text-xs", surface)}>
-                      <div className="font-medium">{row.roomTypeCode}</div>
+                      <div className="font-medium">{row.roomTypeName}</div>
                       {row.floor != null ? <div className="text-slate-600">Floor {row.floor}</div> : null}
                     </td>
                     <td className={cn(TD, "font-medium text-slate-900", surface)}>{row.roomCode ?? "—"}</td>
@@ -884,6 +1038,7 @@ export function FrontDeskArrivalsClient({
           </tbody>
         </table>
         </div>
+        </>
         )}
       </div>
 

@@ -440,7 +440,7 @@ export function InventoryTransfersClient({
                 <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">Note: {viewTarget.notes}</p>
               ) : null}
 
-              <div className="overflow-hidden rounded-xl border border-slate-200">
+              <div className="overflow-x-auto rounded-xl border border-slate-200">
                 <table className="w-full text-sm">
                   <thead className="bg-slate-50 text-sm font-medium text-slate-600">
                     <tr>

@@ -113,7 +113,7 @@ export function InventorySupplierManager({ slug, suppliers }: { slug: string; su
         />
       }
     >
-      <div className="grid gap-4 px-5 py-4 sm:grid-cols-2 sm:px-6 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 px-5 py-4 sm:grid-cols-2 sm:px-6 lg:grid-cols-4">
         <HmsField id="inventory-supplier-name" label="Name">
           <input
             id="inventory-supplier-name"

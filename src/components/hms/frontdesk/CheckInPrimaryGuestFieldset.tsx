@@ -54,7 +54,7 @@ export function CheckInPrimaryGuestFieldset({
           text="Lead guest on the folio and registration. When more than one person is staying, complete each guest’s section below after setting adults, children, and infants."
         />
       </legend>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <CheckInFieldLabelRow
             htmlFor="title"

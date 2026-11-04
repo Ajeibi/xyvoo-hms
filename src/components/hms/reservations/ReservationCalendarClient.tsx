@@ -542,7 +542,7 @@ export function ReservationCalendarClient({ slug, data, currency }: { slug: stri
           </ul>
           {pending.note ? <p className="mt-1 text-sm text-slate-700">{pending.note}</p> : null}
           {pending.canOverride ? (
-            <div className="mt-3 grid gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm sm:grid-cols-2">
+            <div className="mt-3 grid grid-cols-1 gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm sm:grid-cols-2">
               <p className="font-medium text-slate-900 sm:col-span-2">{pending.restricted ? "A manager can allow dates that break the rate rules" : "A manager can override the limit"}</p>
               <input aria-label="Reason for overriding" className={hmsInput} placeholder="Reason" value={override.reason} onChange={(e) => setOverride({ ...override, reason: e.target.value })} />
               <input aria-label="Manager's PIN (not needed for owners and admins)" type="password" inputMode="numeric" autoComplete="off" className={hmsInput} placeholder="Manager's PIN" value={override.pin} onChange={(e) => setOverride({ ...override, pin: e.target.value })} />
@@ -617,7 +617,7 @@ function BookingPanel({
       </div>
 
       {editable || inHouse ? (
-        <div className="mt-3 grid gap-3 sm:grid-cols-4">
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-4">
           {editable ? (
             <div>
               <label htmlFor={`${ids}-a`} className="mb-1 block text-sm font-medium text-slate-800">

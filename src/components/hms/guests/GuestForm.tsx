@@ -69,7 +69,7 @@ export function GuestForm({
     <form onSubmit={save} className="space-y-5" aria-label={guestId ? "Change guest details" : "Add a guest"}>
       <HmsAlert message={error} />
 
-      <fieldset className="grid gap-4 sm:grid-cols-6">
+      <fieldset className="grid grid-cols-1 gap-4 sm:grid-cols-6">
         <legend className="mb-2 text-sm font-semibold text-slate-900">Who they are</legend>
         <div className="sm:col-span-1">
           <HmsField id={`${uid}-title`} label="Title" optional>
@@ -128,7 +128,7 @@ export function GuestForm({
         </div>
       </fieldset>
 
-      <fieldset className="grid gap-4 sm:grid-cols-6">
+      <fieldset className="grid grid-cols-1 gap-4 sm:grid-cols-6">
         <legend className="mb-2 text-sm font-semibold text-slate-900">Their ID</legend>
         <div className="sm:col-span-2">
           <HmsField id={`${uid}-idtype`} label="ID type">
@@ -153,7 +153,7 @@ export function GuestForm({
         </div>
       </fieldset>
 
-      <fieldset className="grid gap-4 sm:grid-cols-6">
+      <fieldset className="grid grid-cols-1 gap-4 sm:grid-cols-6">
         <legend className="mb-2 text-sm font-semibold text-slate-900">How to reach them</legend>
         <div className="sm:col-span-2">
           <HmsField id={`${uid}-phone`} label="Phone">
@@ -203,7 +203,7 @@ export function GuestForm({
         </div>
       </fieldset>
 
-      <fieldset className="grid gap-4 sm:grid-cols-6">
+      <fieldset className="grid grid-cols-1 gap-4 sm:grid-cols-6">
         <legend className="mb-2 text-sm font-semibold text-slate-900">Company and preferences</legend>
         <div className="sm:col-span-3">
           <HmsField id={`${uid}-company`} label="Company they travel for" optional hint="Companies are the customers in Accounts.">

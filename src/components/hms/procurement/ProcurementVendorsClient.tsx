@@ -229,7 +229,7 @@ function NewVendorDialog({
               </SelectContent>
             </Select>
           </HmsField>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <HmsField id="new-vendor-contact" label="Contact name" optional>
               <input id="new-vendor-contact" className={hmsInput} autoComplete="off" value={contactName} onChange={(e) => setContactName(e.target.value)} />
             </HmsField>

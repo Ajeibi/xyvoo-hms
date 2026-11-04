@@ -169,9 +169,9 @@ export function ProcurementVendorDetailClient({
         />
       </HmsStatStrip>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <HmsCard id="vendor-settings" title="Status and category" description="Changes save straight away." icon={Tag} meaning="stock">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <HmsField id="vendor-category" label="Category">
               <Select value={categoryId} onValueChange={changeCategory}>
                 <SelectTrigger id="vendor-category" className={selectTrigger} disabled={savingField}>

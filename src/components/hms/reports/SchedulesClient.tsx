@@ -98,7 +98,7 @@ export function SchedulesClient({
       ) : null}
 
       <HmsCard id="schedule-new" title="Schedule a report" icon={CalendarClock} meaning="money">
-        <form onSubmit={create} className="grid gap-4 md:grid-cols-2">
+        <form onSubmit={create} className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <HmsField id="sch-report" label="Report">
             <select id="sch-report" className={hmsInput} value={reportKey} onChange={(e) => setReportKey(e.target.value)}>
               {reports.map((r) => (

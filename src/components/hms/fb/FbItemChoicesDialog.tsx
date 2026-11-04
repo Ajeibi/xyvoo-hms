@@ -107,7 +107,7 @@ export function FbItemChoicesDialog({
                     {describeModifierRule(group)}
                   </span>
                 </legend>
-                <div className="grid gap-2 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {group.options.map((o) => {
                     const on = picked.has(o.id);
                     return (

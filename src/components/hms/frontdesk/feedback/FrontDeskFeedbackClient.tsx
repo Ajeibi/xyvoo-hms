@@ -143,7 +143,7 @@ export function FrontDeskFeedbackClient({ slug }: { slug: string }) {
         {loading || !summary ? (
           <Loader2 className="h-4 w-4 animate-spin text-slate-500" aria-label="Loading" />
         ) : (
-          <dl className="grid gap-4 sm:grid-cols-4">
+          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-4">
             <div>
               <dt className="text-xs text-slate-600">Average score</dt>
               <dd className="text-2xl font-bold text-slate-900">{summary.average != null ? `${summary.average} / 5` : "–"}</dd>

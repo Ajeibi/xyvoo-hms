@@ -49,7 +49,7 @@ export default async function ReportsPage({ params }: { params: Promise<{ slug: 
         ) : (
           groups.map((g) => (
             <HmsCard key={g.group} id={`reports-${g.group.toLowerCase().replace(/\s+/g, "-")}`} title={g.group} icon={ChartNoAxesColumn} meaning="money">
-              <ul className="grid gap-3 md:grid-cols-2">
+              <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 {g.reports.map((r: ReportDef) => (
                   <li key={r.key}>
                     <Link

@@ -359,7 +359,7 @@ export function KitchenKdsClient({
         />
       ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {sorted.length === 0 ? (
           <div className="col-span-full">
             <HmsEmptyState
@@ -561,7 +561,7 @@ export function KitchenKdsClient({
           <p className="text-sm text-slate-600">
             Courses front of house is holding. They appear above when fired.
           </p>
-          <ul className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {upcoming.map((ticket) => (
               <li key={ticket.id} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800">
                 <span className="font-semibold text-slate-900">#{ticket.order_number}</span>

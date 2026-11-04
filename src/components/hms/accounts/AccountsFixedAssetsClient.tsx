@@ -113,7 +113,7 @@ export function AccountsFixedAssetsClient({
         }
       >
         {adding ? (
-          <div className="grid gap-3 border-b border-slate-100 p-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 border-b border-slate-100 p-5 sm:grid-cols-2 lg:grid-cols-4">
             <HmsField id="fa-name" label="Name"><input id="fa-name" className={hmsInput} value={name} onChange={(e) => setName(e.target.value)} /></HmsField>
             <HmsField id="fa-category" label="Category"><input id="fa-category" className={hmsInput} value={category} onChange={(e) => setCategory(e.target.value)} /></HmsField>
             <HmsField id="fa-date" label="Bought on"><input id="fa-date" type="date" className={hmsInput} value={acquisitionDate} onChange={(e) => setAcquisitionDate(e.target.value)} /></HmsField>

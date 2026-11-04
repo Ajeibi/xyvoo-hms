@@ -2,29 +2,29 @@ import { CardBlockSkeleton, PageHeaderSkeleton, StatTilesSkeleton } from "@/comp
 
 export default function DashboardLoading() {
   return (
-    <div className="mx-auto w-full max-w-[1500px] px-6 py-8 sm:px-8">
+    <div className="mx-auto w-full max-w-[1500px] px-3 py-2 sm:px-8 sm:py-8">
       <PageHeaderSkeleton withAction />
       <StatTilesSkeleton count={4} />
 
       <div className="mt-6 space-y-4">
         <CardBlockSkeleton lines={4} />
 
-        <div className="grid items-stretch gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+        <div className="grid grid-cols-1 items-stretch gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
           <CardBlockSkeleton lines={5} />
           <CardBlockSkeleton lines={5} />
         </div>
 
-        <div className="grid items-stretch gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-2">
           <CardBlockSkeleton lines={4} />
           <CardBlockSkeleton lines={4} />
         </div>
 
-        <div className="grid items-stretch gap-4 xl:grid-cols-2">
+        <div className="grid grid-cols-1 items-stretch gap-4 xl:grid-cols-2">
           <CardBlockSkeleton lines={4} />
           <CardBlockSkeleton lines={4} />
         </div>
 
-        <div className="grid items-stretch gap-4 xl:grid-cols-2">
+        <div className="grid grid-cols-1 items-stretch gap-4 xl:grid-cols-2">
           <CardBlockSkeleton lines={4} />
           <CardBlockSkeleton lines={4} />
         </div>

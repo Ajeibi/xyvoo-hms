@@ -8,7 +8,7 @@ export default function GuestsLoading() {
       <Skeleton className={`h-6 w-24 ${sk}`} />
       <Skeleton className={`mt-2 h-4 w-56 ${sk}`} />
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <div key={i} className="rounded-2xl border border-slate-200 bg-white p-4">
             <Skeleton className={`h-3 w-24 ${sk}`} />

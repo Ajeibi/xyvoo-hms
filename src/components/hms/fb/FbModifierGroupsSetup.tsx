@@ -251,7 +251,7 @@ export function FbModifierGroupsSetup({
 
   const editor = draft ? (
     <div className="space-y-5 rounded-2xl border border-orange-200 bg-orange-50/30 p-4 sm:p-5">
-      <div className="grid gap-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
         <HmsField id="fb-mod-name" label="Group name" hint="What staff see, e.g. Doneness, Sides, Extras.">
           <input
             id="fb-mod-name"
@@ -408,7 +408,7 @@ export function FbModifierGroupsSetup({
                           {allOn ? "Clear" : "Choose all"}
                         </button>
                       </div>
-                      <ul className="grid gap-1 sm:grid-cols-2">
+                      <ul className="grid grid-cols-1 gap-1 sm:grid-cols-2">
                         {cat.items.map((item) => (
                           <li key={item.id}>
                             <label className="flex min-h-10 cursor-pointer items-center gap-2 rounded-lg px-2 text-sm text-slate-800 hover:bg-slate-50">

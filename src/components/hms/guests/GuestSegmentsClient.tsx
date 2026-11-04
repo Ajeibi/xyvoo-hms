@@ -157,7 +157,7 @@ export function GuestSegmentsClient({
 
       {open ? (
         <HmsCard id="segment-builder" icon={Layers} meaning="guests" title="Build a segment" description="Fill in only the rules you need. Guests must match all of them.">
-          <form onSubmit={save} className="grid gap-4 sm:grid-cols-6" aria-label="Build a segment">
+          <form onSubmit={save} className="grid grid-cols-1 gap-4 sm:grid-cols-6" aria-label="Build a segment">
             <div className="sm:col-span-6">
               <HmsField id="seg-name" label="Name">
                 <input id="seg-name" className={hmsInput} required value={d.name} onChange={(e) => set("name", e.target.value)} placeholder="Weekend regulars" />

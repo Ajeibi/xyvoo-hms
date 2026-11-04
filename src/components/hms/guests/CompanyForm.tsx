@@ -90,7 +90,7 @@ export function CompanyForm({
   return (
     <form onSubmit={save} className="space-y-4" aria-label={companyId ? "Change company details" : "Add a company"}>
       <HmsAlert message={error} />
-      <div className="grid gap-4 sm:grid-cols-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-6">
         {field("name", "Company name", { optional: false })}
         {field("industry", "Industry")}
         {field("contactName", "Contact person")}

@@ -22,7 +22,7 @@ export function SettingsDepartmentPointer({
 }) {
   const tone = HMS_MEANING[meaning];
   return (
-    <div className={`flex items-start gap-3 rounded-2xl p-5 ${tone.tint}`}>
+    <div className={`flex items-start gap-3 rounded-2xl p-3 sm:p-5 ${tone.tint}`}>
       {Icon ? (
         <span aria-hidden className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-sm ${tone.iconBox}`}>
           <Icon className="h-5 w-5" />

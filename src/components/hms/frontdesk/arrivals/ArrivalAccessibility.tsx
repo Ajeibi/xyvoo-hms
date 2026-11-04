@@ -89,7 +89,7 @@ export function ArrivalAccessibility({
 
   return (
     <div className="space-y-3">
-      <ul className="grid gap-2 sm:grid-cols-2">
+      <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {ACCESSIBILITY_FLAGS.map((f) => (
           <li key={f}>
             <label className="flex min-h-11 cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-white p-3 text-sm has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50">

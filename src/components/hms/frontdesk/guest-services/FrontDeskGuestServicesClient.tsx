@@ -331,8 +331,8 @@ export function FrontDeskGuestServicesClient({
         </section>
       ) : null}
 
-      <section aria-label="Filter requests" className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <section aria-label="Filter requests" className="rounded-2xl border border-slate-200/80 bg-white p-3 sm:p-5 shadow-sm">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <label htmlFor="gs-search" className="mb-1 block text-sm font-medium text-slate-800">
               Search

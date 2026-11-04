@@ -99,7 +99,7 @@ export default async function HMSDashboardPage({ params }: { params: Promise<{ s
         showModal={setupSummary.showModal}
         tasks={setupSummary.tasks}
       />
-      <div className="mx-auto w-full max-w-[1500px] px-6 py-8 sm:px-8">
+      <div className="mx-auto w-full max-w-[1500px] px-3 py-2 sm:px-8 sm:py-8">
         <HMSOverviewCards
           hotelName={hotelName}
           actionHref={`/hms/${slug}/settings#rooms-pricing-setup`}
@@ -162,7 +162,7 @@ export default async function HMSDashboardPage({ params }: { params: Promise<{ s
             occupancyRateToday={analyticsModel.financialBase.occupancyRate}
           />
 
-          <div className="grid items-stretch gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+          <div className="grid grid-cols-1 items-stretch gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
             <ReservationsFrontDeskCard items={analyticsModel.movementItems} />
             <OccupancyStatisticsCard trend={analyticsModel.occupancyTrend} />
           </div>
@@ -178,12 +178,12 @@ export default async function HMSDashboardPage({ params }: { params: Promise<{ s
             <HMSPricingRulesCard pricingSetup={pricingSetup} summary={roomPricingSummary} />
           </div>
 
-          <div className="grid items-stretch gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+          <div className="grid grid-cols-1 items-stretch gap-4 lg:grid-cols-[0.9fr_1.1fr]">
             <RoomStatusCard items={analyticsModel.roomStatusItems} />
             <FloorStatusCard items={analyticsModel.floorStatusItems} />
           </div>
 
-          <div className="grid items-stretch gap-4 xl:grid-cols-2">
+          <div className="grid grid-cols-1 items-stretch gap-4 xl:grid-cols-2">
             <FoodBeverageCard viewsByPeriod={analyticsModel.foodAndBeverageViews} />
             <KitchenCard
               viewsByPeriod={analyticsModel.kitchenViews}
@@ -191,7 +191,7 @@ export default async function HMSDashboardPage({ params }: { params: Promise<{ s
             />
           </div>
 
-          <div className="grid items-stretch gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+          <div className="grid grid-cols-1 items-stretch gap-4 xl:grid-cols-[1.05fr_0.95fr]">
             <InventoryWatchCard
               summary={analyticsModel.inventorySummary}
               lowStockItems={analyticsModel.lowStockItems}

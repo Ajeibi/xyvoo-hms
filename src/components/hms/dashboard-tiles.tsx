@@ -55,7 +55,7 @@ export function HmsStatTile({
       ) : null}
     </>
   );
-  const className = `block rounded-2xl p-4 ${tone.tint}`;
+  const className = `block rounded-2xl p-3.5 sm:p-4 ${tone.tint}`;
   return href ? (
     <Link
       id={id}

@@ -790,7 +790,7 @@ export default function HotelMenuSetup({
 
   return (
     <TooltipProvider>
-    <div id="menu-setup" className="scroll-mt-24 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
+    <div id="menu-setup" className="scroll-mt-24 rounded-2xl border border-slate-200/80 bg-white p-3 shadow-sm sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
           <span aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-600 ring-1 ring-slate-200/60 shadow-xs">
