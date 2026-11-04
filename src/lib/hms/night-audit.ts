@@ -3,6 +3,7 @@ import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { getAccountIdByCode } from "@/lib/hms/chart-of-accounts";
 import { postJournalEntry, type JournalEntryLineInput } from "@/lib/hms/journal-entries";
 import { stayLinePart } from "@/lib/hms/folio";
+import { getHotelTimeZone, zonedDayBounds } from "@/lib/hms/business-date";
 
 /**
  * Bridges the gap where day-to-day guest folio activity and walk-in F&B POS sales never
@@ -57,13 +58,15 @@ export type NightAuditRunRow = {
   >;
   createdBy: string;
   createdAt: string;
+  automatic: boolean;
+  overrideReason: string | null;
+  exceptionCount: number;
+  noShowsProcessed: number;
+  emailedAt: string | null;
+  hasReport: boolean;
+  /** The ledger posting was reversed, so the day is open again. */
+  reversed: boolean;
 };
-
-function dayBoundsUtc(auditDate: string): { start: string; end: string } {
-  const start = `${auditDate}T00:00:00.000Z`;
-  const end = new Date(new Date(start).getTime() + 86_400_000).toISOString();
-  return { start, end };
-}
 
 export type NightAuditFolioRow = {
   kind: string;
@@ -187,8 +190,10 @@ export async function computeNightAuditBreakdown(
   service: SupabaseClient,
   tenantId: string,
   auditDate: string,
+  timeZone?: string,
 ): Promise<NightAuditBreakdown> {
-  const { start, end } = dayBoundsUtc(auditDate);
+  // The day is the hotel's own day, not the UTC day.
+  const { start, end } = zonedDayBounds(auditDate, timeZone ?? (await getHotelTimeZone(service, tenantId)));
 
   const [{ data: folioLines }, { data: fbOrders }] = await Promise.all([
     service
@@ -271,8 +276,8 @@ export function buildNightAuditLines(b: NightAuditBreakdown, accts: NightAuditAc
 
 export async function runNightAudit(
   service: SupabaseClient,
-  params: { tenantId: string; auditDate: string; createdBy: string },
-): Promise<{ ok: true; id: string; journalEntryId: string; breakdown: NightAuditBreakdown } | { ok: false; error: string }> {
+  params: { tenantId: string; auditDate: string; createdBy: string; automatic?: boolean; overrideReason?: string | null },
+): Promise<{ ok: true; id: string; journalEntryId: string | null; breakdown: NightAuditBreakdown } | { ok: false; error: string }> {
   const { data: existing } = await service
     .schema("hotel")
     .from("night_audit_runs")
@@ -340,18 +345,19 @@ export async function runNightAudit(
     return { ok: false, error: "Missing required accounts: Advance Guest Deposits (2300), for the deposits moved onto bills today." };
   }
 
-  if (lines.length < 2) {
-    return { ok: false, error: `Nothing to post for ${params.auditDate} — no folio or F&B activity found.` };
+  // A quiet day still closes: the business date moves on, with nothing to post.
+  let journalEntryId: string | null = null;
+  if (lines.length >= 2) {
+    const posted = await postJournalEntry(service, {
+      tenantId: params.tenantId,
+      entryDate: params.auditDate,
+      memo: `Night audit — ${params.auditDate}`,
+      createdBy: params.createdBy,
+      lines,
+    });
+    if (!posted.ok) return posted;
+    journalEntryId = posted.id;
   }
-
-  const posted = await postJournalEntry(service, {
-    tenantId: params.tenantId,
-    entryDate: params.auditDate,
-    memo: `Night audit — ${params.auditDate}`,
-    createdBy: params.createdBy,
-    lines,
-  });
-  if (!posted.ok) return posted;
 
   const { data: run, error } = await service
     .schema("hotel")
@@ -360,7 +366,7 @@ export async function runNightAudit(
       {
         tenant_id: params.tenantId,
         audit_date: params.auditDate,
-        journal_entry_id: posted.id,
+        journal_entry_id: journalEntryId,
         room_revenue: breakdown.roomRevenue,
         fb_revenue: breakdown.fbRevenue,
         other_revenue: breakdown.otherRevenue,
@@ -370,6 +376,11 @@ export async function runNightAudit(
         city_ledger_total: breakdown.cityLedgerTotal,
         guest_ledger_net: breakdown.guestLedgerNet,
         created_by: params.createdBy,
+        created_at: new Date().toISOString(),
+        automatic: params.automatic ?? false,
+        override_reason: params.overrideReason ?? null,
+        report: null,
+        emailed_at: null,
       },
       { onConflict: "tenant_id,audit_date" },
     )
@@ -383,10 +394,10 @@ export async function runNightAudit(
     action: "night_audit_run",
     entityType: "night_audit_run",
     entityId: run.id as string,
-    after: { audit_date: params.auditDate, journal_entry_id: posted.id },
+    after: { audit_date: params.auditDate, journal_entry_id: journalEntryId, automatic: params.automatic ?? false, override_reason: params.overrideReason ?? null },
   });
 
-  return { ok: true, id: run.id as string, journalEntryId: posted.id, breakdown };
+  return { ok: true, id: run.id as string, journalEntryId, breakdown };
 }
 
 export async function listNightAuditRuns(service: SupabaseClient, tenantId: string): Promise<NightAuditRunRow[]> {
@@ -394,11 +405,19 @@ export async function listNightAuditRuns(service: SupabaseClient, tenantId: stri
     .schema("hotel")
     .from("night_audit_runs")
     .select(
-      "id,audit_date,journal_entry_id,room_revenue,fb_revenue,other_revenue,unclassified_revenue,cash_total,card_total,city_ledger_total,guest_ledger_net,created_by,created_at",
+      "id,audit_date,journal_entry_id,room_revenue,fb_revenue,other_revenue,unclassified_revenue,cash_total,card_total,city_ledger_total,guest_ledger_net,created_by,created_at,automatic,override_reason,exceptions,no_shows_processed,emailed_at,report",
     )
     .eq("tenant_id", tenantId)
-    .order("audit_date", { ascending: false });
+    .order("audit_date", { ascending: false })
+    .limit(400);
   if (error) throw new Error(error.message);
+
+  const entryIds = (data ?? []).map((r) => r.journal_entry_id as string | null).filter((id): id is string => Boolean(id));
+  const reversedIds = new Set<string>();
+  for (let i = 0; i < entryIds.length; i += 100) {
+    const { data: entries } = await service.schema("hotel").from("journal_entries").select("id,reversed_by").eq("tenant_id", tenantId).in("id", entryIds.slice(i, i + 100));
+    for (const e of entries ?? []) if (e.reversed_by) reversedIds.add(e.id as string);
+  }
 
   return (data ?? []).map((r) => ({
     id: r.id as string,
@@ -416,5 +435,12 @@ export async function listNightAuditRuns(service: SupabaseClient, tenantId: stri
     },
     createdBy: r.created_by as string,
     createdAt: r.created_at as string,
+    automatic: Boolean(r.automatic),
+    overrideReason: (r.override_reason as string | null) ?? null,
+    exceptionCount: Array.isArray(r.exceptions) ? r.exceptions.length : 0,
+    noShowsProcessed: Number(r.no_shows_processed) || 0,
+    emailedAt: (r.emailed_at as string | null) ?? null,
+    hasReport: r.report != null,
+    reversed: Boolean(r.journal_entry_id && reversedIds.has(r.journal_entry_id as string)),
   }));
 }

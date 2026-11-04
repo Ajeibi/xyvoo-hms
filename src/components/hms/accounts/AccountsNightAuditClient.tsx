@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -7,10 +8,13 @@ import {
   BedDouble,
   BookUser,
   Building2,
+  CalendarClock,
+  CheckCircle2,
   CircleAlert,
   CircleHelp,
   CreditCard,
   History,
+  ListChecks,
   Landmark,
   Moon,
   Shapes,
@@ -19,7 +23,13 @@ import {
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { formatDateTime } from "@/lib/format-date";
 import type { NightAuditBreakdown, NightAuditRunRow } from "@/lib/hms/night-audit";
+import type { AuditCheck } from "@/lib/hms/night-audit-checks";
+import type { AuditReport } from "@/lib/hms/night-audit-report";
+import type { NightAuditSettings } from "@/lib/hms/night-audit-settings-shared";
+import type { BusinessDateInfo } from "@/lib/hms/business-date";
 import { AccountsSubNav } from "@/components/hms/accounts/AccountsSubNav";
+import { NightAuditReportView } from "@/components/hms/accounts/NightAuditReportView";
+import { NightAuditSettingsCard } from "@/components/hms/accounts/NightAuditSettingsCard";
 import {
   HmsCard,
   HmsEmptyState,
@@ -31,12 +41,6 @@ import {
   hmsButton,
   hmsInput,
 } from "@/components/hms/hms-ui";
-
-function yesterday(): string {
-  const d = new Date();
-  d.setDate(d.getDate() - 1);
-  return d.toISOString().slice(0, 10);
-}
 
 function fmt(n: number) {
   return n.toFixed(2);
@@ -51,31 +55,52 @@ function Warning({ children }: { children: React.ReactNode }) {
   );
 }
 
+type Preview = { breakdown: NightAuditBreakdown; checks: { checks: AuditCheck[]; blockers: number; warnings: number } };
+
+const SEVERITY_STYLE: Record<AuditCheck["severity"], string> = {
+  ok: "border-emerald-200 bg-emerald-50 text-emerald-900",
+  info: "border-sky-200 bg-sky-50 text-sky-900",
+  warning: "border-amber-200 bg-amber-50 text-amber-900",
+  blocker: "border-red-200 bg-red-50 text-red-900",
+};
+const SEVERITY_WORD: Record<AuditCheck["severity"], string> = { ok: "Fine", info: "For your information", warning: "Look at this", blocker: "Must fix" };
+
 export function AccountsNightAuditClient({
   slug,
   runs,
+  business,
+  settings,
   canRun,
+  canChangeSettings,
   canAccessAllDepartments,
 }: {
   slug: string;
   runs: NightAuditRunRow[];
+  business: BusinessDateInfo;
+  settings: NightAuditSettings;
   canRun: boolean;
+  canChangeSettings: boolean;
   canAccessAllDepartments: boolean;
 }) {
   const router = useRouter();
-  const [date, setDate] = useState(yesterday);
-  const [breakdown, setBreakdown] = useState<NightAuditBreakdown | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [date, setDate] = useState(business.businessDate);
+  const [preview, setPreview] = useState<Preview | null>(null);
+  const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
+  const [reason, setReason] = useState("");
+  const [report, setReport] = useState<AuditReport | null>(null);
+  const [busyRun, setBusyRun] = useState<string | null>(null);
 
+  // Reload the checks when a day is closed or reversed, not on every refresh of the page data.
+  const runsKey = runs.map((r) => `${r.id}:${r.reversed}`).join(",");
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    setBreakdown(null);
+    setPreview(null);
     fetch(`/api/hotel/accounts/night-audit?${new URLSearchParams({ slug, date })}`)
       .then((res) => res.json())
-      .then((json: { breakdown?: NightAuditBreakdown; error?: string }) => {
-        if (!cancelled && !json.error) setBreakdown(json.breakdown ?? null);
+      .then((json: Partial<Preview> & { error?: string }) => {
+        if (!cancelled && !json.error && json.breakdown && json.checks) setPreview({ breakdown: json.breakdown, checks: json.checks });
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -83,9 +108,13 @@ export function AccountsNightAuditClient({
     return () => {
       cancelled = true;
     };
-  }, [slug, date]);
+  }, [slug, date, runsKey]);
 
-  const alreadyRun = runs.some((r) => r.auditDate === date);
+  const standing = runs.find((r) => r.auditDate === date && !r.reversed);
+  const blockers = preview?.checks.blockers ?? 0;
+  const warnings = preview?.checks.warnings ?? 0;
+  const reasonMissing = warnings > 0 && reason.trim().length < 3;
+  const breakdown = preview?.breakdown ?? null;
 
   const runAudit = async () => {
     setRunning(true);
@@ -93,17 +122,57 @@ export function AccountsNightAuditClient({
       const res = await fetch("/api/hotel/accounts/night-audit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug, date }),
+        body: JSON.stringify({ slug, date, overrideReason: reason.trim() || undefined }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toastError("Could not run night audit", data.error ?? "Try again.");
+        toastError("Could not close the day", data.error ?? "Try again.");
         return;
       }
-      toastSuccess(`Night audit posted for ${date}.`);
+      toastSuccess(`${date} is closed.`, [data.noShows ? `${data.noShows} no-show(s) handled.` : "", data.emailed ? `Report emailed to ${data.emailed}.` : ""].filter(Boolean).join(" ") || undefined);
+      setReason("");
+      const next = new Date(`${date}T00:00:00Z`);
+      next.setUTCDate(next.getUTCDate() + 1);
+      setDate(next.toISOString().slice(0, 10));
       router.refresh();
     } finally {
       setRunning(false);
+    }
+  };
+
+  const openReport = async (run: NightAuditRunRow) => {
+    setBusyRun(run.id);
+    try {
+      const res = await fetch(`/api/hotel/accounts/night-audit?${new URLSearchParams({ slug, run: run.id })}`);
+      const data = (await res.json().catch(() => ({}))) as { report?: AuditReport | null };
+      if (!data.report) {
+        toastError("No report", "This day was closed before reports were kept.");
+        return;
+      }
+      setReport(data.report);
+      requestAnimationFrame(() => document.getElementById("night-audit-report")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    } finally {
+      setBusyRun(null);
+    }
+  };
+
+  const emailReport = async (run: NightAuditRunRow) => {
+    setBusyRun(run.id);
+    try {
+      const res = await fetch("/api/hotel/accounts/night-audit", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug, runId: run.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toastError("Could not send", data.error ?? "Try again.");
+        return;
+      }
+      toastSuccess(`Report for ${run.auditDate} sent to ${data.sent}.`);
+      router.refresh();
+    } finally {
+      setBusyRun(null);
     }
   };
 
@@ -113,10 +182,76 @@ export function AccountsNightAuditClient({
         eyebrow="Accounts"
         meaning="money"
         title="Night audit"
-        description="Summarises a day's guest folio activity and walk-in F&B sales into one balanced posting to the ledger."
+        description="Closes the hotel's day: checks nothing is left open, charges overdue nights, handles no-shows, posts the day to the ledger and sends the end-of-day report."
       />
 
       <AccountsSubNav slug={slug} canAccessAllDepartments={canAccessAllDepartments} />
+
+      <HmsCard id="night-audit-business-date" title="Business date" icon={CalendarClock} meaning="money" className="print:hidden">
+        <div className="flex flex-wrap items-baseline gap-x-8 gap-y-2">
+          <p className="text-2xl font-semibold tabular-nums text-slate-900">{business.businessDate}</p>
+          <p className="text-sm text-slate-600">
+            Today at the hotel is {business.today}.{" "}
+            {business.lastAudited ? `Last day closed: ${business.lastAudited}.` : "No day has been closed yet."}{" "}
+            {business.daysBehind > 1 ? `The business date is ${business.daysBehind} days behind, so ${business.daysBehind} days are waiting to be closed.` : null}
+            {!business.canAudit ? " This day has not finished yet; it can be closed from tomorrow." : null}
+          </p>
+        </div>
+        <p className="mt-2 text-sm text-slate-600">
+          {settings.autoRun ? `The day closes by itself from ${String(settings.autoRunHour).padStart(2, "0")}:00 hotel time if nobody has closed it.` : "Automatic closing is off."}
+        </p>
+      </HmsCard>
+
+      <HmsCard
+        id="night-audit-checks"
+        title={`Before closing ${date}`}
+        icon={ListChecks}
+        meaning="money"
+        className="print:hidden"
+        actions={
+          <div className="w-[12rem]">
+            <HmsField id="night-audit-date" label="Day">
+              <input id="night-audit-date" type="date" className={hmsInput} value={date} max={business.today} onChange={(e) => e.target.value && setDate(e.target.value)} />
+            </HmsField>
+          </div>
+        }
+      >
+        {loading ? (
+          <p role="status" className="text-sm text-slate-600">
+            Checking…
+          </p>
+        ) : preview ? (
+          <ul className="space-y-2">
+            {preview.checks.checks.map((c) => (
+              <li key={c.key} className={`rounded-xl border px-4 py-3 text-sm ${SEVERITY_STYLE[c.severity]}`}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="flex items-center gap-2 font-semibold">
+                    {c.severity === "ok" ? <CheckCircle2 className="h-4 w-4" aria-hidden /> : <CircleAlert className="h-4 w-4" aria-hidden />}
+                    {c.title}
+                    {c.count > 0 ? <span className="font-normal">({c.count})</span> : null}
+                    <span className="sr-only">: {SEVERITY_WORD[c.severity]}</span>
+                  </p>
+                  {(c.severity === "warning" || c.severity === "blocker") && c.fixPath ? (
+                    <Link href={`/hms/${slug}/${c.fixPath}`} className="font-medium underline underline-offset-2">
+                      Go and fix
+                    </Link>
+                  ) : null}
+                </div>
+                <p className="mt-1">{c.detail}</p>
+                {c.items.length > 0 ? (
+                  <ul className="mt-2 list-disc space-y-0.5 pl-5">
+                    {c.items.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-slate-600">The checks couldn&apos;t be loaded.</p>
+        )}
+      </HmsCard>
 
       <HmsCard
         id="night-audit-day"
@@ -124,20 +259,6 @@ export function AccountsNightAuditClient({
         icon={Moon}
         meaning="money"
         className="print:border-0 print:shadow-none"
-        actions={
-          <div className="flex flex-wrap items-end gap-3 print:hidden">
-            <div className="w-[12rem]">
-              <HmsField id="night-audit-date" label="Audit date">
-                <input id="night-audit-date" type="date" className={hmsInput} value={date} onChange={(e) => setDate(e.target.value)} />
-              </HmsField>
-            </div>
-            {canRun ? (
-              <button type="button" className={hmsButton.primary} disabled={running || loading || alreadyRun} onClick={() => void runAudit()}>
-                {running ? "Posting…" : alreadyRun ? "Already audited" : "Run night audit"}
-              </button>
-            ) : null}
-          </div>
-        }
       >
         {loading ? (
           <p role="status" className="text-sm text-slate-600">
@@ -182,26 +303,50 @@ export function AccountsNightAuditClient({
               </Warning>
             ) : null}
             <p className="text-sm text-slate-600">
-              {breakdown.folioLineCount} folio line(s), {breakdown.walkInFbOrderCount} walk-in F&amp;B order(s) for {date}.
+              {breakdown.folioLineCount} folio line(s), {breakdown.walkInFbOrderCount} walk-in F&amp;B order(s) for {date}. Overdue nights and no-shows are
+              added when the day is closed.
             </p>
+
+            {canRun ? (
+              <div className="space-y-3 border-t border-slate-100 pt-4 print:hidden">
+                {warnings > 0 && !standing && blockers === 0 ? (
+                  <HmsField id="night-audit-reason" label="Why close the day with things still open?">
+                    <input id="night-audit-reason" className={hmsInput} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="For example: the three bills are being settled at breakfast" />
+                  </HmsField>
+                ) : null}
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    className={hmsButton.primary}
+                    disabled={running || loading || Boolean(standing) || blockers > 0 || (warnings > 0 && reasonMissing)}
+                    onClick={() => void runAudit()}
+                  >
+                    {running ? "Closing…" : standing ? "Already closed" : `Close ${date}`}
+                  </button>
+                  {blockers > 0 ? <p className="text-sm text-red-700">Fix the items marked &ldquo;Must fix&rdquo; first.</p> : null}
+                </div>
+              </div>
+            ) : null}
           </div>
         ) : (
           <p className="text-sm text-slate-600">No activity found for this date.</p>
         )}
       </HmsCard>
 
-      <HmsCard id="night-audit-history" title="Run history" icon={History} meaning="money" flush className="print:border-0 print:shadow-none">
+      {report ? <NightAuditReportView report={report} onClose={() => setReport(null)} /> : null}
+
+      <HmsCard id="night-audit-history" title="Days closed" icon={History} meaning="money" flush className="print:hidden">
         {runs.length === 0 ? (
           <HmsEmptyState
             bare
             art="page"
             meaning="money"
             title="No night audits run yet"
-            description="Each audit you run appears here with its totals."
+            description="Each day you close appears here with its totals and its report."
           />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-left text-sm">
+            <table className="w-full min-w-[860px] text-left text-sm">
               <thead className="border-b border-slate-200 bg-slate-50 text-sm font-medium text-slate-600">
                 <tr>
                   <th scope="col" className="px-5 py-3">Date</th>
@@ -209,18 +354,46 @@ export function AccountsNightAuditClient({
                   <th scope="col" className="px-5 py-3 text-right">F&amp;B</th>
                   <th scope="col" className="px-5 py-3 text-right">Other</th>
                   <th scope="col" className="px-5 py-3 text-right">Guest ledger</th>
-                  <th scope="col" className="px-5 py-3">Posted</th>
+                  <th scope="col" className="px-5 py-3">Closed</th>
+                  <th scope="col" className="px-5 py-3">Report</th>
                 </tr>
               </thead>
               <tbody>
                 {runs.map((r) => (
                   <tr key={r.id} className="border-b border-slate-100 last:border-0">
-                    <th scope="row" className="whitespace-nowrap px-5 py-3 text-left font-medium tabular-nums text-slate-900">{r.auditDate}</th>
+                    <th scope="row" className="whitespace-nowrap px-5 py-3 text-left font-medium tabular-nums text-slate-900">
+                      {r.auditDate}
+                      {r.reversed ? <span className="ml-2 rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">Reversed</span> : null}
+                    </th>
                     <td className="whitespace-nowrap px-5 py-3 text-right tabular-nums text-slate-700">{fmt(r.breakdown.roomRevenue)}</td>
                     <td className="whitespace-nowrap px-5 py-3 text-right tabular-nums text-slate-700">{fmt(r.breakdown.fbRevenue)}</td>
                     <td className="whitespace-nowrap px-5 py-3 text-right tabular-nums text-slate-700">{fmt(r.breakdown.otherRevenue)}</td>
                     <td className="whitespace-nowrap px-5 py-3 text-right tabular-nums text-slate-700">{fmt(r.breakdown.guestLedgerNet)}</td>
-                    <td className="whitespace-nowrap px-5 py-3 text-sm text-slate-600">{formatDateTime(r.createdAt)}</td>
+                    <td className="px-5 py-3 text-sm text-slate-600">
+                      <span className="whitespace-nowrap">{formatDateTime(r.createdAt)}</span>
+                      <span className="block text-xs">
+                        {r.automatic ? "Automatically" : "By staff"}
+                        {r.noShowsProcessed > 0 ? ` · ${r.noShowsProcessed} no-show(s)` : ""}
+                        {r.exceptionCount > 0 ? ` · ${r.exceptionCount} left open` : ""}
+                      </span>
+                      {r.overrideReason ? <span className="block text-xs">Reason: {r.overrideReason}</span> : null}
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-3">
+                      {r.hasReport ? (
+                        <div className="flex gap-1">
+                          <button type="button" className={hmsButton.small} disabled={busyRun === r.id} onClick={() => void openReport(r)}>
+                            View
+                          </button>
+                          {canRun ? (
+                            <button type="button" className={hmsButton.small} disabled={busyRun === r.id} onClick={() => void emailReport(r)}>
+                              {r.emailedAt ? "Email again" : "Email"}
+                            </button>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <span className="text-slate-500">None kept</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -228,6 +401,8 @@ export function AccountsNightAuditClient({
           </div>
         )}
       </HmsCard>
+
+      {canChangeSettings ? <NightAuditSettingsCard slug={slug} settings={settings} businessDate={business.businessDate} today={business.today} /> : null}
     </HmsPage>
   );
 }
