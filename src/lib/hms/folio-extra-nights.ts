@@ -98,6 +98,8 @@ export function splitOwedNights(owed: string[], confirmedOn: string | null | und
 
 type Snapshot = {
   nightlyBar?: number;
+  /** For a stay priced night by night: the last booked night's price, which a night after it costs. */
+  extraNightBar?: number;
   discountPercent?: number;
   discountScope?: string;
   taxes?: { serviceChargeRatePercent?: number; stateLevyRatePercent?: number };
@@ -124,12 +126,17 @@ export function extraNightPricing(reservation: ExtraNightReservation, pricing: H
   const ratePerNight = Number(reservation.rate_per_night) || 0;
   const bookedAverage = (Number(reservation.total_room_charges) || 0) / bookedNights;
 
-  const nightlyBar = Number(snap.nightlyBar) > 0 ? Number(snap.nightlyBar) : ratePerNight || bookedAverage;
+  const nightlyBar =
+    Number(snap.extraNightBar) > 0
+      ? Number(snap.extraNightBar)
+      : Number(snap.nightlyBar) > 0
+        ? Number(snap.nightlyBar)
+        : ratePerNight || bookedAverage;
   // Only an all-nights discount carries on: a first or last night discount was for those nights.
   const discountPercent =
     snap.discountScope === "all_nights" ? Math.min(100, Math.max(0, Number(snap.discountPercent) || 0)) : 0;
   const nightlyRate =
-    Number(snap.nightlyBar) > 0 || ratePerNight > 0
+    Number(snap.extraNightBar) > 0 || Number(snap.nightlyBar) > 0 || ratePerNight > 0
       ? roundMoney(nightlyBar * (1 - discountPercent / 100))
       : roundMoney(bookedAverage);
 

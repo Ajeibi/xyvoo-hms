@@ -39,12 +39,35 @@ export function ReservationManageCard({
   const [arrival, setArrival] = useState(arrivalDay);
   const [departure, setDeparture] = useState(departureDay);
   const [preview, setPreview] = useState<string[] | null>(null);
+  const [rate, setRate] = useState<{
+    planCode: string | null;
+    planName: string | null;
+    averageRate: number;
+    roomTotal: number;
+    nights: { date: string; base: number; label: string | null }[];
+    restrictionOverride: string | null;
+  } | null>(null);
+  const [restrictions, setRestrictions] = useState<string[]>([]);
+  const [override, setOverride] = useState<{ reason: string; pin: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [emails, setEmails] = useState<ReservationEmailLogRow[]>([]);
   const editable = status === "confirmed";
   const cancelled = status === "cancelled";
   const changed = arrival !== arrivalDay || departure !== departureDay;
+
+  useEffect(() => {
+    let off = false;
+    fetch(`/api/hotel/reservations/${reservationId}/rate?slug=${encodeURIComponent(slug)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!off && d) setRate(d);
+      })
+      .catch(() => {});
+    return () => {
+      off = true;
+    };
+  }, [reservationId, slug, arrivalDay, departureDay]);
 
   useEffect(() => {
     let off = false;
@@ -64,21 +87,34 @@ export function ReservationManageCard({
     const res = await fetch(`/api/hotel/reservations/${reservationId}/change`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ slug, arrivalDay: arrival, departureDay: departure, preview: !apply }),
+      body: JSON.stringify({
+        slug,
+        arrivalDay: arrival,
+        departureDay: departure,
+        preview: !apply,
+        restrictionOverrideReason: override?.reason.trim() || undefined,
+        managerPin: override?.pin || undefined,
+      }),
     });
     const data = await res.json().catch(() => ({}));
     setBusy(false);
     if (!res.ok) {
       setPreview(null);
+      if (data.canOverrideRestriction || data.requiresPin) setOverride((o) => o ?? { reason: "", pin: "" });
       toastError("Not changed", data.error ?? "Please try again.");
       return;
     }
     if (!apply) {
       setPreview(data.changes ?? []);
+      const broken: string[] = data.restrictions ?? [];
+      setRestrictions(broken);
+      if (broken.length > 0) setOverride((o) => o ?? { reason: "", pin: "" });
       return;
     }
     toastSuccess("Booking changed", "The new dates are saved.");
     setPreview(null);
+    setRestrictions([]);
+    setOverride(null);
     router.refresh();
   };
 
@@ -98,16 +134,40 @@ export function ReservationManageCard({
 
   return (
     <HmsCard id="reservation-manage" icon={CalendarDays} meaning="rooms" title="Change or cancel" description="Dates are checked against the rooms free and priced before anything is saved.">
+      {rate && rate.averageRate > 0 ? (
+        <div className="mb-4 rounded-lg bg-slate-50 p-3 text-sm text-slate-800">
+          <p className="font-medium text-slate-900">
+            Rate: {rate.planName ?? "Standard rate"}
+            {rate.planCode ? ` (${rate.planCode})` : ""}
+          </p>
+          <p className="mt-0.5">
+            {new Intl.NumberFormat("en-NG", { style: "currency", currency }).format(rate.averageRate)} a night on average, room total{" "}
+            {new Intl.NumberFormat("en-NG", { style: "currency", currency }).format(rate.roomTotal)} before taxes.
+          </p>
+          {rate.nights.length > 0 && new Set(rate.nights.map((n) => n.base)).size > 1 ? (
+            <ul className="mt-1 list-disc pl-5 text-slate-700">
+              {rate.nights.map((n) => (
+                <li key={n.date}>
+                  {new Date(`${n.date}T00:00:00Z`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })}:{" "}
+                  {new Intl.NumberFormat("en-NG", { style: "currency", currency }).format(n.base)}
+                  {n.label ? ` (${n.label})` : ""}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {rate.restrictionOverride ? <p className="mt-1 text-amber-800">Sold past a rate rule by a manager: {rate.restrictionOverride}</p> : null}
+        </div>
+      ) : null}
       {editable ? (
         <div className="space-y-3">
           <div className="flex flex-wrap items-end gap-3">
             <label className="text-sm font-medium text-slate-800">
               Arrival
-              <input type="date" className={`${hmsInput} mt-1`} value={arrival} onChange={(e) => { setArrival(e.target.value); setPreview(null); }} />
+              <input type="date" className={`${hmsInput} mt-1`} value={arrival} onChange={(e) => { setArrival(e.target.value); setPreview(null); setRestrictions([]); setOverride(null); }} />
             </label>
             <label className="text-sm font-medium text-slate-800">
               Departure
-              <input type="date" className={`${hmsInput} mt-1`} min={arrival} value={departure} onChange={(e) => { setDeparture(e.target.value); setPreview(null); }} />
+              <input type="date" className={`${hmsInput} mt-1`} min={arrival} value={departure} onChange={(e) => { setDeparture(e.target.value); setPreview(null); setRestrictions([]); setOverride(null); }} />
             </label>
             <button type="button" className={hmsButton.small} disabled={busy || !changed || !arrival || !departure} onClick={() => send(false)}>
               Check the change
@@ -120,7 +180,41 @@ export function ReservationManageCard({
                   <li key={c}>{c}</li>
                 ))}
               </ul>
-              <button type="button" className={`${hmsButton.primary} mt-3`} disabled={busy} onClick={() => send(true)}>
+              {restrictions.length > 0 ? (
+                <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-900">
+                  <p className="font-medium">These dates break the rate plan&apos;s rules</p>
+                  <ul className="mt-1 list-disc pl-5">
+                    {restrictions.map((c) => (
+                      <li key={c}>{c}</li>
+                    ))}
+                  </ul>
+                  <p className="mt-2 text-xs">A manager can still allow it. Give the reason and their PIN (an admin needs no PIN).</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <input
+                      className={hmsInput}
+                      aria-label="Reason for the exception"
+                      placeholder="Reason"
+                      value={override?.reason ?? ""}
+                      onChange={(e) => setOverride((o) => ({ pin: o?.pin ?? "", reason: e.target.value }))}
+                    />
+                    <input
+                      className={hmsInput}
+                      type="password"
+                      autoComplete="off"
+                      aria-label="Manager PIN"
+                      placeholder="Manager PIN"
+                      value={override?.pin ?? ""}
+                      onChange={(e) => setOverride((o) => ({ reason: o?.reason ?? "", pin: e.target.value }))}
+                    />
+                  </div>
+                </div>
+              ) : null}
+              <button
+                type="button"
+                className={`${hmsButton.primary} mt-3`}
+                disabled={busy || (restrictions.length > 0 && !override?.reason.trim())}
+                onClick={() => send(true)}
+              >
                 Save the change
               </button>
             </div>

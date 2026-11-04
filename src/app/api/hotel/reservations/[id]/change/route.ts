@@ -20,6 +20,7 @@ const Body = z.object({
   sendEmail: z.boolean().optional(),
   overrideReason: z.string().trim().max(300).optional(),
   managerPin: z.string().optional(),
+  restrictionOverrideReason: z.string().trim().max(300).optional(),
 });
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -37,6 +38,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       overrideLimit = { reason: body.overrideReason };
     }
 
+    let overrideRestrictions: { reason: string } | null = null;
+    if (body.restrictionOverrideReason) {
+      if (!(await managerApproved(auth, body.managerPin))) {
+        return NextResponse.json({ error: body.managerPin ? "That manager PIN isn't right." : "Moving a booking onto dates that break a rate restriction needs a manager's PIN.", requiresPin: true }, { status: 403 });
+      }
+      overrideRestrictions = { reason: body.restrictionOverrideReason };
+    }
+
     const result = await changeReservation(auth.service, {
       tenantId: auth.tenant.id,
       reservationId: id,
@@ -47,11 +56,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       today: todayDay(),
       preview: body.preview,
       overrideLimit,
+      overrideRestrictions,
     });
 
     if (!result.ok) {
-      const status = result.code === "not_found" ? 404 : result.code === "room_taken" || result.code === "type_full" ? 409 : 400;
-      return NextResponse.json({ error: result.error, code: result.code ?? null, canOverride: result.code === "type_full" }, { status });
+      const status = result.code === "not_found" ? 404 : result.code === "room_taken" || result.code === "type_full" || result.code === "restricted" ? 409 : 400;
+      return NextResponse.json({ error: result.error, code: result.code ?? null, canOverride: result.code === "type_full", canOverrideRestriction: result.code === "restricted" }, { status });
     }
 
     const summary = describeChange(result);
@@ -62,6 +72,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       oldTotal: result.plan.oldTotalRoom,
       newTotal: result.plan.newTotalRoom,
       roomCode: result.after.roomCode,
+      restrictions: result.plan.restrictions,
     };
     if (body.preview) return NextResponse.json(payload);
 

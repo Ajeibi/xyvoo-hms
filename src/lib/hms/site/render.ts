@@ -19,10 +19,11 @@ function assetUrl(templateId: string, value: string) {
 
 export function renderHotelPage(
   html: string,
-  options: { templateId: string; hotelSlug: string; canonicalUrl: string; live: boolean },
+  options: { templateId: string; hotelSlug: string; canonicalUrl: string; live: boolean; /** Serve the template's script from this hotel's own /site.js (its currency and live prices). */ ownScript?: boolean },
 ): string {
   const { templateId, hotelSlug, canonicalUrl, live } = options;
   let out = html.replace(/\b(href|src)="([^"]*)"/g, (_, attr: string, value: string) => `${attr}="${assetUrl(templateId, value)}"`);
+  if (options.ownScript) out = out.replace(`src="/template-previews/${templateId}/main.js`, 'src="site.js');
 
   out = out.replace(/data-endpoint=""/g, `data-endpoint="${BOOKING_REQUEST_ENDPOINT}"`);
   out = out.replace(/data-hotel="[^"]*"/g, `data-hotel="${hotelSlug}"`);

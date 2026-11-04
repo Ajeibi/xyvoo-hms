@@ -40,6 +40,9 @@ const Body = z.object({
   sendEmail: z.boolean().optional(),
   overrideReason: z.string().trim().max(300).optional(),
   managerPin: z.string().optional(),
+  ratePlan: z.string().max(80).nullish(),
+  arCustomerId: z.string().uuid().nullish(),
+  restrictionOverrideReason: z.string().trim().max(300).optional(),
 });
 
 export async function POST(req: Request) {
@@ -54,6 +57,14 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: body.managerPin ? "That manager PIN isn't right." : "Selling past the limit needs a manager's PIN.", requiresPin: true }, { status: 403 });
       }
       overrideLimit = { reason: body.overrideReason };
+    }
+
+    let overrideRestrictions: { reason: string } | null = null;
+    if (body.restrictionOverrideReason) {
+      if (!(await managerApproved(auth, body.managerPin))) {
+        return NextResponse.json({ error: body.managerPin ? "That manager PIN isn't right." : "Selling a stay that breaks a rate restriction needs a manager's PIN.", requiresPin: true }, { status: 403 });
+      }
+      overrideRestrictions = { reason: body.restrictionOverrideReason };
     }
 
     let groupBookingId: string | null = null;
@@ -88,9 +99,12 @@ export async function POST(req: Request) {
       allotmentId: body.allotmentId,
       groupBookingId,
       overrideLimit,
+      ratePlan: body.ratePlan,
+      arCustomerId: body.arCustomerId,
+      overrideRestrictions,
     });
     if (!result.ok) {
-      return NextResponse.json({ error: result.error, code: result.code ?? null, canOverride: result.code === "type_full" }, { status: result.code ? 409 : 400 });
+      return NextResponse.json({ error: result.error, code: result.code ?? null, canOverride: result.code === "type_full", canOverrideRestriction: result.code === "restricted" }, { status: result.code ? 409 : 400 });
     }
 
     let email: { status: string; reason?: string } | null = null;

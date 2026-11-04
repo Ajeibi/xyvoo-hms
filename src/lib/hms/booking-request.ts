@@ -94,10 +94,11 @@ function table(rows: ReadonlyArray<readonly [string, string]>) {
 }
 
 /** Email to the hotel: everything the reservations team needs to check and reply. */
-export function hotelEmail(req: BookingRequest, reference: string, hotelName: string) {
+export function hotelEmail(req: BookingRequest, reference: string, hotelName: string, rateCheck: ReadonlyArray<readonly [string, string]> = []) {
   const guestName = `${req.guest.firstName} ${req.guest.lastName}`;
   const rows = [
     ...stayLines(req),
+    ...rateCheck,
     ["Guest", guestName],
     ["Email", req.guest.email],
     ["Phone", req.guest.phone],

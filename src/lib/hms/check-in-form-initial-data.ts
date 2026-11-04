@@ -58,6 +58,8 @@ export type CheckInFormInitialData = {
   voucherNumber: string | null;
   showRateOnRegistrationCard: boolean;
   generateBill: boolean;
+  /** The rate plan the booking was made on, if any, so check-in prices the stay the same way. */
+  ratePlanCode: string | null;
   rateOverridden: boolean;
   rateOverrideReason: string | null;
   immigrationRegistrationRequired: boolean;
@@ -238,6 +240,7 @@ export async function getCheckInFormInitialData(
     voucherNumber: reservation.voucher_number as string | null,
     showRateOnRegistrationCard: reservation.show_rate_on_registration_card as boolean,
     generateBill: reservation.generate_bill as boolean,
+    ratePlanCode: typeof snapshot.ratePlanCode === "string" && snapshot.ratePlanCode ? snapshot.ratePlanCode : null,
     rateOverridden: reservation.rate_overridden as boolean,
     rateOverrideReason: reservation.rate_override_reason as string | null,
     immigrationRegistrationRequired: reservation.immigration_registration_required as boolean,

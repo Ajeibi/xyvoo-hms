@@ -6,7 +6,10 @@ import { findExistingGuest } from "@/lib/hms/guest-match";
 import { notifyReservationCreated } from "@/lib/hms/notification-rules";
 import { snapshotCancellationPolicy, listCancellationPolicies, cancellationPolicyFor, describePolicy } from "@/lib/hms/reservation-cancellation";
 import { ANYTIME_CHECK_IN, type HotelPricingSetup, type HotelRoomTypeSetup } from "@/lib/hms/room-pricing";
-import { assertWithinRoomTypeOccupancy, computeWalkInRoomPricing, nightlyBarBeforeDiscount } from "@/lib/hms/walk-in-pricing";
+import { assertWithinRoomTypeOccupancy } from "@/lib/hms/walk-in-pricing";
+import { rateBookFor } from "@/lib/hms/rates/book";
+import { priceStay, stayTotals, type StayTotals } from "@/lib/hms/rates/pricing";
+import type { RateIssue } from "@/lib/hms/rates/types";
 import { findFreeRooms, friendlyReservationError, nightsBetweenDays } from "@/lib/hms/reservation-availability";
 
 /*
@@ -41,43 +44,64 @@ export type StayQuote = {
   depositRequired: number;
   depositDueDate: string | null;
   cancellationLines: string[];
-  pricing: ReturnType<typeof computeWalkInRoomPricing>;
+  pricing: StayTotals;
+  /** The rate plan the quote is on, and anything that stops it being booked. */
+  plan: { id: string; code: string; name: string; boardBasis: string; refundable: boolean };
+  issues: RateIssue[];
+  nightly: { date: string; total: number; label: string | null }[];
 };
 
 /** What a stay of this room type costs, the deposit it would ask for and the cancellation terms. */
 export async function quoteStay(
   db: SupabaseClient,
-  params: { tenantId: string; roomType: HotelRoomTypeSetup; pricing: HotelPricingSetup; arrivalDay: string; departureDay: string; adults: number; children: number; today: string },
+  params: {
+    tenantId: string;
+    roomType: HotelRoomTypeSetup;
+    pricing: HotelPricingSetup;
+    arrivalDay: string;
+    departureDay: string;
+    adults: number;
+    children: number;
+    today: string;
+    /** Rate plan code or id; leave out for the hotel's default plan. */
+    ratePlan?: string | null;
+    arCustomerId?: string | null;
+  },
 ): Promise<StayQuote> {
-  const nights = Math.max(1, nightsBetweenDays(params.arrivalDay, params.departureDay));
-  const priced = computeWalkInRoomPricing({
-    roomType: params.roomType,
-    pricing: params.pricing,
+  const book = await rateBookFor(db, params.tenantId, [params.roomType], params.pricing, { since: params.arrivalDay });
+  const priced = priceStay(book, {
+    roomTypeCode: params.roomType.id,
+    plan: params.ratePlan,
+    arrivalDay: params.arrivalDay,
+    departureDay: params.departureDay,
     adults: params.adults,
     children: params.children,
-    infants: 0,
-    nights,
-    discountPercent: 0,
-    discountScope: "none",
-    taxExemptions: { exemptVat: false, exemptServiceCharge: false, exemptStateLevy: false, exemptStampLevy: false },
+    bookedOn: params.today,
+    arCustomerId: params.arCustomerId,
   });
+  if (!priced.ok) throw new Error(priced.error);
+  const nights = priced.nights.length;
+  const totals = stayTotals({ nightly: priced.nightlyAmounts, serviceChargeRate: params.pricing.serviceChargeRate, taxRate: params.pricing.taxRate });
   const [depositPolicies, cancelPolicies] = await Promise.all([listDepositPolicies(db, params.tenantId), listCancellationPolicies(db, params.tenantId)]);
   const dep = depositFor(policyFor(depositPolicies, params.roomType.id), {
-    stayTotal: priced.taxes.grandTotal,
+    stayTotal: totals.taxes.grandTotal,
     nights,
     arrivalDate: params.arrivalDay,
     bookedOn: params.today,
   });
   return {
     nights,
-    nightlyRate: priced.nightlyBar,
-    roomTotal: priced.roomSubtotalAfterDiscount,
-    grandTotal: priced.taxes.grandTotal,
-    taxTotal: money(priced.taxes.grandTotal - priced.roomSubtotalAfterDiscount),
+    nightlyRate: priced.averageRate,
+    roomTotal: totals.roomSubtotalAfterDiscount,
+    grandTotal: totals.taxes.grandTotal,
+    taxTotal: money(totals.taxes.grandTotal - totals.roomSubtotalAfterDiscount),
     depositRequired: dep.required,
     depositDueDate: dep.dueDate,
     cancellationLines: describePolicy(cancellationPolicyFor(cancelPolicies, params.roomType.id), params.pricing.currency),
-    pricing: priced,
+    pricing: totals,
+    plan: { id: priced.plan.id, code: priced.plan.code, name: priced.plan.name, boardBasis: priced.plan.boardBasis, refundable: priced.plan.refundable },
+    issues: priced.issues,
+    nightly: priced.nights.map((n) => ({ date: n.date, total: n.total, label: n.label })),
   };
 }
 
@@ -107,11 +131,17 @@ export type CreateReservationInput = {
   allotmentId?: string | null;
   groupBookingId?: string | null;
   overrideLimit?: { reason: string } | null;
+  /** Rate plan code or id; leave out for the hotel's default plan. */
+  ratePlan?: string | null;
+  /** The company the booking is for, for company rate plans. */
+  arCustomerId?: string | null;
+  /** A manager has agreed to sell a stay that breaks a rate restriction (minimum stay, closed to arrival…). */
+  overrideRestrictions?: { reason: string } | null;
 };
 
 export type CreateReservationResult =
   | { ok: true; reservationId: string; confirmationCode: string; guestId: string; matchedExistingGuest: boolean; grandTotal: number }
-  | { ok: false; error: string; code?: "room_taken" | "type_full" };
+  | { ok: false; error: string; code?: "room_taken" | "type_full" | "restricted" };
 
 export async function createReservation(db: SupabaseClient, input: CreateReservationInput): Promise<CreateReservationResult> {
   const roomType = input.roomTypes.find((t) => t.id === input.roomTypeCode);
@@ -194,18 +224,24 @@ export async function createReservation(db: SupabaseClient, input: CreateReserva
     return { ok: false, error: "Choose a guest or enter the guest's name." };
   }
 
-  const priced = computeWalkInRoomPricing({
-    roomType,
-    pricing: input.pricing,
+  const book = await rateBookFor(db, input.tenantId, input.roomTypes, input.pricing, { since: input.arrivalDay });
+  const rated = priceStay(book, {
+    roomTypeCode: roomType.id,
+    plan: input.ratePlan,
+    arrivalDay: input.arrivalDay,
+    departureDay: input.departureDay,
     adults: input.adults,
     children: input.children,
-    infants: 0,
-    nights,
-    discountPercent: 0,
-    discountScope: "none",
-    taxExemptions: { exemptVat: false, exemptServiceCharge: false, exemptStateLevy: false, exemptStampLevy: false },
+    bookedOn: input.today,
+    arCustomerId: input.arCustomerId,
   });
-  const bar = nightlyBarBeforeDiscount(roomType, input.pricing, input.adults, input.children, 0);
+  if (!rated.ok) return { ok: false, error: rated.error };
+  if (!rated.bookable && !input.overrideRestrictions) {
+    return { ok: false, error: rated.issues.map((i) => i.message).join(" "), code: "restricted" };
+  }
+  const priced = stayTotals({ nightly: rated.nightlyAmounts, serviceChargeRate: input.pricing.serviceChargeRate, taxRate: input.pricing.taxRate });
+  const bar = rated.averageRate;
+  const realPlan = rated.plan.id !== "implicit";
   const snapshot = {
     currency: input.pricing.currency,
     modelVersion: 1,
@@ -221,6 +257,10 @@ export async function createReservation(db: SupabaseClient, input: CreateReserva
     taxExemptions: { vat: false, serviceCharge: false, stateLevy: false, stampLevy: false },
     settlement: { method: "cash", settlementType: null },
     bookedFrom: "reservations",
+    ratePlanCode: rated.plan.code,
+    ratePlanName: rated.plan.name,
+    nightlySource: rated.nights.map((n) => ({ date: n.date, base: n.base, source: n.source, label: n.label })),
+    ...(input.overrideRestrictions ? { restrictionOverride: input.overrideRestrictions.reason } : {}),
     computedAt: new Date().toISOString(),
   };
 
@@ -243,7 +283,7 @@ export async function createReservation(db: SupabaseClient, input: CreateReserva
       purpose_of_visit: input.purpose ?? "leisure",
       room_type_code: roomTypeCode,
       room_unit_id: roomUnitId,
-      rate_type: "rack",
+      rate_type: rated.plan.arCustomerId ? "corporate" : "rack",
       rate_per_night: bar,
       total_room_charges: priced.roomSubtotalAfterDiscount,
       vat_applicable: true,
@@ -255,6 +295,7 @@ export async function createReservation(db: SupabaseClient, input: CreateReserva
       guest_remarks: input.notes?.trim() || null,
       vip_flag: Boolean(input.vip),
       pricing_snapshot: snapshot,
+      ...(realPlan ? { rate_plan_id: rated.plan.id, rate_plan_code: rated.plan.code } : {}),
       remarks_by_phase: { reservation: input.notes?.trim() || "", check_in: "", check_out: "" },
       allotment_id: input.allotmentId ?? null,
       group_booking_id: input.groupBookingId ?? null,
@@ -268,7 +309,7 @@ export async function createReservation(db: SupabaseClient, input: CreateReserva
   if (error || !inserted) {
     const friendly = friendlyReservationError(error?.message);
     if (friendly) return { ok: false, error: friendly.text, code: friendly.kind };
-    console.error("[createReservation]", error);
+    console.error("[createReservation]", error?.message ?? error, error?.details ?? "");
     return { ok: false, error: "The booking couldn't be saved." };
   }
 
@@ -299,6 +340,8 @@ export async function createReservation(db: SupabaseClient, input: CreateReserva
       room_type: roomTypeCode,
       room_unit_id: roomUnitId,
       source: input.source,
+      rate_plan: rated.plan.code,
+      ...(input.overrideRestrictions ? { restriction_override: input.overrideRestrictions.reason } : {}),
       ...(input.overrideLimit ? { overbooking_override: input.overrideLimit.reason } : {}),
     },
   });

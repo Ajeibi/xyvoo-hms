@@ -1,6 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { computeWalkInRoomPricing, type DiscountScope } from "@/lib/hms/walk-in-pricing";
+import { rateBookFor } from "@/lib/hms/rates/book";
+import { priceStay, stayTotals } from "@/lib/hms/rates/pricing";
+import type { RateBook } from "@/lib/hms/rates/types";
 import type { HotelPricingSetup, HotelRoomTypeSetup } from "@/lib/hms/room-pricing";
 import { findFreeRooms } from "@/lib/hms/reservation-availability";
 import {
@@ -69,6 +72,12 @@ export type ChangePlan = {
   taxes: unknown;
   datesChanged: boolean;
   roomChanged: boolean;
+  /** Rate restrictions the new stay breaks (minimum stay, closed to arrival…). Empty when none. */
+  restrictions: string[];
+  /** The price of each night when the booking is on a rate plan, so the snapshot keeps matching the new dates. */
+  nightlySource?: { date: string; base: number; source: string; label: string | null }[];
+  /** The last night's full price (with occupancy supplements): what an extra night costs. */
+  lastNightBar?: number;
 };
 
 function money(n: number) {
@@ -97,7 +106,7 @@ function exemptionsOf(r: ChangeableReservation) {
 export function planBookingChange(
   r: ChangeableReservation,
   change: BookingChange,
-  ctx: { roomTypes: HotelRoomTypeSetup[]; pricing: HotelPricingSetup; targetRoom: { id: string; roomCode: string; roomTypeCode: string } | null; today: string },
+  ctx: { roomTypes: HotelRoomTypeSetup[]; pricing: HotelPricingSetup; targetRoom: { id: string; roomCode: string; roomTypeCode: string } | null; today: string; rateBook?: RateBook | null },
 ): { ok: true; plan: ChangePlan } | { ok: false; error: string } {
   if (r.status !== "confirmed") {
     return { ok: false, error: "Only a booking that hasn't arrived can be changed here. A guest in the house is changed from the front desk." };
@@ -134,6 +143,43 @@ export function planBookingChange(
   const oldRate = Number(r.rate_per_night) || 0;
   const discount = discountOf(r.pricing_snapshot);
   const useRate = movedType ? undefined : oldRate;
+  // A booking made on a rate plan is priced again, night by night, when its dates or room type change.
+  const planCode = typeof r.pricing_snapshot?.ratePlanCode === "string" ? (r.pricing_snapshot.ratePlanCode as string) : null;
+  const changedStay = arrivalDay !== oldArrival || departureDay !== oldDeparture || movedType;
+  if (planCode && ctx.rateBook && changedStay && (discount.scope === "none" || discount.scope === "all_nights")) {
+    const rated = priceStay(ctx.rateBook, { roomTypeCode, plan: planCode, arrivalDay, departureDay, adults: r.adults, children: Array.isArray(r.children_json) ? r.children_json.length : 0, bookedOn: ctx.today });
+    if (rated.ok) {
+      const totals = stayTotals({
+        nightly: rated.nightlyAmounts,
+        serviceChargeRate: ctx.pricing.serviceChargeRate,
+        taxRate: ctx.pricing.taxRate,
+        discountPercent: discount.scope === "all_nights" ? discount.percent : 0,
+        exemptions: exemptionsOf(r),
+      });
+      return {
+        ok: true,
+        plan: {
+          arrivalDay,
+          departureDay,
+          nights,
+          roomUnitId,
+          roomTypeCode,
+          roomCode,
+          movedType,
+          newRate: rated.averageRate,
+          newTotalRoom: totals.roomSubtotalAfterDiscount,
+          oldTotalRoom: money(Number(r.total_room_charges) || 0),
+          nightlyAmounts: totals.nightlyAmounts,
+          taxes: totals.taxes,
+          datesChanged: arrivalDay !== oldArrival || departureDay !== oldDeparture,
+          roomChanged: roomUnitId !== r.room_unit_id || movedType,
+          restrictions: rated.issues.map((i) => i.message),
+          nightlySource: rated.nights.map((n) => ({ date: n.date, base: n.base, source: n.source, label: n.label })),
+          lastNightBar: rated.nights[rated.nights.length - 1]?.total,
+        },
+      };
+    }
+  }
   const priced = computeWalkInRoomPricing({
     roomType: useRate === undefined ? type : { ...type, baseRate: useRate },
     pricing: useRate === undefined ? ctx.pricing : { ...ctx.pricing, extraAdultRate: 0, extraChildRate: 0 },
@@ -167,13 +213,14 @@ export function planBookingChange(
       taxes: priced.taxes,
       datesChanged,
       roomChanged,
+      restrictions: [],
     },
   };
 }
 
 export type ChangeResult =
   | { ok: true; plan: ChangePlan; before: { arrivalDay: string; departureDay: string; roomCode: string | null }; after: { arrivalDay: string; departureDay: string; roomCode: string | null } }
-  | { ok: false; error: string; code?: "room_taken" | "type_full" | "not_found" };
+  | { ok: false; error: string; code?: "room_taken" | "type_full" | "not_found" | "restricted" };
 
 async function roomCodeOf(db: SupabaseClient, tenantId: string, id: string | null) {
   if (!id) return null;
@@ -195,6 +242,8 @@ export async function changeReservation(
     preview?: boolean;
     /** A manager has agreed to sell past the room type's limit. */
     overrideLimit?: { reason: string } | null;
+    /** A manager has agreed to a stay that breaks a rate restriction. */
+    overrideRestrictions?: { reason: string } | null;
   },
 ): Promise<ChangeResult> {
   const { data: row } = await db
@@ -221,7 +270,9 @@ export async function changeReservation(
     targetRoom = { id: unit.id as string, roomCode: unit.room_code as string, roomTypeCode: unit.room_type_code as string };
   }
 
-  const planned = planBookingChange(r, params.change, { roomTypes: params.roomTypes, pricing: params.pricing, targetRoom, today: params.today });
+  const hasPlan = typeof r.pricing_snapshot?.ratePlanCode === "string";
+  const rateBook = hasPlan ? await rateBookFor(db, params.tenantId, params.roomTypes, params.pricing, { since: params.change.arrivalDay ?? params.today }) : null;
+  const planned = planBookingChange(r, params.change, { roomTypes: params.roomTypes, pricing: params.pricing, targetRoom, today: params.today, rateBook });
   if (!planned.ok) return planned;
   const { plan } = planned;
 
@@ -251,10 +302,17 @@ export async function changeReservation(
 
   if (params.preview) return result;
 
+  // New dates that break the plan's rules are refused like a new booking would be, unless a manager agrees.
+  if (plan.restrictions.length > 0 && !params.overrideRestrictions) {
+    return { ok: false, code: "restricted", error: plan.restrictions.join(" ") };
+  }
+
   const snapshot = {
     ...(r.pricing_snapshot ?? {}),
+    ...(plan.restrictions.length > 0 && params.overrideRestrictions ? { restrictionOverride: params.overrideRestrictions.reason } : {}),
     nights: plan.nights,
     nightlyBar: plan.newRate,
+    ...(plan.nightlySource ? { nightlySource: plan.nightlySource, extraNightBar: plan.lastNightBar ?? plan.newRate } : {}),
     nightlyAmounts: plan.nightlyAmounts,
     roomSubtotalAfterDiscount: plan.newTotalRoom,
     taxes: plan.taxes,

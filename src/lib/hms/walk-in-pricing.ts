@@ -55,6 +55,8 @@ export type WalkInRoomPricingParams = {
   discountPercent: number;
   discountScope: DiscountScope;
   taxExemptions: NigeriaTaxExemptions;
+  /** The price of each night before discount, from the rate book. Without it every night is the room type's flat rate. */
+  nightlyBars?: number[];
 };
 
 export type WalkInRoomPricingResult = {
@@ -68,13 +70,16 @@ export type WalkInRoomPricingResult = {
 };
 
 export function computeWalkInRoomPricing(params: WalkInRoomPricingParams): WalkInRoomPricingResult {
-  const nightlyBar = nightlyBarBeforeDiscount(
+  const flatBar = nightlyBarBeforeDiscount(
     params.roomType,
     params.pricing,
     params.adults,
     params.children,
     params.infants,
   );
+  const bars = params.nightlyBars && params.nightlyBars.length === params.nights ? params.nightlyBars : null;
+  // With a price for each night, "the nightly rate" is their average.
+  const nightlyBar = bars ? Math.round((bars.reduce((s, b) => s + b, 0) / bars.length) * 100) / 100 : flatBar;
   const pct = Math.min(100, Math.max(0, params.discountPercent));
 
   const nightlyAmounts: number[] = [];
@@ -82,7 +87,7 @@ export function computeWalkInRoomPricing(params: WalkInRoomPricingParams): WalkI
   let roomDiscountAmount = 0;
 
   for (let i = 0; i < params.nights; i += 1) {
-    const gross = nightlyBar;
+    const gross = bars ? bars[i] : flatBar;
     roomSubtotalBeforeDiscount += gross;
     const apply = nightQualifiesForDiscount(params.discountScope, i, params.nights) && pct > 0;
     const disc = apply ? Math.round(((gross * pct) / 100) * 100) / 100 : 0;

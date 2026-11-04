@@ -30,7 +30,7 @@ export function CheckInRateSummaryCard({
             <div className="min-w-0">
               <CardTitle className="text-base">Rate information</CardTitle>
               <p className="mt-1 text-xs text-slate-500">
-                BAR uses room type + extra adult/child rates from settings. VAT uses Nigeria{" "}
+                The nightly rate is the average of the stay&apos;s prices from Revenue (the booked rate plan, seasons and weekends), plus extra adult/child rates. VAT uses Nigeria{" "}
                 <strong>{NIGERIA_VAT_RATE_PERCENT}%</strong> standard rate unless exempt.
               </p>
             </div>

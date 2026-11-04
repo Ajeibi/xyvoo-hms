@@ -6,6 +6,8 @@ import { getWebsiteTemplate } from "@/constants/website-templates";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
 import { HOTEL_PREVIEW_COOKIE, HOTEL_SITE_HOST_HEADER, isHotelTemplateId } from "@/lib/hms/site/constants";
+import { LIVE_RATES_SCRIPT, withHotelCurrency } from "@/lib/hms/site/live-rates";
+import { normalizePricingSetup } from "@/lib/hms/room-pricing";
 import { renderHotelPage, robotsTxt, sitemapXml } from "@/lib/hms/site/render";
 import { getHotelSite } from "@/lib/hms/site/site";
 import { storefrontUrl } from "@/lib/store/subdomain";
@@ -58,6 +60,19 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
     return new NextResponse(sitemapXml(baseUrl, pageFiles), { headers: { "Content-Type": "application/xml; charset=utf-8", "Cache-Control": cacheControl } });
   }
 
+  // The template's script, in this hotel's currency, with the live prices from its rate book on the end.
+  if (rest === "site.js") {
+    try {
+      const script = await readFile(path.join(process.cwd(), "public", "template-previews", site.templateId, "main.js"), "utf8");
+      const currency = normalizePricingSetup(tenant.pricing_setup).currency;
+      return new NextResponse(`${withHotelCurrency(script, currency)}\n${LIVE_RATES_SCRIPT}`, {
+        headers: { "Content-Type": "text/javascript; charset=utf-8", "Cache-Control": cacheControl },
+      });
+    } catch {
+      return notFound();
+    }
+  }
+
   // The relative links inside the pages need a folder to resolve from, so /stay/<hotel> goes to its home page.
   if (!rest && !onOwnAddress) return NextResponse.redirect(new URL(`/stay/${slug}/index.html`, request.url));
   const file = rest || "index.html";
@@ -70,6 +85,6 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
     return notFound();
   }
 
-  const body = renderHotelPage(html, { templateId: site.templateId, hotelSlug: slug, canonicalUrl: `${baseUrl}${file === "index.html" ? "/" : `/${file}`}`, live });
+  const body = renderHotelPage(html, { templateId: site.templateId, hotelSlug: slug, canonicalUrl: `${baseUrl}${file === "index.html" ? "/" : `/${file}`}`, live, ownScript: true });
   return new NextResponse(body, { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": cacheControl } });
 }

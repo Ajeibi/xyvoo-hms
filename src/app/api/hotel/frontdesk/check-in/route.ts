@@ -10,6 +10,8 @@ import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { postWalkInFolioBundle } from "@/lib/hms/folio";
 import { notifyReservationCreated, notifyVipArrival, notifyWalkInCheckIn } from "@/lib/hms/notification-rules";
 import { normalizePricingSetup, normalizeRoomTypes } from "@/lib/hms/room-pricing";
+import { rateBookFor } from "@/lib/hms/rates/book";
+import { stayRates } from "@/lib/hms/rates/stay-rates";
 import { guestTitleFromPayload, NATIONAL_ID_ID_EXPIRY_PLACEHOLDER, resolveGuestIdExpiry, walkInCheckInPayloadSchema } from "@/lib/hms/walk-in-check-in-payload";
 import type { AccompanyingAdultGuest, MinorGuest, WalkInCheckInPayload } from "@/lib/hms/walk-in-check-in-payload";
 import {
@@ -244,13 +246,43 @@ export async function POST(req: Request) {
     }
 
     const nights = calendarNightsBetween(parsed.arrivalDate, parsed.departureDate);
-    const expectedBar = nightlyBarBeforeDiscount(
+
+    // The price of each night comes from the rate book: the plan the booking was made on, or the
+    // hotel's default plan for a walk-in. Where the hotel has set no prices this is the Settings rate.
+    let bookedPlanCode: string | null = null;
+    if (parsed.reservationId) {
+      const { data: booked } = await service
+        .schema("hotel")
+        .from("reservations")
+        .select("pricing_snapshot")
+        .eq("tenant_id", tenant.id)
+        .eq("id", parsed.reservationId)
+        .maybeSingle();
+      const code = (booked?.pricing_snapshot as { ratePlanCode?: unknown } | null)?.ratePlanCode;
+      bookedPlanCode = typeof code === "string" && code ? code : null;
+    }
+    const rateBook = await rateBookFor(service, tenant.id, roomTypes, pricing, {
+      since: parsed.arrivalDate < new Date().toISOString().slice(0, 10) ? parsed.arrivalDate : undefined,
+    });
+    const rates = stayRates(rateBook, {
+      roomTypeCode,
+      arrivalDay: parsed.arrivalDate,
+      departureDay: parsed.departureDate,
+      adults: parsed.adults,
+      children: parsed.children ?? 0,
+      planCode: bookedPlanCode,
+    });
+    const flatBar = nightlyBarBeforeDiscount(
       roomType,
       pricing,
       parsed.adults,
       parsed.children ?? 0,
       parsed.infants ?? 0,
     );
+    const nightlyBars = rates && rates.bars.length === nights ? rates.bars : null;
+    const expectedBar = nightlyBars
+      ? Math.round((nightlyBars.reduce((s, b) => s + b, 0) / nightlyBars.length) * 100) / 100
+      : flatBar;
     if (Math.abs(expectedBar - parsed.ratePerNightBar) > 0.05) {
       return NextResponse.json(
         { error: "Room rate is out of sync with server pricing. Refresh the page and try again." },
@@ -273,6 +305,7 @@ export async function POST(req: Request) {
         exemptStateLevy: parsed.taxExemptStateLevy,
         exemptStampLevy: parsed.taxExemptStampLevy,
       },
+      nightlyBars: nightlyBars ?? undefined,
     });
 
     const nowIso = new Date().toISOString();
@@ -404,6 +437,11 @@ export async function POST(req: Request) {
       modelVersion: 1,
       nights,
       nightlyBar: expectedBar,
+      // Kept so later changes (extra nights, a longer stay) know which plan this stay is on and what a night after the last one costs.
+      ratePlanCode: rates?.planCode ?? null,
+      ratePlanName: rates?.planName ?? null,
+      nightlySource: nightlyBars ? "rate_book" : "settings",
+      extraNightBar: nightlyBars ? rates!.extraNightBar : expectedBar,
       discountPercent: parsed.discountPercent,
       discountScope: parsed.discountScope,
       nightlyAmounts: pricingModel.nightlyAmounts,
@@ -444,6 +482,7 @@ export async function POST(req: Request) {
       rate_type: parsed.rateType,
       season_code: parsed.seasonCode?.trim() || null,
       rate_per_night: expectedBar,
+      ...(rates?.planId ? { rate_plan_id: rates.planId, rate_plan_code: rates.planCode } : {}),
       total_room_charges: pricingModel.roomSubtotalAfterDiscount,
       rate_overridden: parsed.rateOverridden,
       rate_override_reason: parsed.rateOverrideReason?.trim() || null,

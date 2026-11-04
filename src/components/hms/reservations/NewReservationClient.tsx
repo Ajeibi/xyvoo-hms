@@ -27,8 +27,11 @@ type TypeRow = {
   depositDueDate: string | null;
   cancellationLines: string[];
   freeRooms: { id: string; roomCode: string; floor: number }[];
+  ratePlan?: { code: string; name: string; boardBasis: string; refundable: boolean };
+  rateIssues?: string[];
 };
-type Availability = { currency: string; nights: number; types: TypeRow[]; allotments: { id: string; name: string; roomTypeCode: string; rooms: number }[] };
+type PlanOption = { id: string; code: string; name: string; boardBasis: string; refundable: boolean; arCustomerId: string | null; isDefault: boolean };
+type Availability = { currency: string; plans?: PlanOption[]; nights: number; types: TypeRow[]; allotments: { id: string; name: string; roomTypeCode: string; rooms: number }[] };
 type GuestHit = { id: string; name: string; phone: string; email: string; isVip: boolean; visitCount: number; tier: string | null };
 type Agent = { id: string; name: string };
 
@@ -66,6 +69,8 @@ export function NewReservationClient({
   const [typeId, setTypeId] = useState<string | null>(initial?.roomTypeCode ?? null);
   const [roomId, setRoomId] = useState<string>(initial?.roomUnitId ?? "");
   const [allotmentId, setAllotmentId] = useState("");
+  const [planCode, setPlanCode] = useState("");
+  const [restrictionOverride, setRestrictionOverride] = useState(false);
 
   const [mode, setMode] = useState<"search" | "new">("search");
   const [query, setQuery] = useState("");
@@ -101,7 +106,7 @@ export function NewReservationClient({
     const seq = ++requestSeq.current;
     setLoading(true);
     const timer = setTimeout(() => {
-      fetch(`/api/hotel/reservations/availability?slug=${encodeURIComponent(slug)}&arrival=${arrival}&departure=${departure}&adults=${adults}&children=${children}`)
+      fetch(`/api/hotel/reservations/availability?slug=${encodeURIComponent(slug)}&arrival=${arrival}&departure=${departure}&adults=${adults}&children=${children}${planCode ? `&plan=${encodeURIComponent(planCode)}` : ""}`)
         .then(async (r) => ({ ok: r.ok, data: await r.json().catch(() => ({})) }))
         .then(({ ok, data }) => {
           if (seq !== requestSeq.current) return;
@@ -117,7 +122,7 @@ export function NewReservationClient({
         .finally(() => seq === requestSeq.current && setLoading(false));
     }, 250);
     return () => clearTimeout(timer);
-  }, [slug, arrival, departure, adults, children]);
+  }, [slug, arrival, departure, adults, children, planCode]);
 
   useEffect(() => {
     fetch(`/api/hotel/travel-agents?slug=${encodeURIComponent(slug)}`)
@@ -176,17 +181,20 @@ export function NewReservationClient({
             notes: notes || null,
             vip,
             sendEmail,
-            overrideReason: withOverride?.reason || undefined,
+            ratePlan: planCode || null,
+            overrideReason: restrictionOverride ? undefined : withOverride?.reason || undefined,
+            restrictionOverrideReason: restrictionOverride ? withOverride?.reason || undefined : undefined,
             managerPin: withOverride?.pin || undefined,
           }),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          if (data.canOverride || data.requiresPin) {
+          if (data.canOverrideRestriction) setRestrictionOverride(true);
+          if (data.canOverride || data.canOverrideRestriction || data.requiresPin) {
             setOverride((o) => o ?? { reason: "", pin: "" });
           }
           setError(data.error ?? "The booking couldn't be made.");
-          if (!data.canOverride && !data.requiresPin) toastError("Not booked", data.error ?? "Try again.");
+          if (!data.canOverride && !data.canOverrideRestriction && !data.requiresPin) toastError("Not booked", data.error ?? "Try again.");
           return;
         }
         setDone({ id: data.reservationId, code: data.confirmationCode, email: data.email ?? null, matched: Boolean(data.matchedExistingGuest), total: data.grandTotal });
@@ -194,7 +202,7 @@ export function NewReservationClient({
         setBusy(false);
       }
     },
-    [selected, slug, arrival, departure, roomId, adults, children, mode, picked, first, last, phone, email, source, agentId, allotmentId, notes, vip, sendEmail],
+    [selected, slug, arrival, departure, roomId, adults, children, mode, picked, first, last, phone, email, source, agentId, allotmentId, notes, vip, sendEmail, planCode, restrictionOverride],
   );
 
   if (done) {
@@ -257,6 +265,18 @@ export function NewReservationClient({
               <input id={`${ids}-ch`} type="number" min={0} max={20} className={hmsInput} value={children} onChange={(e) => setChildren(Math.max(0, Number(e.target.value) || 0))} />
             </div>
           </div>
+          {avail?.plans && avail.plans.length > 1 ? (
+            <div className="mt-3 max-w-sm">
+              <Label htmlFor={`${ids}-plan`}>Rate plan</Label>
+              <select id={`${ids}-plan`} className={hmsInput} value={planCode} onChange={(e) => { setPlanCode(e.target.value); setRestrictionOverride(false); setOverride(null); }}>
+                {avail.plans.map((p) => (
+                  <option key={p.id} value={p.isDefault ? "" : p.code}>
+                    {p.name} · {p.boardBasis}{p.refundable ? "" : " · non-refundable"}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
           <p className="mt-2 text-sm text-slate-600">{nights > 0 ? `${nights} night${nights === 1 ? "" : "s"}, ${formatDayShort(arrival)} to ${formatDayShort(departure)}.` : ""}</p>
         </HmsCard>
 
@@ -306,6 +326,9 @@ export function NewReservationClient({
                         Up to {t.maxOccupancy} guests{t.overbook > 0 ? ` · ${t.overbook} extra allowed to sell` : ""}
                       </span>
                       {!t.fits ? <span className="mt-1 block text-xs text-red-700">{t.fitsMessage}</span> : null}
+                      {(t.rateIssues ?? []).map((m) => (
+                        <span key={m} className="mt-1 block text-xs text-amber-800">{m}</span>
+                      ))}
                     </button>
                   </li>
                 );
@@ -546,7 +569,7 @@ export function NewReservationClient({
 
           {override ? (
             <div className="mt-3 space-y-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm">
-              <p className="font-medium text-slate-900">A manager can override the limit</p>
+              <p className="font-medium text-slate-900">{restrictionOverride ? "A manager can sell this stay despite the rate restriction" : "A manager can override the limit"}</p>
               <div>
                 <Label htmlFor={`${ids}-ovr`}>Reason</Label>
                 <input id={`${ids}-ovr`} className={hmsInput} value={override.reason} onChange={(e) => setOverride({ ...override, reason: e.target.value })} placeholder="For example: expecting two no-shows" />

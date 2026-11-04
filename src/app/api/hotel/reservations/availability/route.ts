@@ -19,6 +19,8 @@ const Query = z.object({
   departure: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   adults: z.coerce.number().int().min(1).max(20).default(2),
   children: z.coerce.number().int().min(0).max(20).default(0),
+  plan: z.string().max(80).optional(),
+  company: z.string().uuid().optional(),
 });
 
 export async function GET(req: Request) {
@@ -40,7 +42,7 @@ export async function GET(req: Request) {
     const types = await Promise.all(
       roomTypes.map(async (t) => {
         const a = availability.find((x) => x.roomTypeCode === t.id);
-        const quote = await quoteStay(auth.service, { tenantId: auth.tenant.id, roomType: t, pricing, arrivalDay: q.arrival, departureDay: q.departure, adults: q.adults, children: q.children, today: todayDay() });
+        const quote = await quoteStay(auth.service, { tenantId: auth.tenant.id, roomType: t, pricing, arrivalDay: q.arrival, departureDay: q.departure, adults: q.adults, children: q.children, today: todayDay(), ratePlan: q.plan, arCustomerId: q.company });
         const fits = assertWithinRoomTypeOccupancy(t, q.adults, q.children, 0);
         return {
           id: t.id,
@@ -52,6 +54,9 @@ export async function GET(req: Request) {
           overbook: a?.overbook ?? 0,
           roomsLeftWithAllowance: a?.minFreeWithAllowance ?? 0,
           stock: a?.stock ?? 0,
+          ratePlan: quote.plan,
+          rateIssues: quote.issues.map((i) => i.message),
+          nightly: quote.nightly,
           nightlyRate: quote.nightlyRate,
           roomTotal: quote.roomTotal,
           taxTotal: quote.taxTotal,
@@ -78,7 +83,10 @@ export async function GET(req: Request) {
       .filter((a) => !a.release_date || (a.release_date as string) > today)
       .map((a) => ({ id: a.id as string, name: a.name as string, roomTypeCode: a.room_type_code as string, rooms: a.rooms as number }));
 
-    return NextResponse.json({ currency: pricing.currency, nights: nightsBetweenDays(q.arrival, q.departure), types, allotments: openAllotments });
+    const { data: planRows } = await auth.service.schema("hotel").from("rate_plans").select("id,code,name,board_basis,refundable,ar_customer_id,is_default").eq("tenant_id", auth.tenant.id).eq("active", true).order("sort_order");
+    const plans = (planRows ?? []).map((p) => ({ id: p.id as string, code: p.code as string, name: p.name as string, boardBasis: p.board_basis as string, refundable: p.refundable !== false, arCustomerId: (p.ar_customer_id as string | null) ?? null, isDefault: p.is_default === true }));
+
+    return NextResponse.json({ currency: pricing.currency, plans, nights: nightsBetweenDays(q.arrival, q.departure), types, allotments: openAllotments });
   } catch (e) {
     if (e instanceof z.ZodError) return NextResponse.json({ error: "Choose valid dates." }, { status: 400 });
     console.error("[reservations availability]", e);

@@ -10,6 +10,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/supabase/auth-server";
 import type { CheckInRoomUnit } from "@/lib/hms/check-in-room-units";
 import { normalizePricingSetup, normalizeRoomTypes } from "@/lib/hms/room-pricing";
+import { rateBookFor } from "@/lib/hms/rates/book";
 
 export default async function FrontDeskCheckInPage({
   params,
@@ -25,6 +26,7 @@ export default async function FrontDeskCheckInPage({
   const pricing = normalizePricingSetup(tenant?.pricing_setup);
   const defaultDepartureTime = pricing.checkOutTime;
 
+  const rateBook = tenant?.id ? await rateBookFor(createServerSupabaseClient(), tenant.id, roomTypes, pricing) : undefined;
   let roomUnits: CheckInRoomUnit[] = [];
   let checkInStaffOptions: Awaited<ReturnType<typeof fetchCheckInStaffOptions>> = [];
 
@@ -110,6 +112,7 @@ export default async function FrontDeskCheckInPage({
               defaultCheckedInByUserId={defaultCheckedInByUserId}
               defaultRoomCode={room}
               pricing={pricing}
+              rateBook={rateBook}
               defaultDepartureTime={defaultDepartureTime}
             />
           </Suspense>

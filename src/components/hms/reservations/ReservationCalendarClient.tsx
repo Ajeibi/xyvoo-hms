@@ -32,6 +32,8 @@ type Pending = {
   note: string | null;
   error: string | null;
   canOverride: boolean;
+  /** The override is for a broken rate restriction (minimum stay, closed to arrival…), not the room limit. */
+  restricted?: boolean;
   inHouse: boolean;
 };
 
@@ -126,7 +128,12 @@ export function ReservationCalendarClient({ slug, data, currency }: { slug: stri
             note = `Room charges go from ${f.format(out.oldTotal)} to ${f.format(out.newTotal)}.`;
           }
         }
-        setPending({ proposal: p, lines, note, error: null, canOverride: false, inHouse });
+        const broken: string[] = !inHouse && Array.isArray(out.restrictions) ? out.restrictions : [];
+        setPending(
+          broken.length > 0
+            ? { proposal: p, lines, note, error: `These dates break the rate plan's rules: ${broken.join(" ")}`, canOverride: true, restricted: true, inHouse }
+            : { proposal: p, lines, note, error: null, canOverride: false, inHouse },
+        );
       } finally {
         setBusy(false);
       }
@@ -156,14 +163,15 @@ export function ReservationCalendarClient({ slug, data, currency }: { slug: stri
               departureDay: p.departureDay,
               roomUnitId: p.roomUnitId,
               sendEmail,
-              overrideReason: pending.canOverride ? override.reason : undefined,
+              overrideReason: pending.canOverride && !pending.restricted ? override.reason : undefined,
+              restrictionOverrideReason: pending.canOverride && pending.restricted ? override.reason : undefined,
               managerPin: pending.canOverride ? override.pin || undefined : undefined,
             }),
           });
       const out = await res.json().catch(() => ({}));
       if (!res.ok) {
-        if (out.canOverride || out.requiresPin) {
-          setPending({ ...pending, error: out.error, canOverride: true });
+        if (out.canOverride || out.canOverrideRestriction || out.requiresPin) {
+          setPending({ ...pending, error: out.error, canOverride: true, restricted: pending.restricted || Boolean(out.canOverrideRestriction) });
           return;
         }
         toastError("Not changed", out.error ?? "Try again.");
@@ -535,7 +543,7 @@ export function ReservationCalendarClient({ slug, data, currency }: { slug: stri
           {pending.note ? <p className="mt-1 text-sm text-slate-700">{pending.note}</p> : null}
           {pending.canOverride ? (
             <div className="mt-3 grid gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm sm:grid-cols-2">
-              <p className="font-medium text-slate-900 sm:col-span-2">A manager can override the limit</p>
+              <p className="font-medium text-slate-900 sm:col-span-2">{pending.restricted ? "A manager can allow dates that break the rate rules" : "A manager can override the limit"}</p>
               <input aria-label="Reason for overriding" className={hmsInput} placeholder="Reason" value={override.reason} onChange={(e) => setOverride({ ...override, reason: e.target.value })} />
               <input aria-label="Manager's PIN (not needed for owners and admins)" type="password" inputMode="numeric" autoComplete="off" className={hmsInput} placeholder="Manager's PIN" value={override.pin} onChange={(e) => setOverride({ ...override, pin: e.target.value })} />
             </div>

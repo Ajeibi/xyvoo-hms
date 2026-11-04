@@ -8,6 +8,7 @@ import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { getCheckInFormInitialData } from "@/lib/hms/check-in-form-initial-data";
 import { fetchCheckInStaffOptions, checkInStaffOptionsForSessionUser } from "@/lib/hms/check-in-staff-options";
 import { normalizePricingSetup, normalizeRoomTypes } from "@/lib/hms/room-pricing";
+import { rateBookFor } from "@/lib/hms/rates/book";
 import { getSessionUser } from "@/lib/supabase/auth-server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { CheckInRoomUnit } from "@/lib/hms/check-in-room-units";
@@ -32,6 +33,9 @@ export default async function ReservationCheckInPage({
   const defaultDepartureTime = pricing.checkOutTime;
 
   const service = createServerSupabaseClient();
+  const rateBook = await rateBookFor(service, tenant.id, roomTypes, pricing, {
+    since: prefill.initialData.arrivalDate < new Date().toISOString().slice(0, 10) ? prefill.initialData.arrivalDate : undefined,
+  });
   const [staffList, { data }] = await Promise.all([
     fetchCheckInStaffOptions(service, tenant.id),
     service
@@ -99,6 +103,7 @@ export default async function ReservationCheckInPage({
               checkInStaffOptions={checkInStaffOptions}
               defaultCheckedInByUserId={defaultCheckedInByUserId}
               pricing={pricing}
+              rateBook={rateBook}
               defaultDepartureTime={defaultDepartureTime}
               mode="check_in"
               initialData={prefill.initialData}

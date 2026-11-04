@@ -34,6 +34,8 @@ import { NATIONAL_ID_ID_EXPIRY_PLACEHOLDER, type AccompanyingAdultGuest, type Mi
 import type { CheckInFormInitialData } from "@/lib/hms/check-in-form-initial-data";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import type { DiscountScope } from "@/lib/hms/walk-in-pricing";
+import type { RateBook } from "@/lib/hms/rates/types";
+import { stayRates } from "@/lib/hms/rates/stay-rates";
 import {
   canAssignRoomUnit,
   resolveAssignableRoomCode,
@@ -73,6 +75,8 @@ type FrontDeskCheckInFormProps = {
   existingReservationId?: string;
   /** Group the fields into their own cards. Defaults to on, except for "reserve", whose page wraps the form in a card. */
   cards?: boolean;
+  /** The hotel's prices (rate plans, seasons, weekends). Without it every night is the room type's Settings rate. */
+  rateBook?: RateBook;
 };
 
 /** Groups fields into meaning-coloured cards, or plain stacked sections when the page already supplies a card. */
@@ -128,6 +132,7 @@ export function FrontDeskCheckInForm({
   initialData,
   existingReservationId,
   cards,
+  rateBook,
 }: FrontDeskCheckInFormProps) {
   const useCards = cards ?? mode !== "reserve";
   const router = useRouter();
@@ -341,10 +346,26 @@ export function FrontDeskCheckInForm({
     [arrivalDate, departureDate],
   );
 
+  // The price of each night from the hotel's rate book: the plan the booking was made on, or the
+  // default plan. The server prices the same way, so the two agree.
+  const nightlyBars = useMemo(() => {
+    if (!selectedType || !rateBook) return undefined;
+    const rates = stayRates(rateBook, {
+      roomTypeCode: selectedType.id,
+      arrivalDay: arrivalDate,
+      departureDay: departureDate,
+      adults,
+      children,
+      planCode: initialData?.ratePlanCode ?? null,
+    });
+    return rates && rates.bars.length === nights ? rates.bars : undefined;
+  }, [selectedType, rateBook, arrivalDate, departureDate, adults, children, nights, initialData?.ratePlanCode]);
+
   const nightlyBar = useMemo(() => {
     if (!selectedType) return 0;
+    if (nightlyBars) return Math.round((nightlyBars.reduce((s, b) => s + b, 0) / nightlyBars.length) * 100) / 100;
     return nightlyBarBeforeDiscount(selectedType, pricing, adults, children, infants);
-  }, [selectedType, pricing, adults, children, infants]);
+  }, [selectedType, pricing, adults, children, infants, nightlyBars]);
 
   const occupancyCheck = useMemo(() => {
     if (!effectiveOccupancyRoomType) {
@@ -381,8 +402,10 @@ export function FrontDeskCheckInForm({
         exemptStateLevy: taxExemptState,
         exemptStampLevy: taxExemptStamp,
       },
+      nightlyBars,
     });
   }, [
+    nightlyBars,
     selectedType,
     pricing,
     adults,
