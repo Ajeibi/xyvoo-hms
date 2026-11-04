@@ -88,20 +88,20 @@ export function HomeFeatureMarquee() {
       </h2>
       <motion.div
         ref={ref}
-        className="mx-auto w-full max-w-full px-4 py-1 lg:w-[70%] lg:px-0"
+        className="mx-auto w-full max-w-full px-0 py-1 sm:px-4 lg:w-[70%] lg:px-0"
         aria-hidden="true"
         initial={{ opacity: 0, y: 36, scale: 0.85 }}
         animate={isInView ? { opacity: 1, y: 0, scale: 1 } : { opacity: 0, y: 36, scale: 0.85 }}
         transition={{ duration: 0.7, ease: "easeOut" }}
       >
-        <div className="relative overflow-hidden rounded-xl bg-muted/10 py-3">
+        <div className="relative overflow-hidden bg-muted/10 py-3 sm:rounded-xl">
           <MarqueeTrack labels={FEATURE_LABELS} />
           <div
-            className="pointer-events-none absolute inset-y-0 left-0 z-10 w-14 bg-gradient-to-r from-background via-background/75 to-transparent backdrop-blur-[6px] sm:w-20 lg:w-24"
+            className="pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-background via-background/75 to-transparent sm:backdrop-blur-[6px] sm:w-20 lg:w-24"
             aria-hidden
           />
           <div
-            className="pointer-events-none absolute inset-y-0 right-0 z-10 w-14 bg-gradient-to-l from-background via-background/75 to-transparent backdrop-blur-[6px] sm:w-20 lg:w-24"
+            className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-background via-background/75 to-transparent sm:backdrop-blur-[6px] sm:w-20 lg:w-24"
             aria-hidden
           />
         </div>
