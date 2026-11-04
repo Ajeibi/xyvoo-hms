@@ -8,6 +8,8 @@ import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import { DepositPoliciesCard } from "@/components/hms/reservations/DepositPoliciesCard";
 import { TravelAgentsCard } from "@/components/hms/reservations/TravelAgentsCard";
 import { OverbookingLimitsCard } from "@/components/hms/reservations/OverbookingLimitsCard";
+import { CancellationPoliciesCard } from "@/components/hms/reservations/CancellationPoliciesCard";
+import { ReservationEmailSettingsCard } from "@/components/hms/reservations/ReservationEmailSettingsCard";
 
 const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2";
 
@@ -219,6 +221,10 @@ export function ReservationsSettingsClient({
       <DepositPoliciesCard slug={slug} currency={currency} />
 
       <OverbookingLimitsCard slug={slug} />
+
+      <CancellationPoliciesCard slug={slug} currency={currency} />
+
+      <ReservationEmailSettingsCard slug={slug} />
 
       <TravelAgentsCard slug={slug} />
 

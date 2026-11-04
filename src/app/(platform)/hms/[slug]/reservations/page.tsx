@@ -17,7 +17,15 @@ export default async function ReservationsPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ q?: string | string[]; status?: string | string[]; page?: string | string[] }>;
+  searchParams: Promise<{
+    q?: string | string[];
+    status?: string | string[];
+    page?: string | string[];
+    from?: string | string[];
+    to?: string | string[];
+    source?: string | string[];
+    roomType?: string | string[];
+  }>;
 }) {
   const { slug } = await params;
   const query = parseReservationsListQuery(await searchParams);
@@ -60,6 +68,7 @@ export default async function ReservationsPage({
         currency={pricing.currency}
         initial={payload}
         query={query}
+        roomTypeOptions={roomTypes.map((t) => ({ id: t.id, name: t.name }))}
         capabilities={capabilities}
       />
     </HMSLayout>

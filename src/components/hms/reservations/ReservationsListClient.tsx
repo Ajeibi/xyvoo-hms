@@ -4,14 +4,7 @@ import { Suspense, useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { BedDouble, CalendarClock, CalendarDays, CalendarX, Copy, Plus, Search, SearchX } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { CancelBookingDialog } from "@/components/hms/reservations/CancelBookingDialog";
 import {
   HmsCard,
   HmsEmptyState,
@@ -24,10 +17,11 @@ import {
   hmsInput,
 } from "@/components/hms/hms-ui";
 import { HmsFilterChips, HmsSectionIntro } from "@/components/hms/hms-ui-client";
+import { BOOKING_SOURCES } from "@/lib/hms/reservation-create-shared";
 import { formatBoardDateTime } from "@/lib/hms/front-desk-board";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import { cn } from "@/lib/utils";
-import { toastError, toastSuccess } from "@/lib/app-toast";
+import { toastSuccess } from "@/lib/app-toast";
 import { FrontDeskCheckInSuccessBanner } from "@/components/hms/frontdesk/FrontDeskCheckInSuccessBanner";
 import type {
   ReservationListRow,
@@ -64,12 +58,14 @@ export function ReservationsListClient({
   currency,
   initial,
   query,
+  roomTypeOptions,
   capabilities,
 }: {
   slug: string;
   currency: string;
   initial: ReservationsListPayload;
   query: ReservationsListQuery;
+  roomTypeOptions: Array<{ id: string; name: string }>;
   capabilities: ArrivalsRoleCapabilities;
 }) {
   const router = useRouter();
@@ -78,29 +74,6 @@ export function ReservationsListClient({
   const [search, setSearch] = useState(query.search);
   const statusFilter = query.status;
   const [cancelRow, setCancelRow] = useState<ReservationListRow | null>(null);
-  const [cancelling, setCancelling] = useState(false);
-
-  async function confirmCancel() {
-    if (!cancelRow) return;
-    setCancelling(true);
-    try {
-      const res = await fetch(`/api/hotel/frontdesk/reservations/${cancelRow.id}/cancel`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toastError("Could not cancel reservation", data.error ?? "Try again.");
-        return;
-      }
-      toastSuccess("Reservation cancelled", cancelRow.confirmationCode);
-      setCancelRow(null);
-      router.refresh();
-    } finally {
-      setCancelling(false);
-    }
-  }
 
   /** Search, status and page live in the URL; the server loads just the matching page. */
   function navigate(next: Partial<ReservationsListQuery>, { replace = false } = {}) {
@@ -108,6 +81,10 @@ export function ReservationsListClient({
     const params = new URLSearchParams();
     if (merged.search) params.set("q", merged.search);
     if (merged.status) params.set("status", merged.status);
+    if (merged.from) params.set("from", merged.from);
+    if (merged.to) params.set("to", merged.to);
+    if (merged.source) params.set("source", merged.source);
+    if (merged.roomType) params.set("roomType", merged.roomType);
     if (merged.page > 1) params.set("page", String(merged.page));
     const qs = params.toString();
     const href = qs ? `${pathname}?${qs}` : pathname;
@@ -159,10 +136,18 @@ export function ReservationsListClient({
         title="Reservations"
         description="Every booking, from guests on their way to guests who have already left."
         actions={
-          <Link href={`/hms/${slug}/reservations/new`} className={`${hmsButton.primary} ${focusRing}`}>
-            <Plus className="h-4 w-4" aria-hidden />
-            New reservation
-          </Link>
+          <>
+            <Link href={`/hms/${slug}/reservations/calendar`} className={`${hmsButton.secondary} ${focusRing}`}>
+              Calendar
+            </Link>
+            <Link href={`/hms/${slug}/reservations/allotments`} className={`${hmsButton.secondary} ${focusRing}`}>
+              Group allotments
+            </Link>
+            <Link href={`/hms/${slug}/reservations/new`} className={`${hmsButton.primary} ${focusRing}`}>
+              <Plus className="h-4 w-4" aria-hidden />
+              New reservation
+            </Link>
+          </>
         }
       />
 
@@ -221,6 +206,43 @@ export function ReservationsListClient({
           value={chipValue}
           onChange={(v) => setStatusFilter(v === "all" ? null : v)}
         />
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="text-sm font-medium text-slate-800">
+            Arriving from
+            <input type="date" className={`${hmsInput} mt-1`} value={query.from} max={query.to || undefined} onChange={(e) => navigate({ from: e.target.value, page: 1 })} />
+          </label>
+          <label className="text-sm font-medium text-slate-800">
+            Arriving up to
+            <input type="date" className={`${hmsInput} mt-1`} value={query.to} min={query.from || undefined} onChange={(e) => navigate({ to: e.target.value, page: 1 })} />
+          </label>
+          <label className="text-sm font-medium text-slate-800">
+            Booked through
+            <select className={`${hmsInput} mt-1`} value={query.source} onChange={(e) => navigate({ source: e.target.value, page: 1 })}>
+              <option value="">Any</option>
+              {BOOKING_SOURCES.map((s) => (
+                <option key={s} value={s}>
+                  {s.replace(/_/g, " ")}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm font-medium text-slate-800">
+            Room type
+            <select className={`${hmsInput} mt-1`} value={query.roomType} onChange={(e) => navigate({ roomType: e.target.value, page: 1 })}>
+              <option value="">Any</option>
+              {roomTypeOptions.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          {query.from || query.to || query.source || query.roomType ? (
+            <button type="button" className={hmsButton.small} onClick={() => navigate({ from: "", to: "", source: "", roomType: "", page: 1 })}>
+              Clear these
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <HmsCard
@@ -259,7 +281,7 @@ export function ReservationsListClient({
                     className={`${hmsButton.secondary} ${focusRing}`}
                     onClick={() => {
                       setSearch("");
-                      navigate({ search: "", status: null, page: 1 });
+                      navigate({ search: "", status: null, from: "", to: "", source: "", roomType: "", page: 1 });
                     }}
                   >
                     Show all bookings
@@ -395,32 +417,20 @@ export function ReservationsListClient({
         </nav>
       ) : null}
 
-      <Dialog open={Boolean(cancelRow)} onOpenChange={(open) => !open && setCancelRow(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Cancel this booking?</DialogTitle>
-            <DialogDescription>
-              {cancelRow?.guestName} · {cancelRow?.confirmationCode}
-            </DialogDescription>
-          </DialogHeader>
-          <p className="text-sm text-slate-700">
-            This frees up any room held for the guest and marks the booking as cancelled. You can&apos;t undo this.
-          </p>
-          <DialogFooter>
-            <button type="button" className={`${hmsButton.secondary} ${focusRing}`} onClick={() => setCancelRow(null)} disabled={cancelling}>
-              Keep booking
-            </button>
-            <button
-              type="button"
-              className={`inline-flex items-center justify-center gap-2 rounded-xl bg-red-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-red-800 disabled:opacity-50 ${focusRing}`}
-              onClick={() => void confirmCancel()}
-              disabled={cancelling}
-            >
-              {cancelling ? "Cancelling…" : "Cancel booking"}
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {cancelRow ? (
+        <CancelBookingDialog
+          slug={slug}
+          reservationId={cancelRow.id}
+          guestName={cancelRow.guestName}
+          currency={currency}
+          open
+          onClose={() => setCancelRow(null)}
+          onDone={() => {
+            setCancelRow(null);
+            router.refresh();
+          }}
+        />
+      ) : null}
     </HmsPage>
   );
 }

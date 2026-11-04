@@ -3,6 +3,9 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, BedDouble, History, NotebookPen, Receipt, UserRound } from "lucide-react";
 import HMSLayout from "@/components/hms/HMSLayout";
 import { ReservationDepositCard } from "@/components/hms/reservations/ReservationDepositCard";
+import { ReservationManageCard } from "@/components/hms/reservations/ReservationManageCard";
+import { describePolicy, policyFromSnapshot } from "@/lib/hms/reservation-cancellation-shared";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { HmsCard, HmsEmptyState, HmsPage, HmsPageHeader, HmsPill, hmsButton } from "@/components/hms/hms-ui";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { getArrivalDetail } from "@/lib/hms/arrivals-workbench";
@@ -57,6 +60,27 @@ export default async function ReservationDetailPage({
   if (!detail) notFound();
 
   const { reservation: r, guest: g, folio, activityTimeline } = detail;
+
+  const { data: extra } = await createServerSupabaseClient()
+    .schema("hotel")
+    .from("reservations")
+    .select("cancellation_policy,cancellation_fee,cancellation_fee_status,cancel_reason,allotment_id,overbooking_override")
+    .eq("tenant_id", tenant.id)
+    .eq("id", id)
+    .maybeSingle();
+  const policy = policyFromSnapshot(extra?.cancellation_policy);
+  const policyLines = policy ? describePolicy(policy, pricing.currency) : [];
+  const fee = Number(extra?.cancellation_fee ?? 0);
+  const feeStatus = (extra?.cancellation_fee_status as string | null) ?? "none";
+  const cancelInfo =
+    r.status === "cancelled"
+      ? [
+          extra?.cancel_reason ? `Cancelled: ${extra.cancel_reason}.` : "This booking was cancelled.",
+          fee > 0
+            ? `Cancellation fee ${formatPricingAmount(fee, pricing.currency)}: ${feeStatus === "kept_from_deposit" ? "taken from the deposit" : feeStatus === "owed" ? "still owed by the guest" : feeStatus === "waived" ? "waived" : feeStatus}.`
+            : "No cancellation fee.",
+        ].join(" ")
+      : null;
 
   return (
     <HMSLayout slug={slug} requiredSection="reservations">
@@ -149,6 +173,18 @@ export default async function ReservationDetailPage({
           </HmsCard>
 
           <ReservationDepositCard slug={slug} reservationId={r.id} currency={pricing.currency} />
+
+          <ReservationManageCard
+            slug={slug}
+            reservationId={r.id}
+            status={r.status}
+            arrivalDay={r.arrivalAt.slice(0, 10)}
+            departureDay={r.departureAt.slice(0, 10)}
+            guestName={g?.displayName ?? "Guest"}
+            currency={pricing.currency}
+            policyLines={policyLines}
+            cancelInfo={cancelInfo}
+          />
 
           <HmsCard id="reservation-notes" icon={NotebookPen} meaning="guests" title="Notes">
             <dl className="grid gap-4">

@@ -58,6 +58,12 @@ export type ReservationsListQuery = {
   search: string;
   status: ReservationStatusFilter | null;
   page: number;
+  /** Arrivals on or after this day (YYYY-MM-DD), or empty. */
+  from: string;
+  /** Arrivals on or before this day (YYYY-MM-DD), or empty. */
+  to: string;
+  source: string;
+  roomType: string;
 };
 
 export type ReservationsListPayload = {
@@ -81,15 +87,35 @@ export function parseReservationsListQuery(params: {
   q?: string | string[];
   status?: string | string[];
   page?: string | string[];
+  from?: string | string[];
+  to?: string | string[];
+  source?: string | string[];
+  roomType?: string | string[];
 }): ReservationsListQuery {
   const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
   const status = first(params.status) as ReservationStatusFilter;
   const page = Number.parseInt(first(params.page), 10);
+  const day = (v: string | string[] | undefined) => {
+    const s = first(v).trim();
+    return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : "";
+  };
+  const token = (v: string | string[] | undefined) => (/^[A-Za-z0-9_-]{1,60}$/.test(first(v).trim()) ? first(v).trim() : "");
   return {
     search: first(params.q).trim().slice(0, 100),
     status: RESERVATION_STATUSES.includes(status) ? status : null,
     page: Number.isFinite(page) && page > 0 ? page : 1,
+    from: day(params.from),
+    to: day(params.to),
+    source: token(params.source),
+    roomType: token(params.roomType),
   };
+}
+
+/** The day after a YYYY-MM-DD day, so an "arrives on or before" filter includes the whole last day. */
+export function nextDay(day: string): string {
+  const d = new Date(`${day}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
 }
 
 /** Characters that would break a PostgREST `or=(...)` filter or act as wildcards. */
@@ -192,6 +218,10 @@ export async function getReservationsList(
       )
       .eq("tenant_id", tenantId);
     if (query.status) q = q.eq("status", query.status);
+    if (query.source) q = q.eq("source", query.source);
+    if (query.roomType) q = q.eq("room_type_code", query.roomType);
+    if (query.from) q = q.gte("arrival_at", `${query.from}T00:00:00`);
+    if (query.to) q = q.lt("arrival_at", `${nextDay(query.to)}T00:00:00`);
     if (term && matches) {
       const clauses = [`confirmation_code.ilike.*${term}*`];
       if (matches.reservationIds.length) clauses.push(`id.in.(${matches.reservationIds.join(",")})`);
