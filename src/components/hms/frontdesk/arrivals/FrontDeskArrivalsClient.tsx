@@ -236,13 +236,16 @@ export function FrontDeskArrivalsClient({
   const [showTimeline, setShowTimeline] = useState(true);
   const [page, setPage] = useState(1);
   const [accessFlags, setAccessFlags] = useState<Record<string, AccessibilityFlag[]>>({});
+  const [onlineDone, setOnlineDone] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     let live = true;
     fetch(`/api/hotel/frontdesk/accessibility?slug=${encodeURIComponent(slug)}`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : { flags: {} }))
       .then((j) => {
-        if (live) setAccessFlags(j.flags ?? {});
+        if (!live) return;
+        setAccessFlags(j.flags ?? {});
+        setOnlineDone(new Set<string>(j.onlineDone ?? []));
       })
       .catch(() => {});
     return () => {
@@ -776,6 +779,12 @@ export function FrontDeskArrivalsClient({
                             <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">
                               <Star className="h-3 w-3" aria-hidden />
                               VIP
+                            </span>
+                          ) : null}
+                          {onlineDone.has(row.id) ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-900">
+                              <CheckCircle2 className="h-3 w-3" aria-hidden />
+                              Checked in online
                             </span>
                           ) : null}
                           {accessFlags[row.id]?.length ? (
