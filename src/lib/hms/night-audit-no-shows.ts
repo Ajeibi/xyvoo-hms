@@ -2,9 +2,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { insertFolioLine } from "@/lib/hms/folio";
 import { DEPOSIT_RESERVATION_COLUMNS, getDepositState, type DepositReservation } from "@/lib/hms/folio-deposits";
-import { settleDeposit } from "@/lib/hms/folio-refunds";
+import { keptDepositSplit, settleDeposit } from "@/lib/hms/folio-refunds";
 import { matchWaitlistForOpening } from "@/lib/hms/waitlist";
-import { addDaysToDate, zonedDayBounds } from "@/lib/hms/business-date";
+import { addDaysToDate } from "@/lib/hms/business-date";
 import type { NoShowMode } from "@/lib/hms/night-audit-settings";
 
 /*
@@ -25,9 +25,16 @@ type NoShowReservation = DepositReservation & {
   confirmation_code: string;
   departure_at: string;
   room_unit_id: string | null;
+  vat_applicable: boolean | null;
+  tax_exempt: boolean | null;
 };
 
-const COLUMNS = `${DEPOSIT_RESERVATION_COLUMNS},confirmation_code,departure_at,room_unit_id`;
+const COLUMNS = `${DEPOSIT_RESERVATION_COLUMNS},confirmation_code,departure_at,room_unit_id,vat_applicable,tax_exempt`;
+
+/** The fee includes VAT like a kept deposit does: the fee's room part and the VAT on it. Pure. */
+export function noShowFeeLines(fee: number, vatApplies: boolean) {
+  return keptDepositSplit(fee, vatApplies);
+}
 
 /** What the no-show fee is: the deposit the policy asked for, less what the guest already paid. Pure. */
 export function noShowFee(mode: NoShowMode, required: number, paid: number): number {
@@ -92,25 +99,38 @@ export async function processNoShows(
         }
         const fee = noShowFee(params.mode, state.required, state.paid);
         if (fee > 0) {
-          const { line, error } = await insertFolioLine(service, {
+          const split = noShowFeeLines(fee, r.vat_applicable !== false && r.tax_exempt !== true);
+          // The fee belongs to the day being closed, whatever minute the audit ran.
+          const base = {
             tenantId: params.tenantId,
             reservationId: r.id,
-            kind: "charge",
-            amount: fee,
+            kind: "charge" as const,
             method: "system",
-            description: "No-show fee (deposit policy)",
             department: "rooms",
             postedBy: params.userId,
-            reference: `no_show_fee:${r.id}`,
             currencyCode: params.currency,
-            metadata: { noShowFee: true, auditDate: params.auditDate },
+            businessDate: params.auditDate,
+          };
+          const room = await insertFolioLine(service, {
+            ...base,
+            amount: split.revenue,
+            description: "No-show fee (deposit policy)",
+            reference: `no_show_fee:${r.id}`,
+            metadata: { noShowFee: true, part: "no_show_fee", auditDate: params.auditDate },
           });
-          if (error || !line) outcome.error = error ?? "The fee couldn't be posted.";
+          if (room.error || !room.line) outcome.error = room.error ?? "The fee couldn't be posted.";
           else {
             outcome.fee = fee;
-            // The fee belongs to the day being closed, not to the minute the audit ran.
-            const closing = new Date(new Date(zonedDayBounds(params.auditDate, params.timeZone).end).getTime() - 1000).toISOString();
-            await service.schema("hotel").from("folio_transactions").update({ created_at: closing }).eq("id", line.id);
+            if (split.vat > 0) {
+              const vat = await insertFolioLine(service, {
+                ...base,
+                amount: split.vat,
+                description: "VAT on the no-show fee",
+                reference: `no_show_fee_vat:${r.id}`,
+                metadata: { noShowFee: true, part: "vat", auditDate: params.auditDate },
+              });
+              if (vat.error || !vat.line) outcome.error = vat.error ?? "The VAT on the fee couldn't be posted.";
+            }
           }
         }
       }

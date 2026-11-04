@@ -106,6 +106,15 @@ export type BusinessDateInfo = {
   canAudit: boolean;
 };
 
+/** The date a posting made now belongs to: the hotel's business date, or its own today if that can't be read. */
+export async function postingDate(service: SupabaseClient, tenantId: string): Promise<string> {
+  try {
+    return (await getBusinessDate(service, tenantId)).businessDate;
+  } catch {
+    return new Date().toISOString().slice(0, 10);
+  }
+}
+
 export async function getBusinessDate(service: SupabaseClient, tenantId: string, now: Date = new Date()): Promise<BusinessDateInfo> {
   const [timeZone, lastAudited, settings] = await Promise.all([
     getHotelTimeZone(service, tenantId),

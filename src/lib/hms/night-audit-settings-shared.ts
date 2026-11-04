@@ -16,9 +16,15 @@ export type NightAuditSettings = {
   noShowMode: NoShowMode;
   emailReport: boolean;
   extraRecipients: string;
+  /** Book each stay's room charge to Deferred Revenue and earn it night by night. */
+  nightlyRoomRevenue: boolean;
+  /** The first business date this applied from. Set by the audit; once set, it stays on. */
+  nightlyRevenueFrom: string | null;
 };
 
 export const DEFAULT_NIGHT_AUDIT_SETTINGS: NightAuditSettings = {
+  nightlyRoomRevenue: true,
+  nightlyRevenueFrom: null,
   startDate: null,
   autoRun: false,
   autoRunHour: 3,

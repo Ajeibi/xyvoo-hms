@@ -15,6 +15,8 @@ export async function getNightAuditSettings(service: SupabaseClient, tenantId: s
     noShowMode: (data.no_show_mode as NoShowMode) ?? "policy",
     emailReport: data.email_report !== false,
     extraRecipients: (data.extra_recipients as string | null) ?? "",
+    nightlyRoomRevenue: data.nightly_room_revenue !== false,
+    nightlyRevenueFrom: (data.nightly_revenue_from as string | null) ?? null,
   };
 }
 
@@ -29,6 +31,10 @@ export async function saveNightAuditSettings(
   if (bad.length > 0) return { ok: false, error: `${bad[0]} is not an email address.` };
 
   const before = await getNightAuditSettings(service, params.tenantId);
+  // Charges already held in Deferred Revenue would be stranded, so once started it stays on.
+  if (before.nightlyRevenueFrom && !s.nightlyRoomRevenue) {
+    return { ok: false, error: "Room revenue by night has started, so it stays on. Room charges already held are released night by night." };
+  }
   const { error } = await service.schema("hotel").from("night_audit_settings").upsert(
     {
       tenant_id: params.tenantId,
@@ -39,6 +45,7 @@ export async function saveNightAuditSettings(
       no_show_mode: s.noShowMode,
       email_report: s.emailReport,
       extra_recipients: parseRecipients(s.extraRecipients).join(", ") || null,
+      nightly_room_revenue: s.nightlyRoomRevenue,
       updated_by: params.userId,
       updated_at: new Date().toISOString(),
     },

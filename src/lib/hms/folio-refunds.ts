@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { computeLegBalance, ensureActiveCashFloatSession, type FolioLineRow, type FolioSplitLeg } from "@/lib/hms/folio";
 import { postJournalEntry } from "@/lib/hms/journal-entries";
+import { postingDate } from "@/lib/hms/business-date";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import { GUEST_DEPOSITS_ACCOUNT } from "@/lib/hms/folio-deposits";
 import { NIGERIA_VAT_RATE_PERCENT } from "@/lib/hms/nigeria-hospitality-taxes";
@@ -188,7 +189,7 @@ export async function settleDeposit(
 
   const posted = await postJournalEntry(supabase, {
     tenantId: params.tenantId,
-    entryDate: new Date().toISOString().slice(0, 10),
+    entryDate: await postingDate(supabase, params.tenantId),
     memo:
       params.action === "keep"
         ? `Deposit kept as a cancellation fee, booking ${res?.confirmation_code ?? ""}: ${params.reason.trim()}`

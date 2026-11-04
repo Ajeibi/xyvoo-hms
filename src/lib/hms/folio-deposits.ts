@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { postJournalEntry } from "@/lib/hms/journal-entries";
+import { postingDate } from "@/lib/hms/business-date";
 import { ensureActiveCashFloatSession } from "@/lib/hms/folio";
 import {
   DEPOSIT_METHOD_LABEL,
@@ -206,7 +207,7 @@ export async function recordDeposit(
 
   const posted = await postJournalEntry(supabase, {
     tenantId: params.tenantId,
-    entryDate: new Date().toISOString().slice(0, 10),
+    entryDate: await postingDate(supabase, params.tenantId),
     memo: `Deposit for booking ${params.confirmationCode} (${DEPOSIT_METHOD_LABEL[params.method].toLowerCase()})`,
     reference: row.id as string,
     createdBy: params.userId,

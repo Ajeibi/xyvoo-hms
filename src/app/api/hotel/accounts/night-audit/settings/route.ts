@@ -14,6 +14,7 @@ const Body = z.object({
   noShowMode: z.enum(["mark_only", "keep_deposit", "policy"]),
   emailReport: z.boolean(),
   extraRecipients: z.string().max(500),
+  nightlyRoomRevenue: z.boolean(),
 });
 
 /** Saves the hotel's night audit settings. Owners and admins only. */
@@ -25,7 +26,7 @@ export async function PUT(req: Request) {
     if (!isAdminLikeRole(auth.role)) return NextResponse.json({ error: "Only an owner or admin can change the night audit settings." }, { status: 403 });
 
     const { today } = await getBusinessDate(auth.service, auth.tenant.id);
-    const saved = await saveNightAuditSettings(auth.service, { tenantId: auth.tenant.id, userId: auth.user.id, settings, today });
+    const saved = await saveNightAuditSettings(auth.service, { tenantId: auth.tenant.id, userId: auth.user.id, settings: { ...settings, nightlyRevenueFrom: null }, today });
     if (!saved.ok) return NextResponse.json({ error: saved.error }, { status: 400 });
     return NextResponse.json({ ok: true });
   } catch (e) {

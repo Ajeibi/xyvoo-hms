@@ -308,6 +308,8 @@ export type InsertFolioLineInput = {
   relatedReservationId?: string;
   cashFloatSessionId?: string;
   metadata?: Record<string, unknown>;
+  /** The business day the line belongs to; left out, the database stamps the current business date. */
+  businessDate?: string;
 };
 
 export async function insertFolioLine(
@@ -342,6 +344,7 @@ export async function insertFolioLine(
       related_reservation_id: input.relatedReservationId ?? null,
       cash_float_session_id: input.cashFloatSessionId ?? null,
       metadata: input.metadata ?? {},
+      ...(input.businessDate ? { business_date: input.businessDate } : {}),
     })
     .select("*")
     .single();

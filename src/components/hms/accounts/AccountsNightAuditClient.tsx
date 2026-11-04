@@ -111,6 +111,7 @@ export function AccountsNightAuditClient({
   }, [slug, date, runsKey]);
 
   const standing = runs.find((r) => r.auditDate === date && !r.reversed);
+  const latestStandingId = runs.find((r) => !r.reversed)?.id;
   const blockers = preview?.checks.blockers ?? 0;
   const warnings = preview?.checks.warnings ?? 0;
   const reasonMissing = warnings > 0 && reason.trim().length < 3;
@@ -137,6 +138,28 @@ export function AccountsNightAuditClient({
       router.refresh();
     } finally {
       setRunning(false);
+    }
+  };
+
+  const reopenDay = async (run: NightAuditRunRow) => {
+    if (!window.confirm(`Reopen ${run.auditDate}? Nothing was posted for it, so it simply becomes the business date again.`)) return;
+    setBusyRun(run.id);
+    try {
+      const res = await fetch("/api/hotel/accounts/night-audit", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug, runId: run.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toastError("Could not reopen", data.error ?? "Try again.");
+        return;
+      }
+      toastSuccess(`${run.auditDate} is open again.`);
+      setDate(run.auditDate);
+      router.refresh();
+    } finally {
+      setBusyRun(null);
     }
   };
 
@@ -393,6 +416,11 @@ export function AccountsNightAuditClient({
                       ) : (
                         <span className="text-slate-500">None kept</span>
                       )}
+                      {canChangeSettings && !r.journalEntryId && !r.reversed && r.id === latestStandingId ? (
+                        <button type="button" className={`${hmsButton.small} ml-1`} disabled={busyRun === r.id} onClick={() => void reopenDay(r)}>
+                          Reopen
+                        </button>
+                      ) : null}
                     </td>
                   </tr>
                 ))}

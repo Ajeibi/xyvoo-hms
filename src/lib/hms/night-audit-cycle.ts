@@ -98,10 +98,11 @@ export async function closeBusinessDay(
 
 /** The figures for a day without closing it. */
 export async function previewBusinessDay(service: SupabaseClient, tenantId: string, auditDate: string, now: Date = new Date()) {
-  const [breakdown, checks, settings] = await Promise.all([
-    computeNightAuditBreakdown(service, tenantId, auditDate),
+  const settings = await getNightAuditSettings(service, tenantId);
+  const nightlyFrom = settings.nightlyRevenueFrom ?? (settings.nightlyRoomRevenue ? auditDate : null);
+  const [{ releases: _releases, ...breakdown }, checks] = await Promise.all([
+    computeNightAuditBreakdown(service, tenantId, auditDate, undefined, nightlyFrom),
     runAuditChecks(service, tenantId, auditDate, now),
-    getNightAuditSettings(service, tenantId),
   ]);
   return { breakdown, checks, settings };
 }

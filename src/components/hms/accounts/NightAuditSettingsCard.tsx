@@ -89,6 +89,23 @@ export function NightAuditSettingsCard({ slug, settings, businessDate, today }: 
         </fieldset>
 
         <fieldset className="space-y-3">
+          <legend className="text-sm font-semibold text-slate-900">Room revenue</legend>
+          <label className="flex items-start gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              className={`${checkbox} mt-0.5`}
+              checked={form.nightlyRoomRevenue}
+              disabled={Boolean(settings.nightlyRevenueFrom)}
+              onChange={(e) => set("nightlyRoomRevenue", e.target.checked)}
+            />
+            <span>
+              Earn each stay&apos;s room charge night by night. It is held in Deferred Revenue when posted and moved to Room Revenue as each night passes.
+              {settings.nightlyRevenueFrom ? ` Started on ${settings.nightlyRevenueFrom}; it stays on.` : " It starts with the next day you close, for stays that begin from then on."}
+            </span>
+          </label>
+        </fieldset>
+
+        <fieldset className="space-y-3">
           <legend className="text-sm font-semibold text-slate-900">Business date</legend>
           <p className="text-sm text-slate-600">
             It is {businessDate} now. It moves on by itself each time a day is closed. To skip a stretch nobody will close (say, a hotel starting out), choose the day it should start from.

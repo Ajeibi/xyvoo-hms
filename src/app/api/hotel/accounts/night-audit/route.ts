@@ -7,6 +7,8 @@ import { closeBusinessDay, previewBusinessDay } from "@/lib/hms/night-audit-cycl
 import { getBusinessDate } from "@/lib/hms/business-date";
 import { emailAuditReport, type AuditReport } from "@/lib/hms/night-audit-report";
 import { getNightAuditSettings } from "@/lib/hms/night-audit-settings";
+import { isAdminLikeRole } from "@/lib/hms/department-access";
+import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -94,6 +96,45 @@ export async function POST(req: Request) {
     }
     console.error("[night-audit POST]", e);
     return NextResponse.json({ error: "Failed to run night audit." }, { status: 500 });
+  }
+}
+
+/**
+ * Reopens the latest closed day when nothing was posted for it (a quiet day closed with no
+ * ledger entry, so there's nothing to reverse). A day with a ledger entry is reopened by reversing it.
+ */
+export async function DELETE(req: Request) {
+  try {
+    const body = EmailBody.parse(await req.json());
+    const auth = await requireHotelApiMember(body.slug);
+    if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
+    if (!isAdminLikeRole(auth.role)) return NextResponse.json({ error: "Only an owner or admin can reopen a day." }, { status: 403 });
+
+    const runs = await listNightAuditRuns(auth.service, auth.tenant.id);
+    const standing = runs.filter((r) => !r.reversed);
+    const run = runs.find((r) => r.id === body.runId);
+    if (!run) return NextResponse.json({ error: "That day wasn't found." }, { status: 404 });
+    if (run.journalEntryId) return NextResponse.json({ error: "This day posted to the ledger. Reverse its journal entry to reopen it." }, { status: 400 });
+    if (standing[0]?.id !== run.id) return NextResponse.json({ error: "Only the latest closed day can be reopened." }, { status: 400 });
+
+    await auth.service.schema("hotel").from("room_revenue_releases").delete().eq("tenant_id", auth.tenant.id).eq("night_date", run.auditDate);
+    const { error } = await auth.service.schema("hotel").from("night_audit_runs").delete().eq("tenant_id", auth.tenant.id).eq("id", run.id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await writeAuditLog({
+      tenantId: auth.tenant.id,
+      actorUserId: auth.user.id,
+      action: "night_audit_reopened",
+      entityType: "night_audit_run",
+      entityId: run.id,
+      before: { audit_date: run.auditDate },
+    });
+    return NextResponse.json({ ok: true, auditDate: run.auditDate });
+  } catch (e) {
+    if (e instanceof z.ZodError) {
+      return NextResponse.json({ error: e.issues[0]?.message }, { status: 400 });
+    }
+    console.error("[night-audit DELETE]", e);
+    return NextResponse.json({ error: "Failed to reopen the day." }, { status: 500 });
   }
 }
 

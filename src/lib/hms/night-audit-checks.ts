@@ -97,7 +97,7 @@ export async function runAuditChecks(service: SupabaseClient, tenantId: string, 
     dateProblem =
       auditDate > info.businessDate
         ? `Days are closed in order. Close ${info.businessDate} first.`
-        : `${auditDate} is already closed. The business date is ${info.businessDate}. To redo a closed day, reverse its journal entry first.`;
+        : `${auditDate} is already closed. The business date is ${info.businessDate}. To redo a closed day, reverse its journal entry (or, if nothing was posted for it, reopen it from the history).`;
   } else if (!info.canAudit) {
     dateProblem = `${auditDate} hasn't finished yet at the hotel. It can be closed from tomorrow.`;
   }
@@ -112,13 +112,14 @@ export async function runAuditChecks(service: SupabaseClient, tenantId: string, 
 
   // Accounts the posting needs, and whether the month is still open.
   const [{ data: accounts }, { data: periods }] = await Promise.all([
-    service.schema("hotel").from("chart_of_accounts").select("code").eq("tenant_id", tenantId).eq("is_active", true).in("code", REQUIRED_ACCOUNTS.map(([c]) => c)),
+    service.schema("hotel").from("chart_of_accounts").select("code").eq("tenant_id", tenantId).eq("is_active", true).in("code", [...REQUIRED_ACCOUNTS.map(([c]) => c), "2400"]),
     service.schema("hotel").from("accounting_periods").select("period_month,status").eq("tenant_id", tenantId),
   ]);
   const have = new Set((accounts ?? []).map((a) => a.code as string));
   const missing = REQUIRED_ACCOUNTS.filter(([code]) => !have.has(code)).map(([code, name]) => `${name} (${code})`);
   checks.push(build("accounts", "Ledger accounts", missing, "blocker", "Add these accounts under Accounts, Chart of accounts. The audit can't post without them.", "Every account the audit posts to is set up.", "accounts/chart"));
-  const periodClosed = isDateInClosedPeriod((periods ?? []).map((p) => ({ month: p.period_month as string, status: p.status as "open" | "closing" | "closed" })), auditDate);
+  checks.push(build("deferred_account", "Room revenue by night", have.has("2400") ? [] : ["Deferred Revenue (2400)"], "warning", "Add this account under Accounts, Chart of accounts. Until then each room charge is booked as revenue when it's posted, not night by night.", "Room charges are held in Deferred Revenue and earned night by night.", "accounts/chart"));
+  const periodClosed =isDateInClosedPeriod((periods ?? []).map((p) => ({ month: p.period_month as string, status: p.status as "open" | "closing" | "closed" })), auditDate);
   checks.push(build("period", "Accounting month", periodClosed ? [auditDate.slice(0, 7)] : [], "blocker", "That month is closed. Reopen it under Accounts, Periods, or the posting will be refused.", "The month is open.", "accounts/periods"));
 
   const [dueOut, noRoomCharge, pendingArrivals, floats, fbBills, recentOut] = await Promise.all([

@@ -4,6 +4,10 @@ import { getAccountIdByCode } from "@/lib/hms/chart-of-accounts";
 import { postJournalEntry, type JournalEntryLineInput } from "@/lib/hms/journal-entries";
 import { stayLinePart } from "@/lib/hms/folio";
 import { getHotelTimeZone, zonedDayBounds } from "@/lib/hms/business-date";
+import { getNightAuditSettings } from "@/lib/hms/night-audit-settings";
+import { GOVERNMENT_TAX_PARTS, computeRoomReleases, markDeferredLines, type RoomRelease } from "@/lib/hms/night-audit-deferral";
+
+export { GOVERNMENT_TAX_PARTS };
 
 /**
  * Bridges the gap where day-to-day guest folio activity and walk-in F&B POS sales never
@@ -27,11 +31,13 @@ import { getHotelTimeZone, zonedDayBounds } from "@/lib/hms/business-date";
  * they go to Taxes Payable (2200) rather than Room Revenue. The service charge is the hotel's.
  */
 
-/** Taxes on a room that the hotel collects for the government. */
-export const GOVERNMENT_TAX_PARTS = new Set(["vat", "state_levy", "stamp_levy"]);
-
 export type NightAuditBreakdown = {
+  /** Room revenue earned today: charges that count at once, plus the night released from Deferred Revenue. */
   roomRevenue: number;
+  /** Room charges posted today under the night-by-night rule, held in Deferred Revenue (less any credited back). */
+  roomDeferred: number;
+  /** The share of held room charges earned tonight (already in roomRevenue). */
+  roomReleased: number;
   fbRevenue: number;
   otherRevenue: number;
   unclassifiedRevenue: number;
@@ -76,6 +82,8 @@ export type NightAuditFolioRow = {
   metadata?: Record<string, unknown> | null;
   reference?: string | null;
   description?: string | null;
+  /** A room charge held in Deferred Revenue and earned night by night. */
+  deferred?: boolean;
 };
 export type NightAuditFbOrderRow = { id: string; subtotal: number | string; settlement_method: string };
 export type NightAuditFbPayment = { order_id: string; method: string; amount: number | string };
@@ -90,6 +98,7 @@ export function summariseNightAudit(
   fbPayments: NightAuditFbPayment[] = [],
 ): NightAuditBreakdown {
   let folioRoomRevenue = 0;
+  let roomDeferred = 0;
   let folioFbRevenue = 0;
   let folioOtherRevenue = 0;
   let folioUnclassifiedRevenue = 0;
@@ -124,6 +133,7 @@ export function summariseNightAudit(
       if (line.department === "rooms") {
         const part = stayLinePart({ metadata: line.metadata ?? {}, reference: line.reference ?? null, description: line.description ?? null });
         if (GOVERNMENT_TAX_PARTS.has(part)) taxesCollected += sign * amount;
+        else if (line.deferred) roomDeferred += sign * amount;
         else folioRoomRevenue += sign * amount;
       } else if (line.department === "food_beverage") folioFbRevenue += sign * amount;
       else if (line.department) folioOtherRevenue += sign * amount;
@@ -163,6 +173,7 @@ export function summariseNightAudit(
   const round = (n: number) => Math.round(n * 100) / 100;
   const guestLedgerNet =
     folioRoomRevenue +
+    roomDeferred +
     folioFbRevenue +
     folioOtherRevenue +
     folioUnclassifiedRevenue +
@@ -171,6 +182,8 @@ export function summariseNightAudit(
 
   return {
     roomRevenue: round(folioRoomRevenue),
+    roomDeferred: round(roomDeferred),
+    roomReleased: 0,
     fbRevenue: round(folioFbRevenue + walkInFbRevenue),
     otherRevenue: round(folioOtherRevenue),
     unclassifiedRevenue: round(folioUnclassifiedRevenue),
@@ -186,24 +199,34 @@ export function summariseNightAudit(
   };
 }
 
+/** Adds tonight's released room revenue: earned today, moved out of Deferred Revenue. Pure. */
+export function withRoomReleases(b: NightAuditBreakdown, releases: Pick<RoomRelease, "amount">[]): NightAuditBreakdown {
+  const released = Math.round(releases.reduce((s, r) => s + r.amount, 0) * 100) / 100;
+  return { ...b, roomRevenue: Math.round((b.roomRevenue + released) * 100) / 100, roomReleased: released };
+}
+
+export type BreakdownResult = NightAuditBreakdown & { releases: RoomRelease[] };
+
 export async function computeNightAuditBreakdown(
   service: SupabaseClient,
   tenantId: string,
   auditDate: string,
   timeZone?: string,
-): Promise<NightAuditBreakdown> {
-  // The day is the hotel's own day, not the UTC day.
-  const { start, end } = zonedDayBounds(auditDate, timeZone ?? (await getHotelTimeZone(service, tenantId)));
+  /** The first day room charges are spread over the nights; null leaves room revenue booked as charged. */
+  nightlyFrom?: string | null,
+): Promise<BreakdownResult> {
+  // The day is the hotel's own business day: every bill line carries the date it belongs to.
+  const zone = timeZone ?? (await getHotelTimeZone(service, tenantId));
+  const { start, end } = zonedDayBounds(auditDate, zone);
 
   const [{ data: folioLines }, { data: fbOrders }] = await Promise.all([
     service
       .schema("hotel")
       .from("folio_transactions")
-      .select("kind,amount,method,department,metadata,reference,description")
+      .select("reservation_id,kind,amount,method,department,metadata,reference,description")
       .eq("tenant_id", tenantId)
       .is("voided_at", null)
-      .gte("created_at", start)
-      .lt("created_at", end),
+      .eq("business_date", auditDate),
     service
       .schema("hotel")
       .from("fb_orders")
@@ -226,7 +249,13 @@ export async function computeNightAuditBreakdown(
     fbPayments.push(...((data ?? []) as NightAuditFbPayment[]));
   }
 
-  return summariseNightAudit((folioLines ?? []) as NightAuditFolioRow[], fbRows, fbPayments);
+  let rows = (folioLines ?? []) as (NightAuditFolioRow & { reservation_id: string | null })[];
+  let releases: RoomRelease[] = [];
+  if (nightlyFrom && auditDate >= nightlyFrom) {
+    rows = await markDeferredLines(service, tenantId, rows, nightlyFrom, zone);
+    releases = await computeRoomReleases(service, tenantId, auditDate, zone, nightlyFrom);
+  }
+  return { ...withRoomReleases(summariseNightAudit(rows, fbRows, fbPayments), releases), releases };
 }
 
 export type NightAuditAccounts = {
@@ -240,6 +269,8 @@ export type NightAuditAccounts = {
   guestLedger: string;
   deposits: string | null;
   taxes: string | null;
+  /** Deferred Revenue (2400), holding room charges until their nights pass. */
+  deferred?: string | null;
 };
 
 /** The night audit's journal lines for a day's figures: one balanced entry. */
@@ -252,6 +283,8 @@ export function buildNightAuditLines(b: NightAuditBreakdown, accts: NightAuditAc
   };
 
   revenueLine(b.roomRevenue, accts.room, "Front Desk");
+  // Room charges posted today and held, less the share earned tonight (which is in room revenue above).
+  if (accts.deferred) revenueLine(Math.round((b.roomDeferred - b.roomReleased) * 100) / 100, accts.deferred, "Front Desk");
   revenueLine(b.fbRevenue, accts.fb, "Kitchen");
   revenueLine(b.otherRevenue, accts.other, "Other");
   revenueLine(b.unclassifiedRevenue, accts.misc, "Other");
@@ -295,11 +328,16 @@ export async function runNightAudit(
       .eq("id", existing.journal_entry_id as string)
       .maybeSingle();
     if (!entry?.reversed_by) {
-      return { ok: false, error: `${params.auditDate} was already audited. Reverse its journal entry first to redo it.` };
+      return {
+        ok: false,
+        error: existing.journal_entry_id
+          ? `${params.auditDate} was already audited. Reverse its journal entry first to redo it.`
+          : `${params.auditDate} was already closed with nothing to post. Reopen it from the history first to redo it.`,
+      };
     }
   }
 
-  const [room, fb, other, misc, cash, card, cityLedger, guestLedger, deposits, taxes] = await Promise.all([
+  const [room, fb, other, misc, cash, card, cityLedger, guestLedger, deposits, taxes, deferred, settings] = await Promise.all([
     getAccountIdByCode(service, params.tenantId, "4000"),
     getAccountIdByCode(service, params.tenantId, "4100"),
     getAccountIdByCode(service, params.tenantId, "4200"),
@@ -310,7 +348,16 @@ export async function runNightAudit(
     getAccountIdByCode(service, params.tenantId, "1200"),
     getAccountIdByCode(service, params.tenantId, "2300"),
     getAccountIdByCode(service, params.tenantId, "2200"),
+    getAccountIdByCode(service, params.tenantId, "2400"),
+    getNightAuditSettings(service, params.tenantId),
   ]);
+  // Room revenue night by night starts with the first audit after it's on, and stays on once started.
+  // Without a Deferred Revenue account it can't start; once started it can't carry on without one.
+  const alreadyStarted = settings.nightlyRevenueFrom;
+  if (alreadyStarted && !deferred) {
+    return { ok: false, error: "Missing required accounts: Deferred Revenue (2400), which holds room charges until their nights pass." };
+  }
+  const nightlyFrom = alreadyStarted ?? (settings.nightlyRoomRevenue && deferred ? params.auditDate : null);
   const missing = [
     ["Room Revenue (4000)", room],
     ["Food & Beverage Revenue (4100)", fb],
@@ -325,8 +372,9 @@ export async function runNightAudit(
     return { ok: false, error: `Missing required accounts: ${missing.map(([label]) => label).join(", ")}.` };
   }
 
-  const breakdown = await computeNightAuditBreakdown(service, params.tenantId, params.auditDate);
+  const { releases, ...breakdown } = await computeNightAuditBreakdown(service, params.tenantId, params.auditDate, undefined, nightlyFrom);
   const lines = buildNightAuditLines(breakdown, {
+    deferred: (deferred as string | null) ?? null,
     room: room as string,
     fb: fb as string,
     other: other as string,
@@ -387,6 +435,18 @@ export async function runNightAudit(
     .select("id")
     .single();
   if (error) return { ok: false, error: error.message };
+
+  // Remember what was earned from each stay tonight, so the next night works from the running totals.
+  await service.schema("hotel").from("room_revenue_releases").delete().eq("tenant_id", params.tenantId).eq("night_date", params.auditDate);
+  if (releases.length > 0) {
+    await service
+      .schema("hotel")
+      .from("room_revenue_releases")
+      .insert(releases.map((r) => ({ tenant_id: params.tenantId, reservation_id: r.reservationId, night_date: r.nightDate, amount: r.amount })));
+  }
+  if (nightlyFrom && !alreadyStarted) {
+    await service.schema("hotel").from("night_audit_settings").upsert({ tenant_id: params.tenantId, nightly_revenue_from: nightlyFrom }, { onConflict: "tenant_id" });
+  }
 
   await writeAuditLog({
     tenantId: params.tenantId,
