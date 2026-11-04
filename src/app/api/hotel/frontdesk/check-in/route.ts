@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { applyDepositsToFolio, snapshotDeposit } from "@/lib/hms/folio-deposits";
 import { setStayAgent } from "@/lib/hms/folio-commission";
+import { findExistingGuest } from "@/lib/hms/guest-match";
 import { z } from "zod";
 import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -348,17 +349,38 @@ export async function POST(req: Request) {
       }
       guestId = existingPrimaryGuestId;
     } else {
-      const { guest, error: guestError } = await insertGuestProfile(
-        service,
-        tenant.id,
-        primaryGuestFields(parsed),
-      );
+      // A returning guest keeps their one profile: link to it instead of creating a duplicate.
+      const match = await findExistingGuest(service, tenant.id, {
+        idType: parsed.idType,
+        idNumber: parsed.idNumber,
+        firstName: parsed.firstName,
+        lastName: parsed.lastName,
+        email: parsed.email,
+        phone: parsed.phone,
+      }).catch(() => null);
+      if (match) {
+        guestId = match.id;
+        await writeAuditLog({
+          tenantId: tenant.id,
+          actorUserId: user.id,
+          action: "guest_matched_at_check_in",
+          entityType: "guest",
+          entityId: match.id,
+          after: { matchedBy: match.reason },
+        }).catch(() => undefined);
+      } else {
+        const { guest, error: guestError } = await insertGuestProfile(
+          service,
+          tenant.id,
+          primaryGuestFields(parsed),
+        );
 
-      if (guestError || !guest) {
-        console.error("[check-in] guest insert:", guestError);
-        return NextResponse.json({ error: "Could not create guest profile." }, { status: 500 });
+        if (guestError || !guest) {
+          console.error("[check-in] guest insert:", guestError);
+          return NextResponse.json({ error: "Could not create guest profile." }, { status: 500 });
+        }
+        guestId = guest.id;
       }
-      guestId = guest.id;
     }
 
     const confirmationCode = existingReservation?.confirmation_code ?? uniqueCode("XYV");

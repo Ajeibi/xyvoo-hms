@@ -8,6 +8,8 @@ import {
 import { computeFolioBalance, mapFolioLineRow } from "@/lib/hms/folio";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import { listGuestNotes, type GuestNoteRow } from "@/lib/hms/guest-management";
+import { emptyMetrics, foldGuestMetrics, loadBilled, type GuestMetrics, type StayBilled, type StayInput } from "@/lib/hms/guest-metrics";
+import type { GuestEditable } from "@/lib/hms/guest-fields";
 
 export type GuestStayRow = {
   id: string;
@@ -15,8 +17,15 @@ export type GuestStayRow = {
   status: string;
   arrivalAt: string;
   departureAt: string;
+  nights: number;
+  roomTypeCode: string;
   roomCode: string | null;
+  channel: string | null;
+  /** The room price booked. */
   totalCharges: number;
+  /** What the bill came to (charges less discounts); null when there is no bill or this guest is not the one paying. */
+  billed: StayBilled | null;
+  isPrimary: boolean;
 };
 
 export type GuestServiceRequestSummary = {
@@ -34,15 +43,65 @@ export type GuestProfileData = {
   guestId: string;
   isVip: boolean;
   isDoNotWalk: boolean;
+  /** Stays they have checked out of. */
   visitCount: number;
+  /** What they have been billed over all their stays. */
   totalRevenue: number;
   openBalance: number;
+  metrics: GuestMetrics;
   stays: GuestStayRow[];
   preferences: string | null;
   currency: string;
   serviceRequests: GuestServiceRequestSummary[];
   notes: GuestNoteRow[];
+  editable: GuestEditable;
+  address: { address: string | null; city: string | null; country: string | null };
+  language: string | null;
+  companyId: string | null;
+  companyName: string | null;
+  anonymised: boolean;
 };
+
+const BASE_SELECT =
+  "id,title,first_name,last_name,nationality,id_type,id_number,id_expiry_date,date_of_birth,gender,phone,email,whatsapp,preferred_channel,tags";
+const EXTRA_SELECT = `${BASE_SELECT},address,city,country,language,preferences,company_id,anonymised_at`;
+
+/** The guest row. If the profile columns haven't been added to the database yet, falls back to the old ones. */
+export async function fetchGuestRow(tenantId: string, guestId: string): Promise<Record<string, unknown> | null> {
+  const supabase = createServerSupabaseClient();
+  const tryOnce = (select: string) =>
+    supabase.schema("hotel").from("guests").select(select).eq("tenant_id", tenantId).eq("id", guestId).maybeSingle();
+  const first = await tryOnce(EXTRA_SELECT);
+  if (!first.error) return (first.data as unknown as Record<string, unknown> | null) ?? null;
+  const second = await tryOnce(BASE_SELECT);
+  return (second.data as unknown as Record<string, unknown> | null) ?? null;
+}
+
+const str = (v: unknown) => (typeof v === "string" ? v : "");
+
+export function toEditable(row: Record<string, unknown>): GuestEditable {
+  return {
+    title: str(row.title),
+    firstName: str(row.first_name),
+    lastName: str(row.last_name),
+    nationality: str(row.nationality).trim(),
+    idType: (str(row.id_type) || "national_id") as GuestEditable["idType"],
+    idNumber: str(row.id_number),
+    idExpiryDate: str(row.id_expiry_date).slice(0, 10),
+    dateOfBirth: str(row.date_of_birth).slice(0, 10),
+    gender: str(row.gender) || "unspecified",
+    phone: str(row.phone),
+    email: str(row.email),
+    whatsapp: str(row.whatsapp),
+    preferredChannel: (str(row.preferred_channel) || "email") as GuestEditable["preferredChannel"],
+    address: str(row.address),
+    city: str(row.city),
+    country: str(row.country),
+    language: str(row.language),
+    preferences: str(row.preferences),
+    companyId: str(row.company_id),
+  };
+}
 
 export async function getGuestProfileData(params: {
   tenantId: string;
@@ -52,38 +111,53 @@ export async function getGuestProfileData(params: {
   const { tenantId, guestId, currency } = params;
   const supabase = createServerSupabaseClient();
 
-  const guestSelect =
-    "id,title,first_name,last_name,nationality,id_type,id_number,id_expiry_date,date_of_birth,gender,phone,email,whatsapp,preferred_channel,tags";
+  const guestRow = await fetchGuestRow(tenantId, guestId);
+  if (!guestRow) return null;
 
-  const { data: guestRow, error: guestError } = await supabase
-    .schema("hotel")
-    .from("guests")
-    .select(guestSelect)
-    .eq("tenant_id", tenantId)
-    .eq("id", guestId)
-    .maybeSingle();
+  let companyName: string | null = null;
+  const companyId = (guestRow.company_id as string | null | undefined) ?? null;
+  if (companyId) {
+    const { data: company } = await supabase.schema("hotel").from("ar_customers").select("name").eq("tenant_id", tenantId).eq("id", companyId).maybeSingle();
+    companyName = (company?.name as string | undefined) ?? null;
+  }
 
-  if (guestError || !guestRow) return null;
+  const common = {
+    guest: toGuestInfo(guestRow as Parameters<typeof toGuestInfo>[0]),
+    guestId,
+    isVip: guestHasVipTag(guestRow as Parameters<typeof guestHasVipTag>[0]),
+    isDoNotWalk: guestHasDoNotWalkTag(guestRow as Parameters<typeof guestHasDoNotWalkTag>[0]),
+    currency,
+    editable: toEditable(guestRow),
+    address: {
+      address: (guestRow.address as string | null | undefined) ?? null,
+      city: (guestRow.city as string | null | undefined) ?? null,
+      country: (guestRow.country as string | null | undefined) ?? null,
+    },
+    language: (guestRow.language as string | null | undefined) ?? null,
+    companyId,
+    companyName,
+    anonymised: Boolean(guestRow.anonymised_at),
+  };
 
   const { data: links } = await supabase
     .schema("hotel")
     .from("reservation_guests")
-    .select("reservation_id")
+    .select("reservation_id,is_primary")
     .eq("guest_id", guestId);
 
-  const reservationIds = (links ?? []).map((l) => l.reservation_id);
+  const reservationIds = (links ?? []).map((l) => l.reservation_id as string);
+  const primaryByReservation = new Map((links ?? []).map((l) => [l.reservation_id as string, Boolean(l.is_primary)]));
+  const savedPreferences = (guestRow.preferences as string | null | undefined) ?? null;
+
   if (reservationIds.length === 0) {
     return {
-      guest: toGuestInfo(guestRow as Parameters<typeof toGuestInfo>[0]),
-      guestId,
-      isVip: guestHasVipTag(guestRow as Parameters<typeof guestHasVipTag>[0]),
-      isDoNotWalk: guestHasDoNotWalkTag(guestRow as Parameters<typeof guestHasDoNotWalkTag>[0]),
+      ...common,
       visitCount: 0,
       totalRevenue: 0,
       openBalance: 0,
+      metrics: foldGuestMetrics([], new Map()).get(guestId) ?? emptyMetrics(guestId),
       stays: [],
-      preferences: null,
-      currency,
+      preferences: savedPreferences,
       serviceRequests: [],
       notes: await listGuestNotes(supabase, tenantId, guestId),
     };
@@ -93,7 +167,7 @@ export async function getGuestProfileData(params: {
     .schema("hotel")
     .from("reservations")
     .select(
-      "id,confirmation_code,status,arrival_at,departure_at,total_room_charges,settlement_method,preauth_amount,room_unit_id,room_preferences_text,guest_remarks",
+      "id,confirmation_code,status,arrival_at,departure_at,nights,room_type_code,source,booking_channel,vip_flag,total_room_charges,settlement_method,preauth_amount,room_unit_id,room_preferences_text,guest_remarks",
     )
     .in("id", reservationIds)
     .order("arrival_at", { ascending: false });
@@ -117,20 +191,40 @@ export async function getGuestProfileData(params: {
     }
   }
 
-  const stays: GuestStayRow[] = (reservations ?? []).map((r) => ({
-    id: r.id,
-    confirmationCode: r.confirmation_code,
-    status: r.status,
-    arrivalAt: r.arrival_at,
-    departureAt: r.departure_at,
-    roomCode: r.room_unit_id ? (roomCodeById.get(r.room_unit_id) ?? null) : null,
-    totalCharges: Number(r.total_room_charges) || 0,
-  }));
+  const countedIds = (reservations ?? []).filter((r) => r.status === "checked_in" || r.status === "checked_out").map((r) => r.id as string);
+  const billed = await loadBilled(supabase, tenantId, countedIds);
 
-  const completed = stays.filter((s) => s.status === "checked_out").length;
-  const totalRevenue = stays
-    .filter((s) => s.status === "checked_out" || s.status === "checked_in")
-    .reduce((sum, s) => sum + s.totalCharges, 0);
+  const stayInputs: StayInput[] = (reservations ?? []).map((r) => ({
+    id: r.id as string,
+    status: r.status as string,
+    arrivalAt: r.arrival_at as string,
+    departureAt: r.departure_at as string,
+    nights: Number(r.nights) || 0,
+    roomTypeCode: r.room_type_code as string,
+    totalRoomCharges: Number(r.total_room_charges) || 0,
+    vipFlag: Boolean(r.vip_flag),
+    source: (r.source as string | null) ?? null,
+    guests: [{ guestId, isPrimary: primaryByReservation.get(r.id as string) ?? false }],
+  }));
+  const metrics = foldGuestMetrics(stayInputs, billed).get(guestId) ?? emptyMetrics(guestId);
+
+  const stays: GuestStayRow[] = (reservations ?? []).map((r) => {
+    const isPrimary = primaryByReservation.get(r.id as string) ?? false;
+    return {
+      id: r.id as string,
+      confirmationCode: r.confirmation_code as string,
+      status: r.status as string,
+      arrivalAt: r.arrival_at as string,
+      departureAt: r.departure_at as string,
+      nights: Number(r.nights) || 0,
+      roomTypeCode: r.room_type_code as string,
+      roomCode: r.room_unit_id ? (roomCodeById.get(r.room_unit_id) ?? null) : null,
+      channel: ((r.booking_channel as string | null) || (r.source as string | null)) ?? null,
+      totalCharges: Number(r.total_room_charges) || 0,
+      billed: isPrimary ? (billed.get(r.id as string) ?? null) : null,
+      isPrimary,
+    };
+  });
 
   const inHouseIds = (reservations ?? [])
     .filter((r) => r.status === "checked_in")
@@ -171,6 +265,7 @@ export async function getGuestProfileData(params: {
 
   const latest = reservations?.[0];
   const preferences =
+    savedPreferences ??
     (latest?.room_preferences_text as string | null) ??
     (latest?.guest_remarks as string | null) ??
     null;
@@ -196,16 +291,13 @@ export async function getGuestProfileData(params: {
   }));
 
   return {
-    guest: toGuestInfo(guestRow as Parameters<typeof toGuestInfo>[0]),
-    guestId,
-    isVip: guestHasVipTag(guestRow as Parameters<typeof guestHasVipTag>[0]),
-    isDoNotWalk: guestHasDoNotWalkTag(guestRow as Parameters<typeof guestHasDoNotWalkTag>[0]),
-    visitCount: completed,
-    totalRevenue,
+    ...common,
+    visitCount: metrics.completedStays,
+    totalRevenue: metrics.spend,
     openBalance,
+    metrics,
     stays,
     preferences,
-    currency,
     serviceRequests,
     notes: await listGuestNotes(supabase, tenantId, guestId),
   };

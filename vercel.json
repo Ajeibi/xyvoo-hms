@@ -9,6 +9,7 @@
     { "path": "/api/cron/hms-alerts", "schedule": "0 * * * *" },
     { "path": "/api/cron/hms-recurring", "schedule": "0 5 * * *" },
     { "path": "/api/cron/hms-night-audit", "schedule": "5 * * * *" },
-    { "path": "/api/cron/hms-reports", "schedule": "20 * * * *" }
+    { "path": "/api/cron/hms-reports", "schedule": "20 * * * *" },
+    { "path": "/api/cron/hms-loyalty", "schedule": "30 3 * * *" }
   ]
 }

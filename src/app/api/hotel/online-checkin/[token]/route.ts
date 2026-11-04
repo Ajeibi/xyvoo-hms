@@ -4,6 +4,8 @@ import { phoneCountry } from "@/lib/hms/folio-invoice-link";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { emitNotification, writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { createRegistrationCard } from "@/lib/hms/registration-card";
+import { CONSENT_CHANNELS } from "@/lib/hms/guest-consent-shared";
+import { setGuestConsent } from "@/lib/hms/guest-consent";
 import {
   ARRIVAL_TIMES,
   decodeSignature,
@@ -19,7 +21,20 @@ import {
  * days. Everything it can do is limited to that stay.
  */
 
-const EXPIRED = { error: "This link has expired or isn't right. Ask the hotel to send it again." };
+/** The reservation id comes from the signed link, which already names this hotel's stay. */
+async function primaryGuestId(db: ReturnType<typeof createServerSupabaseClient>, _tenantId: string, reservationId: string) {
+  const { data } = await db
+    .schema("hotel")
+    .from("reservation_guests")
+    .select("guest_id,is_primary")
+    .eq("reservation_id", reservationId)
+    .order("is_primary", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return (data?.guest_id as string | undefined) ?? null;
+}
+
+const EXPIRED ={ error: "This link has expired or isn't right. Ask the hotel to send it again." };
 const NO_STORE = { "Cache-Control": "private, no-store", "X-Robots-Tag": "noindex", "Referrer-Policy": "no-referrer" };
 
 const AnswerSchema = z.object({
@@ -32,6 +47,11 @@ const AnswerSchema = z.object({
     .transform((v) => v.toUpperCase()),
   arrivalTime: z.enum(ARRIVAL_TIMES).nullable().optional().default(null),
   requests: z.string().trim().max(500).nullable().optional().default(null),
+  /** Optional, and never ticked for them: which kinds of offers the guest agreed to. */
+  marketing: z
+    .object({ email: z.boolean().optional(), sms: z.boolean().optional(), whatsapp: z.boolean().optional() })
+    .optional()
+    .default({}),
   agreed: z.literal(true, { error: "Please confirm that your details are right." }),
   signature: z.string(),
 });
@@ -91,6 +111,27 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
       },
     });
     if (!saved.ok) return NextResponse.json({ error: saved.error }, { status: 409, headers: NO_STORE });
+
+    // Offers they agreed to are logged as consent, with where and when. Never holds up the check-in.
+    try {
+      const guestId = await primaryGuestId(db, link.tenantId, link.reservationId);
+      if (guestId) {
+        for (const channel of CONSENT_CHANNELS) {
+          if (!body.marketing[channel]) continue;
+          await setGuestConsent(db, {
+            tenantId: link.tenantId,
+            guestId,
+            channel,
+            granted: true,
+            source: "online_checkin",
+            note: "Ticked the box on the online check-in form",
+            actorUserId: null,
+          });
+        }
+      }
+    } catch (e) {
+      console.warn("[online check-in] consent not saved", e);
+    }
 
     // The signed registration card is made straight away and kept on the stay. A failure here never
     // undoes the check-in: staff can make the card from the online signature later.

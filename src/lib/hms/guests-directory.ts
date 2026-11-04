@@ -1,5 +1,10 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { guestHasVipTag } from "@/lib/hms/front-desk-board";
+import { loadGuestMetrics } from "@/lib/hms/guest-metrics";
+import { getLoyaltySettings, getLoyaltyTotals } from "@/lib/hms/guest-loyalty";
+import { tierFor } from "@/lib/hms/guest-loyalty-shared";
+import { loadSegmentPool, rulesForKey } from "@/lib/hms/guest-segments";
+import { matchesRules } from "@/lib/hms/guest-segments-shared";
 
 function displayName(g: { title?: string | null; first_name: string; last_name: string }) {
   const title = g.title?.trim();
@@ -19,6 +24,13 @@ export type GuestDirectoryRow = {
   visitCount: number;
   openRequestCount: number;
   lastStayAt: string | null;
+  /** What they have been billed over all their stays. */
+  spend: number;
+  companyName: string | null;
+  tier: string | null;
+  /** Has agreed to marketing on at least one channel. */
+  canMarket: boolean;
+  anonymised: boolean;
 };
 
 export type GuestDirectorySummary = {
@@ -34,22 +46,23 @@ export type GuestDirectoryPayload = {
   total: number;
 };
 
-const DEFAULT_PAGE_SIZE = 5;
+const DEFAULT_PAGE_SIZE = 10;
+
+const BASE_COLUMNS = "id,title,first_name,last_name,phone,email,tags,created_at";
+const EXTRA_COLUMNS = `${BASE_COLUMNS},company_id,anonymised_at,marketing_email,marketing_sms,marketing_whatsapp`;
+
+const NO_MATCH = "00000000-0000-0000-0000-000000000000";
 
 /**
- * Paginated at the guest-table level: only the current page's guests get the expensive
- * reservations/requests join-and-compute pass, instead of every guest in the tenant (the
- * original version loaded and processed the whole table on every request).
- *
- * vipOnly filters on the "vip" tag at the SQL level — the same signal guestHasVipTag() reads,
- * and the only one a guest carries independent of any specific reservation. A guest who is only
- * VIP via a past reservation's vip_flag (set at check-in, not on the guest record) won't match
- * this filter; that's an accepted approximation to keep the query index-able rather than
- * re-introducing a full-table join for a checkbox filter.
+ * One page of the guest list. Only that page's guests get the heavier work (stays, spend, requests).
+ *  - `search` matches name, phone, email or ID number.
+ *  - `segment` (builtin:... or saved:...) shows only the guests in that segment.
+ *  - `vipOnly` filters on the "vip" tag at the database, the same signal guestHasVipTag() reads. A guest who is
+ *    VIP only through a past booking's vip_flag won't match this checkbox; the VIP segment does include them.
  */
 export async function getGuestsDirectory(
   tenantId: string,
-  opts?: { search?: string; vipOnly?: boolean; page?: number; pageSize?: number },
+  opts?: { search?: string; vipOnly?: boolean; segment?: string | null; page?: number; pageSize?: number },
 ): Promise<GuestDirectoryPayload> {
   const supabase = createServerSupabaseClient();
   const page = Math.max(1, opts?.page ?? 1);
@@ -57,38 +70,62 @@ export async function getGuestsDirectory(
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
-  let query = supabase
-    .schema("hotel")
-    .from("guests")
-    .select("id,title,first_name,last_name,phone,email,tags,created_at", { count: "exact" })
-    .eq("tenant_id", tenantId);
-
   const q = opts?.search?.trim();
-  if (q) {
-    const escaped = q.replace(/[%_]/g, "\\$&");
-    query = query.or(`first_name.ilike.%${escaped}%,last_name.ilike.%${escaped}%,phone.ilike.%${escaped}%,email.ilike.%${escaped}%`);
-  }
-  if (opts?.vipOnly) {
-    query = query.contains("tags", ["vip"]);
+  const escaped = q ? q.replace(/[%_,()]/g, "\\$&") : "";
+
+  // A segment narrows the list to a set of guest ids worked out from stays and spend.
+  let segmentIds: string[] | null = null;
+  if (opts?.segment) {
+    const found = await rulesForKey(supabase, tenantId, opts.segment);
+    if (found) {
+      const pool = await loadSegmentPool(supabase, tenantId);
+      const now = new Date();
+      segmentIds = pool
+        .filter((g) => matchesRules(found.rules, g, now))
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((g) => g.id);
+    }
   }
 
-  const { data: guests, count } = await query.order("last_name").range(from, to);
-  const total = count ?? 0;
+  const run = async (columns: string) => {
+    let query = supabase.schema("hotel").from("guests").select(columns, { count: "exact" }).eq("tenant_id", tenantId);
+    if (escaped) {
+      query = query.or(
+        `first_name.ilike.%${escaped}%,last_name.ilike.%${escaped}%,phone.ilike.%${escaped}%,email.ilike.%${escaped}%,id_number.ilike.%${escaped}%`,
+      );
+    }
+    if (opts?.vipOnly) query = query.contains("tags", ["vip"]);
+    if (segmentIds) {
+      // The segment is cut into pages by its own id list.
+      return query.in("id", segmentIds.length > 0 ? segmentIds.slice(from, to + 1) : [NO_MATCH]).order("last_name");
+    }
+    return query.order("last_name").range(from, to);
+  };
+
+  let res = await run(EXTRA_COLUMNS);
+  // The profile and consent columns may not be added to the database yet: carry on with the old ones.
+  if (res.error) res = await run(BASE_COLUMNS);
+  const guestRows = (res.data ?? []) as unknown as Record<string, unknown>[];
+  const total = segmentIds && !escaped && !opts?.vipOnly ? segmentIds.length : (res.count ?? 0);
 
   const summary = await getGuestsDirectorySummary(tenantId);
 
-  const guestRows = guests ?? [];
   if (guestRows.length === 0) {
     return { rows: [], summary, total };
   }
 
   const guestIds = guestRows.map((g) => g.id as string);
 
-  const { data: links } = await supabase
-    .schema("hotel")
-    .from("reservation_guests")
-    .select("guest_id,reservation_id")
-    .in("guest_id", guestIds);
+  const companyIds = [...new Set(guestRows.map((g) => g.company_id as string | null | undefined).filter((x): x is string => Boolean(x)))];
+  const companyName = new Map<string, string>();
+  if (companyIds.length > 0) {
+    const { data } = await supabase.schema("hotel").from("ar_customers").select("id,name").eq("tenant_id", tenantId).in("id", companyIds);
+    for (const c of data ?? []) companyName.set(c.id as string, c.name as string);
+  }
+  const [metrics, loyalty] = await Promise.all([loadGuestMetrics(supabase, tenantId, guestIds), getLoyaltySettings(supabase, tenantId)]);
+  const loyaltyTotals = loyalty.enabled ? await getLoyaltyTotals(supabase, tenantId, guestIds) : new Map<string, { balance: number; lifetime: number }>();
+
+  const { data: links } = await supabase.schema("hotel").from("reservation_guests").select("guest_id,reservation_id").in("guest_id", guestIds);
 
   const reservationIdsByGuest = new Map<string, string[]>();
   const guestIdsByReservation = new Map<string, string[]>();
@@ -107,11 +144,7 @@ export async function getGuestsDirectory(
 
   const [{ data: reservations }, { data: requests }] = await Promise.all([
     allReservationIds.length > 0
-      ? supabase
-          .schema("hotel")
-          .from("reservations")
-          .select("id,departure_at,status,vip_flag")
-          .in("id", allReservationIds)
+      ? supabase.schema("hotel").from("reservations").select("id,departure_at,status,vip_flag").in("id", allReservationIds)
       : Promise.resolve({ data: [] as { id: string; departure_at: string; status: string; vip_flag: boolean }[] }),
     allReservationIds.length > 0
       ? supabase.schema("hotel").from("guest_requests").select("reservation_id,status").in("reservation_id", allReservationIds)
@@ -128,8 +161,8 @@ export async function getGuestsDirectory(
     openRequestCountByReservation.set(r.reservation_id, (openRequestCountByReservation.get(r.reservation_id) ?? 0) + 1);
   }
 
-  const rows: GuestDirectoryRow[] = guestRows.map((g) => {
-    const tags = Array.isArray(g.tags) ? g.tags.filter((t): t is string => typeof t === "string") : [];
+  let rows: GuestDirectoryRow[] = guestRows.map((g) => {
+    const tags = Array.isArray(g.tags) ? (g.tags as unknown[]).filter((t): t is string => typeof t === "string") : [];
     const resIds = reservationIdsByGuest.get(g.id as string) ?? [];
     const stays = resIds.map((id) => reservationById.get(id)).filter((r): r is NonNullable<typeof r> => Boolean(r));
 
@@ -141,10 +174,11 @@ export async function getGuestsDirectory(
       if (!latest || new Date(s.departure_at).getTime() > new Date(latest).getTime()) return s.departure_at;
       return latest;
     }, null);
+    const t = loyaltyTotals.get(g.id as string);
 
     return {
       id: g.id as string,
-      displayName: displayName(g),
+      displayName: displayName(g as unknown as { title?: string | null; first_name: string; last_name: string }),
       phone: g.phone as string,
       email: g.email as string,
       tags,
@@ -152,9 +186,16 @@ export async function getGuestsDirectory(
       visitCount,
       openRequestCount,
       lastStayAt,
+      spend: metrics.get(g.id as string)?.spend ?? 0,
+      companyName: g.company_id ? (companyName.get(g.company_id as string) ?? null) : null,
+      tier: loyalty.enabled ? (tierFor(t?.lifetime ?? 0, loyalty.tiers).tier?.name ?? null) : null,
+      canMarket: Boolean(g.marketing_email || g.marketing_sms || g.marketing_whatsapp),
+      anonymised: Boolean(g.anonymised_at),
     };
   });
 
+  // A segment keeps its own order (by name) rather than the database's.
+  if (segmentIds) rows = rows.sort((a, b) => a.displayName.localeCompare(b.displayName));
   return { rows, summary, total };
 }
 

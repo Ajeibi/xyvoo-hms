@@ -1,11 +1,13 @@
 import { notFound } from "next/navigation";
 import HMSLayout from "@/components/hms/HMSLayout";
 import { GuestProfileView } from "@/components/hms/guests/GuestProfileView";
-import { getHotelTenantBySlug } from "@/lib/hms/data";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getGuestProfileData } from "@/lib/hms/guest-profile";
-import { normalizePricingSetup } from "@/lib/hms/room-pricing";
-import { getHmsAccessContext } from "@/lib/hms/access";
-import { getArrivalsCapabilities } from "@/lib/hms/arrivals-rbac";
+import { listCompanyOptions, loadGuestPageContext } from "@/lib/hms/guest-page";
+import { getGuestConsent } from "@/lib/hms/guest-consent";
+import { signUnsubscribeToken } from "@/lib/hms/guest-consent";
+import { getGuestLoyalty, getLoyaltySettings } from "@/lib/hms/guest-loyalty";
+import { formatPricingAmount } from "@/lib/hms/room-pricing";
 
 export default async function GuestProfilePage({
   params,
@@ -13,22 +15,34 @@ export default async function GuestProfilePage({
   params: Promise<{ slug: string; id: string }>;
 }) {
   const { slug, id } = await params;
-  const [tenant, access] = await Promise.all([getHotelTenantBySlug(slug), getHmsAccessContext(slug)]);
-  if (!tenant) notFound();
+  const ctx = await loadGuestPageContext(slug);
+  if (!ctx) notFound();
 
-  const currency = normalizePricingSetup(tenant.pricing_setup).currency;
-  const profile = await getGuestProfileData({
-    tenantId: tenant.id,
-    guestId: id,
-    currency,
-  });
+  const service = createServerSupabaseClient();
+  const profile = await getGuestProfileData({ tenantId: ctx.tenant.id, guestId: id, currency: ctx.currency });
   if (!profile) notFound();
 
-  const canEdit = getArrivalsCapabilities(access.role ?? "Front Desk").canEditNotes;
+  const [companies, consent, loyaltySettings] = await Promise.all([
+    listCompanyOptions(ctx.tenant.id),
+    getGuestConsent(service, ctx.tenant.id, id),
+    getLoyaltySettings(service, ctx.tenant.id),
+  ]);
+  const loyalty = await getGuestLoyalty(service, ctx.tenant.id, id, loyaltySettings);
 
   return (
     <HMSLayout slug={slug} requiredSection="guests">
-      <GuestProfileView slug={slug} data={profile} canEdit={canEdit} />
+      <GuestProfileView
+        slug={slug}
+        data={profile}
+        canEdit={ctx.canEdit}
+        canManage={ctx.canManage}
+        companies={companies}
+        consent={consent}
+        unsubscribeUrl={`/unsubscribe/${signUnsubscribeToken(ctx.tenant.id, id)}`}
+        loyaltySettings={loyaltySettings}
+        loyalty={loyalty}
+        pointValueLabel={formatPricingAmount(loyaltySettings.pointValue, ctx.currency)}
+      />
     </HMSLayout>
   );
 }

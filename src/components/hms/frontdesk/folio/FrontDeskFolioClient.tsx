@@ -26,6 +26,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ExtraNightsNotice, type ExtraNightsInfo } from "@/components/hms/frontdesk/folio/ExtraNightsNotice";
 import { InvoiceActions } from "@/components/hms/frontdesk/folio/InvoiceActions";
 import { FolioWindowsPanel } from "@/components/hms/frontdesk/folio/FolioWindowsPanel";
+import { FolioLoyaltyCard } from "@/components/hms/frontdesk/folio/FolioLoyaltyCard";
 import { RefundForm } from "@/components/hms/frontdesk/folio/RefundForm";
 import { TravelAgentCard, type StayAgent } from "@/components/hms/frontdesk/folio/TravelAgentCard";
 import { CreditLimitBanner, CreditLimitCard, type StayCredit } from "@/components/hms/frontdesk/folio/CreditLimitCard";
@@ -623,6 +624,17 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
                       </button>
                     </form>
                   </HmsCard>
+                  <FolioLoyaltyCard
+                    slug={slug}
+                    reservationId={reservationId}
+                    currency={currency}
+                    version={payload}
+                    onPaid={() => {
+                      void loadFolio(reservationId);
+                      void loadActiveList();
+                      router.refresh();
+                    }}
+                  />
                   <HmsCard id="folio-fx-payment" icon={Coins} meaning="money" title="Take a payment in another currency">
                     <form onSubmit={postFxPayment} className="space-y-4">
                       <div className="grid gap-4 sm:grid-cols-2">

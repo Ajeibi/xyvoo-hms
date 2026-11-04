@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireHotelApiSection } from "@/lib/hms/hotel-api-auth";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { revokeAllKeys } from "@/lib/hms/reservation-keys";
+import { syncLoyaltyEarnings } from "@/lib/hms/guest-loyalty";
 import { requestStayFeedback } from "@/lib/hms/stay-feedback";
 import { isAdminLikeRole } from "@/lib/hms/department-access";
 import { getFolioForReservation, getTenantFolioSettings, adjustFolioForEarlyCheckout } from "@/lib/hms/folio";
@@ -318,6 +319,13 @@ export async function POST(req: Request) {
         roomCode,
         entityId: reservation.id,
       });
+    }
+
+    // Loyalty: the stay earns its points as the guest leaves. Never holds up a checkout.
+    try {
+      await syncLoyaltyEarnings(auth.service, auth.tenant.id, undefined, reservation.id);
+    } catch (e) {
+      console.warn("[checkout] loyalty points failed", e);
     }
 
     // The travel agent's commission on the room, posted as a supplier bill the hotel owes them.

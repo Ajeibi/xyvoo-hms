@@ -40,6 +40,7 @@ export function OnlineCheckInForm({ token }: { token: string }) {
   const [requests, setRequests] = useState("");
   const [signature, setSignature] = useState<string | null>(null);
   const [agreed, setAgreed] = useState(false);
+  const [offers, setOffers] = useState({ email: false, sms: false, whatsapp: false });
   const [photos, setPhotos] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -96,6 +97,7 @@ export function OnlineCheckInForm({ token }: { token: string }) {
           arrivalTime: arrivalTime || null,
           requests: requests.trim() || null,
           agreed,
+          marketing: { email: offers.email, sms: offers.sms, whatsapp: offers.whatsapp },
           signature,
         }),
       });
@@ -229,6 +231,30 @@ export function OnlineCheckInForm({ token }: { token: string }) {
         <input type="checkbox" className="mt-0.5 h-5 w-5" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
         <span>The details above are right, and I agree to the hotel&apos;s house rules and registration terms.</span>
       </label>
+
+      <fieldset className="space-y-2 rounded-xl border border-slate-200 p-4">
+        <legend className="px-1 text-sm font-medium text-slate-900">Offers and news (optional)</legend>
+        <p className="text-sm text-slate-600">
+          Would you like {stay.hotel} to send you offers? You can say no and still check in, and you can stop them any time.
+        </p>
+        {(
+          [
+            ["email", "Email"],
+            ["sms", "Text message"],
+            ["whatsapp", "WhatsApp"],
+          ] as const
+        ).map(([key, label]) => (
+          <label key={key} className="flex items-center gap-3 text-sm text-slate-800">
+            <input
+              type="checkbox"
+              className="h-5 w-5"
+              checked={offers[key]}
+              onChange={(e) => setOffers((o) => ({ ...o, [key]: e.target.checked }))}
+            />
+            <span>{label}</span>
+          </label>
+        ))}
+      </fieldset>
 
       {error ? <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</p> : null}
 
