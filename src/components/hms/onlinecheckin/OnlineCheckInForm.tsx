@@ -15,7 +15,7 @@ type Stay = {
   departureAt: string;
   nights: number;
   adults: number;
-  roomTypeCode: string;
+  roomTypeName: string;
   guest: { name: string; email: string | null; phone: string | null; nationality: string | null };
   depositDue: number;
   idRequired: boolean;
@@ -149,7 +149,7 @@ export function OnlineCheckInForm({ token }: { token: string }) {
 
       <dl className="grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-4 text-sm">
         <div><dt className="text-slate-600">Booking</dt><dd className="font-medium text-slate-900">{stay.confirmationCode}</dd></div>
-        <div><dt className="text-slate-600">Room</dt><dd className="font-medium text-slate-900">{stay.roomTypeCode}</dd></div>
+        <div><dt className="text-slate-600">Room</dt><dd className="font-medium text-slate-900">{stay.roomTypeName}</dd></div>
         <div><dt className="text-slate-600">Arrive</dt><dd className="font-medium text-slate-900">{longDate(stay.arrivalAt)}</dd></div>
         <div><dt className="text-slate-600">Leave</dt><dd className="font-medium text-slate-900">{longDate(stay.departureAt)}</dd></div>
       </dl>

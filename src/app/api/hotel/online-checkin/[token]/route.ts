@@ -55,7 +55,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ token: 
       departureAt: stay.departureAt,
       nights: stay.nights,
       adults: stay.adults,
-      roomTypeCode: stay.roomTypeCode,
+      roomTypeName: stay.roomTypeName,
       guest: stay.guest,
       depositDue: stay.depositDue,
       idRequired: stay.idRequired,

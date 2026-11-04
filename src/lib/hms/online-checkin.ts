@@ -56,7 +56,7 @@ export async function saveCheckInSettings(db: SupabaseClient, tenantId: string, 
 
 async function hotelInfo(db: SupabaseClient, tenantId: string) {
   const [{ data: tenant }, { data: profile }] = await Promise.all([
-    db.from("tenants").select("name,display_name").eq("id", tenantId).maybeSingle(),
+    db.from("tenants").select("name,display_name,room_types").eq("id", tenantId).maybeSingle(),
     db.schema("hotel").from("profiles").select("country").eq("tenant_id", tenantId).not("country", "is", null).limit(1).maybeSingle(),
   ]);
   const country = typeof profile?.country === "string" ? profile.country.trim() || null : null;
@@ -64,6 +64,9 @@ async function hotelInfo(db: SupabaseClient, tenantId: string) {
     name: (tenant?.display_name as string) || (tenant?.name as string) || "the hotel",
     country,
     countryCode: phoneCountry(country),
+    roomTypeNames: new Map(
+      (Array.isArray(tenant?.room_types) ? (tenant.room_types as { id?: string; name?: string }[]) : []).flatMap((t) => (t?.id && t?.name ? [[t.id, t.name] as const] : [])),
+    ),
   };
 }
 
@@ -90,6 +93,7 @@ export type GuestStayView = {
   nights: number;
   adults: number;
   roomTypeCode: string;
+  roomTypeName: string;
   guest: { id: string | null; name: string; email: string | null; phone: string | null; nationality: string | null };
   hotel: string;
   depositDue: number;
@@ -129,6 +133,7 @@ export async function loadGuestStayView(db: SupabaseClient, tenantId: string, re
     nights: r.nights,
     adults: r.adults,
     roomTypeCode: r.room_type_code,
+    roomTypeName: hotel.roomTypeNames.get(r.room_type_code) ?? r.room_type_code,
     guest: {
       id: g?.id ?? null,
       name: g ? `${g.first_name} ${g.last_name}`.trim() : "Guest",
