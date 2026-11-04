@@ -27,9 +27,15 @@ export async function getReportTimeZone(service: SupabaseClient, tenantId: strin
   return typeof data?.time_zone === "string" && isValidTimeZone(data.time_zone) ? data.time_zone : DEFAULT_FB_TIME_ZONE;
 }
 
-export async function getRoomCount(service: SupabaseClient, tenantId: string): Promise<number> {
-  const { count } = await service.schema("hotel").from("room_units").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId);
-  return count ?? 0;
+export type RoomInventory = { total: number; outOfOrder: number };
+
+/** Rooms in the inventory, and how many are out of order right now (no date range is kept for that). */
+export async function getRoomInventory(service: SupabaseClient, tenantId: string): Promise<RoomInventory> {
+  const [all, ooo] = await Promise.all([
+    service.schema("hotel").from("room_units").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId),
+    service.schema("hotel").from("room_units").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("status", "out_of_order"),
+  ]);
+  return { total: all.count ?? 0, outOfOrder: ooo.count ?? 0 };
 }
 
 /** Stays that touch any night between two dates. */
@@ -38,7 +44,7 @@ export async function loadStays(service: SupabaseClient, tenantId: string, from:
     service
       .schema("hotel")
       .from("reservations")
-      .select("id,status,arrival_at,departure_at,total_room_charges,created_at")
+      .select("id,status,arrival_at,departure_at,total_room_charges,created_at,room_type_code")
       .eq("tenant_id", tenantId)
       .in("status", ["confirmed", "checked_in", "checked_out"])
       .lt("arrival_at", `${addDays(to, 1)}T00:00:00Z`)

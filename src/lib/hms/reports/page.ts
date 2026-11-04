@@ -22,8 +22,8 @@ export async function getReportsPageContext(slug: string) {
 }
 
 /** Dates from the address bar; anything that isn't a real date falls back to today or this month. */
-export function paramsFromSearch(search: SearchParams, today: string): ReportParams {
-  const d = defaultParams(today);
+export function paramsFromSearch(search: SearchParams, businessDate: string): ReportParams {
+  const d = defaultParams(businessDate);
   const pick = (key: string, fallback: string) => {
     const v = first(search[key]);
     return isIsoDate(v) ? v : fallback;

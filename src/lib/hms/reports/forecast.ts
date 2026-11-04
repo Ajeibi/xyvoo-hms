@@ -1,8 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { addDays, eachDate, formatLongDate, formatShortDate, hotelDate, weekStart, yearAgo } from "@/lib/hms/reports/dates";
-import { getFirstActivityDate, getReportTimeZone, getRoomCount, hadActivityYearBefore, loadStays } from "@/lib/hms/reports/load";
+import { getFirstActivityDate, getReportTimeZone, getRoomInventory, hadActivityYearBefore, loadStays } from "@/lib/hms/reports/load";
 import type { ReportCell, ReportDocument } from "@/lib/hms/reports/model";
-import { nightsSold, percentChange, round2, type StayRow } from "@/lib/hms/reports/numbers";
+import { nightsSold, percentChange, round2, roomsAvailableOn, type StayRow } from "@/lib/hms/reports/numbers";
 
 /*
  * Forecast and booking pace. The forecast is what is already booked (rooms on the books and the room
@@ -73,19 +73,21 @@ export async function getForecastReport(service: SupabaseClient, tenantId: strin
   const last = addDays(today, 89);
   const lyToday = yearAgo(today);
 
-  const [roomCount, firstActivity, stays, lyStays] = await Promise.all([
-    getRoomCount(service, tenantId),
+  const [{ total: roomCount, outOfOrder }, firstActivity, stays, lyStays] = await Promise.all([
+    getRoomInventory(service, tenantId),
     getFirstActivityDate(service, tenantId),
     loadStays(service, tenantId, today, last),
     loadStays(service, tenantId, lyToday, yearAgo(last)),
   ]);
-  return buildForecast({ today, currency, roomCount, stays, lyStays, hasLastYear: hadActivityYearBefore(firstActivity, today), now });
+  return buildForecast({ today, currency, roomCount, outOfOrder, stays, lyStays, hasLastYear: hadActivityYearBefore(firstActivity, today), now });
 }
 
 export function buildForecast(p: {
   today: string;
   currency: string;
   roomCount: number;
+  /** Rooms out of order now; taken off every night of the forecast. */
+  outOfOrder?: number;
   stays: StayRow[];
   lyStays: StayRow[];
   hasLastYear: boolean;
@@ -93,13 +95,14 @@ export function buildForecast(p: {
 }): ForecastReport {
   const dates = eachDate(p.today, addDays(p.today, 89));
   const sold = nightsSold(p.stays, dates, p.today);
+  const available = roomsAvailableOn(p.today, p.today, p.roomCount, p.outOfOrder);
   const days: ForecastDay[] = dates.map((date) => {
     const s = sold.get(date)!;
     return {
       date,
       roomsSold: s.sold,
-      roomsAvailable: p.roomCount,
-      occupancy: p.roomCount > 0 ? Math.round((s.sold / p.roomCount) * 1000) / 10 : null,
+      roomsAvailable: available,
+      occupancy: available > 0 ? Math.round((s.sold / available) * 1000) / 10 : null,
       roomRevenue: round2(s.revenue),
       adr: s.sold > 0 ? round2(s.revenue / s.sold) : null,
     };
@@ -232,7 +235,7 @@ export function forecastDocument(r: ForecastReport): ReportDocument {
       },
     ],
     notes: [
-      `The forecast is what is already booked (confirmed and in-house stays) out of ${r.roomCount} rooms. Nothing is guessed on top, so it only grows as bookings come in.`,
+      `The forecast is what is already booked (confirmed and in-house stays) out of ${r.roomCount} rooms${r.days[0] && r.days[0].roomsAvailable < r.roomCount ? `, less the ${r.roomCount - r.days[0].roomsAvailable} out of order now` : ""}. Nothing is guessed on top, so it only grows as bookings come in.`,
       "Room revenue is each stay's room charge after booking discounts, before tax, shared over its nights.",
       "Pick-up counts bookings made in each window that are still active. A booking cancelled later has no cancel date on record, so cancelled bookings are left out of pick-up and of last year's figures.",
       "Last year compares the same stay dates a year ago: what was booked at this time then, and how many nights those dates finally held.",

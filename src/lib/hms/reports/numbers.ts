@@ -10,7 +10,8 @@ import { addDays, eachDate, stayDate } from "@/lib/hms/reports/dates";
  *   its nights. The folio posts the whole stay at check-in, so posting dates would pile a week of room
  *   revenue onto one day; this puts each night's revenue on the night it belongs to.
  * - ADR = room revenue / rooms sold. RevPAR = room revenue / rooms available. Occupancy = sold / available.
- * - Rooms available: every room in the inventory (the history of rooms taken out of service is not kept).
+ * - Rooms available: every room in the inventory, less rooms out of order now for tonight and later nights
+ *   (the dates a room was out of order are not kept, so past nights keep every room).
  * - Revenue for other departments comes from the bill lines and walk-in F&B sales on the day they were posted.
  */
 
@@ -21,6 +22,8 @@ export type StayRow = {
   departure_at: string;
   total_room_charges: number | string | null;
   created_at: string;
+  /** The room type's id from the hotel's room setup. */
+  room_type_code?: string | null;
 };
 
 export type FolioRevenueLine = {
@@ -165,9 +168,19 @@ export function postedRevenueByDate(folio: FolioRevenueLine[], walkIn: WalkInFbO
   return out;
 }
 
+/**
+ * Rooms available on a night. A room that is out of order now is taken off tonight and later nights;
+ * past nights keep every room, because the dates a room was out of order are not kept.
+ */
+export function roomsAvailableOn(date: string, today: string, roomCount: number, outOfOrder = 0): number {
+  return Math.max(0, roomCount - (date >= today ? outOfOrder : 0));
+}
+
 export function buildDaySeries(params: {
   dates: string[];
   roomCount: number;
+  /** Rooms out of order now. */
+  outOfOrder?: number;
   stays: StayRow[];
   folio: FolioRevenueLine[];
   walkIn: WalkInFbOrder[];
@@ -181,7 +194,7 @@ export function buildDaySeries(params: {
     const p = posted.get(date) ?? { rooms: 0, fb: 0, other: 0, unclassified: 0 };
     return {
       date,
-      roomsAvailable: params.roomCount,
+      roomsAvailable: roomsAvailableOn(date, params.today, params.roomCount, params.outOfOrder),
       roomsSold: s.sold,
       roomRateRevenue: round2(s.revenue),
       roomsAdjustments: round2(p.rooms),

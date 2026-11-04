@@ -5,6 +5,8 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getAccountsCapabilities } from "@/lib/hms/accounts-rbac";
 import { getBudgetGrid, getBudgetReport } from "@/lib/hms/account-budgets";
 import { AccountsBudgetsClient } from "@/components/hms/accounts/AccountsBudgetsClient";
+import { RoomTypeBudgetsCard } from "@/components/hms/accounts/RoomTypeBudgetsCard";
+import { getRoomTypeBudgetGrid } from "@/lib/hms/room-type-budgets";
 import { HmsPage, HmsPageHeader } from "@/components/hms/hms-ui";
 
 export default async function AccountsBudgetsPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -27,9 +29,11 @@ export default async function AccountsBudgetsPage({ params }: { params: Promise<
   const year = now.getFullYear();
   const dateFrom = `${year}-01-01`;
   const dateTo = now.toISOString().slice(0, 10);
-  const [report, grid] = await Promise.all([
+  const [report, grid, roomTypeGrid] = await Promise.all([
     getBudgetReport(service, tenant.id, { dateFrom, dateTo }),
     getBudgetGrid(service, tenant.id, year),
+    // Shown only once the room type budgets table exists; the rest of the page doesn't depend on it.
+    getRoomTypeBudgetGrid(service, tenant.id, year).catch(() => null),
   ]);
 
   return (
@@ -44,6 +48,11 @@ export default async function AccountsBudgetsPage({ params }: { params: Promise<
         canEdit={caps.canManageChartOfAccounts}
         canAccessAllDepartments={access.canAccessAllDepartments}
       />
+      {roomTypeGrid ? (
+        <HmsPage>
+          <RoomTypeBudgetsCard slug={slug} initialGrid={roomTypeGrid} initialYear={year} canEdit={caps.canManageChartOfAccounts} />
+        </HmsPage>
+      ) : null}
     </HMSLayout>
   );
 }

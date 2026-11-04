@@ -587,6 +587,7 @@ export async function getHotelDashboardMetrics(params: {
   const series = buildDaySeries({
     dates: eachDate(trendFrom, today),
     roomCount: inventoryRooms,
+    outOfOrder: rooms.filter((r) => r.status === "out_of_order").length,
     stays,
     folio,
     walkIn,

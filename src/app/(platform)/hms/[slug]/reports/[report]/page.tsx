@@ -45,7 +45,7 @@ export default async function ReportPage({
     );
   }
 
-  const p = paramsFromSearch(search, page.ctx.today);
+  const p = paramsFromSearch(search, page.ctx.businessDate);
   let document;
   let failed = false;
   try {

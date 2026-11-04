@@ -26,7 +26,7 @@ export async function GET(req: Request) {
     const currency = normalizePricingSetup(auth.tenant.pricing_setup).currency;
     const hotelName = auth.tenant.display_name?.trim() || auth.tenant.name?.trim() || slug;
     const ctx = await makeReportContext(auth.service, auth.tenant.id, currency, hotelName);
-    const base = defaultParams(ctx.today);
+    const base = defaultParams(ctx.businessDate);
     const read = (name: string, fallback: string) => {
       const v = url.searchParams.get(name);
       return isIsoDate(v) ? v : fallback;

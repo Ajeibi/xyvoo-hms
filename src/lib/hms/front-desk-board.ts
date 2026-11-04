@@ -9,6 +9,10 @@ import { getGrossRevenueForUtcDay } from "@/lib/hms/dashboard-revenue-series";
 import type { DashboardFbOrderRow } from "@/lib/hms/dashboard-fb-metrics";
 import { countChildrenJson, countInHouseGuestHeadcount } from "@/lib/hms/reservation-metrics";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { getBusinessDate } from "@/lib/hms/business-date";
+import { hotelDate } from "@/lib/hms/reports/dates";
+import { getReportTimeZone, getRoomInventory, loadPeriodData } from "@/lib/hms/reports/load";
+import { buildDaySeries, sumPeriod } from "@/lib/hms/reports/numbers";
 import { computeFolioBalance, getTenantFolioSettings, mapFolioLineRow, type FolioLineRow } from "@/lib/hms/folio";
 import { creditLimitState } from "@/lib/hms/folio-credit-limits-shared";
 import { assertQueriesSucceeded } from "@/lib/hms/data-unavailable";
@@ -1505,11 +1509,34 @@ export async function getFrontDeskBoardData(params: {
     created_at: tx.created_at as string,
   }));
 
-  const grossRevenueToday = getGrossRevenueForUtcDay(
+  // Today's revenue is worked out the same way as the reports (room nights spread over the stay, bill lines
+  // and walk-in sales by hotel date), so the board and the manager's report show one figure. If the report
+  // numbers can't be read, fall back to the old gross-takings figure rather than show nothing.
+  let grossRevenueToday = getGrossRevenueForUtcDay(
     folioForRevenue,
     (fbOrderRows ?? []) as DashboardFbOrderRow[],
     now,
   );
+  try {
+    const tz = await getReportTimeZone(supabase, tenantId);
+    const businessDate = (await getBusinessDate(supabase, tenantId, now)).businessDate;
+    const today = hotelDate(now, tz);
+    const [inventory, period] = await Promise.all([
+      getRoomInventory(supabase, tenantId),
+      loadPeriodData(supabase, tenantId, businessDate, businessDate, tz),
+    ]);
+    const series = buildDaySeries({
+      dates: [businessDate],
+      roomCount: inventory.total,
+      outOfOrder: inventory.outOfOrder,
+      ...period,
+      today,
+      dateOf: (instant) => hotelDate(instant, tz),
+    });
+    grossRevenueToday = sumPeriod(series, businessDate, businessDate).totalRevenue;
+  } catch (e) {
+    console.error("[front desk board revenue]", e);
+  }
 
   const dayStarts: string[] = [];
   const dayLabels: string[] = [];

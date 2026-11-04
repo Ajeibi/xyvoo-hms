@@ -3,7 +3,7 @@ import { eachDate, formatLongDate, hotelDate, monthStart, yearAgo, yearStart } f
 import {
   getFirstActivityDate,
   getReportTimeZone,
-  getRoomCount,
+  getRoomInventory,
   hadActivityYearBefore,
   loadPeriodData,
   loadRevenueBudgets,
@@ -37,6 +37,8 @@ export type ManagersReport = {
   today: string;
   currency: string;
   roomCount: number;
+  /** Rooms out of order now. */
+  outOfOrder: number;
   columns: ManagersColumn[];
 };
 
@@ -62,8 +64,8 @@ export async function getManagersReport(service: SupabaseClient, tenantId: strin
   const lyDate = yearAgo(date);
   const lyStart = yearStart(lyDate);
 
-  const [roomCount, firstActivity, thisYear, lastYear, budgets] = await Promise.all([
-    getRoomCount(service, tenantId),
+  const [{ total: roomCount, outOfOrder }, firstActivity, thisYear, lastYear, budgets] = await Promise.all([
+    getRoomInventory(service, tenantId),
     getFirstActivityDate(service, tenantId),
     loadPeriodData(service, tenantId, start, date, timeZone),
     loadPeriodData(service, tenantId, lyStart, lyDate, timeZone),
@@ -71,8 +73,8 @@ export async function getManagersReport(service: SupabaseClient, tenantId: strin
   ]);
 
   const dateOf = (instant: string) => hotelDate(instant, timeZone);
-  const series = buildDaySeries({ dates: eachDate(start, date), roomCount, ...thisYear, today, dateOf });
-  const lySeries = buildDaySeries({ dates: eachDate(lyStart, lyDate), roomCount, ...lastYear, today, dateOf });
+  const series = buildDaySeries({ dates: eachDate(start, date), roomCount, outOfOrder, ...thisYear, today, dateOf });
+  const lySeries = buildDaySeries({ dates: eachDate(lyStart, lyDate), roomCount, outOfOrder, ...lastYear, today, dateOf });
   const hasLastYear = hadActivityYearBefore(firstActivity, date);
 
   const spans: { key: ManagersColumn["key"]; label: string; from: string; to: string }[] = [
@@ -86,6 +88,7 @@ export async function getManagersReport(service: SupabaseClient, tenantId: strin
     today,
     currency,
     roomCount,
+    outOfOrder,
     columns: spans.map((s) => ({
       ...s,
       actual: sumPeriod(series, s.from, s.to),
@@ -170,7 +173,9 @@ export function managersReportDocument(report: ManagersReport): ReportDocument {
     currency: report.currency,
     sections: report.columns.map(sectionFor),
     notes: [
-      `Rooms available counts all ${report.roomCount} rooms in your inventory; rooms taken out of service are not removed.`,
+      report.outOfOrder > 0
+        ? `Rooms available counts the ${report.roomCount} rooms in your inventory, less the ${report.outOfOrder} out of order now for tonight and later nights. Past nights keep every room, because the dates a room was out of order are not kept.`
+        : `Rooms available counts all ${report.roomCount} rooms in your inventory. Rooms that go out of order are taken off from the night they are marked.`,
       "Rooms sold counts stays that held the room that night (in house or checked out; a confirmed stay counts from tonight on).",
       "ADR and RevPAR use room-rate revenue: each stay's room charge after booking discounts, before tax, shared over its nights.",
       "Rooms revenue also includes rooms charges posted that day apart from the booked stay (extra nights, fees, credits). Food and beverage and other revenue are bill lines and walk-in outlet sales on the day they were posted.",

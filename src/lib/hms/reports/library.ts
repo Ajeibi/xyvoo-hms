@@ -1,12 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { getBusinessDate } from "@/lib/hms/business-date";
 import { getHousekeepingDailyReport } from "@/lib/hms/housekeeping-reports";
 import { stayLinePart } from "@/lib/hms/folio";
 import { addDays, daysBetween, eachDate, formatLongDate, hotelDate, hotelDayStart, monthStart } from "@/lib/hms/reports/dates";
 import { forecastDocument, getForecastReport } from "@/lib/hms/reports/forecast";
-import { fetchAll, getReportTimeZone, getRoomCount, loadFolioRevenue, loadStays, loadWalkInFb } from "@/lib/hms/reports/load";
+import { fetchAll, getReportTimeZone, getRoomInventory, loadFolioRevenue, loadStays, loadWalkInFb } from "@/lib/hms/reports/load";
 import { getManagersReport, managersReportDocument } from "@/lib/hms/reports/managers";
 import type { ReportCell, ReportDocument, ReportSection } from "@/lib/hms/reports/model";
-import { buildDaySeries, round2, sumPeriod } from "@/lib/hms/reports/numbers";
+import { buildDaySeries, nightsSold, proratedBudget, round2, sumPeriod } from "@/lib/hms/reports/numbers";
+import { loadRoomTypeBudgets, loadRoomTypes } from "@/lib/hms/room-type-budgets";
 
 /*
  * The standard report library. Each report reads other modules' data and never changes it. A report
@@ -18,7 +20,17 @@ export type ReportAudience = "finance" | "operations";
 export type ReportPeriod = "day" | "range" | "none";
 export type ReportGroup = "Management" | "Front desk" | "Money" | "Sales" | "Housekeeping";
 
-export type ReportContext = { service: SupabaseClient; tenantId: string; currency: string; hotelName: string; timeZone: string; today: string };
+export type ReportContext = {
+  service: SupabaseClient;
+  tenantId: string;
+  currency: string;
+  hotelName: string;
+  timeZone: string;
+  /** The calendar date at the hotel. */
+  today: string;
+  /** The day the hotel is still trading on, which trails the calendar until the night audit closes it. Reports open on this day. */
+  businessDate: string;
+};
 export type ReportParams = { date: string; from: string; to: string };
 
 export type ReportDef = {
@@ -34,8 +46,8 @@ export type ReportDef = {
 const MAX_RANGE_DAYS = 400;
 
 export async function makeReportContext(service: SupabaseClient, tenantId: string, currency: string, hotelName: string, now = new Date()): Promise<ReportContext> {
-  const timeZone = await getReportTimeZone(service, tenantId);
-  return { service, tenantId, currency, hotelName, timeZone, today: hotelDate(now, timeZone) };
+  const info = await getBusinessDate(service, tenantId, now);
+  return { service, tenantId, currency, hotelName, timeZone: info.timeZone, today: info.today, businessDate: info.businessDate };
 }
 
 export function defaultParams(today: string): ReportParams {
@@ -527,13 +539,13 @@ const REVENUE_BY_DEPARTMENT: ReportDef = {
   period: "range",
   async build(ctx, params) {
     const p = clampParams(params);
-    const [roomCount, stays, folio, walkIn] = await Promise.all([
-      getRoomCount(ctx.service, ctx.tenantId),
+    const [{ total: roomCount, outOfOrder }, stays, folio, walkIn] = await Promise.all([
+      getRoomInventory(ctx.service, ctx.tenantId),
       loadStays(ctx.service, ctx.tenantId, p.from, p.to),
       loadFolioRevenue(ctx.service, ctx.tenantId, p.from, p.to, ctx.timeZone),
       loadWalkInFb(ctx.service, ctx.tenantId, p.from, p.to, ctx.timeZone),
     ]);
-    const series = buildDaySeries({ dates: eachDate(p.from, p.to), roomCount, stays, folio, walkIn, today: ctx.today, dateOf: (i) => hotelDate(i, ctx.timeZone) });
+    const series = buildDaySeries({ dates: eachDate(p.from, p.to), roomCount, outOfOrder, stays, folio, walkIn, today: ctx.today, dateOf: (i) => hotelDate(i, ctx.timeZone) });
     const row = (date: string) => {
       const f = sumPeriod(series, date, date);
       return { date, sold: num(f.roomsSold), occ: pct(f.occupancy), adr: money(f.adr), revpar: money(f.revpar), rooms: money(f.roomsRevenue), fb: money(f.fbRevenue), other: money(round2(f.otherRevenue + f.unclassifiedRevenue)), total: money(f.totalRevenue) };
@@ -561,6 +573,73 @@ const REVENUE_BY_DEPARTMENT: ReportDef = {
         },
       ],
       ["Worked out the same way as the manager's report: room revenue is each stay's room charge shared over its nights; other revenue is bill lines and walk-in outlet sales on the day posted."],
+    );
+  },
+};
+
+const ROOM_TYPES: ReportDef = {
+  key: "room-types",
+  title: "Room revenue by room type",
+  description: "Room nights, room revenue and ADR for each room type, against its budget.",
+  group: "Management",
+  audience: "finance",
+  period: "range",
+  async build(ctx, params) {
+    const p = clampParams(params);
+    const [types, stays] = await Promise.all([loadRoomTypes(ctx.service, ctx.tenantId), loadStays(ctx.service, ctx.tenantId, p.from, p.to)]);
+    // Budgets are read on their own so the report still opens before the budgets table has been added.
+    let budgets = new Map<string, Map<string, number>>();
+    let budgetsRead = true;
+    try {
+      budgets = await loadRoomTypeBudgets(ctx.service, ctx.tenantId, monthStart(p.from), monthStart(p.to));
+    } catch {
+      budgetsRead = false;
+    }
+    const dates = eachDate(p.from, p.to);
+    const names = new Map(types.map((t) => [t.id, t.name]));
+    const ids = [...types.map((t) => t.id), ...[...new Set(stays.map((s) => s.room_type_code ?? "").filter((c) => c && !names.has(c)))]];
+    const rows = ids.map((id) => {
+      let nights = 0;
+      let revenue = 0;
+      for (const v of nightsSold(stays.filter((s) => (s.room_type_code ?? "") === id), dates, ctx.today).values()) {
+        nights += v.sold;
+        revenue += v.revenue;
+      }
+      revenue = round2(revenue);
+      const monthly = budgets.get(id);
+      const budget = monthly && monthly.size > 0 ? proratedBudget(monthly, p.from, p.to) : null;
+      return { id, name: names.get(id) ?? `${id} (no longer in room setup)`, nights, revenue, budget };
+    });
+    const totalNights = rows.reduce((s, r) => s + r.nights, 0);
+    const totalRevenue = round2(rows.reduce((s, r) => s + r.revenue, 0));
+    const anyBudget = rows.some((r) => r.budget != null);
+    const totalBudget = anyBudget ? round2(rows.reduce((s, r) => s + (r.budget ?? 0), 0)) : null;
+    const versus = (actual: number, budget: number | null) =>
+      budget == null ? "No budget set" : `${actual - budget >= 0 ? "+" : ""}${Math.round(actual - budget).toLocaleString("en-GB")} (${budget > 0 ? Math.round((actual / budget) * 100) : 0}% of budget)`;
+    return doc(
+      ROOM_TYPES,
+      ctx,
+      rangeText(p),
+      [
+        {
+          columns: [
+            { key: "type", label: "Room type", kind: "text" },
+            { key: "nights", label: "Room nights sold", kind: "number" },
+            { key: "revenue", label: "Room revenue", kind: "money" },
+            { key: "adr", label: "ADR", kind: "money" },
+            { key: "budget", label: "Budget", kind: "text" },
+            { key: "vs", label: "Against budget", kind: "text" },
+          ],
+          rows: rows.map((r) => ({ type: r.name, nights: num(r.nights), revenue: money(r.revenue), adr: money(r.nights > 0 ? round2(r.revenue / r.nights) : null), budget: r.budget == null ? "No budget set" : r.budget.toLocaleString("en-GB", { maximumFractionDigits: 0 }), vs: versus(r.revenue, r.budget) })),
+          totals: rows.length ? { type: "Total", nights: num(totalNights), revenue: money(totalRevenue), adr: money(totalNights > 0 ? round2(totalRevenue / totalNights) : null), budget: totalBudget == null ? "No budget set" : totalBudget.toLocaleString("en-GB", { maximumFractionDigits: 0 }), vs: versus(totalRevenue, totalBudget) } : undefined,
+          emptyMessage: "No room types are set up for this hotel.",
+        },
+      ],
+      [
+        "Room revenue is each stay's room charge after booking discounts, before tax, shared over its nights, the same way as the manager's report.",
+        "Budgets are set in Accounts, Budgets, under Room type budgets, and spread evenly over the days of each month.",
+        ...(budgetsRead ? [] : ["Room type budgets could not be read, so none are shown."]),
+      ],
     );
   },
 };
@@ -684,16 +763,33 @@ const CANCELLATIONS: ReportDef = {
     const p = clampParams(params);
     const rows = await listStays(ctx, { statuses: ["cancelled", "no_show"], arrival: spanRange(p.from, p.to) });
     const at = rows.reduce((s, r) => s + n(r.total_room_charges), 0);
+    // The cancel date is read on its own so the report still opens if the column hasn't been added yet.
+    const cancelledOn = new Map<string, string>();
+    try {
+      for (let i = 0; i < rows.length; i += 100) {
+        const { data, error } = await ctx.service
+          .schema("hotel")
+          .from("reservations")
+          .select("id,cancelled_at")
+          .eq("tenant_id", ctx.tenantId)
+          .in("id", rows.slice(i, i + 100).map((r) => r.id));
+        if (error) throw error;
+        for (const d of (data ?? []) as { id: string; cancelled_at: string | null }[]) if (d.cancelled_at) cancelledOn.set(d.id, hotelDate(d.cancelled_at, ctx.timeZone));
+      }
+    } catch {
+      cancelledOn.clear();
+    }
     return doc(CANCELLATIONS, ctx, `Arrivals ${rangeText(p)}`, [
       {
         columns: stayColumns([
           { key: "arrival", label: "Was due", kind: "date" },
+          { key: "cancelledOn", label: "Cancelled on", kind: "text" },
           { key: "nights", label: "Nights", kind: "number" },
           { key: "source", label: "Booked through", kind: "text" },
           { key: "status", label: "What happened", kind: "text" },
           { key: "at", label: "Room revenue at stake", kind: "money" },
         ]),
-        rows: rows.map((r) => ({ code: r.confirmation_code, guest: guestOf(r), room: roomOf(r), type: r.room_type_code, arrival: r.arrival_at.slice(0, 10), nights: num(r.nights), source: SOURCE_LABEL[r.source] ?? r.source, status: STATUS_LABEL[r.status] ?? r.status, at: money(n(r.total_room_charges)) })),
+        rows: rows.map((r) => ({ code: r.confirmation_code, guest: guestOf(r), room: roomOf(r), type: r.room_type_code, arrival: r.arrival_at.slice(0, 10), cancelledOn: cancelledOn.get(r.id) ?? "Not recorded", nights: num(r.nights), source: SOURCE_LABEL[r.source] ?? r.source, status: STATUS_LABEL[r.status] ?? r.status, at: money(n(r.total_room_charges)) })),
         totals: rows.length ? { code: `${rows.length} booking${rows.length === 1 ? "" : "s"}`, nights: num(rows.reduce((s, r) => s + r.nights, 0)), at: money(round2(at)) } : undefined,
         emptyMessage: "No cancellations or no-shows in this period.",
       },
@@ -849,6 +945,7 @@ export const REPORTS: ReportDef[] = [
   MANAGERS,
   FORECAST,
   REVENUE_BY_DEPARTMENT,
+  ROOM_TYPES,
   ARRIVALS,
   DEPARTURES,
   IN_HOUSE,
