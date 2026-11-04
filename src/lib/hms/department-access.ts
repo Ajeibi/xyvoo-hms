@@ -1,5 +1,6 @@
 export type HmsSectionKey =
   | "dashboard"
+  | "reports"
   | "settings"
   | "setup"
   | "rooms"
@@ -113,6 +114,7 @@ type DepartmentScopeDefinition = {
 
 const ADMIN_SECTIONS: HmsSectionKey[] = [
   "dashboard",
+  "reports",
   "settings",
   "setup",
   "rooms",
@@ -229,6 +231,7 @@ export const DEPARTMENT_ROLE_SCOPES: Record<string, DepartmentScopeDefinition> =
         label: "Checkout",
         path: `/hms/${slug}/frontdesk/checkout`,
       },
+      { key: "fd-reports", icon: "revenue", label: "Reports", path: `/hms/${slug}/reports` },
       {
         key: "fd-notifications",
         icon: "bell",
@@ -236,7 +239,7 @@ export const DEPARTMENT_ROLE_SCOPES: Record<string, DepartmentScopeDefinition> =
         path: `/hms/${slug}/notifications`,
       },
     ],
-    allowedSections: ["frontdesk", "reservations", "notifications", "guests"],
+    allowedSections: ["frontdesk", "reservations", "notifications", "guests", "reports"],
   },
   Housekeeping: {
     departmentRole: "Housekeeping",
@@ -398,6 +401,7 @@ export const DEPARTMENT_ROLE_SCOPES: Record<string, DepartmentScopeDefinition> =
     settingsPath: (slug) => `/hms/${slug}/accounts/settings`,
     navItems: (slug) => [
       { key: "accounts-dashboard", icon: "dashboard", label: "Dashboard", path: `/hms/${slug}/accounts` },
+      { key: "accounts-reports", icon: "revenue", label: "Reports", path: `/hms/${slug}/reports` },
       { key: "accounts-chart", icon: "clipboardCheck", label: "Chart of accounts", path: `/hms/${slug}/accounts/chart` },
       { key: "accounts-journal", icon: "clipboardCheck", label: "Journal entries", path: `/hms/${slug}/accounts/journal` },
       { key: "accounts-trial-balance", icon: "clipboardCheck", label: "Trial balance", path: `/hms/${slug}/accounts/trial-balance` },
@@ -442,6 +446,7 @@ export const DEPARTMENT_ROLE_SCOPES: Record<string, DepartmentScopeDefinition> =
       "accounts-exports",
       "accounts-department-pnl",
       "accounts-settings",
+      "reports",
       "notifications",
     ],
   },
@@ -468,6 +473,12 @@ export function getAdminNavItems(slug: string): HmsNavItem[] {
       label: "Dashboard",
       path: `/hms/${slug}/dashboard`,
       tourTarget: "sidebar-dashboard",
+    },
+    {
+      key: "reports",
+      icon: "revenue",
+      label: "Reports",
+      path: `/hms/${slug}/reports`,
     },
     {
       key: "frontdesk",

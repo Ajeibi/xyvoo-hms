@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { hmsButton } from "@/components/hms/hms-ui";
 import {
   AttentionCenterCard,
   FinancialPerformanceSection,
@@ -131,6 +133,23 @@ export default async function HMSDashboardPage({ params }: { params: Promise<{ s
         />
 
         <div className="mt-6 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white px-5 py-4 shadow-sm">
+            <p className="text-sm text-slate-600">
+              These figures match the reports. For a day, the month or the year against last year and budget, open the manager&apos;s report.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Link href={`/hms/${slug}/reports/managers`} className={hmsButton.secondary}>
+                Manager&apos;s daily report
+              </Link>
+              <Link href={`/hms/${slug}/reports/forecast`} className={hmsButton.secondary}>
+                Forecast and pace
+              </Link>
+              <Link href={`/hms/${slug}/reports`} className={hmsButton.secondary}>
+                All reports
+              </Link>
+            </div>
+          </div>
+
           <FinancialPerformanceSection
             currency={pricingSetup.currency}
             financialTrendViews={analyticsModel.financialTrendViews}

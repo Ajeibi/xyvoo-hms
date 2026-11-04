@@ -1,7 +1,8 @@
 import type { MetricTileItem, StatusRowItem, SummaryTileItem } from "./shared";
 
-export type FinancePeriod = "day" | "week" | "month" | "quarter";
-export type FinanceMetric = "revenue" | "occupancy" | "adr" | "revpar" | "expenses" | "profit";
+export type FinancePeriod = "week" | "month" | "quarter";
+/** Costs and profit are not here: they come from the books, under Accounts, Department profit and loss. */
+export type FinanceMetric = "revenue" | "occupancy" | "adr" | "revpar";
 
 /** Reporting window for the Food & Beverage / Kitchen dashboard cards. */
 export type DashboardPeriod = "day" | "week" | "month";

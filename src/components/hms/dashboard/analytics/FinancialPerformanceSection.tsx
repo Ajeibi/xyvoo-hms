@@ -69,8 +69,7 @@ export default function FinancialPerformanceSection({
   const activeMetricChange = activeMetricCurrent - activeMetricStart;
   const activeMetricChangePercent =
     activeMetricStart > 0 ? Math.round((activeMetricChange / activeMetricStart) * 100) : 0;
-  const useAggregatePrimaryMetric =
-    financeMetric === "revenue" || financeMetric === "expenses" || financeMetric === "profit";
+  const useAggregatePrimaryMetric = financeMetric === "revenue";
 
   const financialHighlights: MetricTileItem[] = [
     {
@@ -153,7 +152,7 @@ export default function FinancialPerformanceSection({
         ticks: { color: "#64748b", font: { size: 11 } },
       },
       y: {
-        beginAtZero: financeMetric !== "profit",
+        beginAtZero: true,
         max: financeMetric === "occupancy" ? 100 : undefined,
         ticks: {
           color: "#94a3b8",
@@ -174,12 +173,12 @@ export default function FinancialPerformanceSection({
       icon={Wallet}
       meaning="money"
       title="Financial Performance"
-      description="Gross revenue from folio activity and PoS collections; occupancy and ADR from reservations."
+      description="Rooms, food and beverage and other revenue, with occupancy, ADR and RevPAR, worked out the same way as the manager's report."
     >
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-2">
           {(
-            ["revenue", "occupancy", "adr", "revpar", "expenses", "profit"] as FinanceMetric[]
+            ["revenue", "occupancy", "adr", "revpar"] as FinanceMetric[]
           ).map((metric) => (
             <button
               key={metric}
@@ -208,7 +207,7 @@ export default function FinancialPerformanceSection({
           </div>
 
           <div className="inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1">
-            {(["day", "week", "month", "quarter"] as FinancePeriod[]).map((period) => (
+            {(["week", "month", "quarter"] as FinancePeriod[]).map((period) => (
               <button
                 key={period}
                 type="button"
@@ -280,24 +279,6 @@ function getFinanceMetricConfig(metric: FinanceMetric): FinanceMetricConfig {
       description: "View revenue per available room across the selected horizon.",
       borderColor: "rgba(8, 145, 178, 0.95)",
       backgroundColor: "rgba(8, 145, 178, 0.12)",
-      fill: true,
-    },
-    expenses: {
-      label: "Expenses",
-      shortLabel: "Expenses",
-      tabLabel: "Expenses",
-      description: "Track operating cost movement and watch expense pressure build over time.",
-      borderColor: "rgba(245, 158, 11, 0.95)",
-      backgroundColor: "rgba(245, 158, 11, 0.14)",
-      fill: true,
-    },
-    profit: {
-      label: "Profit",
-      shortLabel: "Profit",
-      tabLabel: "Profit",
-      description: "Follow net operating performance. Expense tracking is not configured yet.",
-      borderColor: "rgba(4, 120, 87, 0.95)",
-      backgroundColor: "rgba(4, 120, 87, 0.16)",
       fill: true,
     },
   };

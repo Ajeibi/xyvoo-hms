@@ -19,17 +19,12 @@ import {
   type DashboardFbOrderRow,
   type DashboardFbOutletRow,
 } from "@/lib/hms/dashboard-fb-metrics";
-import {
-  buildFinancialTrendViews,
-  computeGrossRevenueForUtcDay,
-  emptyFinancialTrendViews,
-  getGrossRevenueForUtcDay,
-  inUtcDay,
-  type FolioRevenueRow,
-} from "@/lib/hms/dashboard-revenue-series";
+import { inUtcDay } from "@/lib/hms/dashboard-revenue-series";
+import { buildDashboardTrendViews, DASHBOARD_TREND_DAYS, emptyTrendViews } from "@/lib/hms/dashboard-trends";
 import { getTenantFbSettings } from "@/lib/hms/fb-settings";
-
-export { computeGrossRevenueForUtcDay, getGrossRevenueForUtcDay };
+import { addDays, eachDate, hotelDate } from "@/lib/hms/reports/dates";
+import { fetchAll, getReportTimeZone, loadFolioRevenue, loadWalkInFb } from "@/lib/hms/reports/load";
+import { buildDaySeries, nightsSold, type StayRow } from "@/lib/hms/reports/numbers";
 
 type RoomUnitRow = { id: string; status: string; floor: number };
 type ReservationRow = {
@@ -62,49 +57,35 @@ import {
   countInHouseGuestHeadcount,
 } from "@/lib/hms/reservation-metrics";
 
-function num(value: string | number): number {
-  const n = typeof value === "number" ? value : Number.parseFloat(value);
-  return Number.isFinite(n) ? n : 0;
-}
-
 function monthShortLabel(year: number, monthIndex: number) {
   return new Date(Date.UTC(year, monthIndex, 1)).toLocaleString("en-US", { month: "short", timeZone: "UTC" });
 }
 
+/** Occupancy for each of the last months: nights actually held (see reports/numbers.ts) over rooms times days. */
 function buildOccupancyTrendFromReservations(
   reservations: ReservationRow[],
   totalRooms: number,
+  today: string,
   monthsBack = 8,
 ): OccupancyTrend {
-  const now = new Date();
+  const now = new Date(`${today}T00:00:00Z`);
   const labels: string[] = [];
   const values: number[] = [];
   const safeRooms = Math.max(totalRooms, 1);
+  const stays = reservations.map((r, i) => ({ ...r, id: String(i), total_room_charges: r.total_room_charges, created_at: r.arrival_at })) as StayRow[];
 
   for (let i = monthsBack - 1; i >= 0; i -= 1) {
     const anchor = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
     const y = anchor.getUTCFullYear();
     const m = anchor.getUTCMonth();
-    const start = Date.UTC(y, m, 1, 0, 0, 0, 0);
-    const end = Date.UTC(y, m + 1, 1, 0, 0, 0, 0);
     labels.push(monthShortLabel(y, m));
-
-    let roomNights = 0;
-    const daysInMonth = Math.round((end - start) / 86400000);
-    for (const r of reservations) {
-      if (r.status === "cancelled") continue;
-      const a = parseTs(r.arrival_at);
-      const dep = parseTs(r.departure_at);
-      const overlapStart = Math.max(a, start);
-      const overlapEnd = Math.min(dep, end);
-      if (overlapEnd > overlapStart) {
-        const nights = Math.ceil((overlapEnd - overlapStart) / 86400000);
-        roomNights += Math.max(nights, 1);
-      }
-    }
-    const capacity = safeRooms * daysInMonth;
-    const pct = Math.min(100, Math.round((roomNights / capacity) * 100));
-    values.push(pct);
+    const from = anchor.toISOString().slice(0, 10);
+    const to = new Date(Date.UTC(y, m + 1, 0)).toISOString().slice(0, 10);
+    const dates = eachDate(from, to > today ? today : to);
+    let sold = 0;
+    for (const v of nightsSold(stays, dates, today).values()) sold += v.sold;
+    const capacity = safeRooms * Math.max(dates.length, 1);
+    values.push(Math.round((sold / capacity) * 100));
   }
 
   return { labels, values };
@@ -275,7 +256,7 @@ function emptyDashboardModel(currency: string): DashboardAnalyticsModel {
       effectiveAverageRate: 0,
       occupancyRate: 0,
     },
-    financialTrendViews: emptyFinancialTrendViews(),
+    financialTrendViews: emptyTrendViews(),
     movementItems: [
       { label: "Arrivals today", value: "0", description: "No arrivals scheduled for today." },
       { label: "Departures today", value: "0", description: "No departures scheduled for today." },
@@ -388,47 +369,86 @@ export async function getHotelDashboardMetrics(params: {
   }
 
   const supabase = createServerSupabaseClient();
+  const now = new Date();
+  const timeZone = await getReportTimeZone(supabase, tenantId);
+  const today = hotelDate(now, timeZone);
+  const trendFrom = addDays(today, -(DASHBOARD_TREND_DAYS - 1));
+  // F&B tickets: everything still open, plus anything from the window the cards and charts look at.
+  const fbSince = new Date(now.getTime() - (DASHBOARD_TREND_DAYS + 9) * 86_400_000).toISOString();
 
+  let queryError: unknown = null;
+  const guarded = async <T>(rows: Promise<T[]>): Promise<T[]> => {
+    try {
+      return await rows;
+    } catch (e) {
+      queryError ??= e;
+      return [];
+    }
+  };
+
+  // Every query is paged: one select returns at most 1,000 rows, which would quietly cut a busy hotel's figures short.
   const [
-    { data: roomRows, error: roomError },
-    { data: resRows, error: resError },
-    { data: folioRows, error: folioError },
-    { data: fbOrderRows, error: fbOrderError },
+    roomRows,
+    resRows,
+    folio,
+    walkIn,
+    fbOrderRowsAll,
     { data: fbOutletRows, error: fbOutletError },
-    { data: fbItemRows, error: fbItemError },
+    fbItemRowsAll,
     fbSettings,
   ] = await Promise.all([
-    supabase.schema("hotel").from("room_units").select("id,status,floor").eq("tenant_id", tenantId),
-    supabase
-      .schema("hotel")
-      .from("reservations")
-      .select(
-        "status,arrival_at,departure_at,adults,children_json,rate_per_night,total_room_charges,checked_in_at,checked_out_at,room_unit_id",
-      )
-      .eq("tenant_id", tenantId),
-    supabase
-      .schema("hotel")
-      .from("folio_transactions")
-      .select("reservation_id,kind,amount,voided_at,created_at")
-      .eq("tenant_id", tenantId),
-    supabase
-      .schema("hotel")
-      .from("fb_orders")
-      .select(
-        "id,outlet_id,status,settlement_method,subtotal,closed_at,sent_to_kitchen_at,kitchen_ready_at,created_at,voided_at",
-      )
-      .eq("tenant_id", tenantId),
+    guarded(
+      fetchAll<RoomUnitRow>((a, b) =>
+        supabase.schema("hotel").from("room_units").select("id,status,floor").eq("tenant_id", tenantId).order("id", { ascending: true }).range(a, b),
+      ),
+    ),
+    guarded(
+      fetchAll<ReservationRow & { id: string }>((a, b) =>
+        supabase
+          .schema("hotel")
+          .from("reservations")
+          .select(
+            "id,status,arrival_at,departure_at,adults,children_json,rate_per_night,total_room_charges,checked_in_at,checked_out_at,room_unit_id",
+          )
+          .eq("tenant_id", tenantId)
+          .order("id", { ascending: true })
+          .range(a, b),
+      ),
+    ),
+    guarded(loadFolioRevenue(supabase, tenantId, trendFrom, today, timeZone)),
+    guarded(loadWalkInFb(supabase, tenantId, trendFrom, today, timeZone)),
+    guarded(
+      fetchAll<DashboardFbOrderRow & { id: string }>((a, b) =>
+        supabase
+          .schema("hotel")
+          .from("fb_orders")
+          .select(
+            "id,outlet_id,status,settlement_method,subtotal,closed_at,sent_to_kitchen_at,kitchen_ready_at,created_at,voided_at",
+          )
+          .eq("tenant_id", tenantId)
+          .or(`created_at.gte.${fbSince},closed_at.is.null`)
+          .order("id", { ascending: true })
+          .range(a, b),
+      ),
+    ),
     supabase.schema("hotel").from("fb_outlets").select("id,name,outlet_type").eq("tenant_id", tenantId),
-    supabase
-      .schema("hotel")
-      .from("fb_order_items")
-      .select("order_id,kitchen_status")
-      .eq("tenant_id", tenantId),
+    guarded(
+      fetchAll<{ order_id: string; kitchen_status: string }>((a, b) =>
+        supabase
+          .schema("hotel")
+          .from("fb_order_items")
+          .select("order_id,kitchen_status")
+          .eq("tenant_id", tenantId)
+          .gte("created_at", fbSince)
+          .order("id", { ascending: true })
+          .range(a, b),
+      ),
+    ),
     getTenantFbSettings(supabase, tenantId),
   ]);
 
-  if (roomError || resError || folioError) {
-    console.warn("[dashboard-metrics] hotel schema query failed:", roomError ?? resError ?? folioError);
+  if (queryError) {
+    console.warn("[dashboard-metrics] hotel schema query failed:", queryError);
     return {
       model: emptyDashboardModel(currency),
       reservationRecordCount: 0,
@@ -436,11 +456,13 @@ export async function getHotelDashboardMetrics(params: {
     };
   }
 
-  const rooms = (roomRows ?? []) as RoomUnitRow[];
-  const reservations = (resRows ?? []) as ReservationRow[];
-  const folio = (folioRows ?? []) as FolioRevenueRow[];
-  const now = new Date();
-  const { startIso, nextIso } = utcDayRangeIso(now);
+  const rooms = roomRows;
+  const reservations = resRows;
+  const fbOrderRows = fbOrderRowsAll;
+  const fbItemRows = fbItemRowsAll;
+  // Stays are stored as wall-clock times written as UTC, so "today" for them is the hotel's own date read as a UTC day.
+  const stayNow = new Date(`${today}T12:00:00Z`);
+  const { startIso, nextIso } = utcDayRangeIso(stayNow);
 
   const inventoryRooms = rooms.length > 0 ? rooms.length : Math.max(totalRoomsFromPricing, 1);
 
@@ -507,12 +529,12 @@ export async function getHotelDashboardMetrics(params: {
     });
   }
 
-  const arrivalsToday = reservations.filter((r) => inUtcDay(r.arrival_at, now)).length;
-  const pendingArrivals = reservations.filter((r) => inUtcDay(r.arrival_at, now) && r.status === "confirmed").length;
+  const arrivalsToday = reservations.filter((r) => inUtcDay(r.arrival_at, stayNow)).length;
+  const pendingArrivals = reservations.filter((r) => inUtcDay(r.arrival_at, stayNow) && r.status === "confirmed").length;
 
-  const departuresToday = reservations.filter((r) => inUtcDay(r.departure_at, now)).length;
+  const departuresToday = reservations.filter((r) => inUtcDay(r.departure_at, stayNow)).length;
   const pendingCheckouts = reservations.filter(
-    (r) => inUtcDay(r.departure_at, now) && r.status === "checked_in",
+    (r) => inUtcDay(r.departure_at, stayNow) && r.status === "checked_in",
   ).length;
 
   const noShowsWindow = reservations.filter((r) => {
@@ -558,29 +580,34 @@ export async function getHotelDashboardMetrics(params: {
     },
   ];
 
-  const fbOrders = (fbOrderRows ?? []) as DashboardFbOrderRow[];
-  const grossRevenueToday = getGrossRevenueForUtcDay(folio, fbOrderError == null ? fbOrders : [], now);
+  const fbOrders = fbOrderRows;
 
-  const adrSamples = inHouseRes.map((r) => num(r.rate_per_night));
+  // One set of figures, shared with the reports: room nights, ADR, RevPAR and revenue per day in hotel time.
+  const stays = reservations.map((r) => ({ ...r, created_at: r.arrival_at })) as StayRow[];
+  const series = buildDaySeries({
+    dates: eachDate(trendFrom, today),
+    roomCount: inventoryRooms,
+    stays,
+    folio,
+    walkIn,
+    today,
+    dateOf: (instant) => hotelDate(instant, timeZone),
+  });
+  const todayFigures = series[series.length - 1];
+  const grossRevenueToday = todayFigures
+    ? Math.round((todayFigures.roomRateRevenue + todayFigures.roomsAdjustments + todayFigures.fbRevenue + todayFigures.otherRevenue + todayFigures.unclassifiedRevenue) * 100) / 100
+    : 0;
   const effectiveAverageRate =
-    adrSamples.length > 0
-      ? Math.round(adrSamples.reduce((a, b) => a + b, 0) / adrSamples.length)
-      : averageRateFromPricing ?? 0;
+    todayFigures && todayFigures.roomsSold > 0 ? Math.round(todayFigures.roomRateRevenue / todayFigures.roomsSold) : (averageRateFromPricing ?? 0);
 
   const occupancyRate =
     inventoryRooms > 0 ? Math.min(100, Math.round((occupiedRooms / inventoryRooms) * 100)) : 0;
 
-  const occupancyTrend = buildOccupancyTrendFromReservations(reservations, inventoryRooms);
+  const occupancyTrend = buildOccupancyTrendFromReservations(reservations, inventoryRooms, today);
 
-  const financialTrendViews = buildFinancialTrendViews({
-    folioRows: folio,
-    fbOrders: fbOrderError == null ? fbOrders : [],
-    reservations,
-    totalRooms: inventoryRooms,
-    reference: now,
-  });
+  const financialTrendViews = buildDashboardTrendViews(series, today);
 
-  const fbDataOk = fbOrderError == null && fbOutletError == null && fbItemError == null;
+  const fbDataOk = fbOutletError == null;
   const deptPlaceholders = emptyDepartmentPlaceholders(currency);
 
   const inventoryModel = await buildInventoryDashboardSections(supabase, tenantId, currency).catch(() => null);
@@ -626,7 +653,7 @@ export async function getHotelDashboardMetrics(params: {
     ]),
   ) as Record<DashboardPeriod, KitchenView>;
 
-  const operationalAlerts = buildOperationalAlerts(rooms, reservations, now);
+  const operationalAlerts = buildOperationalAlerts(rooms, reservations, stayNow);
 
   const model: DashboardAnalyticsModel = {
     financialBase: {
