@@ -37,7 +37,7 @@ export default async function ResourceDetailPage({
 
   return (
     <section className="bg-slate-50 pt-32 pb-20">
-      <div className="mx-auto max-w-6xl px-6">
+      <div className="mx-auto max-w-7xl px-6 md:px-12 lg:px-6">
         <Link
           href="/resources"
           className="mb-8 flex w-fit items-center gap-2 text-sm font-semibold text-xyvoo-navy/60 transition-colors hover:text-xyvoo-blue"

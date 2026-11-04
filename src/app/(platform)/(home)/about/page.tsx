@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { motion, type Variants } from "framer-motion";
+import Image from "next/image";
+import { Fragment, useEffect, useRef, useState } from "react";
+import { motion, useScroll, useTransform, type Variants } from "framer-motion";
 import { ArrowRight, ArrowUpRight, BedDouble, ShoppingBag, ShieldCheck } from "lucide-react";
 import { SectionEyebrow } from "@/components/website/SectionEyebrow";
 import { GridPulses } from "@/components/website/GridPulses";
@@ -57,11 +59,47 @@ const ABOUT_PLATFORM_LINKS: AboutPlatformLink[] = [
 ];
 
 export default function AboutPage() {
+  // Scroll-linked image swap: the HMS image slides up and out around the middle of the
+  // section while the Storefront image slides up into its place. Desktop only.
+  const beliefRef = useRef<HTMLElement>(null);
+  const { scrollYProgress } = useScroll({ target: beliefRef, offset: ["start start", "end end"] });
+  const hmsY = useTransform(scrollYProgress, [0.4, 0.6], ["0%", "-105%"]);
+  const storeY = useTransform(scrollYProgress, [0.4, 0.6], ["105%", "0%"]);
+  const [tier, setTier] = useState<"phone" | "tablet" | "desktop" | null>(null);
+  const isDesktop = tier === "desktop";
+  useEffect(() => {
+    const phone = window.matchMedia("(max-width: 767px)");
+    const desktop = window.matchMedia("(min-width: 1024px)");
+    const update = () => setTier(phone.matches ? "phone" : desktop.matches ? "desktop" : "tablet");
+    update();
+    phone.addEventListener("change", update);
+    desktop.addEventListener("change", update);
+    return () => {
+      phone.removeEventListener("change", update);
+      desktop.removeEventListener("change", update);
+    };
+  }, []);
+
+  // Phones only: items slide in from alternating sides as they enter the screen and slide
+  // back out when they leave it. Nothing is applied until we know we're on a phone, so
+  // tablet and desktop content is never left hidden.
+  const slide = (from: "left" | "right") =>
+    tier === "phone"
+      ? {
+          initial: { opacity: 0, x: from === "left" ? -56 : 56 },
+          whileInView: { opacity: 1, x: 0 },
+          // Fires as the item's top edge crosses a line just above the bottom of the screen,
+          // so each one slides in on its own as it arrives, not several at once.
+          viewport: { once: false, amount: "some" as const, margin: "0px 0px -18% 0px" },
+          transition: { duration: 0.45, ease: "easeOut" as const },
+        }
+      : {};
+
   return (
     <>
       {/* Hero — dense split layout, matching the Contact page hero */}
       <section
-        className="relative isolate overflow-hidden bg-white px-6 pt-36 pb-20 md:pb-24 border-b border-slate-100"
+        className="relative isolate overflow-hidden bg-white px-6 pt-36 pb-20 md:px-12 md:pb-24 lg:px-6 border-b border-slate-100"
         style={{
           // Same grid-line texture as the Company tab of the home hero.
           backgroundImage:
@@ -70,13 +108,19 @@ export default function AboutPage() {
         }}
       >
         <GridPulses color="#90caf9" />
+        <div
+          className="pointer-events-none absolute -top-16 right-[8%] z-0 h-[360px] w-[360px] rounded-full blur-[100px]"
+          style={{ background: "rgb(var(--xyvoo-blue-rgb) / 0.24)" }}
+          aria-hidden
+        />
         <div className="relative z-10 mx-auto grid max-w-[1200px] grid-cols-1 gap-14 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
           <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: "easeOut" }}>
             <p className="mb-5 text-eyebrow font-bold uppercase tracking-[0.22em] text-xyvoo-blue">
               {ABOUT_HERO.eyebrow}
             </p>
             <h1 className="whitespace-pre-line text-balance text-h1 font-black leading-[1.08] tracking-tight text-xyvoo-navy">
-              {ABOUT_HERO.title}
+              One company. <span className="text-xyvoo-blue">Two platforms.</span>
+              {"\n"}Software that runs your business.
             </h1>
             <p className="mt-6 max-w-md text-p leading-relaxed text-slate-500">
               {ABOUT_HERO.subtitle}
@@ -105,36 +149,94 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* What we believe — sticky heading beside a scrolling list, matching the How It Works pattern */}
-      <section className="bg-slate-50 px-6 py-20 md:py-28">
-        <div className="mx-auto grid max-w-[1200px] grid-cols-1 gap-12 lg:grid-cols-2 lg:gap-16 lg:items-start">
-          <div className="lg:sticky lg:top-28">
-            <motion.div initial="offscreen" whileInView="onscreen" viewport={{ once: true }} variants={fadeUp}>
+      {/* What we believe — heading and image stay pinned while the points scroll on the left; image bleeds to the screen's right edge */}
+      <section ref={beliefRef} className="overflow-x-clip bg-slate-50 py-20 pl-6 md:pl-12 lg:py-28 lg:pt-4 lg:pl-[max(1.5rem,calc((100%-1200px)/2))]">
+        <div className="grid grid-cols-1 gap-12 lg:grid-cols-[0.8fr_1.2fr] lg:gap-10">
+          <div className="pr-6 md:pr-12 lg:pr-0">
+            <motion.div
+              initial="offscreen"
+              whileInView="onscreen"
+              viewport={{ once: true }}
+              variants={fadeUp}
+              className="z-10 bg-slate-50 pb-6 lg:sticky lg:top-0 lg:pt-24"
+            >
               <p className="mb-3 text-eyebrow font-bold uppercase tracking-widest text-xyvoo-blue">{ABOUT_WHO_WE_ARE.eyebrow}</p>
-              <h3 className="mb-4 text-h3 font-black leading-tight text-xyvoo-navy">
-                {ABOUT_WHO_WE_ARE.title}
-              </h3>
-              <p className="max-w-[42ch] text-p leading-relaxed text-slate-500">
-                {ABOUT_WHO_WE_ARE.intro}
-              </p>
+              <h3 className="mb-4 text-h3 font-black leading-tight text-xyvoo-navy">{ABOUT_WHO_WE_ARE.title}</h3>
+              <p className="md:max-w-none lg:max-w-[42ch] text-p leading-relaxed text-slate-500">{ABOUT_WHO_WE_ARE.intro}</p>
             </motion.div>
+
+            <ul className="mt-6 flex flex-col">
+              {ABOUT_WHO_POINTS.map((point, i) => (
+                <Fragment key={`${point.title}-${tier === "phone"}`}>
+                  <motion.li {...slide(i % 2 ? "right" : "left")} className="group border-t border-slate-200 py-8 lg:py-10">
+                    <span className="mb-2 block font-mono text-sm font-semibold tracking-wide text-xyvoo-navy/30 transition-colors duration-300 group-hover:text-xyvoo-blue">
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                    <h5 className="text-h5 font-semibold leading-snug text-xyvoo-navy transition-colors duration-300 group-hover:text-xyvoo-blue">
+                      {point.title}
+                    </h5>
+                    <p className="mt-2 md:max-w-none lg:max-w-[46ch] text-p leading-relaxed text-slate-500">{point.description}</p>
+                  </motion.li>
+                  {/* Phones only: the images sit inline, one after the first three points and one after the last three. */}
+                  {i === 2 ? (
+                    <motion.li {...slide("right")} className="-mr-6 md:-mr-12 border-t border-slate-200 py-8 lg:hidden" aria-hidden>
+                      <Image
+                        src="/images/about/HMS Dashboard Devices on Blue Shape.png"
+                        alt=""
+                        width={1413}
+                        height={1113}
+                        sizes="100vw"
+                        className="h-auto w-full"
+                      />
+                    </motion.li>
+                  ) : null}
+                  {i === ABOUT_WHO_POINTS.length - 1 ? (
+                    <motion.li {...slide("left")} className="-mr-6 md:-mr-12 border-t border-slate-200 py-8 lg:hidden" aria-hidden>
+                      <Image
+                        src="/images/about/Analytics Dashboard Device Mockup.png"
+                        alt=""
+                        width={1721}
+                        height={914}
+                        sizes="100vw"
+                        className="h-auto w-full"
+                      />
+                    </motion.li>
+                  ) : null}
+                </Fragment>
+              ))}
+            </ul>
           </div>
 
-          <ul className="flex flex-col">
-            {ABOUT_WHO_POINTS.map((point, i) => (
-              <li key={point.title} className="group border-t border-slate-200 py-8 first:border-t-0 last:pb-0 lg:py-10">
-                <span className="mb-2 block font-mono text-sm font-semibold tracking-wide text-xyvoo-navy/30 transition-colors duration-300 group-hover:text-xyvoo-blue">
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-                <h5 className="text-h5 font-semibold leading-snug text-xyvoo-navy transition-colors duration-300 group-hover:text-xyvoo-blue">
-                  {point.title}
-                </h5>
-                <p className="mt-2 max-w-[46ch] text-p leading-relaxed text-slate-500">
-                  {point.description}
-                </p>
-              </li>
-            ))}
-          </ul>
+          <div className="hidden lg:sticky lg:top-28 lg:block lg:self-start">
+            <motion.div
+              initial={{ opacity: 0, x: 40 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.7, ease: "easeOut" }}
+              className="relative flex flex-col gap-10 lg:block lg:h-[calc(100vh-8rem)] lg:max-h-[720px] lg:overflow-hidden"
+            >
+              <motion.div style={isDesktop ? { y: hmsY } : undefined} className="lg:absolute lg:inset-0">
+                <Image
+                  src="/images/about/HMS Dashboard Devices on Blue Shape.png"
+                  alt="The XYVOO HMS dashboard shown on a laptop and a phone"
+                  width={1413}
+                  height={1113}
+                  sizes="(min-width: 1024px) 60vw, 100vw"
+                  className="h-auto w-full lg:h-full lg:object-contain lg:object-right"
+                />
+              </motion.div>
+              <motion.div style={isDesktop ? { y: storeY } : undefined} className="lg:absolute lg:inset-0">
+                <Image
+                  src="/images/about/Analytics Dashboard Device Mockup.png"
+                  alt="The XYVOO Storefront analytics dashboard shown on a laptop and a phone"
+                  width={1721}
+                  height={914}
+                  sizes="(min-width: 1024px) 60vw, 100vw"
+                  className="h-auto w-full lg:h-full lg:object-contain lg:object-right"
+                />
+              </motion.div>
+            </motion.div>
+          </div>
         </div>
       </section>
 
@@ -205,35 +307,54 @@ export default function AboutPage() {
 
       {/* How it works — sticky heading beside a numbered list, matching the
           solution pages' "Integrations" pattern */}
-      <section className="border-t border-slate-100 bg-slate-50 px-6 py-20 md:py-28">
-        <div className="mx-auto grid max-w-[1200px] grid-cols-1 gap-12 lg:grid-cols-2 lg:gap-16 lg:items-start">
-          <div className="lg:sticky lg:top-28">
-            <motion.div initial="offscreen" whileInView="onscreen" viewport={{ once: true }} variants={fadeUp}>
+      <section className="overflow-x-clip border-t border-slate-100 bg-slate-50 px-6 md:px-12 py-20 lg:py-28 lg:pt-4 lg:pl-0 lg:pr-[max(1.5rem,calc((100%-1200px)/2))]">
+        <div className="grid grid-cols-1 gap-12 lg:grid-cols-[1.2fr_0.8fr] lg:gap-10">
+          <div className="lg:order-2">
+            <motion.div
+              initial="offscreen"
+              whileInView="onscreen"
+              viewport={{ once: true }}
+              variants={fadeUp}
+              className="z-10 bg-slate-50 pb-6 lg:sticky lg:top-0 lg:pt-24"
+            >
               <p className="mb-3 text-eyebrow font-bold uppercase tracking-widest text-xyvoo-blue">How It Works</p>
-              <h3 className="mb-4 text-h3 font-black leading-tight text-xyvoo-navy">
-                {ABOUT_HOW_IT_WORKS.title}
-              </h3>
-              <p className="max-w-[42ch] text-p leading-relaxed text-slate-500">
-                {ABOUT_HOW_IT_WORKS.intro}
-              </p>
+              <h3 className="mb-4 text-h3 font-black leading-tight text-xyvoo-navy">{ABOUT_HOW_IT_WORKS.title}</h3>
+              <p className="md:max-w-none lg:max-w-[42ch] text-p leading-relaxed text-slate-500">{ABOUT_HOW_IT_WORKS.intro}</p>
             </motion.div>
+
+            <ul className="mt-6 flex flex-col">
+              {ABOUT_HOW_IT_WORKS.steps.map((step, i) => (
+                <motion.li key={`${step.title}-${tier === "phone"}`} {...slide(i % 2 ? "right" : "left")} className="group border-t border-slate-200 py-8 lg:py-10">
+                  <span className="mb-2 block font-mono text-sm font-semibold tracking-wide text-xyvoo-navy/30 transition-colors duration-300 group-hover:text-xyvoo-blue">
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <h5 className="text-h5 font-semibold leading-snug text-xyvoo-navy transition-colors duration-300 group-hover:text-xyvoo-blue">
+                    {step.title}
+                  </h5>
+                  <p className="mt-2 md:max-w-none lg:max-w-[46ch] text-p leading-relaxed text-slate-500">{step.description}</p>
+                </motion.li>
+              ))}
+            </ul>
           </div>
 
-          <ul className="flex flex-col">
-            {ABOUT_HOW_IT_WORKS.steps.map((step, i) => (
-              <li key={step.title} className="group border-t border-slate-200 py-8 first:border-t-0 last:pb-0 lg:py-10">
-                <span className="mb-2 block font-mono text-sm font-semibold tracking-wide text-xyvoo-navy/30 transition-colors duration-300 group-hover:text-xyvoo-blue">
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-                <h5 className="text-h5 font-semibold leading-snug text-xyvoo-navy transition-colors duration-300 group-hover:text-xyvoo-blue">
-                  {step.title}
-                </h5>
-                <p className="mt-2 max-w-[46ch] text-p leading-relaxed text-slate-500">
-                  {step.description}
-                </p>
-              </li>
-            ))}
-          </ul>
+          <div className="lg:order-1 lg:sticky lg:top-28 lg:self-start">
+            <motion.div
+              initial={{ opacity: 0, x: -40 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.7, ease: "easeOut" }}
+              className="-mx-6 md:-mx-12 lg:mx-0 lg:h-[calc(100vh-8rem)] lg:max-h-[720px]"
+            >
+              <Image
+                src="/images/about/SaaS Dashboard with Business Minifigure.png"
+                alt="A LEGO minifigure in a business suit presenting the XYVOO HMS dashboard on a laptop"
+                width={1451}
+                height={1084}
+                sizes="(min-width: 768px) 60vw, 100vw"
+                className="h-auto w-full lg:h-full lg:object-contain lg:object-left"
+              />
+            </motion.div>
+          </div>
         </div>
       </section>
     </>

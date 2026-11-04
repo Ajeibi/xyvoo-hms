@@ -65,7 +65,7 @@ export function PdfViewer({ fileUrl, title }: { fileUrl: string; title: string }
     const token = ++renderTokenRef.current;
     const firstPage = await doc.getPage(1);
     const baseViewport = firstPage.getViewport({ scale: 1 });
-    const available = scrollEl.clientWidth - 32;
+    const available = scrollEl.clientWidth;
     const scale = fitModeRef.current ? available / baseViewport.width : manualZoomRef.current;
     if (token !== renderTokenRef.current) return;
 
@@ -82,7 +82,7 @@ export function PdfViewer({ fileUrl, title }: { fileUrl: string; title: string }
       const page = await doc.getPage(i);
       const viewport = page.getViewport({ scale });
       const canvas = document.createElement("canvas");
-      canvas.className = "mx-auto mb-4 block rounded-sm shadow-md last:mb-0";
+      canvas.className = "mx-auto mb-px block last:mb-0";
       canvas.width = Math.floor(viewport.width * dpr);
       canvas.height = Math.floor(viewport.height * dpr);
       canvas.style.width = `${viewport.width}px`;
@@ -140,7 +140,7 @@ export function PdfViewer({ fileUrl, title }: { fileUrl: string; title: string }
   const goTo = (page: number) => {
     const canvas = canvasesRef.current[page - 1];
     if (canvas && scrollRef.current) {
-      scrollRef.current.scrollTo({ top: canvas.offsetTop - 16, behavior: "smooth" });
+      scrollRef.current.scrollTo({ top: canvas.offsetTop, behavior: "smooth" });
     }
   };
 
@@ -151,7 +151,7 @@ export function PdfViewer({ fileUrl, title }: { fileUrl: string; title: string }
 
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-white/95 px-4 py-3">
+      <div className="flex flex-nowrap items-center justify-between gap-2 border-b border-slate-100 bg-white/95 px-2 py-2 sm:px-4 sm:py-3">
         <div className="flex items-center gap-1.5">
           <button
             type="button"
@@ -162,7 +162,7 @@ export function PdfViewer({ fileUrl, title }: { fileUrl: string; title: string }
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <span className="min-w-[92px] text-center text-sm font-medium text-xyvoo-navy/70" aria-live="polite">
+          <span className="min-w-[84px] whitespace-nowrap text-center text-sm font-medium text-xyvoo-navy/70" aria-live="polite">
             {error ? "—" : `Page ${currentPage} of ${numPages || "…"}`}
           </span>
           <button
@@ -176,7 +176,7 @@ export function PdfViewer({ fileUrl, title }: { fileUrl: string; title: string }
           </button>
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex items-center gap-1.5">
           <button
             type="button"
             onClick={() => zoomBy(-ZOOM_STEP)}
@@ -186,7 +186,7 @@ export function PdfViewer({ fileUrl, title }: { fileUrl: string; title: string }
           >
             <Minus className="h-4 w-4" />
           </button>
-          <span className="min-w-[48px] text-center text-sm font-medium text-xyvoo-navy/70">
+          <span className="min-w-[40px] text-center text-xs sm:min-w-[48px] sm:text-sm font-medium text-xyvoo-navy/70">
             {error ? "—" : `${Math.round(displayZoom * 100)}%`}
           </span>
           <button
@@ -203,7 +203,7 @@ export function PdfViewer({ fileUrl, title }: { fileUrl: string; title: string }
             onClick={() => setFitMode(true)}
             aria-pressed={fitMode}
             disabled={!!error}
-            className={`ml-1 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-30 ${
+            className={`ml-1 hidden whitespace-nowrap rounded-lg sm:inline-block px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-30 ${
               fitMode ? "bg-xyvoo-blue/10 text-xyvoo-blue" : "text-xyvoo-navy/70 hover:bg-slate-100"
             }`}
           >
@@ -212,10 +212,11 @@ export function PdfViewer({ fileUrl, title }: { fileUrl: string; title: string }
           <a
             href={fileUrl}
             download
-            className="ml-1 inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-xyvoo-navy px-3 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-xyvoo-navy/90"
+            aria-label="Download"
+            className="ml-1 inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-xyvoo-navy px-2.5 py-1.5 text-sm font-semibold text-white transition-colors hover:bg-xyvoo-navy/90 sm:px-3"
           >
             <Download className="h-3.5 w-3.5" />
-            Download
+            <span className="hidden sm:inline">Download</span>
           </a>
         </div>
       </div>
@@ -235,7 +236,7 @@ export function PdfViewer({ fileUrl, title }: { fileUrl: string; title: string }
       ) : (
         <div
           ref={scrollRef}
-          className="thin-scrollbar max-h-[75vh] overflow-y-auto overflow-x-hidden bg-slate-100 px-4 py-8 sm:px-8"
+          className="thin-scrollbar max-h-[75vh] overflow-y-auto overflow-x-hidden bg-slate-100"
         >
           {loading && (
             <div className="flex h-64 items-center justify-center">

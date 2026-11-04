@@ -65,7 +65,7 @@ export default async function WebsiteTemplatePreviewPage({ params }: { params: P
   return (
     <>
       {/* Dark band: /templates is a Storefront path, so the site header is transparent with light text here. */}
-      <header className="relative isolate overflow-hidden border-b border-white/5 bg-[#04140f] px-6 pb-16 pt-36 md:pb-20">
+      <header className="relative isolate overflow-hidden border-b border-white/5 bg-[#04140f] px-6 pb-16 pt-36 md:px-12 md:pb-20 lg:px-6">
         <div className="pointer-events-none absolute inset-0 z-0" style={HERO_GRID_STYLE} aria-hidden />
         <div
           className="pointer-events-none absolute -top-16 right-[8%] z-0 h-[360px] w-[360px] rounded-full blur-[100px]"
@@ -78,7 +78,7 @@ export default async function WebsiteTemplatePreviewPage({ params }: { params: P
               Website template · {template.industry}
             </p>
             <h1 className="text-balance text-h1 font-black leading-[1.08] tracking-tight text-white">{template.name}</h1>
-            <p className="mt-6 max-w-md text-p leading-relaxed text-white/60">
+            <p className="mt-6 md:max-w-none lg:max-w-md text-p leading-relaxed text-white/60">
               {template.summary}{" "}
               {template.kind === "hotel"
                 ? "This is a working preview: click around, check availability and try the booking request. Nothing is booked."

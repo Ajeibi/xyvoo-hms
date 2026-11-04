@@ -136,7 +136,7 @@ export default function SupportPage() {
   return (
     <>
       {/* Hero — dense split layout, same treatment as /solution/hms and the business-type pages */}
-      <section className="relative isolate overflow-hidden border-b border-white/5 bg-[#000d1f] px-6 pt-36 pb-20 md:pb-24">
+      <section className="relative isolate overflow-hidden border-b border-white/5 bg-[#000d1f] px-6 pt-36 pb-20 md:px-12 md:pb-24 lg:px-6">
         <div className="pointer-events-none absolute inset-0 z-0" style={DARK_GRID_STYLE} aria-hidden />
         <div
           className="pointer-events-none absolute -top-16 right-[8%] z-0 h-[360px] w-[360px] rounded-full blur-[100px]"
@@ -148,7 +148,7 @@ export default function SupportPage() {
           <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: "easeOut" }}>
             <p className="mb-5 text-eyebrow font-bold uppercase tracking-[0.22em] text-[#90caf9]">Support Center</p>
             <h1 className="text-balance text-h1 font-black leading-[1.08] tracking-tight text-white">How can we help?</h1>
-            <p className="mt-6 max-w-md text-p leading-relaxed text-white/60">
+            <p className="mt-6 md:max-w-none lg:max-w-md text-p leading-relaxed text-white/60">
               Real humans. Real answers. Search {XYVOO_FAQS.length}+ questions below, or reach the team directly.
             </p>
 

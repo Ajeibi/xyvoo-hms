@@ -35,6 +35,32 @@ function FadeIn({
   );
 }
 
+/** Slides in from a side (or up) as it enters the screen and back out as it leaves. */
+function SlideIn({
+  children,
+  from,
+  delay = 0,
+  className,
+}: {
+  children: React.ReactNode;
+  from: "left" | "right" | "up";
+  delay?: number;
+  className?: string;
+}) {
+  const hidden = { opacity: 0, x: from === "left" ? -72 : from === "right" ? 72 : 0, y: from === "up" ? 56 : 0 };
+  return (
+    <motion.div
+      className={className}
+      initial={hidden}
+      whileInView={{ opacity: 1, x: 0, y: 0 }}
+      viewport={{ once: false, amount: "some", margin: "0px 0px -10% 0px" }}
+      transition={{ duration: 0.65, delay, ease: "easeOut" }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
 type HomePricingSectionProps = {
   /** Fixed header offset + tighter rhythm on `/pricing` */
   standalonePage?: boolean;
@@ -94,7 +120,11 @@ export function HomePricingSection({
       {standalonePage && (
         <DarkSplitHero
           eyebrow="Pricing"
-          title="Plans That Grow With You"
+          title={
+            <>
+              Plans That Grow <span className="text-[#90caf9]">With You</span>
+            </>
+          }
           titleId="home-pricing-heading"
           subtitle="Start free and scale when you're ready. Upgrade when you need more, with no hidden lock-ins."
           links={[
@@ -107,7 +137,7 @@ export function HomePricingSection({
 
       <section
         aria-labelledby={standalonePage ? undefined : "home-pricing-heading"}
-        className={standalonePage ? "bg-white pt-16 pb-24" : "py-24"}
+        className={standalonePage ? "overflow-x-clip bg-white pt-16 pb-24" : "overflow-x-clip py-24"}
         style={{ background: "var(--xyvoo-white)" }}
       >
       <div className="mx-auto max-w-[1200px] px-6">
@@ -179,7 +209,7 @@ export function HomePricingSection({
             {!showStorefrontComparison ? (
               <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
                 {STOREFRONT_PLANS.map((plan, planIndex) => (
-                  <FadeIn key={plan.name} delay={planIndex * 0.1}>
+                  <SlideIn key={plan.name} from={planIndex === 0 ? "left" : planIndex === 2 ? "right" : "up"} delay={planIndex * 0.08}>
                   <article
                     className="flex h-full flex-col rounded-2xl border p-6"
                     style={{
@@ -223,8 +253,12 @@ export function HomePricingSection({
                     </div>
 
                     <ul className="mb-6 flex-1 space-y-2.5">
-                      {plan.features.map((feature) => (
-                        <li
+                      {plan.features.map((feature, featureIndex) => (
+                        <motion.li
+                          initial={{ opacity: 0, x: featureIndex % 2 ? 28 : -28 }}
+                          whileInView={{ opacity: 1, x: 0 }}
+                          viewport={{ once: false, margin: "0px 0px -8% 0px" }}
+                          transition={{ duration: 0.4, ease: "easeOut" }}
                           key={feature}
                           className="flex items-start gap-2.5 text-sm leading-relaxed"
                           style={{
@@ -243,7 +277,7 @@ export function HomePricingSection({
                             }}
                           />
                           <span>{feature}</span>
-                        </li>
+                        </motion.li>
                       ))}
                     </ul>
 
@@ -255,7 +289,7 @@ export function HomePricingSection({
                       <Link href={plan.ctaHref}>{plan.ctaLabel}</Link>
                     </Button>
                   </article>
-                  </FadeIn>
+                  </SlideIn>
                 ))}
               </div>
             ) : (
@@ -387,15 +421,19 @@ export function HomePricingSection({
                 </div>
 
                 <div className="grid grid-cols-1 gap-2">
-                  {HMS_FEATURES.slice(0, 9).map((feature) => (
-                    <div
+                  {HMS_FEATURES.slice(0, 9).map((feature, featureIndex) => (
+                    <motion.div
+                      initial={{ opacity: 0, x: featureIndex % 2 ? 28 : -28 }}
+                      whileInView={{ opacity: 1, x: 0 }}
+                      viewport={{ once: false, margin: "0px 0px -8% 0px" }}
+                      transition={{ duration: 0.4, ease: "easeOut" }}
                       key={feature}
                       className="flex items-center gap-2.5 text-sm"
                       style={{ color: "var(--xyvoo-feature-card-navy-title)" }}
                     >
                       <CheckCircle2 className="h-4 w-4 shrink-0" style={{ color: "var(--xyvoo-blue)" }} />{" "}
                       {feature}
-                    </div>
+                    </motion.div>
                   ))}
                 </div>
               </div>
@@ -412,14 +450,18 @@ export function HomePricingSection({
                 All Features Included
               </p>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                {HMS_FEATURES.map((feature) => (
-                  <div
+                {HMS_FEATURES.map((feature, featureIndex) => (
+                  <motion.div
+                    initial={{ opacity: 0, x: featureIndex % 2 ? 28 : -28 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: false, margin: "0px 0px -8% 0px" }}
+                    transition={{ duration: 0.4, ease: "easeOut" }}
                     key={feature}
                     className="flex items-center gap-2.5 text-sm text-slate-700"
                   >
                     <CheckCircle2 className="h-4 w-4 shrink-0" style={{ color: "var(--xyvoo-blue)" }} />{" "}
                     {feature}
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             </motion.div>

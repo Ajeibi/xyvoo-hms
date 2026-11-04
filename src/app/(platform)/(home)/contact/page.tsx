@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { motion, type Variants } from "framer-motion";
+import { motion } from "framer-motion";
 import { Send, CheckCircle2, ArrowRight, ArrowUpRight, Calendar, RotateCcw, Copy, Check, Mail, X } from "lucide-react";
 import type { IconType } from "react-icons";
 import { FaEnvelope, FaLinkedinIn, FaWhatsapp, FaYahoo } from "react-icons/fa6";
@@ -11,10 +11,13 @@ import type { MarketingContactForm } from "@/types";
 import { GridPulses } from "@/components/website/GridPulses";
 import { DEMO_BOOKING_ANCHOR, DEMO_BOOKING_URL } from "@/constants/booking";
 
-const fadeUp: Variants = {
-  offscreen: { opacity: 0, y: 40 },
-  onscreen: { opacity: 1, y: 0, transition: { duration: 0.7, bounce: 0.2 } },
-};
+/** Scroll-linked slide: arrives from the side as it comes into view, leaves the same way. */
+const slideIn = (from: "left" | "right") => ({
+  initial: { opacity: 0, x: from === "left" ? -64 : 64 },
+  whileInView: { opacity: 1, x: 0 },
+  viewport: { once: false, amount: "some" as const, margin: "0px 0px -12% 0px" },
+  transition: { duration: 0.6, ease: "easeOut" as const },
+});
 
 type ContactMethod = {
   title: string;
@@ -164,7 +167,7 @@ export default function ContactPage() {
   return (
     <>
       <section
-        className="relative isolate overflow-hidden bg-white px-6 pt-36 pb-20 md:pb-24 border-b border-slate-100"
+        className="relative isolate overflow-hidden bg-white px-6 pt-36 pb-20 md:px-12 md:pb-24 lg:px-6 border-b border-slate-100"
         style={{
           // Same grid-line texture as the Company tab of the home hero.
           backgroundImage:
@@ -173,7 +176,12 @@ export default function ContactPage() {
         }}
       >
         <GridPulses color="#90caf9" />
-        <div className="relative z-10 mx-auto grid max-w-[1200px] grid-cols-1 gap-14 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
+        <div
+          className="pointer-events-none absolute -top-16 right-[8%] z-0 h-90 w-90 rounded-full blur-[100px]"
+          style={{ background: "rgb(var(--xyvoo-blue-rgb) / 0.24)" }}
+          aria-hidden
+        />
+        <div className="relative z-10 mx-auto grid max-w-300 grid-cols-1 gap-14 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
           <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: "easeOut" }}>
             <p className="mb-5 text-eyebrow font-bold uppercase tracking-[0.22em] text-xyvoo-blue">
               Get In Touch
@@ -181,7 +189,7 @@ export default function ContactPage() {
             <h1 className="text-balance text-h1 font-black leading-[1.08] tracking-tight text-xyvoo-navy">
               Tell us about your <span className="text-xyvoo-blue">business</span>.
             </h1>
-            <p className="mt-6 max-w-md text-p leading-relaxed text-slate-500">
+            <p className="mt-6 md:max-w-none lg:max-w-md text-p leading-relaxed text-slate-500">
               The first conversation costs nothing. Tell us whether you&apos;re running a hotel or an online store, and we&apos;ll take it from there.
             </p>
           </motion.div>
@@ -214,9 +222,9 @@ export default function ContactPage() {
         </div>
       </section>
 
-      <section id="contact-form" className="py-20 px-6 bg-slate-50">
-        <div className="relative max-w-[1200px] mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
-          <motion.div initial="offscreen" whileInView="onscreen" viewport={{ once: true }} variants={fadeUp}>
+      <section id="contact-form" className="overflow-x-clip py-20 px-6 bg-slate-50">
+        <div className="relative max-w-300 mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
+          <motion.div {...slideIn("left")}>
             <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-sm">
               {submitted ? (
                 <div className="text-center py-12">
@@ -319,7 +327,7 @@ export default function ContactPage() {
                       </>
                     )}
 
-                    <div aria-hidden="true" className="absolute -left-[9999px] h-px w-px overflow-hidden">
+                    <div aria-hidden="true" className="absolute -left-2499.75 h-px w-px overflow-hidden">
                       <label htmlFor="contact-website">Website</label>
                       <input id="contact-website" name="website" type="text" tabIndex={-1} autoComplete="off" value={website} onChange={(e) => setWebsite(e.target.value)} />
                     </div>
@@ -349,7 +357,7 @@ export default function ContactPage() {
 
           <div className="space-y-6">
             {booking !== "open" && (
-              <motion.div initial="offscreen" whileInView="onscreen" viewport={{ once: true }} variants={fadeUp}>
+              <motion.div {...slideIn("right")}>
                 <div id={DEMO_BOOKING_ANCHOR} className="scroll-mt-28 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
                   <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-xyvoo-blue/10">
                     <Calendar className="h-6 w-6 text-xyvoo-blue" />
@@ -383,7 +391,7 @@ export default function ContactPage() {
               </motion.div>
             )}
 
-            <motion.div initial="offscreen" whileInView="onscreen" viewport={{ once: true }} variants={fadeUp}>
+            <motion.div {...slideIn("right")}>
               <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
                 <div className="flex items-start gap-4">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
@@ -432,8 +440,8 @@ export default function ContactPage() {
               </div>
             </motion.div>
 
-            <motion.div initial="offscreen" whileInView="onscreen" viewport={{ once: true }} variants={fadeUp}>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+            <motion.div {...slideIn("right")}>
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
                 {[
                   { icon: FaWhatsapp, label: "WhatsApp", val: "Fastest support", href: WHATSAPP_URL, color: "bg-emerald-50 text-[#128C4B] border-emerald-100" },
                   { icon: FaLinkedinIn, label: "LinkedIn", val: "Follow us", href: LINKEDIN_URL, color: "bg-sky-50 text-[#0A66C2] border-sky-100" },
@@ -443,9 +451,9 @@ export default function ContactPage() {
                     href={href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`flex min-w-0 items-center gap-4 rounded-2xl border p-5 transition-opacity hover:opacity-80 ${color}`}
+                    className={`flex min-w-0 items-center gap-3 rounded-2xl border p-4 transition-opacity sm:gap-4 sm:p-5 hover:opacity-80 ${color}`}
                   >
-                    <Icon className="h-7 w-7 shrink-0" aria-hidden="true" />
+                    <Icon className="h-6 w-6 shrink-0 sm:h-7 sm:w-7" aria-hidden="true" />
                     <div className="min-w-0">
                       <p className="text-sm font-bold">{label}</p>
                       <p className="mt-0.5 text-xs opacity-80">{val}</p>
@@ -499,7 +507,7 @@ export default function ContactPage() {
                   src={DEMO_BOOKING_URL}
                   title="Choose a time for your XYVOO demo"
                   onLoad={handleFrameLoad}
-                  className="block h-[760px] w-full border-0"
+                  className="block h-190 w-full border-0"
                 />
               </div>
               <p className="mt-3 text-xs text-slate-400">

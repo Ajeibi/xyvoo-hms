@@ -122,7 +122,7 @@ export default function WebsiteTemplatesPage() {
   return (
     <>
       {/* Hero — same dense split layout as the Storefront/HMS landing pages */}
-      <section className="relative isolate overflow-hidden border-b border-white/5 bg-[#04140f] px-6 pb-20 pt-36 md:pb-24">
+      <section className="relative isolate overflow-hidden border-b border-white/5 bg-[#04140f] px-6 pb-20 pt-36 md:px-12 md:pb-24 lg:px-6">
         <div className="pointer-events-none absolute inset-0 z-0" style={HERO_GRID_STYLE} aria-hidden />
         <div
           className="pointer-events-none absolute -top-16 right-[8%] z-0 h-[360px] w-[360px] rounded-full blur-[100px]"
@@ -137,7 +137,7 @@ export default function WebsiteTemplatesPage() {
             <h1 className="text-balance text-h1 font-black leading-[1.08] tracking-tight text-white">
               See what your website could look like.
             </h1>
-            <p className="mt-6 max-w-md text-p leading-relaxed text-white/60">
+            <p className="mt-6 md:max-w-none lg:max-w-md text-p leading-relaxed text-white/60">
               Every XYVOO website is a complete brand site, not just a catalogue or a booking engine.
               Click through a template exactly as your customers or guests would.
             </p>

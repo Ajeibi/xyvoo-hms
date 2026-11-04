@@ -1,10 +1,12 @@
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowRight, Clock, Download, FileText } from "lucide-react";
 import type { Metadata } from "next";
 import { BLOG_POSTS, getBlogPostBySlug, getRelatedBlogPosts } from "@/constants/blog";
 import { getResourceBySlug } from "@/constants/resources";
 import type { BlogBodyBlock } from "@/types/blog";
+import { LOGO_LIGHT_URL } from "@/constants/branding";
 
 export function generateStaticParams() {
   return BLOG_POSTS.map((p) => ({ slug: p.slug }));
@@ -59,12 +61,12 @@ function BodyBlock({ block, index }: { block: BlogBodyBlock; index: number }) {
         <Link
           key={index}
           href={`/resources/${resource.slug}`}
-          className="group my-8 flex items-center gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-5 transition-colors hover:border-xyvoo-blue/30 hover:bg-white"
+          className="group my-8 flex flex-wrap items-center gap-4 sm:flex-nowrap rounded-2xl border border-slate-200 bg-slate-50 p-5 transition-colors hover:border-xyvoo-blue/30 hover:bg-white"
         >
           <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-xyvoo-blue/10">
             <FileText className="h-5 w-5 text-xyvoo-blue" />
           </span>
-          <span className="flex-1">
+          <span className="min-w-0 flex-1">
             <span className="mb-0.5 block text-xs font-semibold uppercase tracking-wide text-xyvoo-blue">
               Free download
             </span>
@@ -73,7 +75,7 @@ function BodyBlock({ block, index }: { block: BlogBodyBlock; index: number }) {
               PDF · {resource.pages} pages · {resource.readTime} read
             </span>
           </span>
-          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-xyvoo-navy px-4 py-2 text-sm font-semibold text-white transition-colors group-hover:bg-xyvoo-navy/90">
+          <span className="inline-flex w-full shrink-0 items-center justify-center gap-1.5 sm:w-auto rounded-full bg-xyvoo-navy px-4 py-2 text-sm font-semibold text-white transition-colors group-hover:bg-xyvoo-navy/90">
             <Download className="h-3.5 w-3.5" /> Get it
           </span>
         </Link>
@@ -101,7 +103,7 @@ export default async function BlogPostPage({
 
   return (
     <article className="bg-white pt-32 pb-20">
-      <div className="mx-auto max-w-7xl px-6">
+      <div className="mx-auto max-w-7xl px-6 md:px-12 lg:px-6">
         <Link
           href="/blog"
           className="mb-8 flex w-fit items-center gap-2 text-sm font-semibold text-xyvoo-navy/60 transition-colors hover:text-xyvoo-blue"
@@ -112,7 +114,7 @@ export default async function BlogPostPage({
         <span className="mb-3 inline-block text-xs font-semibold uppercase tracking-wide text-xyvoo-blue">
           {post.category}
         </span>
-        <h1 className="mb-5 max-w-3xl text-h1 font-black text-xyvoo-navy">{post.title}</h1>
+        <h1 className="mb-5 md:max-w-none lg:max-w-3xl text-h1 font-black text-xyvoo-navy">{post.title}</h1>
         <div className="mb-10 flex flex-wrap items-center gap-3 text-xs text-xyvoo-navy/45">
           <span>{post.author}</span>
           <span className="flex items-center gap-1.5">
@@ -121,10 +123,28 @@ export default async function BlogPostPage({
           <span>{post.date}</span>
         </div>
 
-        <div className={`mb-10 h-72 rounded-2xl bg-gradient-to-br sm:h-80 md:h-96 ${post.color}`} />
+        <div className={`relative mb-10 h-72 overflow-hidden rounded-2xl bg-gradient-to-br sm:h-80 md:h-96 ${post.color}`}>
+          {/* Watermark: the full XYVOO logo, very large and centred, always fully inside the banner. Tinted white and kept faint so the colour reads as covering it. */}
+          <div className="pointer-events-none absolute left-1/2 top-1/2 aspect-[779/320] w-[92%] -translate-x-1/2 -translate-y-1/2 -rotate-3 sm:h-[86%] sm:w-auto" aria-hidden>
+            <Image
+              src={LOGO_LIGHT_URL}
+              alt=""
+              fill
+              priority
+              sizes="(min-width: 640px) 800px, 92vw"
+              className="object-contain opacity-[0.22] brightness-0 invert"
+            />
+          </div>
+          {/* Soft light from the top-left so the colour feels layered over the shield */}
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{ background: "radial-gradient(circle at 15% 10%, rgb(255 255 255 / 0.2), transparent 55%)" }}
+            aria-hidden
+          />
+        </div>
 
         <div className="grid grid-cols-1 gap-10 lg:grid-cols-[1fr_280px]">
-          <div className="max-w-3xl">
+          <div className="md:max-w-none lg:max-w-3xl">
             {post.body.map((block, i) => (
               <BodyBlock key={i} block={block} index={i} />
             ))}

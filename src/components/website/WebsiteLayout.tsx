@@ -743,7 +743,7 @@ function WebsiteHeader({ pathname }: { pathname: string }) {
           scrolled ? "shadow-[var(--xyvoo-shadow-header-scrolled)]" : ""
         )}
       >
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-3">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-3 md:px-12 lg:px-6">
           <Link href="/" className="group flex shrink-0 items-center">
             <Image
               src={isHeroDark ? LOGO_LIGHT_URL : LOGO_URL}
@@ -846,7 +846,7 @@ export default function WebsiteLayout({
         <div className="mx-auto max-w-[1200px]">
           {/* Heading + CTA (left) and link columns + contact (right) */}
           <div className="grid grid-cols-1 gap-12 border-b border-white/10 pb-14 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1.4fr)] lg:gap-16">
-            <div className="max-w-md">
+            <div className="md:max-w-none lg:max-w-md">
               <h2 className="text-h2 font-black leading-[1.08] tracking-tight text-white">
                 Built to help you{" "}
                 <span
@@ -859,7 +859,7 @@ export default function WebsiteLayout({
                 </span>
                 .
               </h2>
-              <p className="mt-4 max-w-sm text-p leading-relaxed text-slate-400">
+              <p className="mt-4 md:max-w-none lg:max-w-sm text-p leading-relaxed text-slate-400">
                 Whether you&apos;re launching your first property or scaling
                 your online storefront, XYVOO gives you the tools to get set up,
                 go live, and grow faster.

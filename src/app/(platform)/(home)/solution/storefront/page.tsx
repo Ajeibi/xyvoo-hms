@@ -53,7 +53,7 @@ export default function SolutionsStorefrontPage() {
           initial={{ opacity: 0, y: 28 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, ease: "easeOut" }}
-          className="relative z-10 mx-auto w-full max-w-[1200px] px-6"
+          className="relative z-10 mx-auto w-full max-w-[1200px] px-6 md:px-12 lg:px-6"
         >
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-6">
             <p

@@ -32,14 +32,14 @@ export function DarkSplitHero({
   children,
 }: {
   eyebrow: string;
-  title: string;
+  title: ReactNode;
   titleId?: string;
   subtitle: string;
   links: DarkSplitHeroLink[];
   children?: ReactNode;
 }) {
   return (
-    <section className="relative isolate overflow-hidden border-b border-white/5 bg-[#000d1f] px-6 pt-36 pb-20 md:pb-24">
+    <section className="relative isolate overflow-hidden border-b border-white/5 bg-[#000d1f] px-6 pt-36 pb-20 md:px-12 md:pb-24 lg:px-6">
       <div className="pointer-events-none absolute inset-0 z-0" style={DARK_GRID_STYLE} aria-hidden />
       <div
         className="pointer-events-none absolute -top-16 right-[8%] z-0 h-[360px] w-[360px] rounded-full blur-[100px]"
@@ -53,7 +53,7 @@ export function DarkSplitHero({
           <h1 id={titleId} className="text-balance text-h1 font-black leading-[1.08] tracking-tight text-white">
             {title}
           </h1>
-          <p className="mt-6 max-w-md text-p leading-relaxed text-white/60">{subtitle}</p>
+          <p className="mt-6 md:max-w-none lg:max-w-md text-p leading-relaxed text-white/60">{subtitle}</p>
           {children}
         </motion.div>
 

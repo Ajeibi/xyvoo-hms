@@ -29,7 +29,7 @@ export default function SolutionsHotelPage() {
           aria-hidden
         />
 
-        <div className="relative z-10 mx-auto w-full max-w-[1380px] px-6 grid grid-cols-1 min-[801px]:grid-cols-2 gap-12 items-center">
+        <div className="relative z-10 mx-auto w-full max-w-[1380px] px-6 md:px-12 lg:px-6 grid grid-cols-1 min-[801px]:grid-cols-2 gap-12 items-center">
           <motion.div
             initial={{ opacity: 0, y: 28 }}
             animate={{ opacity: 1, y: 0 }}

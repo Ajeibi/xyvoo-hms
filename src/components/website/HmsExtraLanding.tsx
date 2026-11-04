@@ -141,7 +141,7 @@ export function HmsExtraLanding({ page }: { page: HmsExtraPage }) {
   return (
     <>
       {/* Hero — dense split layout, same bg as /solution/hms's own hero */}
-      <section className="relative isolate overflow-hidden border-b border-white/5 bg-[#000d1f] px-6 pt-36 pb-20 md:pb-24">
+      <section className="relative isolate overflow-hidden border-b border-white/5 bg-[#000d1f] px-6 pt-36 pb-20 md:px-12 md:pb-24 lg:px-6">
         <div className="pointer-events-none absolute inset-0 z-0" style={DARK_GRID_STYLE} aria-hidden />
         <GridPulses color="#90caf9" />
         <div
@@ -158,7 +158,7 @@ export function HmsExtraLanding({ page }: { page: HmsExtraPage }) {
             <h1 className="text-balance text-h1 font-black leading-[1.08] tracking-tight text-white">
               {page.title}
             </h1>
-            <p className="mt-6 max-w-md text-p leading-relaxed text-white/60">
+            <p className="mt-6 md:max-w-none lg:max-w-md text-p leading-relaxed text-white/60">
               {page.subtitle}
             </p>
           </motion.div>
