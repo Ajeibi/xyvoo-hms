@@ -17,7 +17,7 @@ export default async function AccountsCustomerInvoicesPage({ params }: { params:
   if (!tenant) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-invoices">
-        <HmsPage>
+        <HmsPage wide>
           <HmsPageHeader eyebrow="Accounts" meaning="money" title="Customer invoices" description="Hotel not found." />
         </HmsPage>
       </HMSLayout>

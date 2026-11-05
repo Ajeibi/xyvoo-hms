@@ -9,6 +9,7 @@ import { AccountsSubNav } from "@/components/hms/accounts/AccountsSubNav";
 import { HmsStatTile } from "@/components/hms/dashboard-tiles";
 import { HmsCard, HmsEmptyState, HmsPage, HmsPageHeader, HmsStatStrip, hmsButton } from "@/components/hms/hms-ui";
 import { BookOpen, NotebookPen, Scale } from "lucide-react";
+import { formatPricingAmount, normalizePricingSetup } from "@/lib/hms/room-pricing";
 
 export default async function AccountsPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -17,7 +18,7 @@ export default async function AccountsPage({ params }: { params: Promise<{ slug:
   if (!tenant) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts">
-        <HmsPage>
+        <HmsPage wide>
           <HmsPageHeader eyebrow="Accounts" meaning="money" title="Accounts" description="Hotel not found." />
         </HmsPage>
       </HMSLayout>
@@ -27,17 +28,19 @@ export default async function AccountsPage({ params }: { params: Promise<{ slug:
   const service = createServerSupabaseClient();
   const [accounts, entries] = await Promise.all([
     listChartOfAccounts(service, tenant.id),
-    listJournalEntries(service, tenant.id, { limit: 5 }),
+    listJournalEntries(service, tenant.id, { limit: 200 }),
   ]);
+  const currency = normalizePricingSetup(tenant.pricing_setup).currency;
 
   const startOfMonth = new Date();
   startOfMonth.setDate(1);
   startOfMonth.setHours(0, 0, 0, 0);
   const postedThisMonth = entries.filter((e) => new Date(e.entryDate) >= startOfMonth).length;
+  const recentEntries = entries.slice(0, 5);
 
   return (
     <HMSLayout slug={slug} requiredSection="accounts">
-      <HmsPage>
+      <HmsPage wide>
         <HmsPageHeader
           eyebrow="Accounts"
           meaning="money"
@@ -103,13 +106,15 @@ export default async function AccountsPage({ params }: { params: Promise<{ slug:
               <HmsEmptyState bare art="page" meaning="money" title="No journal entries posted yet" />
             ) : (
               <ul className="divide-y divide-slate-100">
-                {entries.map((e) => (
-                  <li key={e.id} className="flex items-center justify-between gap-3 px-5 py-3 text-sm sm:px-6">
+                {recentEntries.map((e) => (
+                  <li key={e.id} className="flex items-start justify-between gap-4 px-4 py-3.5 text-sm transition-colors hover:bg-slate-50/70 sm:items-center sm:px-6">
                     <div className="min-w-0">
-                      <p className="truncate font-medium text-slate-900">{e.memo}</p>
-                      <p className="text-sm text-slate-600">{new Date(e.entryDate).toLocaleDateString()}</p>
+                      <p className="font-medium text-slate-900 sm:truncate">{e.memo}</p>
+                      <p className="mt-0.5 text-xs text-slate-600">{new Date(e.entryDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</p>
                     </div>
-                    <p className="tabular-nums font-semibold text-slate-900">{e.total.toFixed(2)}</p>
+                    <p className="shrink-0 rounded-lg bg-slate-100 px-2.5 py-1 font-semibold tabular-nums text-slate-900">
+                      {formatPricingAmount(e.total, currency)}
+                    </p>
                   </li>
                 ))}
               </ul>

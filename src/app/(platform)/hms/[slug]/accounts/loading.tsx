@@ -4,7 +4,7 @@ import { HmsPage } from "@/components/hms/hms-ui";
 
 export default function AccountsLoading() {
   return (
-    <HmsPage>
+    <HmsPage wide>
       <PageHeaderSkeleton />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3">

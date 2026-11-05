@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Banknote, BedDouble, CalendarClock, CalendarPlus, ChevronDown, LogIn, LogOut, Sparkles, UserPlus, Wrench } from "lucide-react";
+import { Banknote, BedDouble, CalendarCheck, CalendarClock, CalendarPlus, ChevronDown, LogIn, LogOut, Sparkles, UserPlus, Wrench } from "lucide-react";
 import { HmsField, hmsInput } from "@/components/hms/hms-ui";
 import { HMS_MEANING, type HmsMeaning } from "@/components/hms/meaning";
 import { Button } from "@/components/ui/button";
@@ -87,6 +87,12 @@ export function HmsQuickActionsMenu({ slug }: { slug: string }) {
           <DropdownMenuItem className="gap-2.5 rounded-xl" onSelect={() => openCheckoutDialog()}>
             <ActionIcon icon={LogOut} meaning="rooms" />
             Check out a guest
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild className="gap-2.5 rounded-xl">
+            <Link href={`${base}/frontdesk/arrivals`}>
+              <ActionIcon icon={CalendarCheck} meaning="rooms" />
+              Arrivals
+            </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild className="gap-2.5 rounded-xl">
             <Link href={`${base}/reservations/new`}>

@@ -63,7 +63,50 @@ export function CompaniesClient({ slug, companies, canEdit, currency }: { slug: 
         {companies.length === 0 ? (
           <HmsEmptyState bare icon={Building2} meaning="guests" title="No companies yet" description="Add the firms you bill or take bookings from, then link their staff on the guest profiles." />
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <ul className="divide-y divide-slate-100 md:hidden">
+            {companies.map((c) => (
+              <li key={c.id} className="space-y-3 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <Link href={`/hms/${slug}/guests/companies/${c.id}`} className="font-semibold text-blue-700 hover:underline">
+                      {c.name}
+                    </Link>
+                    <p className="mt-0.5 truncate text-sm text-slate-600">{c.contactName ?? c.email ?? c.phone ?? "No contact"}</p>
+                  </div>
+                  {c.status !== "active" ? <HmsPill>Inactive</HmsPill> : null}
+                </div>
+                <dl className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl bg-slate-50 p-3 text-sm">
+                  <div>
+                    <dt className="text-xs font-medium text-slate-600">Guests</dt>
+                    <dd className="mt-0.5 font-semibold tabular-nums text-slate-900">{c.guestCount}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium text-slate-600">Stays</dt>
+                    <dd className="mt-0.5 font-semibold tabular-nums text-slate-900">{c.stays}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium text-slate-600">Billed</dt>
+                    <dd className="mt-0.5 font-semibold tabular-nums text-slate-900">{money(c.spend)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium text-slate-600">Owes you</dt>
+                    <dd className={`mt-0.5 font-semibold tabular-nums ${c.owed > 0 ? "text-amber-800" : "text-slate-900"}`}>
+                      {c.owed > 0 ? money(c.owed) : "—"}
+                    </dd>
+                  </div>
+                  <div className="col-span-2">
+                    <dt className="text-xs font-medium text-slate-600">Last stay</dt>
+                    <dd className="mt-0.5 text-slate-900">{c.lastStayAt ? formatBoardDateTime(c.lastStayAt) : "—"}</dd>
+                  </div>
+                </dl>
+                <Link href={`/hms/${slug}/guests/companies/${c.id}`} className={`${hmsButton.secondary} w-full`}>
+                  Open<span className="sr-only"> {c.name}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[760px] text-left text-sm">
               <caption className="sr-only">Companies</caption>
               <thead className="bg-slate-50 text-slate-700">
@@ -97,6 +140,7 @@ export function CompaniesClient({ slug, companies, canEdit, currency }: { slug: 
               </tbody>
             </table>
           </div>
+          </>
         )}
       </HmsCard>
     </HmsPage>

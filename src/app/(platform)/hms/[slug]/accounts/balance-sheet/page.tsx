@@ -15,7 +15,7 @@ export default async function AccountsBalanceSheetPage({ params }: { params: Pro
   if (!tenant) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-balance-sheet">
-        <HmsPage>
+        <HmsPage wide>
           <HmsPageHeader eyebrow="Accounts" meaning="money" title="Balance sheet" description="Hotel not found." />
         </HmsPage>
       </HMSLayout>
@@ -26,7 +26,7 @@ export default async function AccountsBalanceSheetPage({ params }: { params: Pro
   if (!caps.canViewReports) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-balance-sheet">
-        <HmsPage>
+        <HmsPage wide>
           <HmsPageHeader eyebrow="Accounts" meaning="money" title="Balance sheet" description="You don't have access to this report." />
         </HmsPage>
       </HMSLayout>

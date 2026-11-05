@@ -15,7 +15,7 @@ export default async function AccountsPeriodsPage({ params }: { params: Promise<
   if (!tenant) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-periods">
-        <HmsPage>
+        <HmsPage wide>
           <HmsPageHeader eyebrow="Accounts" meaning="money" title="Period close" description="Hotel not found." />
         </HmsPage>
       </HMSLayout>

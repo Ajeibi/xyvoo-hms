@@ -66,7 +66,25 @@ export default async function GuestPrivacyPage({ params }: { params: Promise<{ s
           {rows.length === 0 ? (
             <HmsEmptyState bare icon={ShieldCheck} meaning="care" title="No requests yet" description="They will be listed here when you download or erase a guest's data from their profile." />
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            <ul className="divide-y divide-slate-100 md:hidden">
+              {rows.map((r) => (
+                <li key={r.id as string} className="space-y-3 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <Link href={`/hms/${slug}/guests/${r.guest_id}`} className="min-w-0 truncate font-semibold text-blue-700 hover:underline">
+                      {(r.guest_name as string) || "Guest"}
+                    </Link>
+                    <HmsPill tone={r.kind === "erasure" ? "red" : "blue"}>{r.kind === "erasure" ? "Details erased" : "Copy of data given"}</HmsPill>
+                  </div>
+                  <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                    <span className="text-xs font-medium text-slate-600">When</span>
+                    <br />
+                    {formatBoardDateTime(r.created_at as string)}
+                  </p>
+                </li>
+              ))}
+            </ul>
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full min-w-[520px] text-left text-sm">
                 <caption className="sr-only">Data requests</caption>
                 <thead className="bg-slate-50 text-slate-700">
@@ -93,6 +111,7 @@ export default async function GuestPrivacyPage({ params }: { params: Promise<{ s
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </HmsCard>
       </HmsPage>

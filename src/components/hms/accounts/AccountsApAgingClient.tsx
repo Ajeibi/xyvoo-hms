@@ -32,7 +32,7 @@ export function AccountsApAgingClient({
   const overdueTotal = totals.overdue1to30 + totals.overdue31to60 + totals.overdue61to90 + totals.overdue90plus;
 
   return (
-    <HmsPage>
+    <HmsPage wide>
       <HmsPageHeader
         eyebrow="Accounts"
         meaning="money"
@@ -81,7 +81,44 @@ export function AccountsApAgingClient({
             flush
             className="print:border-0 print:shadow-none"
           >
-            <div className="overflow-x-auto">
+            <>
+            <ul className="divide-y divide-slate-100 md:hidden">
+              {rows.map((r) => (
+                <li key={r.vendorId} className="space-y-3 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="font-semibold text-slate-900">{r.vendorName}</p>
+                    <p className="shrink-0 font-semibold tabular-nums text-slate-900">{fmt(r.total)}</p>
+                  </div>
+                  <dl className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl bg-slate-50 p-3 text-sm">
+                    <div>
+                      <dt className="text-xs font-medium text-slate-600">Current</dt>
+                      <dd className="mt-0.5 tabular-nums text-slate-900">{fmt(r.current)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs font-medium text-slate-600">1–30 days overdue</dt>
+                      <dd className="mt-0.5 tabular-nums text-slate-900">{fmt(r.overdue1to30)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs font-medium text-slate-600">31–60 days overdue</dt>
+                      <dd className="mt-0.5 tabular-nums text-amber-800">{fmt(r.overdue31to60)}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs font-medium text-slate-600">61–90 days overdue</dt>
+                      <dd className="mt-0.5 tabular-nums text-orange-800">{fmt(r.overdue61to90)}</dd>
+                    </div>
+                    <div className="col-span-2">
+                      <dt className="text-xs font-medium text-slate-600">Over 90 days overdue</dt>
+                      <dd className="mt-0.5 font-semibold tabular-nums text-rose-700">{fmt(r.overdue90plus)}</dd>
+                    </div>
+                  </dl>
+                </li>
+              ))}
+              <li className="flex items-center justify-between gap-3 bg-slate-50 p-4 font-semibold text-slate-900">
+                <span>Total</span>
+                <span className="tabular-nums">{fmt(totals.total)}</span>
+              </li>
+            </ul>
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full min-w-[760px] text-left text-sm">
                 <thead className="border-b border-slate-200 bg-slate-50 text-sm font-medium text-slate-600">
                   <tr>
@@ -120,6 +157,7 @@ export function AccountsApAgingClient({
                 </tfoot>
               </table>
             </div>
+            </>
           </HmsCard>
         </>
       )}

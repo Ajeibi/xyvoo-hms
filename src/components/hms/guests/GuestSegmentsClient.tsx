@@ -274,7 +274,7 @@ export function GuestSegmentsClient({
         title="Your segments"
         description={`${totalGuests.toLocaleString("en-NG")} guests on record.`}
         actions={
-          <a className={hmsButton.small} href={exportHref(null)} download>
+          <a className={`${hmsButton.small} w-full sm:w-auto`} href={exportHref(null)} download>
             <Download className="h-4 w-4" aria-hidden />
             Download all guests
           </a>
@@ -283,19 +283,21 @@ export function GuestSegmentsClient({
       >
         <ul className="divide-y divide-slate-100">
           {segments.map((s) => (
-            <li key={s.key} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 sm:px-6">
-              <div className="min-w-0">
-                <p className="flex flex-wrap items-center gap-2 font-medium text-slate-900">
-                  {s.label}
-                  {s.builtIn ? null : <HmsPill tone="blue">Yours</HmsPill>}
-                </p>
-                <p className="text-sm text-slate-600">{s.description}</p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="mr-2 text-lg font-semibold tabular-nums text-slate-900">
+            <li key={s.key} className="flex flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex min-w-0 items-start justify-between gap-3 lg:flex-1">
+                <div className="min-w-0">
+                  <p className="flex flex-wrap items-center gap-2 font-semibold text-slate-900">
+                    {s.label}
+                    {s.builtIn ? null : <HmsPill tone="blue">Yours</HmsPill>}
+                  </p>
+                  <p className="mt-0.5 text-sm text-slate-600">{s.description}</p>
+                </div>
+                <span className="shrink-0 rounded-xl bg-amber-50 px-3 py-1.5 text-center text-xl font-semibold tabular-nums text-slate-900 ring-1 ring-amber-100">
                   {s.count.toLocaleString("en-NG")}
                   <span className="sr-only"> guests</span>
                 </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center *:w-full sm:*:w-auto">
                 <Link className={hmsButton.small} href={`/hms/${slug}/guests?segment=${encodeURIComponent(s.key)}`}>
                   View<span className="sr-only"> {s.label}</span>
                 </Link>
@@ -305,15 +307,26 @@ export function GuestSegmentsClient({
                       <Download className="h-4 w-4" aria-hidden />
                       All
                     </a>
-                    <a className={hmsButton.small} href={exportHref(s.key, "any")} download aria-label={`Download only the people in ${s.label} who agreed to offers`}>
+                    <a
+                      className={`${hmsButton.small} col-span-2`}
+                      href={exportHref(s.key, "any")}
+                      download
+                      aria-label={`Download only the people in ${s.label} who agreed to offers`}
+                    >
                       <Download className="h-4 w-4" aria-hidden />
                       Only those who agreed
                     </a>
                   </>
                 ) : null}
                 {canEdit && s.id ? (
-                  <button type="button" className={hmsButton.danger} onClick={() => remove(s.id as string)} aria-label={`Delete ${s.label}`}>
+                  <button
+                    type="button"
+                    className={`${hmsButton.danger} col-span-2 border border-red-100 sm:border-0`}
+                    onClick={() => remove(s.id as string)}
+                    aria-label={`Delete ${s.label}`}
+                  >
                     <Trash2 className="h-4 w-4" aria-hidden />
+                    <span className="sm:hidden">Delete</span>
                   </button>
                 ) : null}
               </div>

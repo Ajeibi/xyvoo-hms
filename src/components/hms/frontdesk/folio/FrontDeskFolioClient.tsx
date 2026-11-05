@@ -394,7 +394,7 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
 
           <form
             role="search"
-            className="flex max-w-xl flex-wrap items-end gap-2"
+            className="flex max-w-xl flex-col items-stretch gap-2 sm:flex-row sm:items-end"
             onSubmit={(e) => {
               e.preventDefault();
               void search();
@@ -416,7 +416,7 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
                 />
               </div>
             </div>
-            <button type="submit" className={`${hmsButton.primary} ${focusRing}`}>
+            <button type="submit" className={`${hmsButton.primary} w-full sm:w-auto ${focusRing}`}>
               Search
             </button>
           </form>
@@ -579,7 +579,7 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
                         <input id="charge-department" name="department" aria-describedby="charge-department-hint" className={hmsInput} />
                       </F>
                       <LegSelect id="charge-leg" windows={payload.billing?.windows ?? []} />
-                      <button type="submit" className={`${hmsButton.primary} ${focusRing}`}>
+                      <button type="submit" className={`${hmsButton.primary} w-full sm:w-auto ${focusRing}`}>
                         Add charge
                       </button>
                     </form>
@@ -596,7 +596,7 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
                       <F id="discount-pin" label="Manager PIN" optional hint="Needed if you're not a manager or admin.">
                         <input id="discount-pin" name="managerPin" type="password" autoComplete="off" aria-describedby="discount-pin-hint" className={hmsInput} />
                       </F>
-                      <button type="submit" className={`${hmsButton.secondary} ${focusRing}`}>
+                      <button type="submit" className={`${hmsButton.secondary} w-full sm:w-auto ${focusRing}`}>
                         Give discount
                       </button>
                     </form>
@@ -619,7 +619,7 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
                       <F id="payment-reference" label="Receipt or reference" optional>
                         <input id="payment-reference" name="reference" className={hmsInput} />
                       </F>
-                      <button type="submit" className={`${hmsButton.primary} ${focusRing}`}>
+                      <button type="submit" className={`${hmsButton.primary} w-full sm:w-auto ${focusRing}`}>
                         Record payment
                       </button>
                     </form>
@@ -659,7 +659,7 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
                       <F id="fx-reference" label="Receipt or reference" optional>
                         <input id="fx-reference" name="reference" className={hmsInput} />
                       </F>
-                      <button type="submit" className={`${hmsButton.secondary} ${focusRing}`}>
+                      <button type="submit" className={`${hmsButton.secondary} w-full sm:w-auto ${focusRing}`}>
                         Record payment
                       </button>
                     </form>
@@ -817,7 +817,53 @@ function FolioRowList({
       {rows.length === 0 ? (
         <HmsEmptyState bare art="page" meaning="money" title={emptyTitle} description={emptyText} />
       ) : (
-        <div className="overflow-x-auto">
+        <>
+        <ul className="divide-y divide-slate-100 md:hidden">
+          {rows.map((h) => (
+            <li key={h.reservationId}>
+              <button
+                type="button"
+                onClick={() => onSelect(h.reservationId)}
+                className={`block w-full space-y-3 p-4 text-left transition-colors hover:bg-emerald-50/40 ${focusRing}`}
+              >
+                <span className="flex items-start justify-between gap-3">
+                  <span className="min-w-0">
+                    <span className="block truncate font-semibold text-slate-900">
+                      {h.guestName}
+                      <span className="sr-only">: open bill {h.folioNumber}</span>
+                    </span>
+                    <span className="block truncate text-xs text-slate-600">{h.confirmationCode}</span>
+                  </span>
+                  <HmsPill tone={STATUS_TONE[h.status] ?? "slate"}>{STATUS_LABEL[h.status] ?? words(h.status)}</HmsPill>
+                </span>
+                <span className="grid grid-cols-3 gap-3 rounded-xl bg-slate-50 p-3 text-sm">
+                  <span>
+                    <span className="block text-xs font-medium text-slate-600">Room</span>
+                    <span className="mt-0.5 block text-slate-900">{h.roomCode ? h.roomCode : <Nothing />}</span>
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-xs font-medium text-slate-600">Bill number</span>
+                    <span className="mt-0.5 block truncate font-mono text-xs text-slate-900">{h.folioNumber}</span>
+                  </span>
+                  <span className="text-right">
+                    <span className="block text-xs font-medium text-slate-600">Still to pay</span>
+                    <span className="mt-0.5 block">
+                      {h.balance != null ? (
+                        <span className={`font-semibold tabular-nums ${h.balance > 0 ? "text-red-700" : "text-emerald-700"}`}>
+                          {formatPricingAmount(h.balance, currency)}
+                          {h.balance <= 0 ? <span className="sr-only"> (settled)</span> : null}
+                        </span>
+                      ) : (
+                        <Nothing />
+                      )}
+                    </span>
+                  </span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full text-left text-sm">
             <caption className="sr-only">{title}</caption>
             <thead className="bg-slate-50 text-sm text-slate-700">
@@ -872,6 +918,7 @@ function FolioRowList({
             </tbody>
           </table>
         </div>
+        </>
       )}
     </HmsCard>
   );
@@ -976,7 +1023,7 @@ function FolioLineTable({
   return (
     <>
     {selectedIds.size > 0 ? (
-      <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm" role="status">
+      <div className="mt-4 flex flex-col gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm sm:flex-row sm:flex-wrap sm:items-center [&>button]:w-full sm:[&>button]:w-auto" role="status">
         <span className="font-medium text-emerald-900">
           {selectedIds.size} line{selectedIds.size === 1 ? "" : "s"} selected
         </span>
@@ -985,7 +1032,7 @@ function FolioLineTable({
             {w.window === "guest" ? "Guest" : w.payerName} pays these
           </button>
         ))}
-        <button type="button" className={`${hmsButton.quiet} ml-auto ${focusRing}`} onClick={() => setSelectedIds(new Set())}>
+        <button type="button" className={`${hmsButton.quiet} sm:ml-auto ${focusRing}`} onClick={() => setSelectedIds(new Set())}>
           Clear selection
         </button>
       </div>
@@ -998,7 +1045,51 @@ function FolioLineTable({
     {lines.length === 0 ? (
       <HmsEmptyState bare art="page" meaning="money" title="Nothing on this bill yet" description="Charges, discounts and payments will be listed here as they're added." />
     ) : (
-      <div className="mt-3 overflow-x-auto">
+      <>
+      <ul className="mt-3 space-y-3 md:hidden">
+        {lines.map((l) => {
+          const canMove = !l.voided_at && (l.kind === "charge" || l.kind === "discount");
+          return (
+            <li key={l.id} className={`rounded-2xl border p-4 ${l.voided_at ? "border-slate-200 bg-slate-50 text-slate-600" : "border-slate-200 bg-white text-slate-800"}`}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-start gap-3">
+                  {canMove ? (
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 h-5 w-5 shrink-0 rounded border-slate-400 accent-emerald-700"
+                      checked={selectedIds.has(l.id)}
+                      onChange={() => toggleSelected(l.id)}
+                      aria-label={`Select ${l.description ?? l.kind} to choose who pays`}
+                    />
+                  ) : null}
+                  <div className="min-w-0">
+                    <p className={`font-semibold text-slate-900 ${l.voided_at ? "line-through" : ""}`}>{l.description ?? words(l.kind)}</p>
+                    <p className="mt-0.5 text-xs text-slate-600">{new Date(l.created_at).toLocaleString("en-GB")}</p>
+                  </div>
+                </div>
+                <p className={`shrink-0 text-base font-semibold tabular-nums text-slate-900 ${l.voided_at ? "line-through" : ""}`}>
+                  {formatPricingAmount(l.amount, currency)}
+                </p>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-slate-700">
+                <span>Paid by {l.split_leg === "company" ? "Company" : "Guest"}</span>
+                {l.voided_at ? <HmsPill tone="red">Voided</HmsPill> : null}
+              </div>
+              {!l.voided_at && l.kind === "charge" ? (
+                <div className="mt-3 grid grid-cols-2 gap-2 [&>*]:w-full">
+                  <button type="button" className={`${hmsButton.small} ${focusRing}`} onClick={() => onTransfer(l.id)}>
+                    Transfer<span className="sr-only"> {l.description ?? "charge"}</span>
+                  </button>
+                  <button type="button" className={`${hmsButton.danger} border border-red-100 py-1.5 ${focusRing}`} onClick={() => setVoidTarget(l)}>
+                    Void<span className="sr-only"> {l.description ?? "charge"}</span>
+                  </button>
+                </div>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+      <div className="mt-3 hidden overflow-x-auto md:block">
         <table className="w-full text-sm">
           <caption className="sr-only">Lines on this bill</caption>
           <thead className="bg-slate-50 text-left text-sm text-slate-700">
@@ -1062,6 +1153,7 @@ function FolioLineTable({
           </tbody>
         </table>
       </div>
+      </>
     )}
 
     <Dialog open={Boolean(voidTarget)} onOpenChange={(open) => { if (!open) closeVoidDialog(); }}>

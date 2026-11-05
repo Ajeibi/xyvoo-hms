@@ -72,7 +72,7 @@ export function AccountsTaxClient({
   };
 
   return (
-    <HmsPage>
+    <HmsPage wide>
       <HmsPageHeader
         eyebrow="Accounts"
         meaning="money"
@@ -82,10 +82,10 @@ export function AccountsTaxClient({
       />
       <AccountsSubNav slug={slug} canAccessAllDepartments={canAccessAllDepartments} />
 
-      <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm print:hidden">
-        <div className="w-32"><HmsField id="tax-year" label="Year"><input id="tax-year" type="number" className={hmsInput} value={year} onChange={(e) => void load(Number(e.target.value))} /></HmsField></div>
-        <div className="w-44"><HmsField id="wht-rate" label="Withholding tax rate (%)" hint="Applied to the amount before tax on approved vendor bills."><input id="wht-rate" type="number" min="0" max="100" step="0.5" disabled={!canEdit} className={`${hmsInput} tabular-nums`} value={rate} onChange={(e) => setRate(e.target.value)} /></HmsField></div>
-        {canEdit ? <button type="button" className={hmsButton.secondary} disabled={busy} onClick={() => void saveRate()}>Save rate</button> : null}
+      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:flex-row sm:flex-wrap sm:items-end print:hidden">
+        <div className="w-full sm:w-32"><HmsField id="tax-year" label="Year"><input id="tax-year" type="number" className={hmsInput} value={year} onChange={(e) => void load(Number(e.target.value))} /></HmsField></div>
+        <div className="w-full sm:w-44"><HmsField id="wht-rate" label="Withholding tax rate (%)" hint="Applied to the amount before tax on approved vendor bills."><input id="wht-rate" type="number" min="0" max="100" step="0.5" disabled={!canEdit} className={`${hmsInput} tabular-nums`} value={rate} onChange={(e) => setRate(e.target.value)} /></HmsField></div>
+        {canEdit ? <button type="button" className={`${hmsButton.secondary} w-full sm:w-auto`} disabled={busy} onClick={() => void saveRate()}>Save rate</button> : null}
       </div>
 
       <HmsCard id="tax-report" title={`${year} by month`} icon={Receipt} meaning="money" flush>

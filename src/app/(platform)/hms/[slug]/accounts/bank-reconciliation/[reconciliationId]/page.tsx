@@ -21,7 +21,7 @@ export default async function AccountsBankReconciliationDetailPage({
   if (!tenant) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-bank-reconciliation">
-        <HmsPage>
+        <HmsPage wide>
           <HmsPageHeader eyebrow="Accounts" meaning="money" title="Bank reconciliation" description="Hotel not found." />
         </HmsPage>
       </HMSLayout>
@@ -32,7 +32,7 @@ export default async function AccountsBankReconciliationDetailPage({
   if (!caps.canViewReports) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-bank-reconciliation">
-        <HmsPage>
+        <HmsPage wide>
           <HmsPageHeader eyebrow="Accounts" meaning="money" title="Bank reconciliation" description="You don't have access to this report." />
         </HmsPage>
       </HMSLayout>
@@ -49,7 +49,7 @@ export default async function AccountsBankReconciliationDetailPage({
   if (!detail) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-bank-reconciliation">
-        <HmsPage>
+        <HmsPage wide>
           <HmsPageHeader
             eyebrow="Accounts"
             meaning="money"

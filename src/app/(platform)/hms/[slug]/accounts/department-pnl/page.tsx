@@ -15,7 +15,7 @@ export default async function AccountsDepartmentPnlPage({ params }: { params: Pr
   if (!tenant) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-department-pnl">
-        <HmsPage>
+        <HmsPage wide>
           <HmsPageHeader eyebrow="Accounts" meaning="money" title="Department profit and loss" description="Hotel not found." />
         </HmsPage>
       </HMSLayout>
@@ -26,7 +26,7 @@ export default async function AccountsDepartmentPnlPage({ params }: { params: Pr
   if (!caps.canViewReports) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-department-pnl">
-        <HmsPage>
+        <HmsPage wide>
           <HmsPageHeader eyebrow="Accounts" meaning="money" title="Department profit and loss" description="You don't have access to this report." />
         </HmsPage>
       </HMSLayout>

@@ -15,14 +15,22 @@ type Analytics = {
 };
 
 function CountList({ title, items }: { title: string; items: { key: string; label: string; count: number }[] }) {
+  const max = Math.max(1, ...items.map((i) => i.count));
   return (
-    <div>
-      <h3 className="text-sm font-semibold text-slate-800">{title}</h3>
-      <ul className="mt-2 space-y-1.5 text-sm text-slate-700">
+    <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+      <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+      <ul className="mt-3 space-y-3 text-sm text-slate-700">
         {items.map((row) => (
-          <li key={row.key} className="flex justify-between gap-2">
-            <span className="truncate capitalize">{row.label}</span>
-            <span className="shrink-0 font-medium tabular-nums text-slate-900">{row.count}</span>
+          <li key={row.key}>
+            <div className="flex items-center justify-between gap-3">
+              <span className="min-w-0 truncate capitalize">{row.label}</span>
+              <span className="shrink-0 rounded-full bg-white px-2 py-0.5 text-xs font-semibold tabular-nums text-slate-900 ring-1 ring-slate-200">
+                {row.count}
+              </span>
+            </div>
+            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-200" aria-hidden>
+              <div className="h-full rounded-full bg-amber-400" style={{ width: `${Math.max(6, (row.count / max) * 100)}%` }} />
+            </div>
           </li>
         ))}
       </ul>
@@ -58,7 +66,7 @@ export function FrontDeskGuestServicesAnalytics({ slug }: { slug: string }) {
       title="How requests are going"
       description={`Based on the latest ${data.totalSampled} ${data.totalSampled === 1 ? "request" : "requests"}.`}
     >
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <HmsStatTile
           label="Average time to finish"
           value={data.avgCompletionMinutes != null ? `${data.avgCompletionMinutes} min` : "Not enough data"}
@@ -74,7 +82,9 @@ export function FrontDeskGuestServicesAnalytics({ slug }: { slug: string }) {
           status={data.delayedOpen > 0 ? "critical" : undefined}
           statusText="Needs someone now"
         />
-        <HmsStatTile label="Requests looked at" value={data.totalSampled} icon={ListChecks} meaning="guests" />
+        <div className="sm:col-span-2 lg:col-span-1 [&>*]:h-full">
+          <HmsStatTile label="Requests looked at" value={data.totalSampled} icon={ListChecks} meaning="guests" />
+        </div>
       </div>
       {topCategories.length > 0 || topTypes.length > 0 || byAssignee.length > 0 ? (
         <div className="mt-5 grid grid-cols-1 gap-5 border-t border-slate-100 pt-5 sm:grid-cols-2 lg:grid-cols-3">

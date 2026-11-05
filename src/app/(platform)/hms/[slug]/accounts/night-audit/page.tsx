@@ -17,7 +17,7 @@ export default async function AccountsNightAuditPage({ params }: { params: Promi
   if (!tenant) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-night-audit">
-        <HmsPage>
+        <HmsPage wide>
           <HmsPageHeader eyebrow="Accounts" meaning="money" title="Night audit" description="Hotel not found." />
         </HmsPage>
       </HMSLayout>

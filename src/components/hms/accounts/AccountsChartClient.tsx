@@ -127,7 +127,7 @@ export function AccountsChartClient({
   };
 
   return (
-    <HmsPage>
+    <HmsPage wide>
       <HmsPageHeader
         eyebrow="Accounts"
         meaning="money"
@@ -185,9 +185,9 @@ export function AccountsChartClient({
               >
                 <ul className="divide-y divide-slate-100">
                   {rows.map((a) => (
-                    <li key={a.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm sm:px-6">
-                      <div className="flex min-w-0 flex-wrap items-center gap-3">
-                        <code className="w-14 shrink-0 font-mono text-sm tabular-nums text-slate-600">{a.code}</code>
+                    <li key={a.id} className="flex flex-col gap-3 px-4 py-3.5 text-sm hover:bg-slate-50/70 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-6">
+                      <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+                        <code className="w-14 shrink-0 rounded-md bg-slate-100 px-1.5 py-0.5 text-center font-mono text-xs tabular-nums text-slate-700">{a.code}</code>
                         <span className={a.isActive ? "font-medium text-slate-900" : "text-slate-600 line-through"}>{a.name}</span>
                         {a.isActive ? null : <HmsPill tone="slate">Inactive</HmsPill>}
                         <Link
@@ -200,7 +200,7 @@ export function AccountsChartClient({
                       {canManage ? (
                         <button
                           type="button"
-                          className={a.isActive ? hmsButton.danger : hmsButton.quiet}
+                          className={`${a.isActive ? hmsButton.danger : hmsButton.quiet} w-full border sm:w-auto sm:border-0 ${a.isActive ? "border-red-100" : "border-blue-100"}`}
                           disabled={busyIds.has(a.id)}
                           onClick={() => void toggleActive(a)}
                         >

@@ -41,7 +41,7 @@ export function AccountsSubNav({ slug, canAccessAllDepartments }: { slug: string
   if (!canAccessAllDepartments) return null;
 
   return (
-    <nav aria-label="Accounts pages" className="flex gap-2 overflow-x-auto py-1 print:hidden">
+    <nav aria-label="Accounts pages" className="flex gap-2 overflow-x-auto pb-3 pt-1 print:hidden">
       {TABS.map((tab) => {
         const href = `${base}${tab.suffix}`;
         const active = pathname === href;

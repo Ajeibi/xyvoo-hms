@@ -14,7 +14,7 @@ export default async function AccountsArAgingPage({ params }: { params: Promise<
   if (!tenant) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-ar-aging">
-        <HmsPage>
+        <HmsPage wide>
           <HmsPageHeader eyebrow="Accounts" meaning="money" title="AR ageing" description="Hotel not found." />
         </HmsPage>
       </HMSLayout>
@@ -25,7 +25,7 @@ export default async function AccountsArAgingPage({ params }: { params: Promise<
   if (!caps.canViewReports) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-ar-aging">
-        <HmsPage>
+        <HmsPage wide>
           <HmsPageHeader eyebrow="Accounts" meaning="money" title="AR ageing" description="You don't have access to this report." />
         </HmsPage>
       </HMSLayout>

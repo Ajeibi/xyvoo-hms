@@ -96,7 +96,7 @@ export function AccountsBalanceSheetClient({
   const difference = Math.abs(result.totalAssets - result.totalLiabilitiesAndEquity);
 
   return (
-    <HmsPage>
+    <HmsPage wide>
       <HmsPageHeader
         eyebrow="Accounts"
         meaning="money"
@@ -111,13 +111,13 @@ export function AccountsBalanceSheetClient({
 
       <AccountsSubNav slug={slug} canAccessAllDepartments={canAccessAllDepartments} />
 
-      <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm print:hidden">
-        <div className="w-[12rem]">
+      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:flex-row sm:flex-wrap sm:items-end print:hidden">
+        <div className="w-full sm:w-48">
           <HmsField id="balance-sheet-as-of" label="As of date">
             <input id="balance-sheet-as-of" type="date" className={hmsInput} value={asOfDate} onChange={(e) => setAsOfDate(e.target.value)} />
           </HmsField>
         </div>
-        <button type="button" className={hmsButton.secondary} disabled={loading} onClick={() => void runReport()}>
+        <button type="button" className={`${hmsButton.secondary} w-full sm:w-auto`} disabled={loading} onClick={() => void runReport()}>
           {loading ? "Loading…" : "Run report"}
         </button>
       </div>
@@ -131,7 +131,7 @@ export function AccountsBalanceSheetClient({
         className="print:border-0 print:shadow-none"
       >
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[560px] text-left text-sm">
+          <table className="w-full text-left text-sm">
             <thead className="border-b border-slate-200 bg-slate-50 text-sm font-medium text-slate-600">
               <tr>
                 <th scope="col" className="px-5 py-3">Account</th>

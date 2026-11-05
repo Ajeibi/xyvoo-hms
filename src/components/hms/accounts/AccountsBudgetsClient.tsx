@@ -109,14 +109,14 @@ export function AccountsBudgetsClient({
   const t = report.totals;
 
   return (
-    <HmsPage>
+    <HmsPage wide>
       <HmsPageHeader eyebrow="Accounts" meaning="money" title="Budgets" description="Set a budget for each revenue and expense account by month, then see how the hotel is doing against it. A positive difference is good news: more revenue, or less spent." />
       <AccountsSubNav slug={slug} canAccessAllDepartments={canAccessAllDepartments} />
 
-      <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm print:hidden">
-        <div className="w-[12rem]"><HmsField id="budget-from" label="From"><input id="budget-from" type="date" className={hmsInput} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} /></HmsField></div>
-        <div className="w-[12rem]"><HmsField id="budget-to" label="To"><input id="budget-to" type="date" className={hmsInput} value={dateTo} onChange={(e) => setDateTo(e.target.value)} /></HmsField></div>
-        <button type="button" className={hmsButton.secondary} onClick={() => void runReport()}>Run report</button>
+      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:flex-row sm:flex-wrap sm:items-end print:hidden">
+        <div className="w-full sm:w-48"><HmsField id="budget-from" label="From"><input id="budget-from" type="date" className={hmsInput} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} /></HmsField></div>
+        <div className="w-full sm:w-48"><HmsField id="budget-to" label="To"><input id="budget-to" type="date" className={hmsInput} value={dateTo} onChange={(e) => setDateTo(e.target.value)} /></HmsField></div>
+        <button type="button" className={`${hmsButton.secondary} w-full sm:w-auto`} onClick={() => void runReport()}>Run report</button>
       </div>
 
       <HmsCard id="budget-report" title="Actual against budget" icon={Target} meaning="money" flush>

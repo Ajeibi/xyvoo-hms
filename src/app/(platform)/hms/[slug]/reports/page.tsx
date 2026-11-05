@@ -17,7 +17,7 @@ export default async function ReportsPage({ params }: { params: Promise<{ slug: 
   if (!page) {
     return (
       <HMSLayout slug={slug} requiredSection="reports">
-        <HmsPage>
+        <HmsPage wide>
           <HmsPageHeader eyebrow="Reports" meaning="money" title="Reports" description="Hotel not found." />
         </HmsPage>
       </HMSLayout>
@@ -29,7 +29,7 @@ export default async function ReportsPage({ params }: { params: Promise<{ slug: 
 
   return (
     <HMSLayout slug={slug} requiredSection="reports">
-      <HmsPage>
+      <HmsPage wide>
         <HmsPageHeader
           eyebrow="Reports"
           meaning="money"

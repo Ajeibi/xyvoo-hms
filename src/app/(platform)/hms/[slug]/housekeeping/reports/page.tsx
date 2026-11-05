@@ -14,7 +14,7 @@ export default async function HousekeepingReportsPage({ params }: { params: Prom
   if (!tenant) {
     return (
       <HMSLayout slug={slug} requiredSection="housekeeping-reports">
-        <HmsPage>
+        <HmsPage wide>
           <HmsPageHeader eyebrow="Housekeeping" meaning="care" title="Reports" description="Hotel not found." />
         </HmsPage>
       </HMSLayout>
@@ -26,7 +26,7 @@ export default async function HousekeepingReportsPage({ params }: { params: Prom
 
   return (
     <HMSLayout slug={slug} requiredSection="housekeeping-reports">
-      <HmsPage>
+      <HmsPage wide>
         <HmsPageHeader
           eyebrow="Housekeeping"
           meaning="care"
@@ -74,8 +74,8 @@ export default async function HousekeepingReportsPage({ params }: { params: Prom
           ) : (
             <ul className="divide-y divide-slate-100">
               {report.perAttendant.map((a) => (
-                <li key={a.name} className="flex items-center justify-between px-5 py-3 text-sm sm:px-6">
-                  <span className="text-slate-800">{a.name}</span>
+                <li key={a.name} className="flex items-center justify-between gap-3 px-4 py-3.5 text-sm sm:px-6">
+                  <span className="min-w-0 truncate font-medium text-slate-900">{a.name}</span>
                   <span className="font-semibold tabular-nums text-slate-900">
                     {a.roomsCleaned} <span className="font-normal text-slate-600">room{a.roomsCleaned === 1 ? "" : "s"}</span>
                   </span>

@@ -428,7 +428,20 @@ export function FrontDeskGuestServicesClient({
               }
             />
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            <ul className="divide-y divide-slate-100 md:hidden">
+              {pageRows.map((row) => (
+                <GuestServiceCard
+                  key={row.id}
+                  row={row}
+                  onOpen={() => {
+                    setSelectedId(row.id);
+                    setSheetOpen(true);
+                  }}
+                />
+              ))}
+            </ul>
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full min-w-[1320px] text-left text-sm">
                 <caption className="sr-only">Guest requests</caption>
                 <thead className="bg-slate-50 text-sm text-slate-700">
@@ -463,6 +476,7 @@ export function FrontDeskGuestServicesClient({
                 </tbody>
               </table>
             </div>
+            </>
           )}
          </div>
         </HmsCard>
@@ -717,6 +731,87 @@ function Nothing() {
       <span aria-hidden>—</span>
       <span className="sr-only">None</span>
     </span>
+  );
+}
+
+function GuestServiceCard({ row, onOpen }: { row: GuestRequestRow; onOpen: () => void }) {
+  const delayed =
+    row.expectedCompletedAt &&
+    !["completed", "cancelled"].includes(row.status) &&
+    new Date(row.expectedCompletedAt).getTime() < Date.now();
+  return (
+    <li className="space-y-3 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate font-semibold text-slate-900">{row.requestType}</p>
+          <p className="text-xs capitalize text-slate-600">
+            {row.serviceCategory.replace(/_/g, " ")} · {row.department.replace(/_/g, " ")}
+          </p>
+        </div>
+        <HmsPill
+          tone={
+            row.status === "completed" ? "green" : row.status === "cancelled" ? "slate" : row.status === "escalated" ? "red" : "blue"
+          }
+        >
+          {words(row.status)}
+        </HmsPill>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
+        <span className="font-medium text-slate-900">{row.guestName ?? "No guest linked"}</span>
+        <span className="text-slate-500" aria-hidden>·</span>
+        <span>{row.roomCode ? `Room ${row.roomCode}` : "No room"}</span>
+        {row.isVipSnapshot ? <HmsPill tone="amber">VIP</HmsPill> : null}
+      </div>
+
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl bg-slate-50 p-3 text-sm">
+        <div>
+          <dt className="text-xs font-medium text-slate-600">Priority</dt>
+          <dd className="mt-0.5">
+            <HmsPill tone={row.priority === "urgent" ? "red" : row.priority === "vip" || row.priority === "high" ? "amber" : "slate"}>
+              {words(row.priority)}
+            </HmsPill>
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium text-slate-600">Billing</dt>
+          <dd className="mt-0.5">
+            {row.billable ? (
+              row.folioLineId ? (
+                <HmsPill tone="green">On the bill</HmsPill>
+              ) : (
+                <HmsPill tone="amber">Not billed yet</HmsPill>
+              )
+            ) : (
+              <span className="text-slate-700">Free</span>
+            )}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium text-slate-600">Assigned to</dt>
+          <dd className="mt-0.5 text-slate-900">{row.assignedStaffName ?? "Not assigned"}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium text-slate-600">Due by</dt>
+          <dd className={`mt-0.5 ${delayed ? "font-semibold text-red-700" : "text-slate-900"}`}>
+            {row.expectedCompletedAt ? new Date(row.expectedCompletedAt).toLocaleString("en-GB", { dateStyle: "short", timeStyle: "short" }) : <Nothing />}
+            {delayed ? <span className="sr-only"> (running late)</span> : null}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium text-slate-600">Made</dt>
+          <dd className="mt-0.5 text-slate-900">{new Date(row.createdAt).toLocaleString("en-GB", { dateStyle: "short", timeStyle: "short" })}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium text-slate-600">Phone</dt>
+          <dd className="mt-0.5 text-slate-900">{row.guestPhone ?? <Nothing />}</dd>
+        </div>
+      </dl>
+
+      <button type="button" className={`${hmsButton.secondary} w-full ${focusRing}`} onClick={onOpen}>
+        View<span className="sr-only"> {row.requestType}</span>
+      </button>
+    </li>
   );
 }
 

@@ -17,7 +17,7 @@ export default async function AccountsVendorBillsPage({ params }: { params: Prom
   if (!tenant) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-bills">
-        <HmsPage>
+        <HmsPage wide>
           <HmsPageHeader eyebrow="Accounts" meaning="money" title="Vendor bills" description="Hotel not found." />
         </HmsPage>
       </HMSLayout>

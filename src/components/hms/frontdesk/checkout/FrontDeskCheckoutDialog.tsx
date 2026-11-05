@@ -362,7 +362,7 @@ export function FrontDeskCheckoutDialog({
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[min(90vh,calc(100vh-2rem))] max-w-lg flex-col gap-0 overflow-hidden p-0">
-        <DialogHeader className="shrink-0 flex-row items-start gap-3 space-y-0 border-b border-slate-100 px-6 py-5 pr-12 text-left">
+        <DialogHeader className="shrink-0 flex-row items-start gap-3 space-y-0 border-b border-slate-100 px-4 py-4 pr-12 text-left sm:px-6 sm:py-5">
           <HmsIconBadge icon={LogOut} meaning="rooms" />
           <div className="min-w-0">
             <DialogTitle className="font-heading">Check out guest</DialogTitle>
@@ -374,7 +374,7 @@ export function FrontDeskCheckoutDialog({
           </div>
         </DialogHeader>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
           {step === "find" ? (
             <div className="space-y-4">
               <label htmlFor="checkout-find" className="-mb-3 block text-sm font-medium text-slate-800">
@@ -682,7 +682,7 @@ export function FrontDeskCheckoutDialog({
           ) : null}
         </div>
 
-        <DialogFooter className="shrink-0 gap-2 border-t border-slate-100 px-6 py-4">
+        <DialogFooter className="shrink-0 flex-row gap-2 border-t border-slate-100 px-4 py-4 sm:px-6 [&>*]:flex-1 sm:[&>*]:flex-none sm:justify-end">
           {step === "settle" ? (
             <>
               <Button type="button" variant="outline" className="rounded-xl" onClick={() => setStep("find")} disabled={loading || submitting}>

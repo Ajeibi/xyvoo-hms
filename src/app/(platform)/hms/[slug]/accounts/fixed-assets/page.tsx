@@ -15,7 +15,7 @@ export default async function AccountsFixedAssetsPage({ params }: { params: Prom
   if (!tenant) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-fixed-assets">
-        <HmsPage>
+        <HmsPage wide>
           <HmsPageHeader eyebrow="Accounts" meaning="money" title="Fixed assets" description="Hotel not found." />
         </HmsPage>
       </HMSLayout>

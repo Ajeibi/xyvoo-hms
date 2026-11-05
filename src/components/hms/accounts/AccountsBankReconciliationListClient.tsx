@@ -62,7 +62,7 @@ export function AccountsBankReconciliationListClient({
   };
 
   return (
-    <HmsPage>
+    <HmsPage wide>
       <HmsPageHeader
         eyebrow="Accounts"
         meaning="money"

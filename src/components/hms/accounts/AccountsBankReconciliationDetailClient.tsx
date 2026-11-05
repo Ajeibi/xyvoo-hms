@@ -276,7 +276,7 @@ export function AccountsBankReconciliationDetailClient({
       </HmsStatStrip>
 
       {canReconcile && !isCompleted ? (
-        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm print:hidden">
+        <div className="flex flex-col gap-2 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:flex-row sm:flex-wrap sm:items-center print:hidden [&>button]:w-full sm:[&>button]:w-auto">
           <input
             ref={fileInputRef}
             type="file"
@@ -327,7 +327,41 @@ export function AccountsBankReconciliationDetailClient({
             description="Import the bank's CSV statement or add lines one at a time."
           />
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <ul className="divide-y divide-slate-100 md:hidden">
+            {detail.lines.map((l) => {
+              const matched = l.matchedJournalEntryLineIds.length > 0;
+              return (
+                <li key={l.id} className="space-y-3 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-slate-900">
+                        {l.description}
+                        {l.reference ? <span className="font-normal text-slate-600"> · {l.reference}</span> : null}
+                      </p>
+                      <p className="mt-0.5 text-xs text-slate-600">{new Date(l.lineDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</p>
+                    </div>
+                    <p className="shrink-0 font-semibold tabular-nums text-slate-900">{l.amount.toFixed(2)}</p>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <HmsPill tone={matched ? "green" : "slate"}>
+                      {matched ? `Matched (${l.matchedJournalEntryLineIds.length})` : "Unmatched"}
+                    </HmsPill>
+                    {!canReconcile || isCompleted ? null : matched ? (
+                      <button type="button" className={`${hmsButton.danger} border border-red-100 print:hidden`} onClick={() => void unmatch(l.id)}>
+                        Unmatch<span className="sr-only"> {l.description}</span>
+                      </button>
+                    ) : (
+                      <button type="button" className={`${hmsButton.small} print:hidden`} onClick={() => void openMatchDialog(l.id)}>
+                        Match<span className="sr-only"> {l.description}</span>
+                      </button>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[720px] text-left text-sm">
               <thead className="border-b border-slate-200 bg-slate-50 text-sm font-medium text-slate-600">
                 <tr>
@@ -373,6 +407,7 @@ export function AccountsBankReconciliationDetailClient({
               </tbody>
             </table>
           </div>
+          </>
         )}
       </HmsCard>
 
@@ -388,7 +423,19 @@ export function AccountsBankReconciliationDetailClient({
         {detail.unmatchedJournalLines.length === 0 ? (
           <p className="px-5 py-4 text-sm text-slate-600 sm:px-6">Nothing outstanding.</p>
         ) : (
-          <div className="overflow-x-auto"><table className="w-full text-left text-sm">
+          <>
+          <ul className="divide-y divide-slate-100 md:hidden">
+            {detail.unmatchedJournalLines.map((jl) => (
+              <li key={jl.id} className="flex items-start justify-between gap-3 p-4">
+                <div className="min-w-0">
+                  <p className="font-semibold text-slate-900">{jl.memo}</p>
+                  <p className="mt-0.5 text-xs text-slate-600">{new Date(jl.entryDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</p>
+                </div>
+                <p className="shrink-0 font-semibold tabular-nums text-slate-900">{(jl.debit || jl.credit).toFixed(2)}</p>
+              </li>
+            ))}
+          </ul>
+          <div className="hidden overflow-x-auto md:block"><table className="w-full text-left text-sm">
             <thead className="border-b border-slate-200 bg-slate-50 text-sm font-medium text-slate-600">
               <tr>
                 <th scope="col" className="px-5 py-3">Date</th>
@@ -406,6 +453,7 @@ export function AccountsBankReconciliationDetailClient({
               ))}
             </tbody>
           </table></div>
+          </>
         )}
       </HmsCard>
 

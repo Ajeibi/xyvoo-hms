@@ -15,7 +15,7 @@ export default async function AccountsJournalPage({ params }: { params: Promise<
   if (!tenant) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-journal">
-        <HmsPage>
+        <HmsPage wide>
           <HmsPageHeader eyebrow="Accounts" meaning="money" title="Journal entries" description="Hotel not found." />
         </HmsPage>
       </HMSLayout>

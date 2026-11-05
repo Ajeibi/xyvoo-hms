@@ -107,7 +107,55 @@ export function FrontDeskCheckoutClient({
             description="Guests due to check out today will appear here."
           />
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <ul className="divide-y divide-slate-100 md:hidden">
+            {initialRows.map((row) => (
+              <li key={row.reservationId} className={`space-y-3 p-4 ${row.isOverdue ? "border-l-4 border-l-red-500" : ""}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="flex flex-wrap items-center gap-2 font-semibold text-slate-900">
+                      <span className="truncate">{row.guestName}</span>
+                      {row.isVip ? <HmsPill tone="amber">VIP</HmsPill> : null}
+                    </p>
+                    <p className="truncate text-xs text-slate-600">{row.confirmationCode}</p>
+                  </div>
+                  {row.isOverdue ? (
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-800">
+                      <AlarmClock className="h-3 w-3" aria-hidden />
+                      Overdue
+                    </span>
+                  ) : (
+                    <HmsPill tone="blue">Due today</HmsPill>
+                  )}
+                </div>
+                <dl className="grid grid-cols-3 gap-3 rounded-xl bg-slate-50 p-3 text-sm">
+                  <div>
+                    <dt className="text-xs font-medium text-slate-600">Room</dt>
+                    <dd className="mt-0.5 text-slate-900">{row.roomCode ? row.roomCode : <span>—<span className="sr-only">No room</span></span>}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium text-slate-600">Leaving</dt>
+                    <dd className="mt-0.5 text-slate-900">{formatDeparture(row.departureAt)}</dd>
+                  </div>
+                  <div className="text-right">
+                    <dt className="text-xs font-medium text-slate-600">{row.balance > 0 ? "To pay" : "Settled"}</dt>
+                    <dd className={`mt-0.5 font-semibold tabular-nums ${row.balance > 0 ? "text-red-700" : "text-emerald-700"}`}>
+                      {formatPricingAmount(row.balance, currency)}
+                    </dd>
+                  </div>
+                </dl>
+                {row.extraNightsWaiting > 0 ? (
+                  <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+                    Still here? {row.extraNightsWaiting} night{row.extraNightsWaiting === 1 ? "" : "s"} not charged
+                  </p>
+                ) : null}
+                <button type="button" className={`${hmsButton.secondary} w-full`} onClick={() => open(row)}>
+                  Check out<span className="sr-only"> {row.guestName}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full text-left text-sm">
               <caption className="sr-only">Guests due to check out</caption>
               <thead>
@@ -182,6 +230,7 @@ export function FrontDeskCheckoutClient({
               </tbody>
             </table>
           </div>
+          </>
         )}
       </HmsCard>
     </HmsPage>

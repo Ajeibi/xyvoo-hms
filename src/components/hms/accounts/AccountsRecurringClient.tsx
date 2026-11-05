@@ -84,7 +84,7 @@ export function AccountsRecurringClient({
   };
 
   return (
-    <HmsPage>
+    <HmsPage wide>
       <HmsPageHeader eyebrow="Accounts" meaning="money" title="Recurring entries" description="Rent, subscriptions and salaries that repeat every month. Due entries are posted each morning on their own, and each month is posted only once." />
       <AccountsSubNav slug={slug} canAccessAllDepartments={canAccessAllDepartments} />
 
@@ -95,7 +95,7 @@ export function AccountsRecurringClient({
         meaning="money"
         flush
         actions={canManage ? (
-          <div className="flex gap-2">
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto [&>*:first-child]:col-span-2 sm:[&>*:first-child]:col-span-1">
             <button type="button" className={hmsButton.small} disabled={busy} onClick={() => void send({ action: "run" }, (d) => `Posted ${d.posted as number} entr${d.posted === 1 ? "y" : "ies"}`)}><Play className="h-4 w-4" aria-hidden /> Post what is due</button>
             <button type="button" className={hmsButton.small} onClick={() => setAdding("journal")}><Plus className="h-4 w-4" aria-hidden /> Journal</button>
             <button type="button" className={hmsButton.small} onClick={() => setAdding("bill")}><Plus className="h-4 w-4" aria-hidden /> Vendor bill</button>
@@ -137,7 +137,7 @@ export function AccountsRecurringClient({
                 <HmsField id="rc-tax" label="Tax"><input id="rc-tax" type="number" min="0" className={`${hmsInput} tabular-nums`} value={tax} onChange={(e) => setTax(e.target.value)} /></HmsField>
               </div>
             )}
-            <div className="flex gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:flex">
               <button type="button" className={hmsButton.primary} disabled={busy || !name.trim()} onClick={() => void create()}>{busy ? "Saving…" : "Save template"}</button>
               <button type="button" className={hmsButton.secondary} onClick={() => setAdding(null)}>Cancel</button>
             </div>
@@ -149,13 +149,13 @@ export function AccountsRecurringClient({
         ) : (
           <ul className="divide-y divide-slate-100">
             {templates.map((t) => (
-              <li key={t.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 sm:px-6">
+              <li key={t.id} className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-6">
                 <div className="min-w-0">
                   <p className="font-medium text-slate-900">{t.name}</p>
                   <p className="text-sm text-slate-600">{describe(t)} · day {t.dayOfMonth} · next {t.active ? t.nextRunMonth.slice(0, 7) : "none"}</p>
                   {t.lastError ? <p className="mt-1 flex items-start gap-1.5 text-sm text-red-700"><CircleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />{t.lastError}</p> : null}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <HmsPill tone={t.active ? "green" : "blue"}>{t.active ? "Running" : "Paused"}</HmsPill>
                   {canManage ? (
                     <>

@@ -187,12 +187,14 @@ export function FrontDeskRequestsClient({
         ]}
       />
 
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-slate-800">
-        <span className="flex items-center gap-2">
-          <ConciergeBell className="h-4 w-4 shrink-0 text-amber-700" aria-hidden />
-          Logging an everyday request, such as towels or room service? Use guest services instead.
+      <div className="flex flex-col gap-3 rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm text-slate-800 sm:flex-row sm:items-center sm:justify-between">
+        <span className="flex items-start gap-3">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-amber-700 ring-1 ring-amber-100">
+            <ConciergeBell className="h-4 w-4" aria-hidden />
+          </span>
+          <span className="pt-1">Logging an everyday request, such as towels or room service? Use guest services instead.</span>
         </span>
-        <Link href={`/hms/${slug}/frontdesk/guest-services`} className={`${hmsButton.secondary} px-3 py-1.5 ${focusRing}`}>
+        <Link href={`/hms/${slug}/frontdesk/guest-services`} className={`${hmsButton.secondary} w-full px-3 py-1.5 sm:w-auto ${focusRing}`}>
           Open guest services
         </Link>
       </div>
@@ -406,7 +408,7 @@ function ComplaintsIncidentsPanel({
               />
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid w-full grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:flex sm:w-auto sm:flex-wrap">
             <button type="button" className={`${hmsButton.secondary} ${focusRing}`} onClick={() => void refresh()} disabled={loading}>
               <RefreshCw className="h-4 w-4" aria-hidden />
               {loading ? "Refreshing…" : "Refresh"}
@@ -459,7 +461,58 @@ function ComplaintsIncidentsPanel({
             <HmsEmptyState bare icon={SearchX} meaning="guests" title="Nothing matches" description="Try a different search, or choose All." />
           )
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <ul className="divide-y divide-slate-100 md:hidden">
+            {pageRows.map((row) => (
+              <li key={row.id} className="space-y-3 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-slate-900">{CASE_TYPE_LABEL[row.caseType]}</p>
+                    <p className="text-xs capitalize text-slate-600">{row.category.replace(/_/g, " ")}</p>
+                  </div>
+                  <span className={cn("shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold", severityBadgeClass(row.severity))}>
+                    {SEVERITY_LABEL[row.severity]}
+                  </span>
+                </div>
+                <p className="line-clamp-3 text-sm text-slate-800">{row.description}</p>
+                <dl className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl bg-slate-50 p-3 text-sm">
+                  <div>
+                    <dt className="text-xs font-medium text-slate-600">Guest</dt>
+                    <dd className="mt-0.5 text-slate-900">{row.guestName ?? "No guest linked"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium text-slate-600">Room</dt>
+                    <dd className="mt-0.5 text-slate-900">{row.roomCode ? `Room ${row.roomCode}` : "No room"}</dd>
+                  </div>
+                  <div className="col-span-2">
+                    <dt className="text-xs font-medium text-slate-600">Status</dt>
+                    <dd className="mt-0.5">
+                      <span className={cn("inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold", statusBadgeClass(row.status))}>
+                        {STATUS_LABEL[row.status]}
+                        {row.status === "escalated" && row.escalatedToDepartment
+                          ? ` → ${DEPARTMENT_LABELS[row.escalatedToDepartment] ?? row.escalatedToDepartment.replace(/_/g, " ")}`
+                          : ""}
+                        {row.status === "resolved" && row.guestNotifiedAt ? " · notified" : ""}
+                      </span>
+                    </dd>
+                  </div>
+                  <div className="col-span-2">
+                    <dt className="text-xs font-medium text-slate-600">Logged</dt>
+                    <dd className="mt-0.5 text-slate-900">{formatDateTime(row.createdAt)}</dd>
+                  </div>
+                </dl>
+                <button
+                  type="button"
+                  className={`${hmsButton.secondary} w-full ${focusRing}`}
+                  onClick={() => setManageRow(row)}
+                  disabled={!capabilities.canUpdate}
+                >
+                  Manage<span className="sr-only"> {CASE_TYPE_LABEL[row.caseType].toLowerCase()} logged {formatDateTime(row.createdAt)}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[1100px] text-left text-sm">
               <caption className="sr-only">Complaints and incidents</caption>
               <thead className="bg-slate-50 text-sm text-slate-700">
@@ -519,6 +572,7 @@ function ComplaintsIncidentsPanel({
               </tbody>
             </table>
           </div>
+          </>
         )}
       </HmsCard>
       )}
@@ -955,7 +1009,7 @@ function EscalationsPanel({ slug }: { slug: string }) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-slate-700">Everything that has been passed on for someone else to deal with: requests, complaints and incidents.</p>
-        <button type="button" className={`${hmsButton.secondary} ${focusRing}`} onClick={() => void refresh()} disabled={loading}>
+        <button type="button" className={`${hmsButton.secondary} w-full sm:w-auto ${focusRing}`} onClick={() => void refresh()} disabled={loading}>
           <RefreshCw className="h-4 w-4" aria-hidden />
           {loading ? "Refreshing…" : "Refresh"}
         </button>
@@ -982,7 +1036,7 @@ function EscalationsPanel({ slug }: { slug: string }) {
           ) : (
             <ul className="divide-y divide-slate-100">
               {rows.map((row) => (
-                <li key={row.key} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm sm:px-6">
+                <li key={row.key} className="flex flex-col gap-3 px-4 py-4 text-sm sm:flex-row sm:items-center sm:justify-between sm:px-6 [&>a]:w-full [&>button]:w-full sm:[&>a]:w-auto sm:[&>button]:w-auto">
                   <div className="min-w-0">
                     <p className="font-medium text-slate-900">{row.title}</p>
                     <p className="text-sm text-slate-600">
@@ -1146,7 +1200,7 @@ function WaitlistPanel({
             </div>
           </div>
           {capabilities.canManageWaitlist ? (
-            <button type="button" className={`${hmsButton.primary} ${focusRing}`} onClick={() => setCreateOpen(true)}>
+            <button type="button" className={`${hmsButton.primary} w-full sm:w-auto ${focusRing}`} onClick={() => setCreateOpen(true)}>
               <Plus className="h-4 w-4" aria-hidden />
               Add to the waitlist
             </button>
@@ -1185,7 +1239,58 @@ function WaitlistPanel({
             <HmsEmptyState bare icon={SearchX} meaning="guests" title="Nothing matches" description="Try a different search, or choose All." />
           )
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <ul className="divide-y divide-slate-100 md:hidden">
+            {pageRows.map((row) => (
+              <li key={row.id} className="space-y-3 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-slate-900">{row.guestName}</p>
+                    <p className="truncate text-sm text-slate-600">{row.phone ?? row.email ?? "No contact details"}</p>
+                  </div>
+                  <span className={cn("shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold", waitlistBadgeClass(row.status))}>
+                    {WAITLIST_STATUS_LABEL[row.status]}
+                  </span>
+                </div>
+                <dl className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl bg-slate-50 p-3 text-sm">
+                  <div>
+                    <dt className="text-xs font-medium text-slate-600">Room type</dt>
+                    <dd className="mt-0.5 text-slate-900">{row.desiredRoomTypeName ?? "Any"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium text-slate-600">Guests</dt>
+                    <dd className="mt-0.5 tabular-nums text-slate-900">{row.partySize}</dd>
+                  </div>
+                  <div className="col-span-2">
+                    <dt className="text-xs font-medium text-slate-600">Dates wanted</dt>
+                    <dd className="mt-0.5 text-slate-900">
+                      {row.desiredArrivalDate} to {row.desiredDepartureDate}
+                    </dd>
+                  </div>
+                </dl>
+                {capabilities.canManageWaitlist ? (
+                  <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 [&>*]:w-full">
+                    {canTransitionWaitlistStatus(row.status, "notified") && row.status !== "notified" ? (
+                      <button type="button" className={`${hmsButton.primary} ${focusRing}`} disabled={busyId === row.id} onClick={() => void transition(row, "notified")}>
+                        Mark as told<span className="sr-only">: {row.guestName}</span>
+                      </button>
+                    ) : null}
+                    {canTransitionWaitlistStatus(row.status, "converted") ? (
+                      <button type="button" className={`${hmsButton.secondary} ${focusRing}`} disabled={busyId === row.id} onClick={() => void transition(row, "converted")}>
+                        Mark as booked<span className="sr-only">: {row.guestName}</span>
+                      </button>
+                    ) : null}
+                    {canTransitionWaitlistStatus(row.status, "cancelled") ? (
+                      <button type="button" className={`${hmsButton.danger} border border-red-100 min-[420px]:col-span-2 ${focusRing}`} disabled={busyId === row.id} onClick={() => setCancelTarget(row)}>
+                        Remove<span className="sr-only">: {row.guestName}</span>
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[900px] text-left text-sm">
               <caption className="sr-only">Waitlist</caption>
               <thead className="bg-slate-50 text-sm text-slate-700">
@@ -1263,6 +1368,7 @@ function WaitlistPanel({
               </tbody>
             </table>
           </div>
+          </>
         )}
       </HmsCard>
       )}

@@ -68,7 +68,7 @@ export function AccountsFixedAssetsClient({
   const totalBook = active.reduce((s, a) => s + a.bookValue, 0);
 
   return (
-    <HmsPage>
+    <HmsPage wide>
       <HmsPageHeader
         eyebrow="Accounts"
         meaning="money"
@@ -80,15 +80,15 @@ export function AccountsFixedAssetsClient({
 
       {canManage ? (
         <HmsCard id="depreciation-run" title="Monthly depreciation" icon={TrendingDown} meaning="money" description="Posts every month not yet posted, up to and including the one you pick. Running it twice does nothing the second time.">
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="w-48">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+            <div className="w-full sm:w-48">
               <HmsField id="dep-through" label="Post through">
                 <input id="dep-through" type="month" className={hmsInput} max={lastFinished.slice(0, 7)} value={throughMonth.slice(0, 7)} onChange={(e) => setThroughMonth(`${e.target.value}-01`)} />
               </HmsField>
             </div>
             <button
               type="button"
-              className={hmsButton.primary}
+              className={`${hmsButton.primary} w-full sm:w-auto`}
               disabled={busy || active.length === 0}
               onClick={() => void send({ action: "depreciate", throughMonth }, (d) => `Posted ${(d.monthsPosted as string[]).length} month(s), ${fmt(Number(d.total))} in total`)}
             >
@@ -136,7 +136,7 @@ export function AccountsFixedAssetsClient({
             <div className="sm:col-span-2 lg:col-span-4">
               <button
                 type="button"
-                className={hmsButton.primary}
+                className={`${hmsButton.primary} w-full sm:w-auto`}
                 disabled={busy || !name.trim() || !Number(cost)}
                 onClick={async () => {
                   const ok = await send(
@@ -165,7 +165,63 @@ export function AccountsFixedAssetsClient({
         {assets.length === 0 ? (
           <HmsEmptyState bare art="chart" meaning="money" title="No assets registered yet" description="Add furniture, equipment and vehicles to depreciate them." />
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <ul className="divide-y divide-slate-100 md:hidden">
+            {assets.map((a) => (
+              <li key={a.id} className="space-y-3 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-slate-900"><code className="mr-2 font-mono text-xs text-slate-600">{a.assetCode}</code>{a.name}</p>
+                    <p className="mt-0.5 text-xs text-slate-600">{a.category} · {DEPRECIATION_METHOD_LABELS[a.method]} · {(a.lifeMonths / 12).toFixed(1)} years · bought {a.acquisitionDate}</p>
+                  </div>
+                  <HmsPill tone={a.status === "active" ? "green" : "blue"}>{a.status === "active" ? "In use" : `Disposed ${a.disposedOn ?? ""}`}</HmsPill>
+                </div>
+                <dl className="grid grid-cols-3 gap-3 rounded-xl bg-slate-50 p-3 text-sm">
+                  <div>
+                    <dt className="text-xs font-medium text-slate-600">Cost</dt>
+                    <dd className="mt-0.5 tabular-nums text-slate-900">{fmt(a.cost)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium text-slate-600">Depreciated</dt>
+                    <dd className="mt-0.5 tabular-nums text-slate-900">{fmt(a.accumulated)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium text-slate-600">Book value</dt>
+                    <dd className="mt-0.5 font-semibold tabular-nums text-slate-900">{fmt(a.bookValue)}</dd>
+                  </div>
+                </dl>
+                {canManage && a.status === "active" ? (
+                  disposing === a.id ? (
+                    <div className="space-y-3">
+                      <input aria-label="Date disposed" type="date" className={hmsInput} value={disposedOn} max={today} onChange={(e) => setDisposedOn(e.target.value)} />
+                      <input aria-label="Money received" type="number" min="0" className={`${hmsInput} tabular-nums`} value={proceeds} onChange={(e) => setProceeds(e.target.value)} />
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          className={hmsButton.primary}
+                          disabled={busy}
+                          onClick={async () => {
+                            const ok = await send({ action: "dispose", assetId: a.id, disposedOn, proceeds: Number(proceeds) || 0 }, (d) => `Disposed of. ${Number(d.gain) >= 0 ? "Gain" : "Loss"} of ${fmt(Math.abs(Number(d.gain)))}`);
+                            if (ok) setDisposing(null);
+                          }}
+                        >
+                          Confirm
+                        </button>
+                        <button type="button" className={hmsButton.secondary} onClick={() => setDisposing(null)}>Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button type="button" className={`${hmsButton.secondary} w-full`} onClick={() => { setDisposing(a.id); setProceeds("0"); }}>Dispose</button>
+                  )
+                ) : null}
+              </li>
+            ))}
+            <li className="flex items-center justify-between gap-3 bg-slate-50 p-4 font-semibold text-slate-900">
+              <span>Book value of assets in use</span>
+              <span className="tabular-nums">{fmt(totalBook)}</span>
+            </li>
+          </ul>
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[720px] text-left text-sm">
               <thead className="border-b border-slate-200 bg-slate-50 text-sm font-medium text-slate-600">
                 <tr>
@@ -226,6 +282,7 @@ export function AccountsFixedAssetsClient({
               </tfoot>
             </table>
           </div>
+          </>
         )}
       </HmsCard>
     </HmsPage>

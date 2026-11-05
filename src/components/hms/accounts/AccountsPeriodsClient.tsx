@@ -127,7 +127,7 @@ export function AccountsPeriodsClient({
   };
 
   return (
-    <HmsPage>
+    <HmsPage wide>
       <HmsPageHeader
         eyebrow="Accounts"
         meaning="money"
@@ -144,7 +144,7 @@ export function AccountsPeriodsClient({
             const finished = canCloseMonth(p.month, today).ok;
             return (
               <li key={p.month} className="px-5 py-4 sm:px-6">
-                <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                   <div className="min-w-0">
                     <p className="font-medium text-slate-900">{monthLabel(p.month)}</p>
                     <p className="text-sm text-slate-600">
@@ -157,7 +157,7 @@ export function AccountsPeriodsClient({
                             : "Still running"}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <HmsPill tone={closed ? "green" : "blue"}>{closed ? "Closed" : "Open"}</HmsPill>
                     {closed && canReopen ? (
                       <button type="button" className={hmsButton.small} onClick={() => { setReviewing(null); setReopening(p.month); setReason(""); }}>
@@ -201,7 +201,7 @@ export function AccountsPeriodsClient({
                             {checks.unauditedDates.length > 5 ? " and more" : ""}. Closing locks them as they are.
                           </p>
                         ) : null}
-                        <div className="flex gap-2 pt-1">
+                        <div className="grid grid-cols-1 gap-2 pt-1 min-[420px]:grid-cols-2 sm:flex">
                           <button type="button" className={hmsButton.primary} disabled={busy} onClick={() => void send({ action: "close", month: p.month }, `${monthLabel(p.month)} closed`)}>
                             {busy ? "Closing…" : "Close and lock this month"}
                           </button>
@@ -219,7 +219,7 @@ export function AccountsPeriodsClient({
                     <HmsField id={`reopen-reason-${p.month}`} label="Why is this month being reopened?">
                       <input id={`reopen-reason-${p.month}`} className={hmsInput} value={reason} maxLength={300} onChange={(e) => setReason(e.target.value)} />
                     </HmsField>
-                    <div className="flex gap-2">
+                    <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:flex">
                       <button
                         type="button"
                         className={hmsButton.primary}
@@ -250,7 +250,7 @@ export function AccountsPeriodsClient({
         <ul className="divide-y divide-slate-100">
           {yearEnds.map((y) => (
             <li key={y.year} className="px-5 py-4 sm:px-6">
-              <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <p className="font-medium text-slate-900">{y.year}</p>
                   <p className="text-sm text-slate-600">
@@ -259,7 +259,7 @@ export function AccountsPeriodsClient({
                       : "Not closed"}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <HmsPill tone={y.closed ? "green" : "blue"}>{y.closed ? "Closed" : "Open"}</HmsPill>
                   {y.closed && canReopen ? (
                     <button type="button" className={hmsButton.small} onClick={() => { setYearReview(null); setYearUndo(y.year); setYearReason(""); }}>
@@ -293,7 +293,7 @@ export function AccountsPeriodsClient({
                           {preview.monthsToLock.length} {preview.monthsToLock.length === 1 ? "month" : "months"} of {y.year} will be locked too.
                         </p>
                       ) : null}
-                      <div className="flex gap-2 pt-1">
+                      <div className="grid grid-cols-1 gap-2 pt-1 min-[420px]:grid-cols-2 sm:flex">
                         <button type="button" className={hmsButton.primary} disabled={busy} onClick={() => void sendYear({ action: "close", year: y.year }, `${y.year} closed`)}>
                           {busy ? "Closing…" : `Close ${y.year}`}
                         </button>
@@ -311,7 +311,7 @@ export function AccountsPeriodsClient({
                   <HmsField id={`undo-year-${y.year}`} label="Why is this year-end close being undone?">
                     <input id={`undo-year-${y.year}`} className={hmsInput} value={yearReason} maxLength={300} onChange={(e) => setYearReason(e.target.value)} />
                   </HmsField>
-                  <div className="flex gap-2">
+                  <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:flex">
                     <button
                       type="button"
                       className={hmsButton.primary}

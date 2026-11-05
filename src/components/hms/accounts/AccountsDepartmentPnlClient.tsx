@@ -66,7 +66,7 @@ export function AccountsDepartmentPnlClient({
   };
 
   return (
-    <HmsPage>
+    <HmsPage wide>
       <HmsPageHeader
         eyebrow="Accounts"
         meaning="money"
@@ -76,10 +76,10 @@ export function AccountsDepartmentPnlClient({
       />
       <AccountsSubNav slug={slug} canAccessAllDepartments={canAccessAllDepartments} />
 
-      <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm print:hidden">
-        <div className="w-[12rem]"><HmsField id="dp-from" label="From"><input id="dp-from" type="date" className={hmsInput} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} /></HmsField></div>
-        <div className="w-[12rem]"><HmsField id="dp-to" label="To"><input id="dp-to" type="date" className={hmsInput} value={dateTo} onChange={(e) => setDateTo(e.target.value)} /></HmsField></div>
-        <button type="button" className={hmsButton.secondary} disabled={loading} onClick={() => void run()}>{loading ? "Loading…" : "Run report"}</button>
+      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:flex-row sm:flex-wrap sm:items-end print:hidden">
+        <div className="w-full sm:w-48"><HmsField id="dp-from" label="From"><input id="dp-from" type="date" className={hmsInput} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} /></HmsField></div>
+        <div className="w-full sm:w-48"><HmsField id="dp-to" label="To"><input id="dp-to" type="date" className={hmsInput} value={dateTo} onChange={(e) => setDateTo(e.target.value)} /></HmsField></div>
+        <button type="button" className={`${hmsButton.secondary} w-full sm:w-auto`} disabled={loading} onClick={() => void run()}>{loading ? "Loading…" : "Run report"}</button>
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

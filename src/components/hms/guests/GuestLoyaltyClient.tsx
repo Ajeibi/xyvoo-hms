@@ -98,8 +98,8 @@ export function GuestLoyaltyClient({
 
       <HmsCard id="loyalty-settings" icon={Gift} meaning="guests" title="How it works" description={canManage ? undefined : "Only a manager can change these."}>
         <form onSubmit={save} className="space-y-5" aria-label="Loyalty settings">
-          <label className="flex items-center gap-2 text-sm font-medium text-slate-900">
-            <input type="checkbox" className="h-4 w-4" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} disabled={!canManage} />
+          <label className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-900">
+            <input type="checkbox" className="h-5 w-5 accent-amber-600" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} disabled={!canManage} />
             Loyalty is on
           </label>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -119,7 +119,7 @@ export function GuestLoyaltyClient({
             <p className="mb-3 text-sm text-slate-600">A guest reaches a tier by the points they have earned in all. Spending points never lowers their tier.</p>
             <ul className="space-y-3">
               {tiers.map((t, i) => (
-                <li key={i} className="grid grid-cols-1 gap-3 rounded-xl border border-slate-200 p-3 sm:grid-cols-12">
+                <li key={i} className="grid grid-cols-1 gap-3 rounded-2xl border border-slate-200 bg-slate-50/60 p-4 sm:grid-cols-12">
                   <div className="sm:col-span-3">
                     <label htmlFor={`tier-name-${i}`} className="mb-1 block text-sm font-medium text-slate-800">Name</label>
                     <input id={`tier-name-${i}`} className={hmsInput} value={t.name} onChange={(e) => setTiers((p) => p.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))} disabled={!canManage} />
@@ -134,8 +134,9 @@ export function GuestLoyaltyClient({
                   </div>
                   {canManage && tiers.length > 1 ? (
                     <div className="flex items-end sm:col-span-1">
-                      <button type="button" className={hmsButton.danger} onClick={() => setTiers((p) => p.filter((_, j) => j !== i))} aria-label={`Remove tier ${t.name || i + 1}`}>
+                      <button type="button" className={`${hmsButton.danger} w-full border border-red-100 sm:w-auto sm:border-0`} onClick={() => setTiers((p) => p.filter((_, j) => j !== i))} aria-label={`Remove tier ${t.name || i + 1}`}>
                         <X className="h-4 w-4" aria-hidden />
+                        <span className="sm:hidden">Remove tier</span>
                       </button>
                     </div>
                   ) : null}
@@ -143,7 +144,7 @@ export function GuestLoyaltyClient({
               ))}
             </ul>
             {canManage && tiers.length < 8 ? (
-              <button type="button" className={`${hmsButton.small} mt-3`} onClick={() => setTiers((p) => [...p, { name: "", minPoints: "", perks: "" }])}>
+              <button type="button" className={`${hmsButton.small} mt-3 w-full sm:w-auto`} onClick={() => setTiers((p) => [...p,{ name: "", minPoints: "", perks: "" }])}>
                 <Plus className="h-4 w-4" aria-hidden />
                 Add a tier
               </button>
@@ -151,8 +152,8 @@ export function GuestLoyaltyClient({
           </fieldset>
 
           {canManage ? (
-            <div className="flex justify-end">
-              <button type="submit" className={hmsButton.primary} disabled={saving}>
+            <div className="flex sm:justify-end">
+              <button type="submit" className={`${hmsButton.primary} w-full sm:w-auto`} disabled={saving}>
                 {saving ? "Saving…" : "Save"}
               </button>
             </div>
@@ -165,7 +166,35 @@ export function GuestLoyaltyClient({
           {overview.top.length === 0 ? (
             <p className="px-6 py-5 text-sm text-slate-600">Nobody has earned points yet. Points are credited when a stay is checked out.</p>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            <ul className="divide-y divide-slate-100 md:hidden">
+              {overview.top.map((t, i) => (
+                <li key={t.guestId} className="space-y-3 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-50 text-sm font-semibold text-amber-800 ring-1 ring-amber-100">
+                        {i + 1}
+                      </span>
+                      <Link href={`/hms/${slug}/guests/${t.guestId}`} className="truncate font-semibold text-blue-700 hover:underline">
+                        {t.name}
+                      </Link>
+                    </div>
+                    {t.tier ? <HmsPill tone="amber">{t.tier}</HmsPill> : null}
+                  </div>
+                  <dl className="grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3 text-sm">
+                    <div>
+                      <dt className="text-xs font-medium text-slate-600">Earned in all</dt>
+                      <dd className="mt-0.5 text-lg font-semibold tabular-nums text-slate-900">{t.lifetime.toLocaleString("en-NG")}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs font-medium text-slate-600">To spend</dt>
+                      <dd className="mt-0.5 text-lg font-semibold tabular-nums text-slate-900">{t.balance.toLocaleString("en-NG")}</dd>
+                    </div>
+                  </dl>
+                </li>
+              ))}
+            </ul>
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full min-w-[520px] text-left text-sm">
                 <caption className="sr-only">Guests with the most points</caption>
                 <thead className="bg-slate-50 text-slate-700">
@@ -192,6 +221,7 @@ export function GuestLoyaltyClient({
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </HmsCard>
       ) : null}

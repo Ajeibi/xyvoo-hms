@@ -24,7 +24,7 @@ export default async function AccountsCashFlowPage({ params }: { params: Promise
   if (!tenant) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-cash-flow">
-        <HmsPage>
+        <HmsPage wide>
           <HmsPageHeader eyebrow="Accounts" meaning="money" title="Cash flow" description="Hotel not found." />
         </HmsPage>
       </HMSLayout>
@@ -35,7 +35,7 @@ export default async function AccountsCashFlowPage({ params }: { params: Promise
   if (!caps.canViewReports) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-cash-flow">
-        <HmsPage>
+        <HmsPage wide>
           <HmsPageHeader eyebrow="Accounts" meaning="money" title="Cash flow" description="You don't have access to this report." />
         </HmsPage>
       </HMSLayout>

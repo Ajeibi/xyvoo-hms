@@ -23,7 +23,7 @@ export default async function ReportPage({
   if (!page || !def) {
     return (
       <HMSLayout slug={slug} requiredSection="reports">
-        <HmsPage>
+        <HmsPage wide>
           <HmsPageHeader eyebrow="Reports" meaning="money" title="Report not found" description="That report does not exist." />
           <Link href={`/hms/${slug}/reports`} className={hmsButton.secondary}>
             <ArrowLeft className="h-4 w-4" aria-hidden /> All reports
@@ -37,7 +37,7 @@ export default async function ReportPage({
   if (!allowed) {
     return (
       <HMSLayout slug={slug} requiredSection="reports">
-        <HmsPage>
+        <HmsPage wide>
           <HmsPageHeader eyebrow="Reports" meaning="money" title={def.title} />
           <HmsEmptyState meaning="money" title="Your role can't run this report" description="Ask an owner, a manager or Accounts if you need it." />
         </HmsPage>
@@ -96,25 +96,25 @@ export default async function ReportPage({
         </Link>
 
         {def.period !== "none" ? (
-          <form method="get" className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm print:hidden">
+          <form method="get" className="flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:flex-row sm:flex-wrap sm:items-end print:hidden">
             {def.period === "day" ? (
-              <label className="block w-[12rem] text-sm font-medium text-slate-800">
+              <label className="block w-full text-sm font-medium text-slate-800 sm:w-48">
                 Date
                 <input type="date" name="date" defaultValue={p.date} className={`${hmsInput} mt-1`} />
               </label>
             ) : (
               <>
-                <label className="block w-[12rem] text-sm font-medium text-slate-800">
+                <label className="block w-full text-sm font-medium text-slate-800 sm:w-48">
                   From
                   <input type="date" name="from" defaultValue={p.from} className={`${hmsInput} mt-1`} />
                 </label>
-                <label className="block w-[12rem] text-sm font-medium text-slate-800">
+                <label className="block w-full text-sm font-medium text-slate-800 sm:w-48">
                   To
                   <input type="date" name="to" defaultValue={p.to} className={`${hmsInput} mt-1`} />
                 </label>
               </>
             )}
-            <button type="submit" className={hmsButton.primary}>
+            <button type="submit" className={`${hmsButton.primary} w-full sm:w-auto`}>
               Run report
             </button>
           </form>

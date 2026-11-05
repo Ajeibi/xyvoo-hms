@@ -315,7 +315,59 @@ export function AccountsCustomerInvoicesClient({
             description="Invoices you create will appear here with what's still owed on each."
           />
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <ul className="divide-y divide-slate-100 md:hidden">
+            {invoices.map((i) => {
+              const overdue = i.status === "open" && isPastDue(i.dueDate);
+              return (
+                <li key={i.id} className={`space-y-3 p-4 ${selectedIds.has(i.id) ? "bg-emerald-50/60" : ""}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-start gap-3">
+                      {canReceivePayment && i.status === "open" ? (
+                        <input
+                          type="checkbox"
+                          className="mt-0.5 h-5 w-5 shrink-0 rounded border-slate-300 accent-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                          checked={selectedIds.has(i.id)}
+                          onChange={() => toggleSelected(i.id)}
+                          aria-label={`Select invoice ${i.invoiceNumber} for receipt`}
+                        />
+                      ) : null}
+                      <div className="min-w-0">
+                        <p className="font-semibold text-slate-900">{i.invoiceNumber}</p>
+                        <p className="text-xs text-slate-600">{formatDateTime(i.createdAt)}</p>
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      <HmsPill tone={STATUS_TONE[i.status] ?? "slate"}>{STATUS_LABEL[i.status] ?? i.status}</HmsPill>
+                      {overdue ? <HmsPill tone="red">Overdue</HmsPill> : null}
+                    </div>
+                  </div>
+                  <dl className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl bg-slate-50 p-3 text-sm">
+                    <div className="col-span-2">
+                      <dt className="text-xs font-medium text-slate-600">Customer</dt>
+                      <dd className="mt-0.5 font-medium text-slate-900">{i.customerName}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs font-medium text-slate-600">Total</dt>
+                      <dd className="mt-0.5 font-semibold tabular-nums text-slate-900">{i.total.toFixed(2)} {i.currency}</dd>
+                      {i.amountReceived > 0 && i.status !== "paid" ? (
+                        <dd className="text-xs text-amber-800">{remainingFor(i).toFixed(2)} remaining</dd>
+                      ) : null}
+                    </div>
+                    <div>
+                      <dt className="text-xs font-medium text-slate-600">Department</dt>
+                      <dd className="mt-0.5 text-slate-900">{i.department}</dd>
+                    </div>
+                    <div className="col-span-2">
+                      <dt className="text-xs font-medium text-slate-600">Stay</dt>
+                      <dd className="mt-0.5 text-slate-900">{i.confirmationCode ?? "—"}</dd>
+                    </div>
+                  </dl>
+                </li>
+              );
+            })}
+          </ul>
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[920px] text-left text-sm">
               <thead className="border-b border-slate-200 bg-slate-50 text-sm font-medium text-slate-600">
                 <tr>
@@ -375,6 +427,7 @@ export function AccountsCustomerInvoicesClient({
               </tbody>
             </table>
           </div>
+          </>
         )}
       </HmsCard>
 

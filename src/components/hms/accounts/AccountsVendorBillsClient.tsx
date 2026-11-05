@@ -323,7 +323,74 @@ export function AccountsVendorBillsClient({
               description="Bills you record will appear here with what's still to pay on each."
             />
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            <ul className="divide-y divide-slate-100 md:hidden">
+              {bills.map((b) => {
+                const busy = busyIds.has(b.id);
+                const overdue = b.status === "approved" && isPastDue(b.dueDate);
+                return (
+                  <li key={b.id} className={`space-y-3 p-4 ${selectedIds.has(b.id) ? "bg-emerald-50/60" : ""}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 items-start gap-3">
+                        {canRecordPayment && b.status === "approved" ? (
+                          <input
+                            type="checkbox"
+                            className="mt-0.5 h-5 w-5 shrink-0 rounded border-slate-300 accent-emerald-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                            checked={selectedIds.has(b.id)}
+                            onChange={() => toggleSelected(b.id)}
+                            aria-label={`Select bill from ${b.vendorName} for payment`}
+                          />
+                        ) : null}
+                        <div className="min-w-0">
+                          <p className="font-semibold text-slate-900">{b.vendorName}</p>
+                          <p className="text-xs text-slate-600">{b.billReference ?? "No reference"} · {formatDateTime(b.createdAt)}</p>
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-1">
+                        <HmsPill tone={STATUS_TONE[b.status] ?? "slate"}>{STATUS_LABEL[b.status] ?? b.status}</HmsPill>
+                        {overdue ? <HmsPill tone="red">Overdue</HmsPill> : null}
+                      </div>
+                    </div>
+                    <dl className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl bg-slate-50 p-3 text-sm">
+                      <div>
+                        <dt className="text-xs font-medium text-slate-600">Total</dt>
+                        <dd className="mt-0.5 font-semibold tabular-nums text-slate-900">{b.total.toFixed(2)} {b.currency}</dd>
+                        {b.amountPaid > 0 && b.status !== "paid" ? (
+                          <dd className="text-xs text-amber-800">{remainingFor(b).toFixed(2)} remaining</dd>
+                        ) : null}
+                      </div>
+                      <div>
+                        <dt className="text-xs font-medium text-slate-600">Department</dt>
+                        <dd className="mt-0.5 text-slate-900">{b.department}</dd>
+                      </div>
+                      <div className="col-span-2">
+                        <dt className="text-xs font-medium text-slate-600">Account</dt>
+                        <dd className="mt-0.5 text-slate-900">{b.expenseAccountCode} {b.expenseAccountName}</dd>
+                      </div>
+                    </dl>
+                    {b.status === "pending_approval" && canApprove ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button type="button" disabled={busy} onClick={() => void approve(b.id)}>
+                          {busy ? "Approving…" : "Approve"}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={busy}
+                          onClick={() => {
+                            setRejectTarget(b.id);
+                            setRejectReason("");
+                          }}
+                        >
+                          Reject
+                        </Button>
+                      </div>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full min-w-[880px] text-left text-sm">
                 <thead className="border-b border-slate-200 bg-slate-50 text-sm font-medium text-slate-600">
                   <tr>
@@ -410,6 +477,7 @@ export function AccountsVendorBillsClient({
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </HmsCard>
       )}

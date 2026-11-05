@@ -77,7 +77,7 @@ export function SchedulesClient({
   };
 
   return (
-    <HmsPage>
+    <HmsPage wide>
       <HmsPageHeader
         eyebrow="Reports"
         meaning="money"
@@ -158,7 +158,7 @@ export function SchedulesClient({
             </HmsField>
           </div>
           <div className="md:col-span-2">
-            <button type="submit" className={hmsButton.primary} disabled={busy === "create" || !reportKey}>
+            <button type="submit" className={`${hmsButton.primary} w-full sm:w-auto`} disabled={busy === "create" || !reportKey}>
               <Mail className="h-4 w-4" aria-hidden /> {busy === "create" ? "Saving…" : "Schedule it"}
             </button>
           </div>
@@ -171,8 +171,8 @@ export function SchedulesClient({
         ) : (
           <ul className="divide-y divide-slate-100">
             {schedules.map((s) => (
-              <li key={s.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 sm:px-6">
-                <div className="min-w-0">
+              <li key={s.id} className="flex flex-col gap-3 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+                <div className="min-w-0 break-words">
                   <p className="font-semibold text-slate-900">
                     {titleOf(s.reportKey)} <span className="font-normal text-slate-600">· {s.fileFormat === "pdf" ? "PDF" : "Excel"}</span>
                     {!s.active ? <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">Paused</span> : null}
@@ -182,14 +182,14 @@ export function SchedulesClient({
                     {s.lastError ? <span className="text-red-700">Last send failed: {s.lastError}</span> : s.lastSentAt ? `Last sent ${new Date(s.lastSentAt).toLocaleString("en-GB")}` : "Not sent yet"}
                   </p>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center [&>*]:w-full sm:[&>*]:w-auto">
                   <button type="button" className={hmsButton.small} disabled={busy !== null} onClick={() => void sendNow(s)}>
                     <Send className="h-4 w-4" aria-hidden /> {busy === `now-${s.id}` ? "Sending…" : "Send now"}
                   </button>
                   <button type="button" className={hmsButton.small} disabled={busy !== null} onClick={() => void toggle(s)}>
                     {s.active ? <Pause className="h-4 w-4" aria-hidden /> : <Play className="h-4 w-4" aria-hidden />} {s.active ? "Pause" : "Resume"}
                   </button>
-                  <button type="button" className={hmsButton.danger} disabled={busy !== null} onClick={() => void remove(s)}>
+                  <button type="button" className={`${hmsButton.danger} col-span-2 border border-red-100 sm:border-0`} disabled={busy !== null} onClick={() => void remove(s)}>
                     <Trash2 className="h-4 w-4" aria-hidden /> Delete
                   </button>
                 </div>

@@ -24,7 +24,7 @@ export default async function AccountsIncomeStatementPage({ params }: { params: 
   if (!tenant) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-income-statement">
-        <HmsPage>
+        <HmsPage wide>
           <HmsPageHeader eyebrow="Accounts" meaning="money" title="Income statement" description="Hotel not found." />
         </HmsPage>
       </HMSLayout>
@@ -35,7 +35,7 @@ export default async function AccountsIncomeStatementPage({ params }: { params: 
   if (!caps.canViewReports) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-income-statement">
-        <HmsPage>
+        <HmsPage wide>
           <HmsPageHeader eyebrow="Accounts" meaning="money" title="Income statement" description="You don't have access to this report." />
         </HmsPage>
       </HMSLayout>

@@ -40,7 +40,7 @@ export function AccountsLedgerClient({
   const typeLabel = result.type ? `${result.type.charAt(0).toUpperCase()}${result.type.slice(1)}` : "";
 
   return (
-    <HmsPage>
+    <HmsPage wide>
       <Link
         href={`/hms/${slug}/accounts/chart`}
         className={`${hmsButton.quiet} -ml-2 print:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500`}
@@ -60,18 +60,18 @@ export function AccountsLedgerClient({
         }
       />
 
-      <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm print:hidden">
-        <div className="w-[12rem]">
+      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:flex-row sm:flex-wrap sm:items-end print:hidden">
+        <div className="w-full sm:w-48">
           <HmsField id="ledger-from" label="From" optional>
             <input id="ledger-from" type="date" className={hmsInput} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
           </HmsField>
         </div>
-        <div className="w-[12rem]">
+        <div className="w-full sm:w-48">
           <HmsField id="ledger-to" label="To" optional>
             <input id="ledger-to" type="date" className={hmsInput} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
           </HmsField>
         </div>
-        <button type="button" className={hmsButton.secondary} disabled={loading} onClick={() => void runReport()}>
+        <button type="button" className={`${hmsButton.secondary} w-full sm:w-auto`} disabled={loading} onClick={() => void runReport()}>
           {loading ? "Loading…" : "Run report"}
         </button>
       </div>
@@ -84,7 +84,54 @@ export function AccountsLedgerClient({
         flush
         className="print:border-0 print:shadow-none"
       >
-        <div className="overflow-x-auto">
+        <ul className="divide-y divide-slate-100 md:hidden">
+          <li className="flex items-center justify-between gap-3 bg-slate-50 p-4 font-semibold text-slate-800">
+            <span>Opening balance</span>
+            <span className="tabular-nums">{result.openingBalance.toFixed(2)}</span>
+          </li>
+          {result.lines.length === 0 ? (
+            <li className="p-6 text-center text-sm text-slate-600">No activity in this range.</li>
+          ) : (
+            result.lines.map((l) => (
+              <li key={l.id} className="space-y-3 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-slate-900">
+                      {l.memo}
+                      {l.description ? <span className="font-normal text-slate-600"> — {l.description}</span> : null}
+                    </p>
+                    <p className="mt-0.5 text-xs text-slate-600">{new Date(l.entryDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</p>
+                  </div>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    {l.reversedOf ? <HmsPill tone="amber">Reverses another entry</HmsPill> : null}
+                    {l.reversedBy ? <HmsPill tone="slate">Reversed</HmsPill> : null}
+                  </div>
+                </div>
+                <dl className="grid grid-cols-3 gap-3 rounded-xl bg-slate-50 p-3 text-sm">
+                  <div>
+                    <dt className="text-xs font-medium text-slate-600">Debit</dt>
+                    <dd className="mt-0.5 tabular-nums text-slate-900">{l.debit > 0 ? l.debit.toFixed(2) : "—"}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium text-slate-600">Credit</dt>
+                    <dd className="mt-0.5 tabular-nums text-slate-900">{l.credit > 0 ? l.credit.toFixed(2) : "—"}</dd>
+                  </div>
+                  <div className="text-right">
+                    <dt className="text-xs font-medium text-slate-600">Balance</dt>
+                    <dd className={cn("mt-0.5 font-semibold tabular-nums", l.runningBalance < 0 ? "text-red-700" : "text-slate-900")}>
+                      {l.runningBalance.toFixed(2)}
+                    </dd>
+                  </div>
+                </dl>
+              </li>
+            ))
+          )}
+          <li className="flex items-center justify-between gap-3 bg-slate-50 p-4 font-semibold text-slate-900">
+            <span>Closing balance</span>
+            <span className="tabular-nums">{result.closingBalance.toFixed(2)}</span>
+          </li>
+        </ul>
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full min-w-[720px] text-left text-sm">
             <thead className="border-b border-slate-200 bg-slate-50 text-sm font-medium text-slate-600">
               <tr>

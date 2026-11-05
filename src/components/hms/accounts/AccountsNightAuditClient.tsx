@@ -200,7 +200,7 @@ export function AccountsNightAuditClient({
   };
 
   return (
-    <HmsPage>
+    <HmsPage wide>
       <HmsPageHeader
         eyebrow="Accounts"
         meaning="money"
@@ -232,7 +232,7 @@ export function AccountsNightAuditClient({
         meaning="money"
         className="print:hidden"
         actions={
-          <div className="w-[12rem]">
+          <div className="w-full sm:w-48">
             <HmsField id="night-audit-date" label="Day">
               <input id="night-audit-date" type="date" className={hmsInput} value={date} max={business.today} onChange={(e) => e.target.value && setDate(e.target.value)} />
             </HmsField>
@@ -337,10 +337,10 @@ export function AccountsNightAuditClient({
                     <input id="night-audit-reason" className={hmsInput} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="For example: the three bills are being settled at breakfast" />
                   </HmsField>
                 ) : null}
-                <div className="flex flex-wrap items-center gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
                   <button
                     type="button"
-                    className={hmsButton.primary}
+                    className={`${hmsButton.primary} w-full sm:w-auto`}
                     disabled={running || loading || Boolean(standing) || blockers > 0 || (warnings > 0 && reasonMissing)}
                     onClick={() => void runAudit()}
                   >
@@ -368,7 +368,67 @@ export function AccountsNightAuditClient({
             description="Each day you close appears here with its totals and its report."
           />
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <ul className="divide-y divide-slate-100 md:hidden">
+            {runs.map((r) => (
+              <li key={r.id} className="space-y-3 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold tabular-nums text-slate-900">
+                      {r.auditDate}
+                      {r.reversed ? <span className="ml-2 rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">Reversed</span> : null}
+                    </p>
+                    <p className="text-xs text-slate-600">
+                      {formatDateTime(r.createdAt)} · {r.automatic ? "Automatically" : "By staff"}
+                      {r.noShowsProcessed > 0 ? ` · ${r.noShowsProcessed} no-show(s)` : ""}
+                      {r.exceptionCount > 0 ? ` · ${r.exceptionCount} left open` : ""}
+                    </p>
+                    {r.overrideReason ? <p className="text-xs text-slate-600">Reason: {r.overrideReason}</p> : null}
+                  </div>
+                </div>
+                <dl className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl bg-slate-50 p-3 text-sm">
+                  <div>
+                    <dt className="text-xs font-medium text-slate-600">Room</dt>
+                    <dd className="mt-0.5 font-semibold tabular-nums text-slate-900">{fmt(r.breakdown.roomRevenue)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium text-slate-600">F&amp;B</dt>
+                    <dd className="mt-0.5 font-semibold tabular-nums text-slate-900">{fmt(r.breakdown.fbRevenue)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium text-slate-600">Other</dt>
+                    <dd className="mt-0.5 font-semibold tabular-nums text-slate-900">{fmt(r.breakdown.otherRevenue)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium text-slate-600">Guest ledger</dt>
+                    <dd className="mt-0.5 font-semibold tabular-nums text-slate-900">{fmt(r.breakdown.guestLedgerNet)}</dd>
+                  </div>
+                </dl>
+                <div className="grid grid-cols-2 gap-2 [&>*]:w-full">
+                  {r.hasReport ? (
+                    <>
+                      <button type="button" className={hmsButton.small} disabled={busyRun === r.id} onClick={() => void openReport(r)}>
+                        View report
+                      </button>
+                      {canRun ? (
+                        <button type="button" className={hmsButton.small} disabled={busyRun === r.id} onClick={() => void emailReport(r)}>
+                          {r.emailedAt ? "Email again" : "Email"}
+                        </button>
+                      ) : null}
+                    </>
+                  ) : (
+                    <p className="col-span-2 text-sm text-slate-500">No report kept</p>
+                  )}
+                  {canChangeSettings && !r.journalEntryId && !r.reversed && r.id === latestStandingId ? (
+                    <button type="button" className={`${hmsButton.small} col-span-2`} disabled={busyRun === r.id} onClick={() => void reopenDay(r)}>
+                      Reopen
+                    </button>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[860px] text-left text-sm">
               <thead className="border-b border-slate-200 bg-slate-50 text-sm font-medium text-slate-600">
                 <tr>
@@ -427,6 +487,7 @@ export function AccountsNightAuditClient({
               </tbody>
             </table>
           </div>
+          </>
         )}
       </HmsCard>
 

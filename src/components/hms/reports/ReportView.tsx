@@ -7,8 +7,44 @@ function Table({ section, currency, id }: { section: ReportSection; currency: st
   if (section.rows.length === 0) {
     return <HmsEmptyState bare icon={undefined} title={section.emptyMessage ?? "Nothing to show for this period."} />;
   }
+  const [first, ...rest] = section.columns;
   return (
-    <div className="overflow-x-auto">
+    <>
+      <ul className="divide-y divide-slate-100 md:hidden">
+        {section.rows.map((row, i) => (
+          <li key={`${id}-card-${i}`} className="space-y-3 p-4">
+            <p className="font-semibold text-slate-900">{formatCell(row[first.key], first, currency)}</p>
+            {rest.length > 0 ? (
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl bg-slate-50 p-3 text-sm">
+                {rest.map((c) => (
+                  <div key={c.key} className="min-w-0">
+                    <dt className="text-xs font-medium text-slate-600">{c.label}</dt>
+                    <dd className={`mt-0.5 break-words text-slate-900 ${NUMERIC.has(c.kind) ? "font-semibold tabular-nums" : ""}`}>
+                      {formatCell(row[c.key], c, currency) || "—"}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            ) : null}
+          </li>
+        ))}
+        {section.totals ? (
+          <li className="space-y-3 bg-slate-50 p-4">
+            <p className="font-semibold text-slate-900">{section.totals[first.key] == null ? "Total" : formatCell(section.totals[first.key], first, currency)}</p>
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+              {rest
+                .filter((c) => section.totals?.[c.key] != null)
+                .map((c) => (
+                  <div key={c.key} className="min-w-0">
+                    <dt className="text-xs font-medium text-slate-600">{c.label}</dt>
+                    <dd className="mt-0.5 font-semibold tabular-nums text-slate-900">{formatCell(section.totals?.[c.key], c, currency)}</dd>
+                  </div>
+                ))}
+            </dl>
+          </li>
+        ) : null}
+      </ul>
+    <div className="hidden overflow-x-auto md:block">
       <table className="w-full min-w-max text-sm">
         <caption className="sr-only">{section.title ?? "Report"}</caption>
         <thead>
@@ -22,7 +58,7 @@ function Table({ section, currency, id }: { section: ReportSection; currency: st
         </thead>
         <tbody className="divide-y divide-slate-100">
           {section.rows.map((row, i) => (
-            <tr key={`${id}-${i}`} className="text-slate-800">
+            <tr key={`${id}-${i}`} className="text-slate-800 transition-colors hover:bg-slate-50/70">
               {section.columns.map((c, ci) => {
                 const numeric = typeof cellValue(row[c.key]) === "number";
                 const Cell = ci === 0 ? "th" : "td";
@@ -48,6 +84,7 @@ function Table({ section, currency, id }: { section: ReportSection; currency: st
         ) : null}
       </table>
     </div>
+    </>
   );
 }
 

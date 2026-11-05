@@ -13,24 +13,24 @@ export function AccountsExportsClient({ slug, today, canAccessAllDepartments }: 
   const [to, setTo] = useState(today);
 
   return (
-    <HmsPage>
+    <HmsPage wide>
       <HmsPageHeader eyebrow="Accounts" meaning="money" title="Exports" description="Take the books out as CSV or Excel, or in a layout your accountant's package can import." />
       <AccountsSubNav slug={slug} canAccessAllDepartments={canAccessAllDepartments} />
 
       <HmsCard id="export-trial-balance" title="Trial balance" icon={FileSpreadsheet} meaning="money">
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="w-48"><HmsField id="ex-asof" label="As of"><input id="ex-asof" type="date" className={hmsInput} value={asOf} onChange={(e) => setAsOf(e.target.value)} /></HmsField></div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+          <div className="w-full sm:w-48"><HmsField id="ex-asof" label="As of"><input id="ex-asof" type="date" className={hmsInput} value={asOf} onChange={(e) => setAsOf(e.target.value)} /></HmsField></div>
           <a className={hmsButton.secondary} href={link(slug, { type: "trial-balance", format: "csv", asOfDate: asOf })}><Download className="h-4 w-4" aria-hidden /> CSV</a>
           <a className={hmsButton.secondary} href={link(slug, { type: "trial-balance", format: "xlsx", asOfDate: asOf })}><Download className="h-4 w-4" aria-hidden /> Excel</a>
         </div>
       </HmsCard>
 
       <HmsCard id="export-journal" title="Journal entries" icon={FileSpreadsheet} meaning="money" description="Every line of every entry dated in the range.">
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="w-48"><HmsField id="ex-from" label="From"><input id="ex-from" type="date" className={hmsInput} value={from} onChange={(e) => setFrom(e.target.value)} /></HmsField></div>
-          <div className="w-48"><HmsField id="ex-to" label="To"><input id="ex-to" type="date" className={hmsInput} value={to} onChange={(e) => setTo(e.target.value)} /></HmsField></div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+          <div className="w-full sm:w-48"><HmsField id="ex-from" label="From"><input id="ex-from" type="date" className={hmsInput} value={from} onChange={(e) => setFrom(e.target.value)} /></HmsField></div>
+          <div className="w-full sm:w-48"><HmsField id="ex-to" label="To"><input id="ex-to" type="date" className={hmsInput} value={to} onChange={(e) => setTo(e.target.value)} /></HmsField></div>
         </div>
-        <div className="mt-3 flex flex-wrap gap-3">
+        <div className="mt-3 grid grid-cols-2 gap-3 sm:flex sm:flex-wrap">
           <a className={hmsButton.secondary} href={link(slug, { type: "journal", format: "csv", dateFrom: from, dateTo: to })}><Download className="h-4 w-4" aria-hidden /> CSV</a>
           <a className={hmsButton.secondary} href={link(slug, { type: "journal", format: "xlsx", dateFrom: from, dateTo: to })}><Download className="h-4 w-4" aria-hidden /> Excel</a>
           <a className={hmsButton.secondary} href={link(slug, { type: "journal", format: "quickbooks", dateFrom: from, dateTo: to })}><Download className="h-4 w-4" aria-hidden /> QuickBooks Online</a>

@@ -43,7 +43,23 @@ function SpendTable({
       {rows.length === 0 ? (
         <HmsEmptyState bare art="chart" meaning="money" title="No spend yet" description="No committed spend yet." />
       ) : (
-        <div className="overflow-x-auto">
+        <>
+        <ul className="divide-y divide-slate-100 sm:hidden">
+          {rows.map((r) => (
+            <li key={r.label} className="flex items-center justify-between gap-3 p-4">
+              <div className="min-w-0">
+                <p className="truncate font-semibold text-slate-900">{r.label}</p>
+                <p className="text-xs text-slate-600">{r.orderCount} order{r.orderCount === 1 ? "" : "s"}</p>
+              </div>
+              <p className="shrink-0 font-semibold tabular-nums text-slate-900">{formatPricingAmount(r.total, currency)}</p>
+            </li>
+          ))}
+          <li className="flex items-center justify-between gap-3 bg-slate-50 p-4 font-semibold text-slate-900">
+            <span>Total · {totalOrders} order{totalOrders === 1 ? "" : "s"}</span>
+            <span className="tabular-nums">{formatPricingAmount(totalSpend, currency)}</span>
+          </li>
+        </ul>
+        <div className="hidden overflow-x-auto sm:block">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50 text-left text-sm font-medium text-slate-600">
@@ -70,6 +86,7 @@ function SpendTable({
             </tfoot>
           </table>
         </div>
+        </>
       )}
     </HmsCard>
   );
@@ -116,8 +133,8 @@ export function ProcurementReportsClient({
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end print:hidden">
-        <button type="button" className={hmsButton.secondary} onClick={exportCsv}>
+      <div className="flex sm:justify-end print:hidden">
+        <button type="button" className={`${hmsButton.secondary} w-full sm:w-auto`} onClick={exportCsv}>
           <Download className="h-4 w-4" aria-hidden /> Export CSV
         </button>
       </div>
@@ -153,7 +170,33 @@ export function ProcurementReportsClient({
         {vendorPerformance.length === 0 ? (
           <HmsEmptyState bare art="chart" meaning="stock" title="No vendors yet" description="No vendors recorded yet." />
         ) : (
-          <div className="overflow-x-auto">
+          <>
+          <ul className="divide-y divide-slate-100 md:hidden">
+            {vendorPerformance.map((v) => (
+              <li key={v.vendorId} className="space-y-3 p-4">
+                <p className="font-semibold text-slate-900">{v.vendorName}</p>
+                <dl className="grid grid-cols-2 gap-x-4 gap-y-3 rounded-xl bg-slate-50 p-3 text-sm">
+                  <div>
+                    <dt className="text-xs font-medium text-slate-600">Orders</dt>
+                    <dd className="mt-0.5 font-semibold tabular-nums text-slate-900">{v.totalOrders}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium text-slate-600">Spend</dt>
+                    <dd className="mt-0.5 font-semibold tabular-nums text-slate-900">{formatPricingAmount(v.totalSpend, currency)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium text-slate-600">On time</dt>
+                    <dd className="mt-0.5 font-semibold tabular-nums text-slate-900">{v.onTimeRate === null ? "—" : `${Math.round(v.onTimeRate * 100)}%`}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-xs font-medium text-slate-600">Average quality</dt>
+                    <dd className="mt-0.5 font-semibold tabular-nums text-slate-900">{v.avgQualityScore === null ? "—" : v.avgQualityScore.toFixed(1)}</dd>
+                  </div>
+                </dl>
+              </li>
+            ))}
+          </ul>
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[560px] text-sm">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50 text-left text-sm font-medium text-slate-600">
@@ -177,6 +220,7 @@ export function ProcurementReportsClient({
               </tbody>
             </table>
           </div>
+          </>
         )}
       </HmsCard>
     </div>

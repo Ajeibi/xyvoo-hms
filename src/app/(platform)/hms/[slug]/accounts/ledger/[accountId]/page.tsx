@@ -20,7 +20,7 @@ export default async function AccountsLedgerPage({
   if (!tenant) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-ledger">
-        <HmsPage>
+        <HmsPage wide>
           <HmsPageHeader eyebrow="Accounts" meaning="money" title="Account ledger" description="Hotel not found." />
         </HmsPage>
       </HMSLayout>
@@ -31,7 +31,7 @@ export default async function AccountsLedgerPage({
   if (!caps.canViewReports) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-ledger">
-        <HmsPage>
+        <HmsPage wide>
           <HmsPageHeader eyebrow="Accounts" meaning="money" title="Account ledger" description="You don't have access to this report." />
         </HmsPage>
       </HMSLayout>
@@ -45,7 +45,7 @@ export default async function AccountsLedgerPage({
   if (!result) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-ledger">
-        <HmsPage>
+        <HmsPage wide>
           <HmsPageHeader
             eyebrow="Accounts"
             meaning="money"

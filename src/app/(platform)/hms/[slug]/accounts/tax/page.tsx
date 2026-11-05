@@ -15,7 +15,7 @@ export default async function AccountsTaxPage({ params }: { params: Promise<{ sl
   if (!tenant) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-tax">
-        <HmsPage>
+        <HmsPage wide>
           <HmsPageHeader eyebrow="Accounts" meaning="money" title="Tax reports" description="Hotel not found." />
         </HmsPage>
       </HMSLayout>

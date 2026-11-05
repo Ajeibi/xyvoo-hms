@@ -17,7 +17,7 @@ export default async function AccountsRecurringPage({ params }: { params: Promis
   if (!tenant) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-recurring">
-        <HmsPage>
+        <HmsPage wide>
           <HmsPageHeader eyebrow="Accounts" meaning="money" title="Recurring entries" description="Hotel not found." />
         </HmsPage>
       </HMSLayout>

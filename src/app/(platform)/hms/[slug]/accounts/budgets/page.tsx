@@ -16,7 +16,7 @@ export default async function AccountsBudgetsPage({ params }: { params: Promise<
   if (!tenant) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-budgets">
-        <HmsPage>
+        <HmsPage wide>
           <HmsPageHeader eyebrow="Accounts" meaning="money" title="Budgets" description="Hotel not found." />
         </HmsPage>
       </HMSLayout>
@@ -49,7 +49,7 @@ export default async function AccountsBudgetsPage({ params }: { params: Promise<
         canAccessAllDepartments={access.canAccessAllDepartments}
       />
       {roomTypeGrid ? (
-        <HmsPage>
+        <HmsPage wide>
           <RoomTypeBudgetsCard slug={slug} initialGrid={roomTypeGrid} initialYear={year} canEdit={caps.canManageChartOfAccounts} />
         </HmsPage>
       ) : null}

@@ -15,7 +15,7 @@ export default async function AccountsTrialBalancePage({ params }: { params: Pro
   if (!tenant) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-trial-balance">
-        <HmsPage>
+        <HmsPage wide>
           <HmsPageHeader eyebrow="Accounts" meaning="money" title="Trial balance" description="Hotel not found." />
         </HmsPage>
       </HMSLayout>
@@ -26,7 +26,7 @@ export default async function AccountsTrialBalancePage({ params }: { params: Pro
   if (!caps.canViewReports) {
     return (
       <HMSLayout slug={slug} requiredSection="accounts-trial-balance">
-        <HmsPage>
+        <HmsPage wide>
           <HmsPageHeader eyebrow="Accounts" meaning="money" title="Trial balance" description="You don't have access to this report." />
         </HmsPage>
       </HMSLayout>

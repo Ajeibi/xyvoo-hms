@@ -66,7 +66,7 @@ export function AccountsSettingsClient({
   };
 
   return (
-    <HmsPage>
+    <HmsPage wide>
       <HmsPageHeader
         eyebrow="Accounts"
         meaning="money"
@@ -91,7 +91,7 @@ export function AccountsSettingsClient({
         ) : (
           <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200">
             {thresholds.map((t) => (
-              <li key={t.id} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
+              <li key={t.id} className="flex items-start justify-between gap-3 px-4 py-3.5 text-sm sm:items-center">
                 <span className="text-slate-700">
                   <span className="font-medium text-slate-900">{t.department}</span>:{" "}
                   <span className="tabular-nums">
@@ -152,7 +152,7 @@ export function AccountsSettingsClient({
               </Select>
             </div>
           </div>
-          <button type="button" className={`${hmsButton.primary} mt-4`} disabled={submitting} onClick={() => void addThreshold()}>
+          <button type="button" className={`${hmsButton.primary} mt-4 w-full sm:w-auto`} disabled={submitting} onClick={() => void addThreshold()}>
             <Plus className="h-4 w-4" aria-hidden /> {submitting ? "Adding…" : "Add threshold"}
           </button>
         </div>

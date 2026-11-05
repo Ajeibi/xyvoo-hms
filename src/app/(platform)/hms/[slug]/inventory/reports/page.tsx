@@ -24,7 +24,7 @@ export default async function InventoryReportsPage({ params }: { params: Promise
   if (!tenant) {
     return (
       <HMSLayout slug={slug} requiredSection="inventory-reports">
-        <HmsPage>
+        <HmsPage wide>
           <HmsPageHeader eyebrow="Inventory" meaning="stock" title="Inventory reports" description="Hotel not found." />
         </HmsPage>
       </HMSLayout>
@@ -85,7 +85,7 @@ export default async function InventoryReportsPage({ params }: { params: Promise
 
   return (
     <HMSLayout slug={slug} requiredSection="inventory-reports">
-      <HmsPage>
+      <HmsPage wide>
         <HmsPageHeader
           eyebrow="Inventory"
           meaning="stock"
@@ -107,7 +107,34 @@ export default async function InventoryReportsPage({ params }: { params: Promise
           {valuationRows.length === 0 ? (
             <HmsEmptyState bare art="box" meaning="stock" title="Nothing to value yet" description="No stock on hand to value yet." />
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            <ul className="divide-y divide-slate-100 md:hidden">
+              {valuationRows.map((row) => (
+                <li key={row.name} className="space-y-3 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="font-semibold text-slate-900">{row.name}</p>
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-slate-700">
+                      {totalValuation > 0 ? `${Math.round((row.value / totalValuation) * 100)}%` : "—"}
+                    </span>
+                  </div>
+                  <dl className="grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3 text-sm">
+                    <div>
+                      <dt className="text-xs font-medium text-slate-600">Qty on hand</dt>
+                      <dd className="mt-0.5 font-semibold tabular-nums text-slate-900">{row.qty.toLocaleString()}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs font-medium text-slate-600">Value</dt>
+                      <dd className="mt-0.5 font-semibold tabular-nums text-slate-900">{formatPricingAmount(row.value, currency)}</dd>
+                    </div>
+                  </dl>
+                </li>
+              ))}
+              <li className="flex items-center justify-between gap-3 bg-slate-50 p-4 font-semibold text-slate-900">
+                <span>Total</span>
+                <span className="tabular-nums">{formatPricingAmount(totalValuation, currency)}</span>
+              </li>
+            </ul>
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full text-sm">
                 <thead>
                   <tr className={HEAD_ROW}>
@@ -141,6 +168,7 @@ export default async function InventoryReportsPage({ params }: { params: Promise
                 </tfoot>
               </table>
             </div>
+            </>
           )}
         </HmsCard>
 
@@ -156,7 +184,24 @@ export default async function InventoryReportsPage({ params }: { params: Promise
           {topMovers.length === 0 ? (
             <HmsEmptyState bare art="truck" meaning="stock" title="No outbound movements yet" description="No outbound stock movements recorded yet." />
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            <ul className="divide-y divide-slate-100 md:hidden">
+              {topMovers.map((row, idx) => (
+                <li key={row.sku || row.name} className="flex items-center gap-3 p-4">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold tabular-nums text-slate-700">
+                    {idx + 1}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-semibold text-slate-900">{row.name}</p>
+                    <p className="truncate text-xs text-slate-600">{row.sku}</p>
+                  </div>
+                  <p className="shrink-0 text-right font-semibold tabular-nums text-slate-900">
+                    {row.qty.toLocaleString()} <span className="font-normal text-slate-600">{row.unit}</span>
+                  </p>
+                </li>
+              ))}
+            </ul>
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full text-sm">
                 <thead>
                   <tr className={HEAD_ROW}>
@@ -181,6 +226,7 @@ export default async function InventoryReportsPage({ params }: { params: Promise
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </HmsCard>
 
@@ -196,7 +242,23 @@ export default async function InventoryReportsPage({ params }: { params: Promise
           {wasteRows.length === 0 ? (
             <HmsEmptyState bare art="basket" meaning="stock" title="No waste recorded" description="No waste recorded yet." />
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            <ul className="divide-y divide-slate-100 md:hidden">
+              {wasteRows.map((row) => (
+                <li key={row.reason} className="flex items-center justify-between gap-3 p-4">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-slate-900">{row.reason}</p>
+                    <p className="text-xs text-slate-600">{row.qty.toLocaleString()} wasted</p>
+                  </div>
+                  <p className="shrink-0 font-semibold tabular-nums text-red-700">{formatPricingAmount(row.cost, currency)}</p>
+                </li>
+              ))}
+              <li className="flex items-center justify-between gap-3 bg-slate-50 p-4 font-semibold text-slate-900">
+                <span>Total</span>
+                <span className="tabular-nums">{formatPricingAmount(totalWasteCost, currency)}</span>
+              </li>
+            </ul>
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full text-sm">
                 <thead>
                   <tr className={HEAD_ROW}>
@@ -225,6 +287,7 @@ export default async function InventoryReportsPage({ params }: { params: Promise
                 </tfoot>
               </table>
             </div>
+            </>
           )}
         </HmsCard>
 
@@ -240,7 +303,43 @@ export default async function InventoryReportsPage({ params }: { params: Promise
           {varianceRows.length === 0 ? (
             <HmsEmptyState bare art="page" meaning="stock" title="No count variances" description="No count variances recorded yet." />
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            <ul className="divide-y divide-slate-100 md:hidden">
+              {varianceRows.map((row) => (
+                <li key={row.id} className="space-y-3 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-slate-900">{row.item_name}</p>
+                      <p className="text-xs text-slate-600">{row.item_sku}</p>
+                    </div>
+                    <p
+                      className={`shrink-0 font-semibold tabular-nums ${
+                        row.qty > 0 ? "text-emerald-700" : row.qty < 0 ? "text-red-700" : "text-slate-700"
+                      }`}
+                    >
+                      {row.qty > 0 ? `+${row.qty}` : row.qty} {row.unit_of_measure}
+                    </p>
+                  </div>
+                  <dl className="grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3 text-sm">
+                    <div>
+                      <dt className="text-xs font-medium text-slate-600">Location</dt>
+                      <dd className="mt-0.5 text-slate-900">{row.location_name}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs font-medium text-slate-600">When</dt>
+                      <dd className="mt-0.5 text-slate-900">
+                        {new Date(row.created_at).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                      </dd>
+                    </div>
+                    <div className="col-span-2">
+                      <dt className="text-xs font-medium text-slate-600">Reason</dt>
+                      <dd className="mt-0.5 text-slate-900">{row.reason ?? "—"}</dd>
+                    </div>
+                  </dl>
+                </li>
+              ))}
+            </ul>
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full text-sm">
                 <thead>
                   <tr className={HEAD_ROW}>
@@ -280,6 +379,7 @@ export default async function InventoryReportsPage({ params }: { params: Promise
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </HmsCard>
       </HmsPage>

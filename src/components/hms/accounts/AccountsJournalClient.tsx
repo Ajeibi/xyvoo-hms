@@ -200,7 +200,34 @@ export function AccountsJournalClient({
           {entries.length === 0 ? (
             <HmsEmptyState bare art="page" meaning="money" title="No journal entries posted yet" description="Entries you post will appear here, newest first." />
           ) : (
-            <div className="overflow-x-auto">
+            <>
+            <ul className="divide-y divide-slate-100 md:hidden">
+              {entries.map((e) => (
+                <li key={e.id} className="space-y-3 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-slate-900">{e.memo}</p>
+                      <p className="mt-0.5 text-xs text-slate-600">{new Date(e.entryDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</p>
+                    </div>
+                    {e.reversedBy ? (
+                      <HmsPill tone="slate">Reversed</HmsPill>
+                    ) : e.reversedOf ? (
+                      <HmsPill tone="amber">Reversal</HmsPill>
+                    ) : (
+                      <HmsPill tone="green">Posted</HmsPill>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2.5 text-sm">
+                    <span className="text-xs font-medium text-slate-600">Total</span>
+                    <span className="font-semibold tabular-nums text-slate-900">{e.total.toFixed(2)}</span>
+                  </div>
+                  <button type="button" className={`${hmsButton.secondary} w-full`} onClick={() => void openDetail(e.id)}>
+                    View<span className="sr-only"> entry: {e.memo}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full text-left text-sm">
                 <thead className="border-b border-slate-200 bg-slate-50 text-sm font-medium text-slate-600">
                   <tr>
@@ -238,6 +265,7 @@ export function AccountsJournalClient({
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </HmsCard>
       )}
