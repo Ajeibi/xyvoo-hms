@@ -6,7 +6,7 @@ import { getWebsiteTemplate } from "@/constants/website-templates";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
 import { HOTEL_PREVIEW_COOKIE, HOTEL_SITE_HOST_HEADER, isHotelTemplateId } from "@/lib/hms/site/constants";
-import { LIVE_RATES_SCRIPT, withHotelCurrency } from "@/lib/hms/site/live-rates";
+import { LIVE_RATES_SCRIPT, withHotelBooking, withHotelCurrency } from "@/lib/hms/site/live-rates";
 import { normalizePricingSetup } from "@/lib/hms/room-pricing";
 import { renderHotelPage, robotsTxt, sitemapXml } from "@/lib/hms/site/render";
 import { getHotelSite } from "@/lib/hms/site/site";
@@ -65,7 +65,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
     try {
       const script = await readFile(path.join(process.cwd(), "public", "template-previews", site.templateId, "main.js"), "utf8");
       const currency = normalizePricingSetup(tenant.pricing_setup).currency;
-      return new NextResponse(`${withHotelCurrency(script, currency)}\n${LIVE_RATES_SCRIPT}`, {
+      return new NextResponse(`${withHotelBooking(withHotelCurrency(script, currency))}\n${LIVE_RATES_SCRIPT}`, {
         headers: { "Content-Type": "text/javascript; charset=utf-8", "Cache-Control": cacheControl },
       });
     } catch {

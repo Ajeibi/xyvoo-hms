@@ -4,6 +4,7 @@ import { bookingReference, bookingRequestSchema, guestEmail, hotelEmail } from "
 import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
 import { hotelSlugForRequest, insertBookingRequest } from "@/lib/hms/site/booking";
 import { getHotelSite } from "@/lib/hms/site/site";
+import { logWebEvent } from "@/lib/hms/site/web-config";
 import { websiteRateCheck } from "@/lib/hms/rates/website-check";
 import { sendBookingRequestEmail } from "@/lib/mail/mailtrap";
 import { clientIp, rateLimitShared } from "@/lib/rate-limit";
@@ -75,6 +76,7 @@ export async function POST(request: Request) {
     // Store first, mail second: whatever happens to the emails, the hotel still has the request.
     const service = createServerSupabaseClient();
     const reference = await insertBookingRequest(service, { tenantId: tenant.id, request: req, templateId: site.templateId });
+    await logWebEvent(service, tenant.id, (body as { visit?: unknown } | null)?.visit as string | undefined, "request");
 
     // What the hotel's rate book says for this stay, beside what the guest was shown. It never blocks the request.
     const check = await websiteRateCheck(service, tenant, req).catch((error) => (console.error("[booking-request] rate check failed", error), null));

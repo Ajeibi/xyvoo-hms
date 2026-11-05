@@ -146,6 +146,12 @@ export function ReservationsListClient({
             <Link href={`/hms/${slug}/reservations/allotments`} className={`${hmsButton.secondary} ${focusRing} w-full px-3 sm:w-auto sm:px-4`}>
               Group allotments
             </Link>
+            <Link href={`/hms/${slug}/reservations/web`} className={`${hmsButton.secondary} ${focusRing} col-span-2 w-full px-3 sm:col-span-1 sm:w-auto sm:px-4`}>
+              Website bookings
+            </Link>
+            <Link href={`/hms/${slug}/reservations/channels`} className={`${hmsButton.secondary} ${focusRing} col-span-2 w-full px-3 sm:col-span-1 sm:w-auto sm:px-4`}>
+              Booking sites
+            </Link>
             <Link href={`/hms/${slug}/reservations/new`} className={`${hmsButton.primary} ${focusRing} col-span-2 w-full sm:col-span-1 sm:w-auto`}>
               <Plus className="h-4 w-4" aria-hidden />
               New reservation

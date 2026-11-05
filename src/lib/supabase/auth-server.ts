@@ -14,7 +14,12 @@ export async function createSupabaseAuthServerClient() {
         return cookieStore.getAll();
       },
       setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
+        // Pages can't write cookies; a refreshed session is saved by the proxy or a route handler instead.
+        try {
+          cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
+        } catch {
+          /* called from a server component */
+        }
       },
     },
   });

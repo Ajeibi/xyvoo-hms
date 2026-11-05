@@ -18,6 +18,7 @@ export function WebsiteSettingsCard({ slug, initial }: { slug: string; initial: 
   const [busy, setBusy] = useState<string | null>(null);
   const [address, setAddress] = useState(initial.address ?? "");
   const [email, setEmail] = useState(initial.reservationsEmail);
+  const [payNote, setPayNote] = useState(initial.paymentNote);
   const [checked, setChecked] = useState<{ address: string; result: Availability } | null>(null);
 
   const api = `/api/hotel/website`;
@@ -52,6 +53,7 @@ export function WebsiteSettingsCard({ slug, initial }: { slug: string; initial: 
       setSite(data);
       setAddress(data.address ?? "");
       setEmail(data.reservationsEmail);
+      setPayNote(data.paymentNote ?? "");
       toastSuccess(done);
     } finally {
       setBusy(null);
@@ -105,7 +107,7 @@ export function WebsiteSettingsCard({ slug, initial }: { slug: string; initial: 
               }}
             />
           ) : null}
-          <p className="text-xs text-slate-500">The preview shows sample rooms, prices and text. Your rooms and rates replacing it on the live site comes in a later step.</p>
+          <p className="text-xs text-slate-500">The preview shows sample text. On your website, the rooms, prices, extras and bookings come from your hotel setup.</p>
         </section>
 
         <section className="space-y-3">
@@ -148,7 +150,7 @@ export function WebsiteSettingsCard({ slug, initial }: { slug: string; initial: 
 
         <section className="space-y-3">
           <h3 className="text-sm font-semibold text-slate-900">Reservations email</h3>
-          <HmsField id="site-email" label="Booking requests are sent to" hint="Guests who ask to book on your website are emailed to this address, and every request is kept for the front desk.">
+          <HmsField id="site-email" label="Website bookings are sent to" hint="Every website booking and request is emailed to this address, and kept for the front desk. Guests can reply to those emails.">
             <div className="flex flex-wrap items-center gap-2">
               <input id="site-email" type="email" className={`${hmsInput} max-w-sm`} value={email} onChange={(e) => setEmail(e.target.value)} />
               <button
@@ -161,6 +163,51 @@ export function WebsiteSettingsCard({ slug, initial }: { slug: string; initial: 
               </button>
             </div>
           </HmsField>
+        </section>
+
+        <section className="space-y-3">
+          <h3 className="text-sm font-semibold text-slate-900">Online booking</h3>
+          <fieldset className="space-y-2">
+            <legend className="text-sm text-slate-600">What happens when a guest books on your website</legend>
+            {(
+              [
+                ["instant", "Confirm at once", "The guest sees live rooms and prices, books, and gets a confirmation email straight away. The room is theirs; two guests can never book the last one."],
+                ["request", "Ask me first", "The guest sends a request and you reply by email. Nothing is reserved until you make the booking."],
+              ] as const
+            ).map(([value, label, hint]) => (
+              <label key={value} className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 p-3 text-sm has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50/40">
+                <input
+                  type="radio"
+                  name="booking-mode"
+                  className="mt-1"
+                  checked={site.bookingMode === value}
+                  disabled={busy !== null || !site.templateId}
+                  onChange={() => void send("mode", "", "PUT", { bookingMode: value }, value === "instant" ? "Guests now book and are confirmed at once." : "Guests now send a request for you to answer.")}
+                />
+                <span>
+                  <span className="font-medium text-slate-900">{label}</span>
+                  <span className="block text-slate-600">{hint}</span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
+          <HmsField id="site-pay-note" label="How guests pay a deposit" hint="Shown to the guest and in their confirmation email when your deposit rules (Reservations settings) ask for one. The HMS never takes a payment: you record the deposit on the booking when it arrives.">
+            <textarea id="site-pay-note" className={`${hmsInput} min-h-24 max-w-xl`} maxLength={800} value={payNote} onChange={(e) => setPayNote(e.target.value)} placeholder="For example: Transfer to GTBank 0123456789, Grand Hotel Ltd. Use your booking number as the reference, then send the receipt to reservations@yourhotel.com." />
+          </HmsField>
+          <div className="flex flex-wrap items-center gap-3">
+            <button type="button" className={hmsButton.secondary} disabled={payNote.trim() === site.paymentNote || busy !== null || !site.templateId} onClick={() => void send("paynote", "", "PUT", { paymentNote: payNote }, "Deposit instructions saved.")}>
+              {busy === "paynote" ? "Saving…" : "Save deposit instructions"}
+            </button>
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={site.abandonedReminders}
+                disabled={busy !== null || !site.templateId}
+                onChange={(e) => void send("reminders", "", "PUT", { abandonedReminders: e.target.checked }, e.target.checked ? "Reminders are on." : "Reminders are off.")}
+              />
+              Email one reminder to a visitor who gave their email and didn&apos;t finish booking
+            </label>
+          </div>
         </section>
 
         <section className="space-y-3">

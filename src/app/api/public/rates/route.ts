@@ -1,22 +1,22 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getHotelTenantBySlug } from "@/lib/hms/data";
-import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
-import { quoteStayAllPlans } from "@/lib/hms/rates/quote";
-import { hotelSlugForRequest } from "@/lib/hms/site/booking";
-import { getHotelSite } from "@/lib/hms/site/site";
-import { normalizePricingSetup } from "@/lib/hms/room-pricing";
+import { logWebEvent, getWebConfig } from "@/lib/hms/site/web-config";
+import { resolveWebHotel } from "@/lib/hms/site/web-context";
+import { todayInLagos } from "@/lib/hms/site/web-booking";
+import { webOffer } from "@/lib/hms/site/web-quote";
+import { MAX_WEB_ROOMS, stayDatesProblem } from "@/lib/hms/site/web-shared";
 import { clientIp, rateLimitShared } from "@/lib/rate-limit";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 /**
- * GET /api/public/rates?checkin&checkout&adults&children
+ * GET /api/public/rates?checkin&checkout&adults&children&rooms&visit
  *
- * What a hotel's own website can sell for a stay: every room type with the rate plans the hotel
- * sells on its website, priced night by night by the same function the front desk uses. The hotel
- * is the one whose website the request came from. Plans the website may not sell (switched off,
- * another channel, a company's rate) are left out; plans that break a restriction are listed but
- * not bookable, with the reason.
+ * What a hotel's own website can sell for a stay: every room type with how many are left, the rate
+ * plans the hotel sells on its website priced night by night by the same function the front desk
+ * uses (taxes and service charge included), the deposit and cancellation terms, the add-ons on
+ * offer, and for a sold-out room type the nearest dates that are free. The hotel is the one whose
+ * website the request came from. Plans that break a restriction are listed but not bookable, with
+ * the reason.
  */
 
 const Query = z.object({
@@ -24,9 +24,9 @@ const Query = z.object({
   checkout: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   adults: z.coerce.number().int().min(1).max(12).default(2),
   children: z.coerce.number().int().min(0).max(12).default(0),
+  rooms: z.coerce.number().int().min(1).max(MAX_WEB_ROOMS).default(1),
+  visit: z.string().max(80).optional(),
 });
-
-const NOT_OFFERED = new Set(["plan_inactive", "plan_window", "plan_room_type", "plan_channel", "plan_company"]);
 
 export async function GET(request: Request) {
   const limit = await rateLimitShared(`site-rates:${clientIp(request)}`, 60, 60 * 1000);
@@ -34,55 +34,29 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Too many requests. Please try again shortly." }, { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds) } });
   }
 
-  const url = new URL(request.url);
-  const parsed = Query.safeParse(Object.fromEntries(url.searchParams));
+  const parsed = Query.safeParse(Object.fromEntries(new URL(request.url).searchParams));
   if (!parsed.success) return NextResponse.json({ error: "Choose your dates." }, { status: 422 });
   const q = parsed.data;
-  const today = new Date().toISOString().slice(0, 10);
-  if (q.checkin < today || q.checkout <= q.checkin) return NextResponse.json({ error: "Choose a check-out after your check-in, from today on." }, { status: 422 });
-  if ((Date.parse(q.checkout) - Date.parse(q.checkin)) / 86_400_000 > 60) return NextResponse.json({ error: "For stays over 60 nights, please contact the hotel." }, { status: 422 });
+  const problem = stayDatesProblem(q.checkin, q.checkout, todayInLagos());
+  if (problem) return NextResponse.json({ error: problem }, { status: 422 });
 
   try {
-    const hotelSlug = await hotelSlugForRequest(request);
-    if (!hotelSlug) return NextResponse.json({ error: "Ask for rates from the hotel's website." }, { status: 400 });
-    const tenant = await getHotelTenantBySlug(hotelSlug);
-    const site = tenant ? await getHotelSite(tenant.id) : null;
-    if (!tenant || !site) return NextResponse.json({ error: "Hotel not found." }, { status: 404 });
-    if (!site.published && "error" in (await requireHotelApiMember(hotelSlug))) return NextResponse.json({ error: "Hotel not found." }, { status: 404 });
+    const hotel = await resolveWebHotel(request);
+    if (!hotel.ok) return hotel.response;
+    const { tenant } = hotel.ctx;
+    const db = createServerSupabaseClient();
 
-    const quote = await quoteStayAllPlans(createServerSupabaseClient(), tenant, {
-      arrivalDay: q.checkin,
-      departureDay: q.checkout,
-      adults: q.adults,
-      children: q.children,
-      channel: "website",
-    });
-    if (!quote.ok) return NextResponse.json({ error: quote.error }, { status: 400 });
+    const result = await webOffer(db, tenant, { checkIn: q.checkin, checkOut: q.checkout, adults: q.adults, children: q.children, rooms: q.rooms }, todayInLagos(), { withAlternatives: true });
+    if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
+    const config = await getWebConfig(db, tenant.id);
 
-    const pricing = normalizePricingSetup(tenant.pricing_setup);
-    const roomTypes = quote.roomTypes.map((t) => ({
-      id: t.roomTypeCode,
-      name: t.roomTypeName,
-      available: t.available,
-      plans: t.plans
-        .filter((p) => !p.issues.some((i) => NOT_OFFERED.has(i.kind)))
-        .map((p) => ({
-          code: p.planCode,
-          name: p.planName,
-          boardBasis: p.boardBasis,
-          refundable: p.refundable,
-          prepayRequired: p.prepayRequired,
-          averageRate: p.averageRate,
-          roomTotal: p.roomTotal,
-          grandTotal: p.grandTotal,
-          bookable: p.bookable,
-          reasons: p.issues.map((i) => i.message),
-        })),
-    }));
-    return NextResponse.json(
-      { currency: pricing.currency, nights: quote.nights, roomTypes },
-      { headers: { "Cache-Control": "private, no-store" } },
-    );
+    // The funnel: this visit looked at prices, and whether everything was sold out.
+    if (q.visit) {
+      await logWebEvent(db, tenant.id, q.visit, "search");
+      if (result.offer.roomTypes.length > 0 && result.offer.roomTypes.every((r) => !r.open)) await logWebEvent(db, tenant.id, q.visit, "sold_out");
+    }
+
+    return NextResponse.json({ ...result.offer, bookingMode: config.bookingMode, paymentNote: config.paymentNote }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     console.error("[public rates]", error);
     return NextResponse.json({ error: "We couldn't load the rates. Please try again." }, { status: 500 });
