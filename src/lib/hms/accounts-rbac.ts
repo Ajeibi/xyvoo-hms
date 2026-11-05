@@ -33,6 +33,8 @@ export type AccountsRoleCapabilities = {
   canClosePeriod: boolean;
   /** Reopening a closed month is the owner's call alone, and is logged with a reason. */
   canReopenPeriod: boolean;
+  /** Connecting, disconnecting and mapping an external accounting system (Sage): owner / admin-like only. */
+  canManageIntegrations: boolean;
 };
 
 /**
@@ -66,5 +68,6 @@ export function getAccountsCapabilities(params: {
     canReconcileBankAccounts: access,
     canClosePeriod: access,
     canReopenPeriod: params.membershipRole === "owner",
+    canManageIntegrations: admin,
   };
 }

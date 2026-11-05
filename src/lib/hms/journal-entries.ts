@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { queueJournalForAccountingSync } from "@/lib/hms/accounting-sync/hook";
 import { isDebitNormal, type AccountType, type CashFlowCategory } from "@/lib/hms/chart-of-accounts";
 
 /** Same cost-centre vocabulary as Procurement's purchase-order form (Kitchen/Bar/Housekeeping/
@@ -154,6 +155,9 @@ export async function postJournalEntry(
     await service.schema("hotel").from("journal_entries").delete().eq("id", entryId);
     return { ok: false, error: linesError.message };
   }
+
+  // Copy to the hotel's accounting software, if connected. Queue only; never blocks or fails the posting.
+  await queueJournalForAccountingSync(service, { tenantId: params.tenantId, journalEntryId: entryId, entryDate: params.entryDate });
 
   return { ok: true, id: entryId };
 }

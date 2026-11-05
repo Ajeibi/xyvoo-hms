@@ -24,6 +24,7 @@ const TABS = [
   { key: "recurring", label: "Recurring", suffix: "/recurring" },
   { key: "exports", label: "Exports", suffix: "/exports" },
   { key: "department-pnl", label: "Department P&L", suffix: "/department-pnl" },
+  { key: "integrations", label: "Integrations", suffix: "/integrations" },
   { key: "settings", label: "Settings", suffix: "/settings" },
 ] as const;
 

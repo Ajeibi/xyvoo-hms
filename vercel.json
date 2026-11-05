@@ -11,6 +11,7 @@
     { "path": "/api/cron/hms-night-audit", "schedule": "5 4 * * *" },
     { "path": "/api/cron/hms-reports", "schedule": "20 7 * * *" },
     { "path": "/api/cron/hms-loyalty", "schedule": "30 3 * * *" },
-    { "path": "/api/cron/hms-rates", "schedule": "45 4 * * *" }
+    { "path": "/api/cron/hms-rates", "schedule": "45 4 * * *" },
+    { "path": "/api/cron/hms-accounting-sync", "schedule": "30 6 * * *" }
   ]
 }
