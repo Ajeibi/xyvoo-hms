@@ -30,7 +30,11 @@ const nextConfig: NextConfig = {
     // src/app/global-not-found.tsx: one branded 404 for both root layouts
     // (platform and storefront), including unknown store addresses.
     globalNotFound: true,
+    // The build was killed for running out of memory on Vercel's 8 GB builder.
+    webpackMemoryOptimizations: true,
+    serverSourceMaps: false,
   },
+  productionBrowserSourceMaps: false,
   // Receipts and report PDFs are made in API routes and read these fonts from disk.
   outputFileTracingIncludes: {
     "/api/**/*": ["./src/assets/fonts/**/*"],
