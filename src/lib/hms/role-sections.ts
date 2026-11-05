@@ -6,6 +6,7 @@ export const ROLE_SECTIONS: RoleSection[] = [
   { role: "Admin / GM", sections: "All", canCreateLogin: true },
   { role: "Front Desk", sections: "Front Desk dashboard, workflow, and department settings", canCreateLogin: true },
   { role: "Housekeeping", sections: "Housekeeping — my tasks and lost & found", canCreateLogin: true },
+  { role: "Housekeeping Inspector", sections: "Housekeeping — inspections, history and lost & found", canCreateLogin: true },
   { role: "F&B Staff", sections: "Food & Beverage dashboard and outlet settings", canCreateLogin: true },
   { role: "Kitchen", sections: "Kitchen dashboard and kitchen-specific settings", canCreateLogin: true },
   { role: "Maintenance", sections: "Maintenance", canCreateLogin: true },

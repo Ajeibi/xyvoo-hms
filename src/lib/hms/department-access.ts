@@ -60,6 +60,7 @@ export type HmsSectionKey =
   | "accounts-tax"
   | "accounts-budgets"
   | "accounts-fixed-assets"
+  | "accounts-integrations"
   | "accounts-settings"
   | "maintenance"
   | "maintenance-settings"
@@ -174,6 +175,7 @@ const ADMIN_SECTIONS: HmsSectionKey[] = [
   "accounts-recurring",
   "accounts-exports",
   "accounts-department-pnl",
+  "accounts-integrations",
   "accounts-settings",
   "maintenance",
   "maintenance-settings",
@@ -250,7 +252,6 @@ export const DEPARTMENT_ROLE_SCOPES: Record<string, DepartmentScopeDefinition> =
     settingsPath: (slug) => `/hms/${slug}/housekeeping/my-tasks`,
     navItems: (slug) => [
       { key: "housekeeping-my-tasks", icon: "housekeeping", label: "Housekeeping tasks", path: `/hms/${slug}/housekeeping/my-tasks` },
-      { key: "housekeeping-inspections", icon: "clipboardCheck", label: "Inspections", path: `/hms/${slug}/housekeeping/inspections` },
       { key: "housekeeping-history", icon: "clipboardCheck", label: "History", path: `/hms/${slug}/housekeeping/history` },
       { key: "housekeeping-lost-found", icon: "clipboardCheck", label: "Lost & found", path: `/hms/${slug}/housekeeping/lost-found` },
       { key: "housekeeping-guest-requests", icon: "clipboardCheck", label: "Guest requests", path: `/hms/${slug}/housekeeping/guest-requests` },
@@ -258,10 +259,29 @@ export const DEPARTMENT_ROLE_SCOPES: Record<string, DepartmentScopeDefinition> =
     ],
     allowedSections: [
       "housekeeping-my-tasks",
-      "housekeeping-inspections",
       "housekeeping-history",
       "housekeeping-lost-found",
       "housekeeping-guest-requests",
+      "notifications",
+    ],
+  },
+  "Housekeeping Inspector": {
+    departmentRole: "Housekeeping Inspector",
+    roleLabel: "Housekeeping Inspector",
+    homeSection: "housekeeping-inspections",
+    settingsSection: "housekeeping-inspections",
+    homePath: (slug) => `/hms/${slug}/housekeeping/inspections`,
+    settingsPath: (slug) => `/hms/${slug}/housekeeping/inspections`,
+    navItems: (slug) => [
+      { key: "housekeeping-inspections", icon: "clipboardCheck", label: "Inspections", path: `/hms/${slug}/housekeeping/inspections` },
+      { key: "housekeeping-history", icon: "clipboardCheck", label: "History", path: `/hms/${slug}/housekeeping/history` },
+      { key: "housekeeping-lost-found", icon: "clipboardCheck", label: "Lost & found", path: `/hms/${slug}/housekeeping/lost-found` },
+      { key: "housekeeping-notifications", icon: "bell", label: "Notifications", path: `/hms/${slug}/notifications` },
+    ],
+    allowedSections: [
+      "housekeeping-inspections",
+      "housekeeping-history",
+      "housekeeping-lost-found",
       "notifications",
     ],
   },
@@ -421,6 +441,7 @@ export const DEPARTMENT_ROLE_SCOPES: Record<string, DepartmentScopeDefinition> =
       { key: "accounts-recurring", icon: "clipboardCheck", label: "Recurring", path: `/hms/${slug}/accounts/recurring` },
       { key: "accounts-exports", icon: "clipboardCheck", label: "Exports", path: `/hms/${slug}/accounts/exports` },
       { key: "accounts-department-pnl", icon: "clipboardCheck", label: "Department P&L", path: `/hms/${slug}/accounts/department-pnl` },
+      { key: "accounts-integrations", icon: "clipboardCheck", label: "Integrations", path: `/hms/${slug}/accounts/integrations` },
       { key: "accounts-settings", icon: "settings", label: "Settings", path: `/hms/${slug}/accounts/settings` },
     ],
     allowedSections: [
@@ -445,6 +466,7 @@ export const DEPARTMENT_ROLE_SCOPES: Record<string, DepartmentScopeDefinition> =
       "accounts-recurring",
       "accounts-exports",
       "accounts-department-pnl",
+      "accounts-integrations",
       "accounts-settings",
       "reports",
       "notifications",

@@ -27,7 +27,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
     const caps = getHousekeepingCapabilities({ membershipRole: auth.role, departmentRole: auth.departmentRole });
-    if (!caps.canAccess) return NextResponse.json({ error: "Not allowed." }, { status: 403 });
+    if (!caps.canClean) return NextResponse.json({ error: "Not allowed." }, { status: 403 });
 
     const warnings: string[] = [];
 
