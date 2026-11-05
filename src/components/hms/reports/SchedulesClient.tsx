@@ -172,7 +172,7 @@ export function SchedulesClient({
           <ul className="divide-y divide-slate-100">
             {schedules.map((s) => (
               <li key={s.id} className="flex flex-col gap-3 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
-                <div className="min-w-0 break-words">
+                <div className="min-w-0 wrap-break-word">
                   <p className="font-semibold text-slate-900">
                     {titleOf(s.reportKey)} <span className="font-normal text-slate-600">· {s.fileFormat === "pdf" ? "PDF" : "Excel"}</span>
                     {!s.active ? <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">Paused</span> : null}
@@ -182,7 +182,7 @@ export function SchedulesClient({
                     {s.lastError ? <span className="text-red-700">Last send failed: {s.lastError}</span> : s.lastSentAt ? `Last sent ${new Date(s.lastSentAt).toLocaleString("en-GB")}` : "Not sent yet"}
                   </p>
                 </div>
-                <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center [&>*]:w-full sm:[&>*]:w-auto">
+                <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center *:w-full sm:*:w-auto">
                   <button type="button" className={hmsButton.small} disabled={busy !== null} onClick={() => void sendNow(s)}>
                     <Send className="h-4 w-4" aria-hidden /> {busy === `now-${s.id}` ? "Sending…" : "Send now"}
                   </button>

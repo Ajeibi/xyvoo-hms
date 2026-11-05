@@ -136,7 +136,7 @@ export function CreditLimitCard({
                   type="password"
                   inputMode="numeric"
                   autoComplete="off"
-                  className={`${hmsInput} max-w-[12rem]`}
+                  className={`${hmsInput} max-w-48`}
                   value={pin}
                   onChange={(e) => setPin(e.target.value)}
                 />

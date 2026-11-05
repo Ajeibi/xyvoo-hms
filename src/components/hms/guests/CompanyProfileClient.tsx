@@ -109,7 +109,7 @@ export function CompanyProfileClient({ slug, company, canEdit, currency }: { slu
           <HmsEmptyState bare icon={Users} meaning="guests" title="No guests linked yet" description="Open a guest, choose Change details, and pick this company." />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[520px] text-left text-sm">
+            <table className="w-full min-w-130 text-left text-sm">
               <caption className="sr-only">Guests linked to {company.name}</caption>
               <thead className="bg-slate-50 text-slate-700">
                 <tr>
@@ -143,7 +143,7 @@ export function CompanyProfileClient({ slug, company, canEdit, currency }: { slu
           <HmsEmptyState bare icon={BedDouble} meaning="rooms" title="No stays yet" description="Stays appear here once a linked guest books, or a bill is sent to this company." />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-left text-sm">
+            <table className="w-full min-w-190 text-left text-sm">
               <caption className="sr-only">Stays for {company.name}</caption>
               <thead className="bg-slate-50 text-slate-700">
                 <tr>

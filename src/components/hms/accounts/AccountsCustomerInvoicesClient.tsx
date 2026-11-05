@@ -368,7 +368,7 @@ export function AccountsCustomerInvoicesClient({
             })}
           </ul>
           <div className="hidden overflow-x-auto md:block">
-            <table className="w-full min-w-[920px] text-left text-sm">
+            <table className="w-full min-w-230 text-left text-sm">
               <thead className="border-b border-slate-200 bg-slate-50 text-sm font-medium text-slate-600">
                 <tr>
                   {canReceivePayment ? (
@@ -611,7 +611,7 @@ export function AccountsCustomerInvoicesClient({
             <HmsField id="inv-notes" label="Notes" optional>
               <textarea
                 id="inv-notes"
-                className={`${hmsInput} min-h-[64px]`}
+                className={`${hmsInput} min-h-16`}
                 value={form.notes}
                 onChange={(e) => setForm((s) => ({ ...s, notes: e.target.value }))}
               />

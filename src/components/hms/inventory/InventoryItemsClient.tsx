@@ -491,7 +491,7 @@ export function InventoryItemsClient({
           </div>
         ) : (
           <div className="overflow-x-auto border-t border-slate-100">
-            <table className="w-full min-w-[860px] text-left text-sm">
+            <table className="w-full min-w-215 text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-100 text-sm text-slate-600">
                   <th className="px-5 py-3 font-medium sm:pl-6">SKU</th>

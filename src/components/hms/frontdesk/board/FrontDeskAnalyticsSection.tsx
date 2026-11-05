@@ -133,7 +133,7 @@ export function FrontDeskAnalyticsSection({ analytics }: { analytics: FrontDeskA
           title="Available vs occupied"
           description="Keys available for sale vs in-house or reserved."
         >
-          <div className="mx-auto h-[220px] max-w-[280px]">
+          <div className="mx-auto h-[220px] max-w-70">
             <Doughnut
               data={mixData}
               options={{

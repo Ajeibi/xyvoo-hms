@@ -143,7 +143,7 @@ export function ProcurementOrderDetailClient({
 
       <HmsCard id="po-lines" title="Line items" icon={ShoppingCart} meaning="stock" flush>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[560px] text-sm">
+          <table className="w-full min-w-140 text-sm">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50 text-left text-sm font-medium text-slate-600">
                 <th scope="col" className="px-5 py-3 font-medium sm:px-6">Item</th>

@@ -167,7 +167,7 @@ export function HousekeepingNewTaskDialog({
             <HmsField id="hk-new-notes" label="Notes" optional>
               <textarea
                 id="hk-new-notes"
-                className={`${hmsInput} min-h-[72px]`}
+                className={`${hmsInput} min-h-18`}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="What needs attention?"

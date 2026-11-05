@@ -197,7 +197,7 @@ export function ProcurementReportsClient({
             ))}
           </ul>
           <div className="hidden overflow-x-auto md:block">
-            <table className="w-full min-w-[560px] text-sm">
+            <table className="w-full min-w-140 text-sm">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50 text-left text-sm font-medium text-slate-600">
                   <th scope="col" className="px-5 py-3 font-medium sm:px-6">Vendor</th>

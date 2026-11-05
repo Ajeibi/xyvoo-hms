@@ -82,7 +82,7 @@ export function FrontDeskGuestServicesAnalytics({ slug }: { slug: string }) {
           status={data.delayedOpen > 0 ? "critical" : undefined}
           statusText="Needs someone now"
         />
-        <div className="sm:col-span-2 lg:col-span-1 [&>*]:h-full">
+        <div className="sm:col-span-2 lg:col-span-1 *:h-full">
           <HmsStatTile label="Requests looked at" value={data.totalSampled} icon={ListChecks} meaning="guests" />
         </div>
       </div>

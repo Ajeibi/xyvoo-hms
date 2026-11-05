@@ -19,7 +19,7 @@ function Table({ section, currency, id }: { section: ReportSection; currency: st
                 {rest.map((c) => (
                   <div key={c.key} className="min-w-0">
                     <dt className="text-xs font-medium text-slate-600">{c.label}</dt>
-                    <dd className={`mt-0.5 break-words text-slate-900 ${NUMERIC.has(c.kind) ? "font-semibold tabular-nums" : ""}`}>
+                    <dd className={`mt-0.5 wrap-break-word text-slate-900 ${NUMERIC.has(c.kind) ? "font-semibold tabular-nums" : ""}`}>
                       {formatCell(row[c.key], c, currency) || "—"}
                     </dd>
                   </div>

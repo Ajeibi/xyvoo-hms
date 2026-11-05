@@ -1076,7 +1076,7 @@ function FolioLineTable({
                 {l.voided_at ? <HmsPill tone="red">Voided</HmsPill> : null}
               </div>
               {!l.voided_at && l.kind === "charge" ? (
-                <div className="mt-3 grid grid-cols-2 gap-2 [&>*]:w-full">
+                <div className="mt-3 grid grid-cols-2 gap-2 *:w-full">
                   <button type="button" className={`${hmsButton.small} ${focusRing}`} onClick={() => onTransfer(l.id)}>
                     Transfer<span className="sr-only"> {l.description ?? "charge"}</span>
                   </button>
@@ -1174,7 +1174,7 @@ function FolioLineTable({
               value={voidReason}
               onChange={(e) => setVoidReason(e.target.value)}
               aria-describedby="void-reason-hint"
-              className={`${hmsInput} min-h-[72px]`}
+              className={`${hmsInput} min-h-18`}
             />
           </F>
           <F id="void-pin" label="Manager PIN" optional hint="Needed if you're not a manager or admin.">

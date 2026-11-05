@@ -70,7 +70,7 @@ export default async function WebBookingsPage({ params }: { params: Promise<{ sl
             <p className="text-sm text-slate-600">No guest has booked on your website yet. When they do, the booking appears here and on your Reservations list.</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] text-left text-sm">
+              <table className="w-full min-w-180 text-left text-sm">
                 <thead className="text-xs uppercase tracking-wide text-slate-500">
                   <tr>
                     <th className="py-2 pr-3">Booking</th>

@@ -49,7 +49,7 @@ function SummaryCard({
       <div className="flex items-start justify-between gap-3">
         <p className="text-sm font-medium text-slate-700">{label}</p>
         <span aria-hidden className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-sm ${tone.iconBox}`}>
-          <Icon className="h-[18px] w-[18px]" />
+          <Icon className="h-4.5 w-4.5" />
         </span>
       </div>
       <p className="mt-0.5 font-heading text-2xl font-bold tabular-nums text-slate-900">{value}</p>
@@ -442,20 +442,20 @@ export function FrontDeskGuestServicesClient({
               ))}
             </ul>
             <div className="hidden overflow-x-auto md:block">
-              <table className="w-full min-w-[1320px] text-left text-sm">
+              <table className="w-full min-w-330 text-left text-sm">
                 <caption className="sr-only">Guest requests</caption>
                 <thead className="bg-slate-50 text-sm text-slate-700">
                   <tr>
-                    <th scope="col" className="min-w-[220px] px-4 py-3 font-semibold">Guest and room</th>
-                    <th scope="col" className="min-w-[130px] px-4 py-3 font-semibold">Phone</th>
+                    <th scope="col" className="min-w-55 px-4 py-3 font-semibold">Guest and room</th>
+                    <th scope="col" className="min-w-32.5 px-4 py-3 font-semibold">Phone</th>
                     <th scope="col" className="px-4 py-3 font-semibold">Request number</th>
-                    <th scope="col" className="min-w-[140px] px-4 py-3 font-semibold">Made</th>
-                    <th scope="col" className="min-w-[140px] px-4 py-3 font-semibold">Assigned to</th>
-                    <th scope="col" className="min-w-[180px] px-4 py-3 font-semibold">Request</th>
+                    <th scope="col" className="min-w-35 px-4 py-3 font-semibold">Made</th>
+                    <th scope="col" className="min-w-35 px-4 py-3 font-semibold">Assigned to</th>
+                    <th scope="col" className="min-w-45 px-4 py-3 font-semibold">Request</th>
                     <th scope="col" className="px-4 py-3 font-semibold">Team</th>
                     <th scope="col" className="px-4 py-3 font-semibold">Priority</th>
                     <th scope="col" className="px-4 py-3 font-semibold">Status</th>
-                    <th scope="col" className="min-w-[140px] px-4 py-3 font-semibold">Due by</th>
+                    <th scope="col" className="min-w-35 px-4 py-3 font-semibold">Due by</th>
                     <th scope="col" className="px-4 py-3 font-semibold">Billing</th>
                     <th scope="col" className="px-4 py-3">
                       <span className="sr-only">Actions</span>
@@ -583,7 +583,7 @@ export function FrontDeskGuestServicesClient({
             <HmsField id="gs-new-details" label="Details" optional>
               <textarea
                 id="gs-new-details"
-                className={`${hmsInput} min-h-[72px]`}
+                className={`${hmsInput} min-h-18`}
                 value={createForm.details}
                 onChange={(e) => setCreateForm((s) => ({ ...s, details: e.target.value }))}
               />
@@ -642,16 +642,16 @@ export function FrontDeskGuestServicesClient({
 }
 
 const GUEST_SERVICES_SKELETON_COLS = [
-  { label: "Guest / room", minWidth: "min-w-[220px]" },
-  { label: "Phone", minWidth: "min-w-[130px]" },
+  { label: "Guest / room", minWidth: "min-w-55" },
+  { label: "Phone", minWidth: "min-w-32.5" },
   { label: "Request ID", minWidth: "" },
-  { label: "Created", minWidth: "min-w-[140px]" },
-  { label: "Assignee", minWidth: "min-w-[140px]" },
-  { label: "Service", minWidth: "min-w-[180px]" },
+  { label: "Created", minWidth: "min-w-35" },
+  { label: "Assignee", minWidth: "min-w-35" },
+  { label: "Service", minWidth: "min-w-45" },
   { label: "Dept", minWidth: "" },
   { label: "Priority", minWidth: "" },
   { label: "Status", minWidth: "" },
-  { label: "SLA", minWidth: "min-w-[140px]" },
+  { label: "SLA", minWidth: "min-w-35" },
   { label: "Billing", minWidth: "" },
   { label: "Actions", minWidth: "" },
 ];
@@ -660,7 +660,7 @@ function GuestServicesTableSkeleton() {
   return (
     <section aria-hidden className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1320px] text-left text-sm">
+        <table className="w-full min-w-330 text-left text-sm">
           <thead className="border-b bg-slate-50">
             <tr>
               {GUEST_SERVICES_SKELETON_COLS.map((col) => (

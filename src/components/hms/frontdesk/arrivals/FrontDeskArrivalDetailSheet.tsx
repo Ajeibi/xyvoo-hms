@@ -132,7 +132,7 @@ function SectionCard({
   );
 }
 
-const TEXTAREA = cn(hmsInput, "min-h-[72px]");
+const TEXTAREA = cn(hmsInput, "min-h-18");
 
 function DetailSkeleton() {
   return (

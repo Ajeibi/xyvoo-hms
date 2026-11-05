@@ -62,7 +62,7 @@ export default async function AgentProfilePage({ params }: { params: Promise<{ s
             <HmsEmptyState bare icon={BedDouble} meaning="rooms" title="No bookings yet" description="Bookings that name this agent appear here." />
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-left text-sm">
+              <table className="w-full min-w-190 text-left text-sm">
                 <caption className="sr-only">Bookings from {agent.name}</caption>
                 <thead className="bg-slate-50 text-slate-700">
                   <tr>

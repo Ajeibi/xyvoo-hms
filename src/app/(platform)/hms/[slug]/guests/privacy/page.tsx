@@ -85,7 +85,7 @@ export default async function GuestPrivacyPage({ params }: { params: Promise<{ s
               ))}
             </ul>
             <div className="hidden overflow-x-auto md:block">
-              <table className="w-full min-w-[520px] text-left text-sm">
+              <table className="w-full min-w-130 text-left text-sm">
                 <caption className="sr-only">Data requests</caption>
                 <thead className="bg-slate-50 text-slate-700">
                   <tr>

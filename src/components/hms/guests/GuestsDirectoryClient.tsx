@@ -315,7 +315,7 @@ export function GuestsDirectoryClient({
                   </div>
                   <div className="min-w-0">
                     <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">Spent</dt>
-                    <dd className="mt-0.5 break-words font-medium tabular-nums text-slate-900">
+                    <dd className="mt-0.5 wrap-break-word font-medium tabular-nums text-slate-900">
                       {g.spend > 0 ? g.spend.toLocaleString("en-NG", { maximumFractionDigits: 0 }) : <Nothing />}
                     </dd>
                   </div>
@@ -330,7 +330,7 @@ export function GuestsDirectoryClient({
             ))}
           </ul>
           <div className="hidden overflow-x-auto md:block">
-            <table data-no-stack className="w-full min-w-[900px] text-left text-sm">
+            <table data-no-stack className="w-full min-w-225 text-left text-sm">
               <caption className="sr-only">Guests, {payload.total} found</caption>
               <thead className="bg-slate-50 text-sm text-slate-700">
                 <tr>

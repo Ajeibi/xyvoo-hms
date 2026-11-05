@@ -99,7 +99,7 @@ export default async function HMSDashboardPage({ params }: { params: Promise<{ s
         showModal={setupSummary.showModal}
         tasks={setupSummary.tasks}
       />
-      <div className="mx-auto w-full max-w-[1500px] px-3 py-2 sm:px-8 sm:py-8">
+      <div className="mx-auto w-full max-w-375 px-3 py-2 sm:px-8 sm:py-8">
         <HMSOverviewCards
           hotelName={hotelName}
           actionHref={`/hms/${slug}/settings#rooms-pricing-setup`}

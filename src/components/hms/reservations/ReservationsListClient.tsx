@@ -160,7 +160,7 @@ export function ReservationsListClient({
         }
       />
 
-      <div className="empty:hidden [&>*]:mt-0">
+      <div className="empty:hidden *:mt-0">
         <Suspense fallback={null}>
           <FrontDeskCheckInSuccessBanner />
         </Suspense>
@@ -360,7 +360,7 @@ export function ReservationsListClient({
                   <dl className="grid grid-cols-2 gap-3 text-sm">
                     <div className="min-w-0">
                       <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">Room charges</dt>
-                      <dd className="mt-0.5 break-words font-semibold tabular-nums text-slate-900">
+                      <dd className="mt-0.5 wrap-break-word font-semibold tabular-nums text-slate-900">
                         {formatPricingAmount(row.totalRoomCharges, currency)}
                       </dd>
                     </div>
@@ -399,7 +399,7 @@ export function ReservationsListClient({
                 <caption className="sr-only">Bookings, {filteredCount} found</caption>
                 <thead className="bg-slate-50 text-sm text-slate-700">
                   <tr>
-                    <th scope="col" className="min-w-[220px] px-6 py-3 font-semibold">Guest</th>
+                    <th scope="col" className="min-w-55 px-6 py-3 font-semibold">Guest</th>
                     <th scope="col" className="min-w-[120px] px-6 py-3 font-semibold">Room</th>
                     <th scope="col" className="px-6 py-3 font-semibold">Status</th>
                     <th scope="col" className="min-w-[150px] px-6 py-3 font-semibold">Arrival</th>

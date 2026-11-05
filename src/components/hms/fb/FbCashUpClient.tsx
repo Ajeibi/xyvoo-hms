@@ -391,7 +391,7 @@ export function FbCashUpClient({
             Recent cash-ups
           </h2>
           <div className="mt-3 overflow-x-auto">
-            <table className="w-full min-w-[760px] text-sm">
+            <table className="w-full min-w-190 text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-left text-slate-600">
                   <th scope="col" className="py-2 pr-3 font-medium">Till</th>

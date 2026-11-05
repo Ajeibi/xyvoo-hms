@@ -170,7 +170,7 @@ export function FrontDeskRoomsClient({
   const eyebrow = layoutTitleVariant === "topNav" ? "Rooms" : "Front desk";
 
   return (
-    <div className="mx-auto w-full max-w-[1500px] space-y-6 px-3 py-3 sm:px-6 sm:py-8 lg:px-8">
+    <div className="mx-auto w-full max-w-375 space-y-6 px-3 py-3 sm:px-6 sm:py-8 lg:px-8">
       <HmsPageHeader
         eyebrow={eyebrow}
         meaning="rooms"

@@ -87,7 +87,7 @@ export function RoomTypeBudgetsCard({ slug, initialGrid, initialYear, canEdit }:
         <p className="px-5 py-4 text-sm text-slate-600">No room types are set up yet. Add them in the hotel's room setup, then set a room revenue budget for each here.</p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1100px] text-left text-sm">
+          <table className="w-full min-w-275 text-left text-sm">
             <thead className="border-b border-slate-200 bg-slate-50 text-sm font-medium text-slate-600">
               <tr>
                 <th scope="col" className="px-4 py-3">Room type</th>

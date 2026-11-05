@@ -682,7 +682,7 @@ export function FrontDeskCheckoutDialog({
           ) : null}
         </div>
 
-        <DialogFooter className="shrink-0 flex-row gap-2 border-t border-slate-100 px-4 py-4 sm:px-6 [&>*]:flex-1 sm:[&>*]:flex-none sm:justify-end">
+        <DialogFooter className="shrink-0 flex-row gap-2 border-t border-slate-100 px-4 py-4 sm:px-6 *:flex-1 sm:*:flex-none sm:justify-end">
           {step === "settle" ? (
             <>
               <Button type="button" variant="outline" className="rounded-xl" onClick={() => setStep("find")} disabled={loading || submitting}>

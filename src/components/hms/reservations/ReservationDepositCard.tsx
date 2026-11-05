@@ -222,7 +222,7 @@ export function ReservationDepositCard({ slug, reservationId, currency }: { slug
               <label htmlFor={`${ids}-settle-pin`} className="mb-1 block font-medium text-slate-800">
                 Manager PIN
               </label>
-              <input id={`${ids}-settle-pin`} type="password" inputMode="numeric" autoComplete="off" className={`${hmsInput} max-w-[12rem]`} aria-describedby={`${ids}-settle-pin-hint`} value={settlePin} onChange={(e) => setSettlePin(e.target.value)} />
+              <input id={`${ids}-settle-pin`} type="password" inputMode="numeric" autoComplete="off" className={`${hmsInput} max-w-48`} aria-describedby={`${ids}-settle-pin-hint`} value={settlePin} onChange={(e) => setSettlePin(e.target.value)} />
               <p id={`${ids}-settle-pin-hint`} className="mt-1 text-xs text-slate-600">
                 Needed unless you&apos;re a manager or admin.
               </p>

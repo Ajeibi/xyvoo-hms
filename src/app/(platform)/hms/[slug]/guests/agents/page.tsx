@@ -41,7 +41,7 @@ export default async function AgentsPage({ params }: { params: Promise<{ slug: s
             <HmsEmptyState bare icon={Plane} meaning="guests" title="No travel agents yet" description="Add an agent under Reservations settings, then choose them when you check a guest in." />
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] text-left text-sm">
+              <table className="w-full min-w-180 text-left text-sm">
                 <caption className="sr-only">Travel agents</caption>
                 <thead className="bg-slate-50 text-slate-700">
                   <tr>

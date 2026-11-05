@@ -572,7 +572,7 @@ export default function HMSLayoutShell({
           </div>
         </header>
 
-        <main ref={mainRef} className="min-h-0 min-w-0 flex-1 overflow-y-auto pb-12 max-md:break-words sm:pb-0">{children}</main>
+        <main ref={mainRef} className="min-h-0 min-w-0 flex-1 overflow-y-auto pb-12 max-md:wrap-break-word sm:pb-0">{children}</main>
         <ResponsiveTables />
       </div>
 

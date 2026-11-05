@@ -213,7 +213,7 @@ export function InventoryStockCountsClient({
                   {expanded ? (
                     <div id={panelId} className="space-y-3 border-t border-slate-100 bg-slate-50/60 px-5 py-4 sm:px-6">
                       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-                        <table className="w-full min-w-[560px] text-left text-sm">
+                        <table className="w-full min-w-140 text-left text-sm">
                           <thead className="text-sm font-medium text-slate-600">
                             <tr className="border-b border-slate-100">
                               <th scope="col" className="px-3 py-3">Item</th>

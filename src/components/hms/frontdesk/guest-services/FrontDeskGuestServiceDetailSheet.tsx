@@ -378,7 +378,7 @@ export function FrontDeskGuestServiceDetailSheet({
                       </select>
                     </HmsField>
                     <HmsField id="gs-note-body" label="Note">
-                      <textarea id="gs-note-body" className={`${hmsInput} min-h-[64px]`} value={noteBody} onChange={(e) => setNoteBody(e.target.value)} />
+                      <textarea id="gs-note-body" className={`${hmsInput} min-h-16`} value={noteBody} onChange={(e) => setNoteBody(e.target.value)} />
                     </HmsField>
                     <button type="button" className={`${hmsButton.secondary} ${focusRing}`} onClick={addNote}>
                       Add note

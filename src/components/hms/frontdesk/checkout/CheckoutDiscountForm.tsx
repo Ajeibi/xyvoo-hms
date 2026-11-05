@@ -234,7 +234,7 @@ export function CheckoutDiscountForm({
             type="password"
             inputMode="numeric"
             autoComplete="off"
-            className={`${hmsInput} max-w-[12rem]`}
+            className={`${hmsInput} max-w-48`}
             aria-describedby={`${ids}-pin-hint`}
             value={pin}
             onChange={(e) => setPin(e.target.value)}

@@ -139,7 +139,7 @@ export function InventoryWasteClient({
           />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-sm">
+            <table className="w-full min-w-180 text-left text-sm">
               <thead className="border-b border-slate-100 text-sm font-medium text-slate-600">
                 <tr>
                   <th scope="col" className="px-4 py-3">Date</th>

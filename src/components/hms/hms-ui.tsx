@@ -81,7 +81,7 @@ export function HmsPageHeader({
         <h1 className="font-heading text-2xl font-bold tracking-tight text-slate-900 sm:text-[1.75rem]">{title}</h1>
         {description ? <p className="mt-1 text-base text-slate-600">{description}</p> : null}
       </div>
-      {actions ? <div className="flex w-full flex-wrap items-center gap-2 max-sm:[&>*]:min-w-fit max-sm:[&>*]:flex-1 sm:w-auto">{actions}</div> : null}
+      {actions ? <div className="flex w-full flex-wrap items-center gap-2 max-sm:*:min-w-fit max-sm:*:flex-1 sm:w-auto">{actions}</div> : null}
     </header>
   );
 }
@@ -198,5 +198,5 @@ export function HmsStatStrip({ label, children, columns = 4 }: { label: string; 
 
 /** The standard page frame: consistent gutters and spacing between sections. */
 export function HmsPage({ children, wide = false }: { children: React.ReactNode; wide?: boolean }) {
-  return <div className={`mx-auto w-full space-y-6 px-3 py-3 sm:px-6 sm:py-8 lg:px-8 ${wide ? "max-w-[1500px]" : "max-w-6xl"}`}>{children}</div>;
+  return <div className={`mx-auto w-full space-y-6 px-3 py-3 sm:px-6 sm:py-8 lg:px-8 ${wide ? "max-w-375" : "max-w-6xl"}`}>{children}</div>;
 }

@@ -1086,7 +1086,7 @@ export default function HotelMenuSetup({
                     value={newTableCode}
                     onChange={(e) => setNewTableCode(e.target.value)}
                     placeholder="e.g. T5"
-                    className="max-w-[120px]"
+                    className="max-w-30"
                     disabled={tableSaving}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") void addTable();
@@ -1227,7 +1227,7 @@ export default function HotelMenuSetup({
                   <Input
                     value={cat.name}
                     onChange={(e) => updateCategory(cat.key, { name: e.target.value })}
-                    className="min-w-[140px] max-w-xs flex-1 font-semibold"
+                    className="min-w-35 max-w-xs flex-1 font-semibold"
                     aria-label="Category name"
                   />
                   {outlets.length > 1 ? (

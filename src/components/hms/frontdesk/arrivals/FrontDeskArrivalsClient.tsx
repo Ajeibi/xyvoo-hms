@@ -442,7 +442,7 @@ export function FrontDeskArrivalsClient({
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1500px] space-y-6 px-3 py-3 sm:px-6 sm:py-8 lg:px-8">
+    <div className="mx-auto w-full max-w-375 space-y-6 px-3 py-3 sm:px-6 sm:py-8 lg:px-8">
       <HmsPageHeader
         eyebrow="Front desk"
         meaning="rooms"
@@ -770,19 +770,19 @@ export function FrontDeskArrivalsClient({
                 <dl className="grid grid-cols-3 gap-2 text-sm">
                   <div className="min-w-0">
                     <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">Total</dt>
-                    <dd className="mt-0.5 break-words font-medium tabular-nums text-slate-900">
+                    <dd className="mt-0.5 wrap-break-word font-medium tabular-nums text-slate-900">
                       {formatPricingAmount(row.totalCharges, currency)}
                     </dd>
                   </div>
                   <div className="min-w-0">
                     <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">Paid</dt>
-                    <dd className="mt-0.5 break-words tabular-nums text-slate-700">
+                    <dd className="mt-0.5 wrap-break-word tabular-nums text-slate-700">
                       {formatPricingAmount(row.amountPaid, currency)}
                     </dd>
                   </div>
                   <div className="min-w-0">
                     <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">Balance</dt>
-                    <dd className="mt-0.5 flex items-center gap-1.5 break-words font-semibold tabular-nums text-slate-900">
+                    <dd className="mt-0.5 flex items-center gap-1.5 wrap-break-word font-semibold tabular-nums text-slate-900">
                       <span
                         aria-hidden
                         className={`h-2.5 w-2.5 shrink-0 rounded-full ${PAYMENT_DOT_CLASS[row.paymentStatus]}`}
@@ -810,7 +810,7 @@ export function FrontDeskArrivalsClient({
                   ) : null}
                 </div>
 
-                <p className="break-words text-xs text-slate-600">
+                <p className="wrap-break-word text-xs text-slate-600">
                   {[row.phone, row.email, row.nationality].filter(Boolean).join(" · ")}
                 </p>
 
@@ -874,7 +874,7 @@ export function FrontDeskArrivalsClient({
               </th>
               <th className={cn(TH, "min-w-[110px]")}>Departure</th>
               <th className={cn(TH, "min-w-[72px] text-center")}>Nights</th>
-              <th className={cn(TH, "min-w-[180px]")}>Room type and floor</th>
+              <th className={cn(TH, "min-w-45")}>Room type and floor</th>
               <th className={cn(TH, "min-w-[90px]")}>Room</th>
               <th className={cn(TH, "min-w-[64px] text-center")}>Guests</th>
               <th className={cn(TH, "min-w-[100px] text-right")}>Total</th>

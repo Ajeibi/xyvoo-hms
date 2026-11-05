@@ -212,7 +212,7 @@ export function FrontDeskRoomCell({
             ) : null}
           </Button>
         </TooltipTrigger>
-        <TooltipContent side="top" className="max-w-[280px] px-3 py-2.5">
+        <TooltipContent side="top" className="max-w-70 px-3 py-2.5">
           <RoomTooltipContent room={room} />
         </TooltipContent>
       </Tooltip>

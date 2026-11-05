@@ -2,7 +2,7 @@ import { CardBlockSkeleton } from "@/components/hms/PageSkeletons";
 
 export default function SettingsLoading() {
   return (
-    <div className="mx-auto w-full max-w-[1500px] space-y-6 px-3 py-4 sm:px-8 sm:py-8">
+    <div className="mx-auto w-full max-w-375 space-y-6 px-3 py-4 sm:px-8 sm:py-8">
       <CardBlockSkeleton lines={3} />
       <CardBlockSkeleton lines={4} />
       <CardBlockSkeleton lines={3} />

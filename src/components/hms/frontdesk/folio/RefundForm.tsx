@@ -140,7 +140,7 @@ export function RefundForm({
         <label htmlFor={`${ids}-pin`} className="mb-1 block font-medium text-slate-800">
           Manager PIN
         </label>
-        <input id={`${ids}-pin`} type="password" inputMode="numeric" autoComplete="off" className={`${hmsInput} max-w-[12rem]`} aria-describedby={`${ids}-pin-hint`} value={pin} onChange={(e) => setPin(e.target.value)} />
+        <input id={`${ids}-pin`} type="password" inputMode="numeric" autoComplete="off" className={`${hmsInput} max-w-48`} aria-describedby={`${ids}-pin-hint`} value={pin} onChange={(e) => setPin(e.target.value)} />
         <p id={`${ids}-pin-hint`} className="mt-1 text-xs text-slate-600">
           Needed unless you&apos;re a manager or admin.
         </p>

@@ -207,7 +207,7 @@ export function FbTipsClient({ slug, currency }: { slug: string; currency: strin
             {data.canPayOut ? <p className="text-sm text-slate-700">Total owed: <span className="font-semibold tabular-nums">{money(totalOwed)}</span></p> : null}
           </div>
           <div className="mt-3 overflow-x-auto">
-            <table className="w-full min-w-[520px] text-sm">
+            <table className="w-full min-w-130 text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-left text-slate-600">
                   <th scope="col" className="py-2 pr-3 font-medium">Who</th>

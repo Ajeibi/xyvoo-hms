@@ -101,7 +101,7 @@ export function ArrivalKeys({
                       }
                     }}
                   >
-                    <div className="min-w-[12rem] flex-1">
+                    <div className="min-w-48 flex-1">
                       <HmsField id={`revoke-${k.id}`} label="Why revoke it?">
                         <input
                           id={`revoke-${k.id}`}

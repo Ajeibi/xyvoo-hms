@@ -195,7 +195,7 @@ export function GuestLoyaltyClient({
               ))}
             </ul>
             <div className="hidden overflow-x-auto md:block">
-              <table className="w-full min-w-[520px] text-left text-sm">
+              <table className="w-full min-w-130 text-left text-sm">
                 <caption className="sr-only">Guests with the most points</caption>
                 <thead className="bg-slate-50 text-slate-700">
                   <tr>

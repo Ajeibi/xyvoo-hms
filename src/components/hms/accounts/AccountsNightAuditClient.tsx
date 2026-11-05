@@ -404,7 +404,7 @@ export function AccountsNightAuditClient({
                     <dd className="mt-0.5 font-semibold tabular-nums text-slate-900">{fmt(r.breakdown.guestLedgerNet)}</dd>
                   </div>
                 </dl>
-                <div className="grid grid-cols-2 gap-2 [&>*]:w-full">
+                <div className="grid grid-cols-2 gap-2 *:w-full">
                   {r.hasReport ? (
                     <>
                       <button type="button" className={hmsButton.small} disabled={busyRun === r.id} onClick={() => void openReport(r)}>
@@ -429,7 +429,7 @@ export function AccountsNightAuditClient({
             ))}
           </ul>
           <div className="hidden overflow-x-auto md:block">
-            <table className="w-full min-w-[860px] text-left text-sm">
+            <table className="w-full min-w-215 text-left text-sm">
               <thead className="border-b border-slate-200 bg-slate-50 text-sm font-medium text-slate-600">
                 <tr>
                   <th scope="col" className="px-5 py-3">Date</th>

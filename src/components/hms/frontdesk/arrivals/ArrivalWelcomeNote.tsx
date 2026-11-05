@@ -196,7 +196,7 @@ export function ArrivalWelcomeNote({
             <textarea
               id="welcome-message"
               aria-describedby="welcome-message-hint"
-              className={cn(hmsInput, "min-h-[72px]")}
+              className={cn(hmsInput, "min-h-18")}
               maxLength={500}
               value={message}
               onChange={(e) => setMessage(e.target.value)}

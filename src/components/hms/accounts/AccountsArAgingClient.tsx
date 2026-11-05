@@ -119,7 +119,7 @@ export function AccountsArAgingClient({
               </li>
             </ul>
             <div className="hidden overflow-x-auto md:block">
-              <table className="w-full min-w-[760px] text-left text-sm">
+              <table className="w-full min-w-190 text-left text-sm">
                 <thead className="border-b border-slate-200 bg-slate-50 text-sm font-medium text-slate-600">
                   <tr>
                     <th scope="col" className="px-5 py-3">Customer</th>

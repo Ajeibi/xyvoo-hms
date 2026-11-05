@@ -362,7 +362,7 @@ export function AccountsBankReconciliationDetailClient({
             })}
           </ul>
           <div className="hidden overflow-x-auto md:block">
-            <table className="w-full min-w-[720px] text-left text-sm">
+            <table className="w-full min-w-180 text-left text-sm">
               <thead className="border-b border-slate-200 bg-slate-50 text-sm font-medium text-slate-600">
                 <tr>
                   <th scope="col" className="px-5 py-3">Date</th>

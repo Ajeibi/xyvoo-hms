@@ -135,7 +135,7 @@ export function HmsNotificationsBell({
           {unread > 0 ? (
             <span
               aria-hidden
-              className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-xyvoo-blue px-1 text-[10px] font-bold text-white ring-2 ring-white"
+              className="absolute -right-1 -top-1 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-xyvoo-blue px-1 text-[10px] font-bold text-white ring-2 ring-white"
             >
               {unread > 9 ? "9+" : unread}
             </span>

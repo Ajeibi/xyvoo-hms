@@ -42,7 +42,7 @@ export function FrontDeskLiveKpiSection({ slug, tiles }: { slug: string; tiles: 
             <div className="flex items-start justify-between gap-3">
               <h3 className="text-sm font-semibold text-slate-900">{tile.title}</h3>
               <span aria-hidden className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl shadow-sm ${tone.iconBox}`}>
-                <Icon className="h-[18px] w-[18px]" />
+                <Icon className="h-4.5 w-4.5" />
               </span>
             </div>
             <p className="mt-0.5 font-heading text-2xl font-bold tabular-nums tracking-tight text-slate-900">{tile.value}</p>

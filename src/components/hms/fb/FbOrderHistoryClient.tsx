@@ -333,7 +333,7 @@ export function FbOrderHistoryClient({
       ) : (
         <HmsCard flush>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-sm">
+            <table className="w-full min-w-180 text-sm">
               <caption className="sr-only">{title}</caption>
               <thead className="bg-orange-50/60 text-left text-sm text-slate-700">
                 <tr>

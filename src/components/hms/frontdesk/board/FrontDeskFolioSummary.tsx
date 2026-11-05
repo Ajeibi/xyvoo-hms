@@ -79,7 +79,7 @@ export function FrontDeskFolioSummary({
           onChange={(e) => setPayAmount(e.target.value)}
           placeholder="Amount"
           type="number"
-          className="h-8 max-w-[120px] text-sm"
+          className="h-8 max-w-30 text-sm"
         />
         <Button type="button" size="sm" variant="outline" className="h-8" onClick={() => void quickPay()}>
           Post cash

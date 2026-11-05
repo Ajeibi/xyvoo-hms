@@ -228,7 +228,7 @@ export function RoomInventoryTypeAssignment({ slug, inventoryRoomCount, roomType
     return (
       <div className="flex items-start gap-3 rounded-2xl bg-sky-50 px-4 py-4 text-sm text-slate-700">
         <span aria-hidden className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-sky-700 ring-1 ring-sky-200">
-          <KeyRound className="h-[18px] w-[18px]" />
+          <KeyRound className="h-4.5 w-4.5" />
         </span>
         <div>
         <p className="font-semibold text-slate-900">Physical keys &amp; room types</p>

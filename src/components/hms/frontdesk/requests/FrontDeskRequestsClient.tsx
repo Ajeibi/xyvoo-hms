@@ -513,16 +513,16 @@ function ComplaintsIncidentsPanel({
             ))}
           </ul>
           <div className="hidden overflow-x-auto md:block">
-            <table className="w-full min-w-[1100px] text-left text-sm">
+            <table className="w-full min-w-275 text-left text-sm">
               <caption className="sr-only">Complaints and incidents</caption>
               <thead className="bg-slate-50 text-sm text-slate-700">
                 <tr>
                   <th scope="col" className="px-4 py-3 font-semibold">Type</th>
-                  <th scope="col" className="min-w-[220px] px-4 py-3 font-semibold">What happened</th>
+                  <th scope="col" className="min-w-55 px-4 py-3 font-semibold">What happened</th>
                   <th scope="col" className="px-4 py-3 font-semibold">Guest and room</th>
                   <th scope="col" className="px-4 py-3 font-semibold">How serious</th>
                   <th scope="col" className="px-4 py-3 font-semibold">Status</th>
-                  <th scope="col" className="min-w-[140px] px-4 py-3 font-semibold">Logged</th>
+                  <th scope="col" className="min-w-35 px-4 py-3 font-semibold">Logged</th>
                   <th scope="col" className="px-4 py-3">
                     <span className="sr-only">Actions</span>
                   </th>
@@ -535,7 +535,7 @@ function ComplaintsIncidentsPanel({
                       <span className="font-medium text-slate-900">{CASE_TYPE_LABEL[row.caseType]}</span>
                       <p className="text-xs capitalize text-slate-600">{row.category.replace(/_/g, " ")}</p>
                     </td>
-                    <td className="max-w-[280px] px-4 py-3 text-slate-800">
+                    <td className="max-w-70 px-4 py-3 text-slate-800">
                       <p className="line-clamp-2">{row.description}</p>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-slate-800">
@@ -713,7 +713,7 @@ function CreateIncidentDialog({
             <textarea
               id="incident-description"
               aria-describedby="incident-description-hint"
-              className={`${hmsInput} min-h-[96px]`}
+              className={`${hmsInput} min-h-24`}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
@@ -883,7 +883,7 @@ function IncidentManageDialog({
           <HmsField id="manage-resolution" label="How it was sorted" optional>
             <textarea
               id="manage-resolution"
-              className={`${hmsInput} min-h-[72px]`}
+              className={`${hmsInput} min-h-18`}
               value={resolutionNotes}
               onChange={(e) => setResolutionNotes(e.target.value)}
             />
@@ -1269,7 +1269,7 @@ function WaitlistPanel({
                   </div>
                 </dl>
                 {capabilities.canManageWaitlist ? (
-                  <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 [&>*]:w-full">
+                  <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 *:w-full">
                     {canTransitionWaitlistStatus(row.status, "notified") && row.status !== "notified" ? (
                       <button type="button" className={`${hmsButton.primary} ${focusRing}`} disabled={busyId === row.id} onClick={() => void transition(row, "notified")}>
                         Mark as told<span className="sr-only">: {row.guestName}</span>
@@ -1291,7 +1291,7 @@ function WaitlistPanel({
             ))}
           </ul>
           <div className="hidden overflow-x-auto md:block">
-            <table className="w-full min-w-[900px] text-left text-sm">
+            <table className="w-full min-w-225 text-left text-sm">
               <caption className="sr-only">Waitlist</caption>
               <thead className="bg-slate-50 text-sm text-slate-700">
                 <tr>
@@ -1557,11 +1557,11 @@ function CreateWaitlistDialog({
               max={20}
               value={partySize}
               onChange={(e) => setPartySize(e.target.value)}
-              className={`${hmsInput} max-w-[120px]`}
+              className={`${hmsInput} max-w-30`}
             />
           </HmsField>
           <HmsField id="waitlist-notes" label="Notes" optional>
-            <textarea id="waitlist-notes" className={`${hmsInput} min-h-[72px]`} value={notes} onChange={(e) => setNotes(e.target.value)} />
+            <textarea id="waitlist-notes" className={`${hmsInput} min-h-18`} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </HmsField>
         </div>
         <DialogFooter>

@@ -391,7 +391,7 @@ export function AccountsVendorBillsClient({
               })}
             </ul>
             <div className="hidden overflow-x-auto md:block">
-              <table className="w-full min-w-[880px] text-left text-sm">
+              <table className="w-full min-w-220 text-left text-sm">
                 <thead className="border-b border-slate-200 bg-slate-50 text-sm font-medium text-slate-600">
                   <tr>
                     {canRecordPayment ? (
@@ -597,7 +597,7 @@ export function AccountsVendorBillsClient({
             <HmsField id="bill-notes" label="Notes" optional>
               <textarea
                 id="bill-notes"
-                className={`${hmsInput} min-h-[64px]`}
+                className={`${hmsInput} min-h-16`}
                 value={form.notes}
                 onChange={(e) => setForm((s) => ({ ...s, notes: e.target.value }))}
               />
@@ -628,7 +628,7 @@ export function AccountsVendorBillsClient({
           <HmsField id="bill-reject-reason" label="Reason" hint="The person who recorded the bill will see this.">
             <textarea
               id="bill-reject-reason"
-              className={`${hmsInput} min-h-[80px]`}
+              className={`${hmsInput} min-h-20`}
               aria-describedby="bill-reject-reason-hint"
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}

@@ -93,7 +93,7 @@ export function FrontDeskDashboard({
   const showInventory = area === "overview" && inventoryRoomCount != null && inventoryRoomCount > 0;
 
   return (
-    <div className="mx-auto w-full max-w-[1500px] px-3 py-2 sm:px-8 sm:py-8">
+    <div className="mx-auto w-full max-w-375 px-3 py-2 sm:px-8 sm:py-8">
       <section
         className="overflow-hidden rounded-[28px] border border-slate-200 bg-gradient-to-br from-white via-white to-sky-50/70 shadow-sm shadow-slate-200/30"
         aria-labelledby="fd-hero-title"

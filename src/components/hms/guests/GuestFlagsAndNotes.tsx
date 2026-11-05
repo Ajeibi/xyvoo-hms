@@ -138,7 +138,7 @@ export function GuestFlagsAndNotes({
               value={noteDraft}
               onChange={(e) => setNoteDraft(e.target.value)}
               placeholder="For example: prefers a quiet room away from the lift"
-              className={`${hmsInput} min-h-[72px]`}
+              className={`${hmsInput} min-h-18`}
             />
             <button
               type="button"

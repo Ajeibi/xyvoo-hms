@@ -107,7 +107,7 @@ export function CompaniesClient({ slug, companies, canEdit, currency }: { slug: 
             ))}
           </ul>
           <div className="hidden overflow-x-auto md:block">
-            <table className="w-full min-w-[760px] text-left text-sm">
+            <table className="w-full min-w-190 text-left text-sm">
               <caption className="sr-only">Companies</caption>
               <thead className="bg-slate-50 text-slate-700">
                 <tr>

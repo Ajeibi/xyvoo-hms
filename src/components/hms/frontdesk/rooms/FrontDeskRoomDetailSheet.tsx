@@ -415,7 +415,7 @@ export function FrontDeskRoomDetailSheet({
                       <div className="mt-1 flex flex-wrap items-center gap-2">
                         <select
                           id="room-unit-status"
-                          className="h-9 min-w-[12rem] rounded-lg border border-input bg-white px-2 text-sm"
+                          className="h-9 min-w-48 rounded-lg border border-input bg-white px-2 text-sm"
                           disabled={statusSaving || (supplementLoading && !detail)}
                           value={effectiveUnitStatus}
                           onChange={(e) => void changeUnitStatus(e.target.value)}
@@ -819,7 +819,7 @@ export function FrontDeskRoomDetailSheet({
                       ))}
                     </ul>
                     <textarea
-                      className="min-h-[72px] w-full rounded-lg border border-input px-3 py-2 text-sm"
+                      className="min-h-18 w-full rounded-lg border border-input px-3 py-2 text-sm"
                       placeholder="Add internal note…"
                       value={noteBody}
                       onChange={(e) => setNoteBody(e.target.value)}

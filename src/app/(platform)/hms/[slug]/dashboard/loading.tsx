@@ -2,7 +2,7 @@ import { CardBlockSkeleton, PageHeaderSkeleton, StatTilesSkeleton } from "@/comp
 
 export default function DashboardLoading() {
   return (
-    <div className="mx-auto w-full max-w-[1500px] px-3 py-2 sm:px-8 sm:py-8">
+    <div className="mx-auto w-full max-w-375 px-3 py-2 sm:px-8 sm:py-8">
       <PageHeaderSkeleton withAction />
       <StatTilesSkeleton count={4} />
 

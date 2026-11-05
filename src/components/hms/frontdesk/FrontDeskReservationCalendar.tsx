@@ -65,7 +65,7 @@ function WeekCalendarGrid({
 
   return (
     <div className="overflow-x-auto">
-      <div className="min-w-[720px]">
+      <div className="min-w-180">
         <div className="overflow-hidden rounded-xl border border-slate-200">
           <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50">
             {week.dayLabels.map((label, i) => {
