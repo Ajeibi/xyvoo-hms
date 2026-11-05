@@ -237,7 +237,7 @@ export function AccountsIntegrationsClient({
             ) : null}
 
             {(!conn || conn.status === "disconnected" || conn.status === "needs_reauth") && canManage ? (
-              <div className="flex flex-wrap items-end gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
                 <HmsField id="sage-sync-from" label="Send journals dated from" hint="Earlier journals are never sent unless you queue them below.">
                   <input id="sage-sync-from" type="date" className={hmsInput} value={syncFrom} onChange={(e) => setSyncFrom(e.target.value)} />
                 </HmsField>
@@ -249,7 +249,7 @@ export function AccountsIntegrationsClient({
             {!canManage && !connected ? <p className="text-sm text-slate-600">Only the owner or an admin can connect Sage.</p> : null}
 
             {connected ? (
-              <div className="flex flex-wrap items-end gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
                 {canManage ? (
                   <>
                     <HmsField id="sage-sync-from2" label="Send journals dated from">
