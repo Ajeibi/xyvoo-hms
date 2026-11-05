@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { formatDateTime } from "@/lib/format-date";
 import type { ChartOfAccountRow } from "@/lib/hms/chart-of-accounts";
-import { ACCOUNTS_DEPARTMENTS } from "@/lib/hms/journal-entries";
+import { ACCOUNTS_DEPARTMENTS } from "@/lib/hms/accounts-departments";
 import type { CustomerInvoiceRow } from "@/lib/hms/customer-invoices";
 import type { ArCustomerRow } from "@/lib/hms/ar-customers";
 import { AccountsSubNav } from "@/components/hms/accounts/AccountsSubNav";

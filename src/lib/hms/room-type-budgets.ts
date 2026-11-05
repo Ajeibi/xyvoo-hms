@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { addMonths } from "@/lib/hms/accounting-periods";
+import { addMonths } from "@/lib/hms/accounting-period-utils";
 
 /*
  * Room revenue budgets per room type, by month. Departments (rooms, food and beverage, other) are

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { BedDouble } from "lucide-react";
 import { toastError, toastSuccess } from "@/lib/app-toast";
-import { spreadEvenly } from "@/lib/hms/account-budgets";
+import { spreadEvenly } from "@/lib/hms/budget-math";
 import { roomTypeMonths, type RoomTypeBudgetRow } from "@/lib/hms/room-type-budgets";
 import { HmsCard, hmsButton, hmsInput } from "@/components/hms/hms-ui";
 

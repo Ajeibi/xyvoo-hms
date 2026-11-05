@@ -1,3 +1,4 @@
+import { filterKitchenTicketsByStation } from "@/lib/hms/kitchen-tickets";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { getTenantFbSettings } from "@/lib/hms/fb-settings";
 import {
@@ -315,16 +316,4 @@ export async function loadPublicMenuPageModel(slug: string): Promise<PublicMenuP
   };
 }
 
-export function filterKitchenTicketsByStation(
-  tickets: FbKitchenTicket[],
-  stationCode: string,
-): FbKitchenTicket[] {
-  if (stationCode === "all") return tickets;
-  // Held look-ahead is per order, so a station view keeps only tickets with its own fired work.
-  return tickets
-    .map((ticket) => ({
-      ...ticket,
-      items: ticket.items.filter((item) => item.station_code === stationCode),
-    }))
-    .filter((ticket) => ticket.items.length > 0);
-}
+export { filterKitchenTicketsByStation };

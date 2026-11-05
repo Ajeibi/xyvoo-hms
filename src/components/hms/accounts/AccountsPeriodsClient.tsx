@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { CircleAlert, CircleCheck, Lock, LockOpen } from "lucide-react";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { formatDateTime } from "@/lib/format-date";
-import { addMonths, canCloseMonth, monthsBetween, monthStartOf, type PeriodChecks, type PeriodRow } from "@/lib/hms/accounting-periods";
+import { addMonths, canCloseMonth, monthsBetween, monthStartOf, type PeriodChecks, type PeriodRow } from "@/lib/hms/accounting-period-utils";
 import type { YearEndPreview, YearEndRow } from "@/lib/hms/year-end-close";
 import { AccountsSubNav } from "@/components/hms/accounts/AccountsSubNav";
 import { HmsCard, HmsField, HmsPage, HmsPageHeader, HmsPill, hmsButton, hmsInput } from "@/components/hms/hms-ui";

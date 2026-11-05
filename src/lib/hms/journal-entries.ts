@@ -2,28 +2,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { queueJournalForAccountingSync } from "@/lib/hms/accounting-sync/hook";
 import { isDebitNormal, type AccountType, type CashFlowCategory } from "@/lib/hms/chart-of-accounts";
 
-/** Same cost-centre vocabulary as Procurement's purchase-order form (Kitchen/Bar/Housekeeping/
- * Front Desk/Engineering/Procurement/Other), plus Accounts itself as a valid cost centre. Kept as
- * a local literal here rather than importing Procurement's UI-local const, so this module has no
- * dependency on Procurement's client component. */
-export const ACCOUNTS_DEPARTMENTS = [
-  "Kitchen",
-  "Bar",
-  "Housekeeping",
-  "Front Desk",
-  "Engineering",
-  "Procurement",
-  "Accounts",
-  "Other",
-] as const;
+import { ACCOUNTS_DEPARTMENTS, normalizeAccountsDepartment } from "@/lib/hms/accounts-departments";
 
-/** Cost-centre tags elsewhere (e.g. Inventory's free-text `requesting_department`) aren't
- * validated against this list — normalize case-insensitively for a journal line's `department`
- * rather than inventing a value that wasn't provided. */
-export function normalizeAccountsDepartment(value: string | null | undefined): (typeof ACCOUNTS_DEPARTMENTS)[number] {
-  const match = ACCOUNTS_DEPARTMENTS.find((d) => d.toLowerCase() === (value ?? "").trim().toLowerCase());
-  return match ?? "Other";
-}
+export { ACCOUNTS_DEPARTMENTS, normalizeAccountsDepartment };
 
 export type JournalEntryLineInput = {
   accountId: string;

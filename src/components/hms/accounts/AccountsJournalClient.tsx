@@ -7,11 +7,8 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { formatDateTime } from "@/lib/format-date";
 import type { ChartOfAccountRow } from "@/lib/hms/chart-of-accounts";
-import {
-  ACCOUNTS_DEPARTMENTS,
-  type JournalEntryDetail,
-  type JournalEntryRow,
-} from "@/lib/hms/journal-entries";
+import { ACCOUNTS_DEPARTMENTS } from "@/lib/hms/accounts-departments";
+import type { JournalEntryDetail, JournalEntryRow } from "@/lib/hms/journal-entries";
 import { AccountsSubNav } from "@/components/hms/accounts/AccountsSubNav";
 import { HmsCard, HmsEmptyState, HmsField, HmsPage, HmsPageHeader, HmsPill, hmsButton, hmsInput } from "@/components/hms/hms-ui";
 import { HmsSectionIntro } from "@/components/hms/hms-ui-client";

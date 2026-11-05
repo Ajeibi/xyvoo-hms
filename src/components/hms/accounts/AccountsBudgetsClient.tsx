@@ -4,7 +4,8 @@ import { useState } from "react";
 import { PiggyBank, Target } from "lucide-react";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { cn } from "@/lib/utils";
-import { monthsOfYear, spreadEvenly, type BudgetGridRow, type BudgetLine, type BudgetReport } from "@/lib/hms/account-budgets";
+import { monthsOfYear, spreadEvenly } from "@/lib/hms/budget-math";
+import type { BudgetGridRow, BudgetLine, BudgetReport } from "@/lib/hms/account-budgets";
 import { AccountsSubNav } from "@/components/hms/accounts/AccountsSubNav";
 import { HmsCard, HmsField, HmsPage, HmsPageHeader, hmsButton, hmsInput } from "@/components/hms/hms-ui";
 

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { CircleAlert, Link2, RefreshCw } from "lucide-react";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import { formatDateTime } from "@/lib/format-date";
-import { suggestMappings } from "@/lib/hms/accounting-sync/mapping";
+import { suggestMappings } from "@/lib/hms/accounting-sync/suggest-mappings";
 import { AccountsSubNav } from "@/components/hms/accounts/AccountsSubNav";
 import { HmsCard, HmsField, HmsPage, HmsPageHeader, HmsPill, HmsWarning, hmsButton, hmsInput } from "@/components/hms/hms-ui";
 

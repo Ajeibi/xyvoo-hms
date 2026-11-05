@@ -3,12 +3,9 @@ import { getAccountIdByCode } from "@/lib/hms/chart-of-accounts";
 import { postJournalEntry, type JournalEntryLineInput } from "@/lib/hms/journal-entries";
 import { addMonths, monthEndOf, monthStartOf } from "@/lib/hms/accounting-periods";
 
-export type DepreciationMethod = "straight_line" | "declining_balance";
+import { DEPRECIATION_METHOD_LABELS, type DepreciationMethod } from "@/lib/hms/depreciation-methods";
 
-export const DEPRECIATION_METHOD_LABELS: Record<DepreciationMethod, string> = {
-  straight_line: "Straight line",
-  declining_balance: "Declining balance (double rate)",
-};
+export { DEPRECIATION_METHOD_LABELS, type DepreciationMethod };
 
 const FIXED_ASSET_CODE = "1500";
 const ACCUMULATED_CODE = "1590";

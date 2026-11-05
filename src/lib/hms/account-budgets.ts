@@ -2,18 +2,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getIncomeStatement } from "@/lib/hms/financial-statements";
 import { listChartOfAccounts, type AccountType } from "@/lib/hms/chart-of-accounts";
 import { addMonths, monthStartOf } from "@/lib/hms/accounting-periods";
+import { spreadEvenly, monthsOfYear } from "@/lib/hms/budget-math";
+
+export { spreadEvenly, monthsOfYear };
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
-}
-
-/** A yearly figure spread over `months` months; the last month takes the rounding so the parts add up. */
-export function spreadEvenly(total: number, months = 12): number[] {
-  if (months < 1) return [];
-  const base = round2(total / months);
-  const out = Array.from({ length: months - 1 }, () => base);
-  out.push(round2(total - base * (months - 1)));
-  return out;
 }
 
 export type BudgetLine = {
@@ -171,8 +165,4 @@ export async function saveBudgets(
     await service.schema("hotel").from("account_budgets").delete().eq("tenant_id", params.tenantId).eq("account_id", e.accountId).eq("period_month", e.month);
   }
   return { ok: true, saved: params.entries.length };
-}
-
-export function monthsOfYear(year: number): string[] {
-  return Array.from({ length: 12 }, (_, i) => addMonths(`${year}-01-01`, i));
 }

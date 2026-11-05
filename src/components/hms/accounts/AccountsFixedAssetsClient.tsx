@@ -4,8 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Boxes, Plus, TrendingDown } from "lucide-react";
 import { toastError, toastSuccess } from "@/lib/app-toast";
-import { addMonths, monthStartOf } from "@/lib/hms/accounting-periods";
-import { DEPRECIATION_METHOD_LABELS, type DepreciationMethod, type FixedAssetRow } from "@/lib/hms/fixed-assets";
+import { addMonths, monthStartOf } from "@/lib/hms/accounting-period-utils";
+import { DEPRECIATION_METHOD_LABELS, type DepreciationMethod } from "@/lib/hms/depreciation-methods";
+import type { FixedAssetRow } from "@/lib/hms/fixed-assets";
 import { AccountsSubNav } from "@/components/hms/accounts/AccountsSubNav";
 import { HmsCard, HmsEmptyState, HmsField, HmsPage, HmsPageHeader, HmsPill, hmsButton, hmsInput } from "@/components/hms/hms-ui";
 

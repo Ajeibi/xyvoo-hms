@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlarmClock, AlertTriangle, Check, Clock, Flame, Loader2, Printer } from "lucide-react";
 import type { FbKitchenTicket, FbStationRow } from "@/lib/hms/fb-types";
-import { filterKitchenTicketsByStation } from "@/lib/hms/load-fb-pages";
+import { filterKitchenTicketsByStation } from "@/lib/hms/kitchen-tickets";
 import { useFbRealtime } from "@/hooks/useFbRealtime";
 import { useClientNow } from "@/hooks/useClientNow";
 import { HmsEmptyState, HmsPageHeader, HmsPill } from "@/components/hms/hms-ui";
