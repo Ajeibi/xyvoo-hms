@@ -80,7 +80,7 @@ export function CardBlockSkeleton({ lines = 3, className = "" }: { lines?: numbe
 /** Matches DepartmentDashboardScaffold's shape (maintenance, HR, revenue). */
 export function DepartmentDashboardSkeleton() {
   return (
-    <div className="mx-auto w-full max-w-6xl px-3 py-4 sm:px-8 sm:py-8">
+    <div className="mx-auto w-full max-w-375 px-3 py-3 sm:px-6 sm:py-8 lg:px-8">
       <PageHeaderSkeleton />
       <div className="mt-6 flex flex-col items-center rounded-2xl border border-slate-200 bg-white px-6 py-10">
         <Skeleton className={`h-16 w-16 rounded-2xl ${sk}`} />

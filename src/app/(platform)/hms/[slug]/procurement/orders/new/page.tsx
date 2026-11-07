@@ -59,7 +59,7 @@ export default async function NewPurchaseOrderPage({
 
   return (
     <HMSLayout slug={slug} requiredSection="procurement-orders">
-      <HmsPage>
+      <HmsPage wide>
         <HmsPageHeader eyebrow="Procurement" meaning="stock" title="New purchase order" description="Source against approved requisitions, or create a manual PO with a documented reason." />
         <ProcurementOrderFormClient
           slug={slug}

@@ -20,7 +20,7 @@ export default async function ProcurementVendorsPage({ params }: { params: Promi
 
   return (
     <HMSLayout slug={slug} requiredSection="procurement-vendors">
-      <HmsPage>
+      <HmsPage wide>
         <HmsPageHeader eyebrow="Procurement" meaning="stock" title="Vendors" description="The approved-vendor register: status, certifications and category." />
         <ProcurementSubNav slug={slug} canAccessAllDepartments={access.canAccessAllDepartments} />
         <ProcurementVendorsClient slug={slug} vendors={vendors} categories={categories} />

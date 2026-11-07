@@ -29,7 +29,7 @@ export default async function InventoryReceivingPage({ params }: { params: Promi
 
   return (
     <HMSLayout slug={slug} requiredSection="inventory-receiving">
-      <HmsPage>
+      <HmsPage wide>
         <HmsPageHeader
           eyebrow="Inventory"
           meaning="stock"

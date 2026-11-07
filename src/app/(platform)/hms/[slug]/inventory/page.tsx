@@ -14,7 +14,7 @@ export default async function InventoryPage({ params }: { params: Promise<{ slug
   if (!tenant) {
     return (
       <HMSLayout slug={slug} requiredSection="inventory">
-        <HmsPage>
+        <HmsPage wide>
           <HmsPageHeader eyebrow="Inventory" meaning="stock" title="Inventory" description="Hotel not found." />
         </HmsPage>
       </HMSLayout>

@@ -22,7 +22,7 @@ export default async function ProcurementOrdersPage({ params }: { params: Promis
 
   return (
     <HMSLayout slug={slug} requiredSection="procurement-orders">
-      <HmsPage>
+      <HmsPage wide>
         <HmsPageHeader eyebrow="Procurement" meaning="stock" title="Purchase orders" description="Every PO from draft through approval, ordering and receipt." />
         <ProcurementSubNav slug={slug} canAccessAllDepartments={access.canAccessAllDepartments} />
         <ProcurementOrdersClient slug={slug} orders={orders} currency={currency} />

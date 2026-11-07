@@ -7,7 +7,7 @@ export function RevenueShell({
   slug,
   title,
   description,
-  wide = false,
+  wide = true,
   children,
 }: {
   slug: string;

@@ -27,7 +27,7 @@ export default async function InventoryRequisitionsPage({ params }: { params: Pr
 
   return (
     <HMSLayout slug={slug} requiredSection="inventory-requisitions">
-      <HmsPage>
+      <HmsPage wide>
         <HmsPageHeader
           eyebrow="Inventory"
           meaning="stock"

@@ -17,7 +17,7 @@ export function RevenueTabs({ slug }: { slug: string }) {
   const pathname = usePathname() ?? "";
   const base = `/hms/${slug}/revenue`;
   return (
-    <nav aria-label="Revenue sections" className="-mx-1 overflow-x-auto">
+    <nav aria-label="Revenue sections" className="-mx-3 overflow-x-auto px-2 [scrollbar-width:none] sm:-mx-1 sm:px-0 [&::-webkit-scrollbar]:hidden">
       <ul className="flex min-w-max gap-1 border-b border-slate-200 px-1">
         {TABS.map((t) => {
           const href = `${base}${t.href}`;

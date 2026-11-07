@@ -27,7 +27,7 @@ function CardSkeleton({ rows = 5 }: { rows?: number }) {
 
 export default function InventoryLoading() {
   return (
-    <HmsPage>
+    <HmsPage wide>
       <div role="status" aria-label="Loading inventory" className="space-y-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="space-y-2">

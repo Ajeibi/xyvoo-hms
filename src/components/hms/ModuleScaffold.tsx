@@ -17,7 +17,7 @@ export default function ModuleScaffold({
   icon?: React.ComponentType<{ className?: string }>;
 }) {
   return (
-    <HmsPage>
+    <HmsPage wide>
       <HmsPageHeader eyebrow={eyebrow} title={title} description={subtitle} meaning={meaning} />
       <HmsCard
         id="module-checklist"

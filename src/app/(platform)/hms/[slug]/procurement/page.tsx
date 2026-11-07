@@ -16,7 +16,7 @@ export default async function ProcurementPage({ params }: { params: Promise<{ sl
   if (!tenant) {
     return (
       <HMSLayout slug={slug} requiredSection="procurement">
-        <HmsPage>
+        <HmsPage wide>
           <HmsPageHeader eyebrow="Procurement" meaning="stock" title="Procurement" description="Hotel not found." />
         </HmsPage>
       </HMSLayout>

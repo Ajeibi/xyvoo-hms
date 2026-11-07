@@ -13,7 +13,7 @@ export default async function RevenueSettingsPage({
 
   return (
     <HMSLayout slug={slug} requiredSection="revenue-settings">
-      <HmsPage>
+      <HmsPage wide>
         <HmsPageHeader eyebrow="Revenue" meaning="money" title="Revenue settings" description="Where each part of pricing is set up. Room prices for each room type are still in the hotel's main Settings." />
         <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
           <HmsCard id="settings-plans" icon={Layers} meaning="money" title="Rate plans" description="Room only, bed and breakfast, non-refundable, company rates, and how each follows another.">

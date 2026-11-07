@@ -31,7 +31,7 @@ export default async function ProcurementSettingsPage({ params }: { params: Prom
 
   return (
     <HMSLayout slug={slug} requiredSection="procurement-settings">
-      <HmsPage>
+      <HmsPage wide>
         <HmsPageHeader eyebrow="Procurement" meaning="stock" title="Procurement settings" description="Vendor categories, approval thresholds and quality checklists for each item type." />
         <ProcurementSubNav slug={slug} canAccessAllDepartments={access.canAccessAllDepartments} />
         <ProcurementSettingsClient slug={slug} categories={categories} thresholds={thresholds} checklists={checklists} itemTypes={itemTypes} />

@@ -134,7 +134,7 @@ export function ProcurementVendorDetailClient({
   ];
 
   return (
-    <HmsPage>
+    <HmsPage wide>
       <Link
         href={`/hms/${slug}/procurement/vendors`}
         className="inline-flex items-center gap-1 rounded text-sm font-medium text-slate-700 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"

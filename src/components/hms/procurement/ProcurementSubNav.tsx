@@ -28,7 +28,8 @@ export function ProcurementSubNav({ slug, canAccessAllDepartments }: { slug: str
   if (!canAccessAllDepartments) return null;
 
   return (
-    <nav aria-label="Procurement pages" className="flex gap-2 overflow-x-auto py-1">
+    <nav aria-label="Procurement pages" className="-mx-3 flex gap-2 overflow-x-auto px-3 py-1 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden">
+
       {TABS.map((tab) => {
         const href = `${base}${tab.suffix}`;
         const active = pathname === href;
@@ -37,7 +38,7 @@ export function ProcurementSubNav({ slug, canAccessAllDepartments }: { slug: str
             key={tab.key}
             href={href}
             aria-current={active ? "page" : undefined}
-            className={`whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+            className={`shrink-0 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
               active
                 ? "border-teal-600 bg-teal-50 text-teal-900"
                 : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900"

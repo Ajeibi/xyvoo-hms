@@ -118,7 +118,7 @@ export function InventoryDashboardClient({
   ];
 
   return (
-    <HmsPage>
+    <HmsPage wide>
       <HmsPageHeader
         eyebrow="Inventory"
         meaning="stock"

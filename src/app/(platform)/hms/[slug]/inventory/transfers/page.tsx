@@ -27,7 +27,7 @@ export default async function InventoryTransfersPage({ params }: { params: Promi
 
   return (
     <HMSLayout slug={slug} requiredSection="inventory-transfers">
-      <HmsPage>
+      <HmsPage wide>
         <HmsPageHeader
           eyebrow="Inventory"
           meaning="stock"

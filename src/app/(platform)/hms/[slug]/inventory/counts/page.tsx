@@ -25,7 +25,7 @@ export default async function InventoryStockCountsPage({ params }: { params: Pro
 
   return (
     <HMSLayout slug={slug} requiredSection="inventory-counts">
-      <HmsPage>
+      <HmsPage wide>
         <HmsPageHeader
           eyebrow="Inventory"
           meaning="stock"

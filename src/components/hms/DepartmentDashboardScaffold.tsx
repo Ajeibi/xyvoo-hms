@@ -23,7 +23,7 @@ export default function DepartmentDashboardScaffold({
   meaning?: HmsMeaning;
 }) {
   return (
-    <HmsPage>
+    <HmsPage wide>
       <HmsPageHeader title={title} description={subtitle} meaning={meaning} />
       <HmsEmptyState
         art="page"

@@ -42,7 +42,7 @@ export default async function ProcurementReceivingPage({
 
   return (
     <HMSLayout slug={slug} requiredSection="procurement-receiving">
-      <HmsPage>
+      <HmsPage wide>
         <HmsPageHeader
           eyebrow="Procurement"
           meaning="stock"

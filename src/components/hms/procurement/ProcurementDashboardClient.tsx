@@ -75,7 +75,7 @@ export function ProcurementDashboardClient({
   const linkClass = "text-sm font-medium text-blue-700 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded";
 
   return (
-    <HmsPage>
+    <HmsPage wide>
       <HmsPageHeader
         eyebrow="Procurement"
         meaning="stock"

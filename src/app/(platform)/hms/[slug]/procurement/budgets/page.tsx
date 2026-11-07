@@ -22,7 +22,7 @@ export default async function ProcurementBudgetsPage({ params }: { params: Promi
 
   return (
     <HMSLayout slug={slug} requiredSection="procurement-budgets">
-      <HmsPage>
+      <HmsPage wide>
         <HmsPageHeader eyebrow="Procurement" meaning="stock" title="Budgets" description="Department spend against budget, drawn from purchase orders once they are approved." />
         <ProcurementSubNav slug={slug} canAccessAllDepartments={access.canAccessAllDepartments} />
         <ProcurementBudgetsClient slug={slug} budgets={budgets} currency={currency} />

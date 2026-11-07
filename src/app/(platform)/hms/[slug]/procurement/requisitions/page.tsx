@@ -19,7 +19,7 @@ export default async function ProcurementRequisitionsPage({ params }: { params: 
 
   return (
     <HMSLayout slug={slug} requiredSection="procurement-requisitions">
-      <HmsPage>
+      <HmsPage wide>
         <HmsPageHeader
           eyebrow="Procurement"
           meaning="stock"

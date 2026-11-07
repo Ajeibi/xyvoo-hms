@@ -63,7 +63,7 @@ export function ProcurementOrderDetailClient({
     (!order.invoice_number && ["received", "closed"].includes(order.status));
 
   return (
-    <HmsPage>
+    <HmsPage wide>
       <Link
         href={`/hms/${slug}/procurement/orders`}
         className="inline-flex items-center gap-1 rounded text-sm font-medium text-slate-700 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
