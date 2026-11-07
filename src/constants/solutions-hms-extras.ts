@@ -24,6 +24,16 @@ export type HmsExtraPage = {
   /** "rich" layout only — bold qualitative callouts for SolutionStatBand. */
   stats?: { headline: string; label: string }[];
   features: HmsExtraFeature[];
+  /** Optional. Groups the features into a few image-paired sections
+   * (SolutionFeatureGroups) in place of the scroll-pinned showcase. Each
+   * entry lists feature ids from `features`; image sides alternate. */
+  featureGroups?: {
+    eyebrow: string;
+    title: string;
+    intro: string;
+    featureIds: string[];
+    image: { src: string; alt: string; width: number; height: number; side?: "left" | "right" };
+  }[];
   growth: {
     eyebrow: string;
     title: string;
@@ -38,6 +48,8 @@ export type HmsExtraPage = {
   onboarding: {
     heading: string;
     cards: { id: string; title: string; description: string; explanation: string }[];
+    /** Optional LEGO illustration shown beside the step slider. */
+    image?: { src: string; alt: string; width: number; height: number };
   };
 };
 
@@ -362,6 +374,48 @@ export const HMS_INDEPENDENT_HOTELS: HmsExtraPage = {
     "procurement",
     "analytics",
   ]),
+  // Placeholder images: swap each src for a dedicated illustration when ready.
+  featureGroups: [
+    {
+      eyebrow: "Built for owner-operators",
+      title: "Rooms, bookings and guests, in one place.",
+      intro: "Everything that happens between a guest booking and a guest leaving.",
+      featureIds: ["pms", "crs", "front-office", "housekeeping"],
+      image: {
+        src: "/images/extras/HMS/Reservation dashboard device mockup.png",
+        alt: "The XYVOO reservations dashboard shown on a laptop and a phone",
+        width: 1414,
+        height: 1113,
+        side: "right",
+      },
+    },
+    {
+      eyebrow: "Running the property",
+      title: "Your team, your kitchen and your upkeep.",
+      intro: "The day-to-day work that keeps a small property running smoothly.",
+      featureIds: ["hr", "fb-pos", "cmms"],
+      image: {
+        src: "/images/extras/HMS/Modern Restaurant Dashboard Mockup.png",
+        alt: "The XYVOO restaurant and bar dashboard shown on a laptop and a phone",
+        width: 1536,
+        height: 1024,
+        side: "left",
+      },
+    },
+    {
+      eyebrow: "Money and insight",
+      title: "Know what you earn, spend and owe.",
+      intro: "Billing, purchasing and reporting on the same live data.",
+      featureIds: ["billing", "procurement", "analytics"],
+      image: {
+        src: "/images/extras/HMS/Firefly Dashboard and Procurement Mockup.png",
+        alt: "The XYVOO housekeeping board and procurement dashboard shown on a laptop and a phone",
+        width: 1535,
+        height: 1024,
+        side: "left",
+      },
+    },
+  ],
   growth: {
     eyebrow: "Built for owner-operators",
     title: "Everything a small property actually needs.",
@@ -397,6 +451,12 @@ export const HMS_INDEPENDENT_HOTELS: HmsExtraPage = {
   },
   onboarding: {
     heading: "Live in an afternoon, not a quarter.",
+    image: {
+      src: "/images/extras/HMS/LEGO Concierge with Folio Reminder.png",
+      alt: "A LEGO concierge holding a sign: we want every charge on the guest's folio before they reach the front desk",
+      width: 1498,
+      height: 1050,
+    },
     cards: [
       {
         id: "rooms",
@@ -600,8 +660,55 @@ export const HMS_HOTEL_GROUPS: HmsExtraPage = {
       },
     ],
   },
+  featureGroups: [
+    {
+      eyebrow: "One view of the portfolio",
+      title: "Every property, one login.",
+      intro: "See how the whole group is doing, and set the rules once for all of it.",
+      featureIds: ["portfolio-dashboard", "cross-property-rates", "group-benchmarking"],
+      image: {
+        src: "/images/extras/HMS/XYVOO Hotel SaaS Showcase.png",
+        alt: "The XYVOO Hotel sign-in screen and hotel settings shown on a laptop and a phone",
+        width: 1535,
+        height: 1024,
+        side: "left",
+      },
+    },
+    {
+      eyebrow: "Guests and access",
+      title: "One guest, the right view for everyone.",
+      intro: "Guests are recognised at every property, and each person on your team sees only what they should.",
+      featureIds: ["unified-guest-profile", "group-loyalty", "regional-access"],
+      image: {
+        src: "/images/extras/HMS/Floating Laptop and Guest Privacy Dashboard.png",
+        alt: "The XYVOO guest requests and guest privacy screens shown on a laptop and a phone",
+        width: 1536,
+        height: 1024,
+        side: "left",
+      },
+    },
+    {
+      eyebrow: "Buying, standards and money",
+      title: "One standard, one set of books.",
+      intro: "Purchasing, procedures and finances held to the same standard at every property.",
+      featureIds: ["group-procurement", "brand-standards", "consolidated-financials", "inter-property-transfers"],
+      image: {
+        src: "/images/extras/HMS/Firefly Guest Management Dashboard Mockup.png",
+        alt: "The XYVOO duplicate guests and loyalty screens shown on a laptop and a phone",
+        width: 1536,
+        height: 1024,
+        side: "left",
+      },
+    },
+  ],
   onboarding: {
     heading: "Bring every property onto one system.",
+    image: {
+      src: "/images/extras/HMS/LEGO Billing Message Graphic.png",
+      alt: "A LEGO figure holding a sign: we want our rooms, restaurant and bar billing to one guest account",
+      width: 1498,
+      height: 1050,
+    },
     cards: [
       {
         id: "portfolio",

@@ -7,6 +7,7 @@ import { ArrowUpRight } from "lucide-react";
 import { GridPulses } from "@/components/website/GridPulses";
 import { HomePricingSection } from "@/components/website/HomePricingSection";
 import { SolutionAtAGlance } from "@/components/website/SolutionAtAGlance";
+import { SolutionFeatureGroups } from "@/components/website/SolutionFeatureGroups";
 import { SolutionFeatureShowcase } from "@/components/website/SolutionFeatureShowcase";
 import { SolutionGrowthStack, type SolutionGrowthStackColors } from "@/components/website/SolutionGrowthStack";
 import { SolutionIntegrationsList } from "@/components/website/SolutionIntegrationsList";
@@ -119,12 +120,34 @@ export function HmsExtraLanding({ page }: { page: HmsExtraPage }) {
     />
   );
 
+  const featureGroups = page.featureGroups ? (
+    <SolutionFeatureGroups
+      headingId={`${page.id}-features-heading`}
+      accentRgb={HMS_ACCENT_RGB}
+      groups={page.featureGroups.map((g) => ({
+        eyebrow: g.eyebrow,
+        title: g.title,
+        intro: g.intro,
+        image: g.image,
+        items: g.featureIds.map((id) => {
+          const f = page.features.find((x) => x.id === id);
+          if (!f) throw new Error(`Unknown feature id in group: ${id}`);
+          return {
+            title: f.number.replace(/^\d+\s*(?:—|–|\.|:)\s*/, "").trim(),
+            description: f.description,
+          };
+        }),
+      }))}
+    />
+  ) : null;
+
   const stepReel = (
     <SolutionStepReel
       headingId={`${page.id}-onboarding-heading`}
       heading={page.onboarding.heading}
       steps={page.onboarding.cards}
       accentRgb={HMS_ACCENT_RGB}
+      image={page.onboarding.image}
     />
   );
 
@@ -189,13 +212,13 @@ export function HmsExtraLanding({ page }: { page: HmsExtraPage }) {
 
       {page.layout === "compact" ? (
         <>
-          {featureShowcase}
+          {featureGroups ?? featureShowcase}
           {stepReel}
         </>
       ) : page.layout === "rich" ? (
         <>
           {statBand}
-          {featureShowcase}
+          {featureGroups ?? featureShowcase}
           {stepReel}
         </>
       ) : (

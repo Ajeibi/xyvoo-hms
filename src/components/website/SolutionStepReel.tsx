@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { AnimatePresence, motion, useInView } from "framer-motion";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 
@@ -39,11 +40,15 @@ export function SolutionStepReel({
   heading,
   steps,
   accentRgb,
+  image,
 }: {
   headingId: string;
   heading: string;
   steps: SolutionStepReelStep[];
   accentRgb: string;
+  /** Optional illustration. When given, the section splits: image on the
+   * left, the heading, stepper and card all on the right. */
+  image?: { src: string; alt: string; width: number; height: number };
 }) {
   const [[active, direction], setActive] = useState<[number, number]>([0, 0]);
   const [paused, setPaused] = useState(false);
@@ -69,14 +74,37 @@ export function SolutionStepReel({
   return (
     <section
       ref={wrapRef}
-      className="bg-slate-50 py-16 md:py-24"
+      className={`overflow-x-clip bg-slate-50 ${image ? "pt-16 md:pt-24" : "py-16 md:py-24"}`}
       aria-labelledby={headingId}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
-      <div className="mx-auto max-w-[900px] px-6">
+      <div
+        className={
+          image
+            ? "grid grid-cols-1 items-end gap-10 px-6 lg:grid-cols-[1.35fr_1fr] lg:gap-8 lg:pl-0 lg:pr-[max(1.5rem,calc((100%-1400px)/2))]"
+            : "mx-auto max-w-225 px-6"
+        }
+      >
+        {image && (
+          <FadeIn>
+            <Image
+              src={image.src}
+              alt={image.alt}
+              width={image.width}
+              height={image.height}
+              sizes="(min-width: 1024px) 58vw, 100vw"
+              className="mx-auto block h-auto w-full max-w-180 lg:mx-0 lg:max-w-none"
+            />
+          </FadeIn>
+        )}
+        <div className={`min-w-0 ${image ? "pb-16 md:pb-24 lg:self-center" : ""}`}>
         <FadeIn>
-          <div className="mb-10 flex flex-col gap-6 md:mb-12 md:flex-row md:items-end md:justify-between">
+          <div
+            className={`mb-10 flex flex-col gap-6 md:mb-12 ${
+              image ? "" : "md:flex-row md:items-end md:justify-between"
+            }`}
+          >
             <h3 id={headingId} className="text-h3 font-black text-xyvoo-navy">
               {heading}
             </h3>
@@ -160,6 +188,7 @@ export function SolutionStepReel({
               <p className="mt-4 border-t border-slate-100 pt-4 text-sm leading-relaxed text-xyvoo-navy/50">{step.explanation}</p>
             </motion.div>
           </AnimatePresence>
+        </div>
         </div>
       </div>
     </section>

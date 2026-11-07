@@ -24,6 +24,16 @@ export type StorefrontExtraPage = {
   /** "rich" layout only — bold qualitative callouts for SolutionStatBand. */
   stats?: { headline: string; label: string }[];
   features: StorefrontExtraFeature[];
+  /** Optional. Groups the features into a few image-paired sections
+   * (SolutionFeatureGroups) in place of the feature shelf. Each entry lists
+   * feature ids from `features`; image sides alternate. */
+  featureGroups?: {
+    eyebrow: string;
+    title: string;
+    intro: string;
+    featureIds: string[];
+    image: { src: string; alt: string; width: number; height: number; side?: "left" | "right" };
+  }[];
   growth: {
     eyebrow: string;
     title: string;
@@ -38,6 +48,8 @@ export type StorefrontExtraPage = {
   onboarding: {
     heading: string;
     cards: { id: string; title: string; description: string; explanation: string }[];
+    /** Optional LEGO illustration shown beside the step slider. */
+    image?: { src: string; alt: string; width: number; height: number };
   };
 };
 
@@ -511,8 +523,55 @@ export const STOREFRONT_SOLO_SELLERS: StorefrontExtraPage = {
       },
     ],
   },
+  featureGroups: [
+    {
+      eyebrow: "Open your doors",
+      title: "Your shop, your products, your first orders.",
+      intro: "Everything you need to put a storefront online and start taking orders.",
+      featureIds: ["storefront", "catalog", "orders"],
+      image: {
+        src: "/images/extras/Storefront/Laptop and Smartphone Storefront Mockup.png",
+        alt: "The XYVOO storefront website editor shown on a laptop and a phone",
+        width: 1536,
+        height: 1024,
+        side: "left",
+      },
+    },
+    {
+      eyebrow: "Get paid and get noticed",
+      title: "Checkout that works, and customers who come back.",
+      intro: "Take payments from day one and reach the people who already like what you sell.",
+      featureIds: ["payments", "marketing"],
+      image: {
+        src: "/images/extras/Storefront/Liz App Dashboard Mockup with Laptop and Smartphone.png",
+        alt: "The XYVOO email campaigns and blog screens shown on a laptop and a phone",
+        width: 1536,
+        height: 1024,
+        side: "left",
+      },
+    },
+    {
+      eyebrow: "Run it and learn from it",
+      title: "Help when you need it, numbers you can trust.",
+      intro: "Bring in a helper when you're ready, and see what's actually working.",
+      featureIds: ["team", "analytics"],
+      image: {
+        src: "/images/extras/Storefront/SaaS Dashboard Devices on Green Blob.png",
+        alt: "The XYVOO analytics and orders screens shown on a laptop and a phone",
+        width: 1721,
+        height: 914,
+        side: "left",
+      },
+    },
+  ],
   onboarding: {
     heading: "Open for business in one sitting.",
+    image: {
+      src: "/images/extras/Storefront/LEGO Marketer with Customer Sign.png",
+      alt: "A LEGO figure holding a sign: we want to turn every visitor into a paying customer",
+      width: 1498,
+      height: 1050,
+    },
     cards: [
       {
         id: "storefront",
@@ -688,8 +747,55 @@ export const STOREFRONT_GROWING_RETAILERS: StorefrontExtraPage = {
       },
     ],
   },
+  featureGroups: [
+    {
+      eyebrow: "Sell everywhere",
+      title: "One catalogue, every channel and location.",
+      intro: "Keep stock accurate wherever it's sold, held or shipped from.",
+      featureIds: ["multi-channel-sync", "multi-location-inventory", "3pl-shipping"],
+      image: {
+        src: "/images/extras/Storefront/Modern SaaS Dashboard Device Showcase.png",
+        alt: "The XYVOO products screen shown on a laptop and a phone",
+        width: 1413,
+        height: 1113,
+        side: "right",
+      },
+    },
+    {
+      eyebrow: "Bigger orders, steady income",
+      title: "Wholesale, subscriptions and control.",
+      intro: "New ways to sell, with a manager's sign-off where it matters.",
+      featureIds: ["wholesale-portal", "subscriptions", "approval-workflows"],
+      image: {
+        src: "/images/extras/Storefront/Transparent Dashboard Mockup with Teal Blob.png",
+        alt: "The XYVOO notifications and referrals screens shown on a laptop and a phone",
+        width: 1536,
+        height: 1024,
+        side: "left",
+      },
+    },
+    {
+      eyebrow: "Know your customers",
+      title: "See who's worth keeping, and what to reorder.",
+      intro: "Decide with real customer and sales numbers, not guesses.",
+      featureIds: ["cohort-analytics", "demand-forecasting"],
+      image: {
+        src: "/images/extras/Storefront/Liz App Dashboard Mockup with Laptop and Smartphone.png",
+        alt: "The XYVOO email campaigns and blog screens shown on a laptop and a phone",
+        width: 1536,
+        height: 1024,
+        side: "left",
+      },
+    },
+  ],
   onboarding: {
     heading: "Scale without adding new tools.",
+    image: {
+      src: "/images/extras/Storefront/Tracking Orders from Checkout to Delivery.png",
+      alt: "A LEGO figure holding a sign: we want to track every order from checkout to delivery",
+      width: 1498,
+      height: 1050,
+    },
     cards: [
       {
         id: "channels",

@@ -7,8 +7,10 @@ import { ArrowUpRight } from "lucide-react";
 import { GridPulses } from "@/components/website/GridPulses";
 import { HomePricingSection } from "@/components/website/HomePricingSection";
 import { SolutionAtAGlance } from "@/components/website/SolutionAtAGlance";
+import { SolutionFeatureGroups } from "@/components/website/SolutionFeatureGroups";
 import { SolutionGrowthStack } from "@/components/website/SolutionGrowthStack";
 import { SolutionIntegrationsList } from "@/components/website/SolutionIntegrationsList";
+import { SolutionStepReel } from "@/components/website/SolutionStepReel";
 import { SolutionsOnboardingStack } from "@/components/website/SolutionsOnboardingStack";
 import { StorefrontFeatureShelf } from "@/components/website/StorefrontFeatureShelf";
 import { StorefrontHighlightTicker } from "@/components/website/StorefrontHighlightTicker";
@@ -105,7 +107,38 @@ export function StorefrontExtraLanding({ page }: { page: StorefrontExtraPage }) 
     />
   );
 
-  const orderFlow = (
+  // Same grouped, image-paired sections and LEGO step slider as the HMS
+  // business-type pages, so every business-type page reads as one design.
+  const featureGroups = page.featureGroups ? (
+    <SolutionFeatureGroups
+      headingId={`${page.id}-features-heading`}
+      accentRgb={STOREFRONT_ACCENT_RGB}
+      groups={page.featureGroups.map((g) => ({
+        eyebrow: g.eyebrow,
+        title: g.title,
+        intro: g.intro,
+        image: g.image,
+        items: g.featureIds.map((id) => {
+          const f = page.features.find((x) => x.id === id);
+          if (!f) throw new Error(`Unknown feature id in group: ${id}`);
+          return {
+            title: f.number.replace(/^\d+\s*(?:—|–|\.|:)\s*/, "").trim(),
+            description: f.description,
+          };
+        }),
+      }))}
+    />
+  ) : null;
+
+  const orderFlow = page.onboarding.image ? (
+    <SolutionStepReel
+      headingId={`${page.id}-onboarding-heading`}
+      heading={page.onboarding.heading}
+      steps={page.onboarding.cards}
+      accentRgb={STOREFRONT_ACCENT_RGB}
+      image={page.onboarding.image}
+    />
+  ) : (
     <StorefrontOrderFlow
       headingId={`${page.id}-onboarding-heading`}
       heading={page.onboarding.heading}
@@ -177,13 +210,13 @@ export function StorefrontExtraLanding({ page }: { page: StorefrontExtraPage }) 
 
       {page.layout === "compact" ? (
         <>
-          {featureShelf}
+          {featureGroups ?? featureShelf}
           {orderFlow}
         </>
       ) : page.layout === "rich" ? (
         <>
           {highlightTicker}
-          {featureShelf}
+          {featureGroups ?? featureShelf}
           {orderFlow}
         </>
       ) : (
