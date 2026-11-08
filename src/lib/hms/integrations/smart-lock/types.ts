@@ -1,4 +1,7 @@
-export type SmartLockProviderMode = "audit_only" | "mock" | "http_webhook";
+import type { LockProviderId } from "../locks/types";
+
+/** Kept for the older callers; the full list of brands now lives in ../locks/types. */
+export type SmartLockProviderMode = LockProviderId;
 
 export type SmartLockTenantConfig = {
   provider?: SmartLockProviderMode;
