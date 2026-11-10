@@ -5,6 +5,7 @@ import { TemplateThumbnail } from "@/components/website/TemplateThumbnail";
 import { XYVOO_AUTH_ROUTES } from "@/constants/auth-links";
 import { WEBSITE_TEMPLATES } from "@/constants/website-templates";
 import type { WebsiteTemplate } from "@/types";
+import { HeroWatermark } from "@/components/website/HeroWatermark";
 
 /** Same static grid backdrop as the /solution/storefront hero. */
 const HERO_GRID_STYLE: CSSProperties = {
@@ -124,6 +125,7 @@ export default function WebsiteTemplatesPage() {
       {/* Hero — same dense split layout as the Storefront/HMS landing pages */}
       <section className="relative isolate overflow-hidden border-b border-white/5 bg-[#04140f] px-6 pb-20 pt-36 md:px-12 md:pb-24 lg:px-6">
         <div className="pointer-events-none absolute inset-0 z-0" style={HERO_GRID_STYLE} aria-hidden />
+        <HeroWatermark text="looks" tone="dark" />
         <div
           className="pointer-events-none absolute -top-16 right-[8%] z-0 h-[360px] w-[360px] rounded-full blur-[100px]"
           style={{ background: "rgb(var(--xyvoo-teal-product-rgb, 77 208 196) / 0.24)" }}

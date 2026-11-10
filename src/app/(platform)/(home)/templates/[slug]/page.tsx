@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { ArrowUpRight, Check } from "lucide-react";
 import { TemplatePreviewer } from "@/components/website/TemplatePreviewer";
 import { WEBSITE_TEMPLATES, getWebsiteTemplate } from "@/constants/website-templates";
+import { HeroWatermark } from "@/components/website/HeroWatermark";
 
 /** Same static grid backdrop as the /templates and /solution/storefront heroes. */
 const HERO_GRID_STYLE: CSSProperties = {
@@ -67,6 +68,7 @@ export default async function WebsiteTemplatePreviewPage({ params }: { params: P
       {/* Dark band: /templates is a Storefront path, so the site header is transparent with light text here. */}
       <header className="relative isolate overflow-hidden border-b border-white/5 bg-[#04140f] px-6 pb-16 pt-36 md:px-12 md:pb-20 lg:px-6">
         <div className="pointer-events-none absolute inset-0 z-0" style={HERO_GRID_STYLE} aria-hidden />
+        <HeroWatermark text="preview" tone="dark" />
         <div
           className="pointer-events-none absolute -top-16 right-[8%] z-0 h-[360px] w-[360px] rounded-full blur-[100px]"
           style={{ background: "rgb(var(--xyvoo-teal-product-rgb, 77 208 196) / 0.24)" }}

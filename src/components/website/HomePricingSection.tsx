@@ -120,6 +120,7 @@ export function HomePricingSection({
       {standalonePage && (
         <DarkSplitHero
           eyebrow="Pricing"
+          watermark="plans"
           title={
             <>
               Plans That Grow <span className="text-[#90caf9]">With You</span>

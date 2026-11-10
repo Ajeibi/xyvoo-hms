@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { XYVOO_FAQS } from "@/constants/faqs";
+import { HeroWatermark } from "@/components/website/HeroWatermark";
 
 /** Same static grid backdrop used on /solution/hms and the business-type pages' hero. */
 const DARK_GRID_STYLE: CSSProperties = {
@@ -138,6 +139,7 @@ export default function SupportPage() {
       {/* Hero — dense split layout, same treatment as /solution/hms and the business-type pages */}
       <section className="relative isolate overflow-hidden border-b border-white/5 bg-[#000d1f] px-6 pt-36 pb-20 md:px-12 md:pb-24 lg:px-6">
         <div className="pointer-events-none absolute inset-0 z-0" style={DARK_GRID_STYLE} aria-hidden />
+        <HeroWatermark text="help" tone="dark" />
         <div
           className="pointer-events-none absolute -top-16 right-[8%] z-0 h-[360px] w-[360px] rounded-full blur-[100px]"
           style={{ background: "rgb(var(--xyvoo-blue-rgb) / 0.24)" }}

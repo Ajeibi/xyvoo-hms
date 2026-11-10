@@ -591,3 +591,24 @@
     color: var(--color-slate-600, #475569);
   }
 }
+
+/* Site motion: cards lifted by GSAP reveals get a hover rise via the
+   individual `translate` property, so it never fights GSAP's `transform`. */
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .xyvoo-lift {
+    transition:
+      translate 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 0.35s ease,
+      background-color 0.2s ease,
+      border-color 0.2s ease,
+      color 0.2s ease;
+  }
+  .xyvoo-lift:hover {
+    translate: 0 -6px;
+    box-shadow: 0 18px 40px -18px rgb(var(--xyvoo-navy-rgb) / 0.28);
+  }
+  #main-content a[class*="rounded-full"]:active,
+  #main-content button:active {
+    scale: 0.97;
+  }
+}

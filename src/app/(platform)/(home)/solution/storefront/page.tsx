@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { SolutionsStorefrontDeepDive } from "@/components/website/SolutionsStorefrontDeepDive";
 import { SOLUTIONS_STOREFRONT_HERO } from "@/constants/solutions-storefront";
+import { HeroWatermark } from "@/components/website/HeroWatermark";
 
 /** Grid backdrop — transparent white grid lines for dark background */
 const STOREFRONT_HERO_GRID_STYLE: CSSProperties = {
@@ -35,6 +36,7 @@ export default function SolutionsStorefrontPage() {
           style={STOREFRONT_HERO_GRID_STYLE}
           aria-hidden
         />
+        <HeroWatermark text="stores" tone="dark" />
         {/* Two off-centre glow blobs, not one centred glow — mirrors the
             asymmetric two-blob technique already used behind the HMS ops
             wheel and the storefront features glow elsewhere on the site. */}

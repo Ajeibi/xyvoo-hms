@@ -112,6 +112,7 @@ export default function ResourcesPage() {
     <>
       <DarkSplitHero
         eyebrow="Guides & Downloads"
+        watermark="guides"
         title="The Resource Library"
         subtitle="Practical, printable guides on running a hotel or storefront. They are free to read online or download, with no sign-up required."
         links={[

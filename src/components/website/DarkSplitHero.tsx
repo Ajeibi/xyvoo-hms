@@ -4,6 +4,7 @@ import type { CSSProperties, ReactNode } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowUpRight } from "lucide-react";
+import { HeroWatermark } from "@/components/website/HeroWatermark";
 
 export type DarkSplitHeroLink = {
   title: string;
@@ -25,6 +26,7 @@ const DARK_GRID_STYLE: CSSProperties = {
  * pages. `children` renders under the subtitle (e.g. a search box). */
 export function DarkSplitHero({
   eyebrow,
+  watermark,
   title,
   titleId,
   subtitle,
@@ -32,6 +34,8 @@ export function DarkSplitHero({
   children,
 }: {
   eyebrow: string;
+  /** One lowercase word for the hero watermark. */
+  watermark: string;
   title: ReactNode;
   titleId?: string;
   subtitle: string;
@@ -41,6 +45,7 @@ export function DarkSplitHero({
   return (
     <section className="relative isolate overflow-hidden border-b border-white/5 bg-[#000d1f] px-6 pt-36 pb-20 md:px-12 md:pb-24 lg:px-6">
       <div className="pointer-events-none absolute inset-0 z-0" style={DARK_GRID_STYLE} aria-hidden />
+      <HeroWatermark text={watermark} tone="dark" />
       <div
         className="pointer-events-none absolute -top-16 right-[8%] z-0 h-[360px] w-[360px] rounded-full blur-[100px]"
         style={{ background: "rgb(var(--xyvoo-blue-rgb) / 0.24)" }}

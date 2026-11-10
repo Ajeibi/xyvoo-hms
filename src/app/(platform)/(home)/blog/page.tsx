@@ -36,6 +36,7 @@ export default function BlogPage() {
     <>
       <DarkSplitHero
         eyebrow="Insights & Resources"
+        watermark="stories"
         title="The XYVOO Blog"
         subtitle="Practical guides, data-driven insights, and hotel management ideas from the XYVOO team."
         links={[

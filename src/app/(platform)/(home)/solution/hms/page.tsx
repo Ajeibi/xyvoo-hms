@@ -7,6 +7,7 @@ import { ArrowRight } from "lucide-react";
 import { HotelOpsWheel } from "@/components/website/HotelOpsWheel";
 import { SolutionsHotelDeepDive } from "@/components/website/SolutionsHotelDeepDive";
 import { SOLUTIONS_HOTEL_HERO } from "@/constants/solutions-hotel";
+import { HeroWatermark } from "@/components/website/HeroWatermark";
 
 /** Grid backdrop — transparent white grid lines for dark background */
 const HOTEL_HERO_GRID_STYLE: CSSProperties = {
@@ -28,6 +29,7 @@ export default function SolutionsHotelPage() {
           style={HOTEL_HERO_GRID_STYLE}
           aria-hidden
         />
+        <HeroWatermark text="hotels" tone="dark" />
 
         <div className="relative z-10 mx-auto w-full max-w-[1380px] px-6 md:px-12 lg:px-6 grid grid-cols-1 min-[801px]:grid-cols-2 gap-12 items-center">
           <motion.div

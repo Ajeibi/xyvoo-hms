@@ -6,7 +6,7 @@ import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { XYVOO_AUTH_ROUTES } from "@/constants/auth-links";
-import { GridPulses } from "@/components/website/GridPulses";
+import { HeroWatermark } from "@/components/website/HeroWatermark";
 
 const XYVOO_SHIELD = "/images/XYVOO%20Shield.png" as const;
 type HeroTabId = "company" | "hms" | "storefront";
@@ -34,6 +34,13 @@ type HeroTab = {
   primaryCta: { label: string; href: string };
   secondaryCta?: { label: string; href: string };
   isDarkTheme?: boolean;
+};
+
+/** One lowercase word per tab for the hero watermark. */
+const HERO_WATERMARKS: Record<HeroTabId, string> = {
+  company: "xyvoo",
+  hms: "hotels",
+  storefront: "stores",
 };
 
 const HERO_TABS: HeroTab[] = [
@@ -266,9 +273,10 @@ function FadeSwap({
       <motion.div
         key={id}
         className={className}
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: "easeOut" }}
+        initial={{ opacity: 0, y: 28, filter: "blur(8px)" }}
+        animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+        exit={{ opacity: 0, y: -20, filter: "blur(6px)" }}
+        transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
       >
         {children}
       </motion.div>
@@ -335,7 +343,7 @@ export function HomeHero() {
       }
       style={sectionStyle}
     >
-      <GridPulses color={active.pulseColor ?? active.accentText} />
+      <HeroWatermark text={HERO_WATERMARKS[active.id] ?? "xyvoo"} tone={isDark ? "dark" : "light"} />
       <div className={
         "relative z-10 w-full pb-4 transition-all duration-300 " +
         (activeId === "storefront" || activeId === "hms" ? "pt-10 lg:pt-16" : "pt-2")

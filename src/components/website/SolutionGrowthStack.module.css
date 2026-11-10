@@ -4,7 +4,7 @@
    React (scroll-scrubbed, no CSS transition) — see SolutionGrowthStack.tsx.
    Background matches the hero's dark-tab grid — same faint 0.01 line
    opacity as getGridImage(isDark) in HomeHero.tsx — but without the
-   travelling glow-dots (GridPulses), which read as too busy here. */
+   travelling glow-dots (since removed), which read as too busy here. */
 .wrap {
   --void: #04140f;
   --panel: #0b241d;

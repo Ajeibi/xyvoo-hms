@@ -6,7 +6,7 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import { motion, useScroll, useTransform, type Variants } from "framer-motion";
 import { ArrowRight, ArrowUpRight, BedDouble, ShoppingBag, ShieldCheck } from "lucide-react";
 import { SectionEyebrow } from "@/components/website/SectionEyebrow";
-import { GridPulses } from "@/components/website/GridPulses";
+import { HeroWatermark } from "@/components/website/HeroWatermark";
 import {
   ABOUT_HERO,
   ABOUT_WHO_WE_ARE,
@@ -107,7 +107,7 @@ export default function AboutPage() {
           backgroundSize: "40px 40px",
         }}
       >
-        <GridPulses color="#90caf9" />
+        <HeroWatermark text="story" />
         <div
           className="pointer-events-none absolute -top-16 right-[8%] z-0 h-[360px] w-[360px] rounded-full blur-[100px]"
           style={{ background: "rgb(var(--xyvoo-blue-rgb) / 0.24)" }}

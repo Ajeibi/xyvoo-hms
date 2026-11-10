@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { BellRing, FlaskConical, ShieldCheck } from "lucide-react";
-import { GridPulses } from "@/components/website/GridPulses";
+import { HeroWatermark } from "@/components/website/HeroWatermark";
 import WaitlistForm from "@/components/website/WaitlistForm";
 import { parseWaitlistProduct, waitlistProductName } from "@/lib/marketing/waitlist-products";
 
@@ -42,7 +42,7 @@ export default async function WaitlistPage({ searchParams }: { searchParams: Pro
         backgroundSize: "40px 40px",
       }}
     >
-      <GridPulses color="#90caf9" />
+      <HeroWatermark text="soon" />
       {/* On phones the form follows the intro; from lg it sits beside both. */}
       <div className="relative z-10 mx-auto grid max-w-[1200px] grid-cols-1 gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-x-16 lg:gap-y-10">
         <div className="lg:col-start-1 lg:row-start-1 lg:self-end">

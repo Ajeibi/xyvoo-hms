@@ -4,7 +4,7 @@ import type { CSSProperties } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowUpRight } from "lucide-react";
-import { GridPulses } from "@/components/website/GridPulses";
+import { HeroWatermark } from "@/components/website/HeroWatermark";
 import { HomePricingSection } from "@/components/website/HomePricingSection";
 import { SolutionAtAGlance } from "@/components/website/SolutionAtAGlance";
 import { SolutionFeatureGroups } from "@/components/website/SolutionFeatureGroups";
@@ -27,6 +27,15 @@ const DARK_GRID_STYLE: CSSProperties = {
       linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px)
     `,
   backgroundSize: "40px 40px",
+};
+
+/** One lowercase word per page for the hero watermark. */
+const STOREFRONT_WATERMARKS: Record<string, string> = {
+  "customer-engagement": "loyal",
+  payments: "paid",
+  inventory: "stock",
+  "solo-sellers": "solo",
+  "growing-retailers": "growth",
 };
 
 export function StorefrontExtraLanding({ page }: { page: StorefrontExtraPage }) {
@@ -161,7 +170,7 @@ export function StorefrontExtraLanding({ page }: { page: StorefrontExtraPage }) 
       {/* Hero — dense split layout, same bg as /solution/storefront's own hero */}
       <section className="relative isolate overflow-hidden border-b border-white/5 bg-[#04140f] px-6 pt-36 pb-20 md:px-12 md:pb-24 lg:px-6">
         <div className="pointer-events-none absolute inset-0 z-0" style={DARK_GRID_STYLE} aria-hidden />
-        <GridPulses color="#4dd0c4" />
+        <HeroWatermark text={STOREFRONT_WATERMARKS[page.id] ?? "stores"} tone="dark" />
         <div
           className="pointer-events-none absolute -top-16 right-[8%] z-0 h-[360px] w-[360px] rounded-full blur-[100px]"
           style={{ background: "rgb(var(--xyvoo-teal-product-rgb, 77 208 196) / 0.24)" }}

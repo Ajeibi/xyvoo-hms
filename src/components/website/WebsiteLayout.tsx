@@ -65,6 +65,7 @@ import {
 } from "@/components/website/WebsiteHeaderAuthMenus";
 
 import { LOGO_URL, LOGO_LIGHT_URL } from "@/constants/branding";
+import { SiteMotion } from "@/components/website/motion/SiteMotion";
 import { DEMO_BOOKING_HREF } from "@/constants/booking";
 import type { IconType } from "react-icons";
 import { FaFacebookF, FaLinkedinIn, FaXTwitter } from "react-icons/fa6";
@@ -827,6 +828,7 @@ export default function WebsiteLayout({
       >
         Skip to content
       </a>
+      <SiteMotion />
       <WebsiteHeader key={pathname} pathname={pathname} />
       <MobileNavSidebar pathname={pathname} />
 

@@ -8,7 +8,7 @@ import { FaEnvelope, FaLinkedinIn, FaWhatsapp, FaYahoo } from "react-icons/fa6";
 import { PiMicrosoftOutlookLogo } from "react-icons/pi";
 import { SiGmail } from "react-icons/si";
 import type { MarketingContactForm } from "@/types";
-import { GridPulses } from "@/components/website/GridPulses";
+import { HeroWatermark } from "@/components/website/HeroWatermark";
 import { DEMO_BOOKING_ANCHOR, DEMO_BOOKING_URL } from "@/constants/booking";
 
 /** Scroll-linked slide: arrives from the side as it comes into view, leaves the same way. */
@@ -175,7 +175,7 @@ export default function ContactPage() {
           backgroundSize: "40px 40px",
         }}
       >
-        <GridPulses color="#90caf9" />
+        <HeroWatermark text="hello" />
         <div
           className="pointer-events-none absolute -top-16 right-[8%] z-0 h-90 w-90 rounded-full blur-[100px]"
           style={{ background: "rgb(var(--xyvoo-blue-rgb) / 0.24)" }}
