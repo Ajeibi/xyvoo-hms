@@ -101,6 +101,35 @@ const CURTAIN_WORDS: [string, string][] = [
   ["/resources", "guides"],
 ];
 
+const CURTAIN_CAPTIONS: [string, string][] = [
+  ["/solution/hms/guest-experience", "Taking you to the guest journey"],
+  ["/solution/hms/operations", "Taking you behind the front desk"],
+  ["/solution/hms/finance-analytics", "Taking you to the numbers"],
+  ["/solution/hms", "Taking you to the hotel toolkit"],
+  ["/solution/storefront/customer-engagement", "Taking you to happy repeat buyers"],
+  ["/solution/storefront/payments", "Taking you to getting paid"],
+  ["/solution/storefront/inventory", "Taking you to the stockroom"],
+  ["/solution/storefront", "Taking you to your online store"],
+  ["/business-types/independent-hotels", "Taking you to your own property"],
+  ["/business-types/hotel-groups", "Taking you to every property at once"],
+  ["/business-types/solo-sellers", "Taking you to your one-person shop"],
+  ["/business-types/growing-retailers", "Taking you to scaling up"],
+  ["/templates", "Taking you to the template gallery"],
+  ["/about", "Taking you to our story"],
+  ["/contact", "Taking you to contact"],
+  ["/waitlist", "Taking you to the front of the line"],
+  ["/support", "Taking you to the help desk"],
+  ["/pricing", "Taking you to plans that fit"],
+  ["/blog", "Taking you to the stories"],
+  ["/resources", "Taking you to the guides"],
+];
+
+/** The caption under the loader logo for the page being opened. */
+function curtainCaptionFor(pathname: string): string {
+  const hit = CURTAIN_CAPTIONS.find(([p]) => pathname === p || pathname.startsWith(p + "/"));
+  return hit ? hit[1] : "Taking you to XYVOO";
+}
+
 /** The lowercase word shown behind the loader for the page being opened. */
 function curtainWordFor(pathname: string): string {
   if (pathname === "/") return "xyvoo";
@@ -112,6 +141,7 @@ function curtainWordFor(pathname: string): string {
 let curtainPending = false;
 let curtainTheme: CurtainTheme = "white";
 let curtainWord = "xyvoo";
+let curtainCaption = "Taking you to XYVOO";
 let headerIntroPlayed = false;
 
 /* -------------------------------------------------------------------------- */
@@ -554,7 +584,7 @@ function applyCurtainTheme(curtain: HTMLElement, theme: CurtainTheme) {
   }
   const caption = q("[data-caption]");
   if (caption) {
-    caption.textContent = `Taking you to ${curtainWord === "xyvoo" ? "XYVOO" : curtainWord}`;
+    caption.textContent = curtainCaption;
     caption.style.color = c.dark ? "rgba(255,255,255,0.55)" : "rgba(7,22,44,0.5)";
   }
   const onDark = q("[data-logo-on-dark]");
@@ -694,6 +724,7 @@ export function SiteMotion() {
 
       curtainTheme = curtainThemeFor(url.pathname);
       curtainWord = curtainWordFor(url.pathname);
+      curtainCaption = curtainCaptionFor(url.pathname);
       applyCurtainTheme(curtain, curtainTheme);
 
       // The shield rolls in from the right like a ball: distance / radius gives
