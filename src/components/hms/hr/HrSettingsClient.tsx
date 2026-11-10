@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Banknote, CalendarDays, Clock, Lock, Palmtree, Tablet } from "lucide-react";
 import { HmsAlert, HmsCard, HmsField, HmsPill, hmsButton, hmsInput } from "@/components/hms/hms-ui";
 import { callHr, checkboxClass } from "@/components/hms/hr/hr-ui";
+import type { PublicHoliday } from "@/lib/hms/hr/hr-holidays";
 import type { HrSettings, LeaveType, ShiftTemplate } from "@/lib/hms/hr/hr-shared";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -50,6 +51,8 @@ export function HrSettingsClient(p: {
   grants: string[];
   isOwner: boolean;
   origin: string;
+  holidays: PublicHoliday[];
+  year: number;
 }) {
   return (
     <div className="grid gap-4 lg:grid-cols-2">
@@ -57,6 +60,7 @@ export function HrSettingsClient(p: {
       <ClockScreen {...p} />
       <ShiftTypes {...p} />
       <LeaveTypes {...p} />
+      <Holidays {...p} />
       <Payroll {...p} />
       <WhoSeesPay {...p} />
     </div>
@@ -172,6 +176,13 @@ function ClockScreen({ slug, settings, origin }: { slug: string; settings: HrSet
         <label className="flex items-center gap-2">
           <input type="checkbox" className={checkboxClass} checked={settings.kioskSelfService} disabled={busy} onChange={(e) => void save({ action: "settings", kioskSelfService: e.target.checked })} />
           Staff can swap shifts, pick up open shifts and ask for leave there
+        </label>
+        <label className="flex items-start gap-2">
+          <input type="checkbox" className={`${checkboxClass} mt-0.5`} checked={settings.kioskPhoto} disabled={busy} onChange={(e) => void save({ action: "settings", kioskPhoto: e.target.checked })} />
+          <span>
+            Take a photo at each clock-in and clock-out
+            <span className="block text-xs text-slate-600">Stops one person clocking in for another. The tablet asks once for camera access; photos show on the Time page and are kept private.</span>
+          </span>
         </label>
         {status}
       </div>
@@ -370,6 +381,69 @@ function Payroll({ slug, settings }: { slug: string; settings: HrSettings }) {
           {status}
         </div>
       </form>
+    </HmsCard>
+  );
+}
+
+function Holidays({ slug, holidays, year }: { slug: string; holidays: PublicHoliday[]; year: number }) {
+  const { busy, save, status } = useSave(slug);
+  const [date, setDate] = useState("");
+  const [name, setName] = useState("");
+  const fmt = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+  return (
+    <HmsCard
+      title="Public holidays"
+      icon={CalendarDays}
+      meaning="team"
+      description="Leave and part-month pay skip these days as well as weekends. Add the Eid holidays and the Prophet's birthday when the government announces the dates, and any replacement Monday it declares."
+    >
+      <div className="space-y-3 text-sm">
+        <div className="flex flex-wrap gap-2">
+          {[year, year + 1].map((y) => (
+            <button key={y} type="button" className={hmsButton.secondary} disabled={busy} onClick={() => void save({ action: "holiday_defaults", year: y }, `Nigeria's fixed holidays for ${y} are in.`)}>
+              Add Nigeria&apos;s fixed holidays for {y}
+            </button>
+          ))}
+        </div>
+        <form
+          className="flex flex-wrap items-end gap-2"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const d = await save({ action: "holiday_add", date, name }, "Holiday added.");
+            if (d) {
+              setDate("");
+              setName("");
+            }
+          }}
+        >
+          <HmsField id="hol-date" label="Date">
+            <input id="hol-date" type="date" required className={hmsInput} value={date} onChange={(e) => setDate(e.target.value)} />
+          </HmsField>
+          <HmsField id="hol-name" label="Name">
+            <input id="hol-name" required maxLength={80} className={hmsInput} placeholder="Eid al-Fitr" value={name} onChange={(e) => setName(e.target.value)} />
+          </HmsField>
+          <button type="submit" className={hmsButton.primary} disabled={busy}>
+            Add
+          </button>
+        </form>
+        {holidays.length === 0 ? (
+          <p className="text-slate-600">No public holidays yet, so only weekends are skipped.</p>
+        ) : (
+          <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200">
+            {holidays.map((h) => (
+              <li key={h.id} className="flex items-center justify-between gap-2 px-3 py-1.5">
+                <span>
+                  <span className="tabular-nums text-slate-600">{fmt(h.date)}</span> · <span className="text-slate-900">{h.name}</span>
+                </span>
+                <button type="button" className={hmsButton.quiet} disabled={busy} onClick={() => void save({ action: "holiday_remove", id: h.id }, "Removed.")} aria-label={`Remove ${h.name}`}>
+                  Remove
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {status}
+      </div>
     </HmsCard>
   );
 }

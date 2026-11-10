@@ -1,9 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { z } from "zod";
 import { rateLimitShared } from "@/lib/rate-limit";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { kioskState } from "@/lib/hms/hr/hr-kiosk";
-import { clock, employeeByPin, tenantForKiosk } from "@/lib/hms/hr/hr-time";
+import { decodeClockPhoto, hrFilePath, uploadHrFile } from "@/lib/hms/hr/hr-files";
+import { alertMissingStaff, clock, employeeByPin, tenantForKiosk } from "@/lib/hms/hr/hr-time";
 import { cancelLeave, requestLeave } from "@/lib/hms/hr/hr-leave";
 import { acceptSwap, cancelSwap, offerShift, pickUpShift, requestSwap } from "@/lib/hms/hr/hr-swaps";
 
@@ -27,7 +28,18 @@ const Body = z.object({
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   leaveId: z.string().uuid().optional(),
+  /** A small JPEG from the tablet camera, when the hotel takes photos at clock-in and clock-out. */
+  photo: z.string().max(600_000).optional(),
 });
+
+/** Checks for staff who haven't clocked in, at most every 5 minutes per hotel, after the reply has gone. */
+function checkLateStaff(tenantId: string) {
+  after(async () => {
+    const gate = await rateLimitShared(`hr-late-check:${tenantId}`, 1, 5 * 60_000);
+    if (!gate.ok) return;
+    await alertMissingStaff(createServerSupabaseClient(), tenantId).catch((e) => console.warn("[hr late check]", e));
+  });
+}
 
 function clientKey(req: Request) {
   return (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "unknown";
@@ -42,6 +54,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
   const limit = await rateLimitShared(`hr-kiosk:${token.slice(0, 12)}:${clientKey(req)}`, 20, 60_000);
   if (!limit.ok) return NextResponse.json({ error: `Too many tries. Wait ${limit.retryAfterSeconds} seconds.` }, { status: 429 });
 
+  checkLateStaff(kiosk.tenantId);
   const parsed = Body.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Type your 4 to 6 number PIN." }, { status: 400 });
   const employee = await employeeByPin(service, kiosk.tenantId, parsed.data.pin);
@@ -55,6 +68,22 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
     const r = await clock(service, t, employee, b.action as (typeof CLOCK)[number]);
     result = r;
     message = r.message;
+    if (!r.error && r.entryId && kiosk.photo && (b.action === "clock_in" || b.action === "clock_out")) {
+      // The clock-in stands even if the photo is missing or fails; the Time page shows it has none.
+      const photo = b.photo ? decodeClockPhoto(b.photo) : null;
+      if (photo) {
+        const path = hrFilePath(t, `clock/${new Date().toISOString().slice(0, 7)}`, photo.type);
+        const up = await uploadHrFile(service, path, photo.bytes, photo.type);
+        if (!up.error) {
+          await service
+            .schema("hotel")
+            .from("hr_time_entries")
+            .update(b.action === "clock_in" ? { clock_in_photo_path: path } : { clock_out_photo_path: path })
+            .eq("tenant_id", t)
+            .eq("id", r.entryId);
+        }
+      }
+    }
   } else if (b.action !== "identify") {
     if (!kiosk.selfService) return NextResponse.json({ error: "The hotel has switched off requests on the clock screen. Ask a manager." }, { status: 403 });
     switch (b.action) {
@@ -93,5 +122,5 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
   }
   if (result.error) return NextResponse.json({ error: result.error }, { status: 400 });
   const state = await kioskState(service, t, employee, kiosk.selfService);
-  return NextResponse.json({ message, state, selfService: kiosk.selfService }, { headers: { "Cache-Control": "no-store" } });
+  return NextResponse.json({ message, state, selfService: kiosk.selfService, photo: kiosk.photo }, { headers: { "Cache-Control": "no-store" } });
 }

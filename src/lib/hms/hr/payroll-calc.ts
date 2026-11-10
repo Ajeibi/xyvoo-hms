@@ -27,7 +27,15 @@ export type PayInputs = {
   pensionEnabled: boolean;
   nsitfEnabled: boolean;
   itfEnabled: boolean;
+  /**
+   * Pay already taxed earlier this tax year (calendar year) on approved runs. When given, PAYE is
+   * worked out cumulatively: tax due on all pay to date, with bands and reliefs for the months
+   * paid so far, less PAYE already taken. Mid-year pay changes and bonuses then even out.
+   */
+  ytd?: YearToDate | null;
 };
+
+export type YearToDate = { months: number; gross: number; pension: number; nhf: number; paye: number };
 
 export type PayResult = {
   regime: PayeRegime["key"];
@@ -50,6 +58,11 @@ export type PayResult = {
   payeAnnual: number;
   paye: number;
   payeNote: string | null;
+  /** "cumulative" when earlier pay this year was taken into account; "annualised" otherwise. */
+  payeMethod?: "cumulative" | "annualised";
+  /** Year to date including this month (cumulative method only). */
+  ytdGross?: number;
+  ytdPaye?: number;
   otherDeductions: number;
   netPay: number;
   nsitf: number;
@@ -81,16 +94,20 @@ export function annualPaye(params: {
   nhfAnnual: number;
   rentPaidAnnual: number;
   otherReliefsAnnual: number;
+  /** Share of the year covered (months / 12). Bands, the fixed reliefs and caps shrink with it. */
+  fraction?: number;
 }): { tax: number; taxable: number; rent: number; cra: number; minimumTaxApplied: boolean } {
   const { regime, grossAnnual } = params;
+  const f = Math.min(1, Math.max(0, params.fraction ?? 1));
   // Pension and NHF contributions are deducted before tax under both regimes.
-  const statutory = params.pensionAnnual + params.nhfAnnual + params.otherReliefsAnnual;
-  const rent = regime.rentRelief ? Math.min(params.rentPaidAnnual * regime.rentRelief.percent, regime.rentRelief.cap) : 0;
+  const statutory = params.pensionAnnual + params.nhfAnnual + params.otherReliefsAnnual * f;
+  const rent = regime.rentRelief ? Math.min(params.rentPaidAnnual * f * regime.rentRelief.percent, regime.rentRelief.cap * f) : 0;
   const cra = regime.cra
-    ? Math.max(regime.cra.fixed, grossAnnual * regime.cra.percentOfGrossFloor) + grossAnnual * regime.cra.percentOfGross
+    ? Math.max(regime.cra.fixed * f, grossAnnual * regime.cra.percentOfGrossFloor) + grossAnnual * regime.cra.percentOfGross
     : 0;
   const taxable = Math.max(0, grossAnnual - statutory - rent - cra);
-  let tax = bandTax(taxable, regime.bands);
+  const bands = f === 1 ? regime.bands : regime.bands.map((b) => ({ ...b, upTo: b.upTo === null ? null : b.upTo * f }));
+  let tax = bandTax(taxable, bands);
   let minimumTaxApplied = false;
   if (regime.minimumTaxPercent !== null) {
     const minimum = grossAnnual * regime.minimumTaxPercent;
@@ -161,10 +178,40 @@ export function calculatePay(input: PayInputs): PayResult {
   let payeNote: string | null = null;
   let rent = 0;
   let cra = 0;
+  let payeMethod: "cumulative" | "annualised" = "annualised";
+  let ytdGross: number | undefined;
+  let ytdPaye: number | undefined;
   if (p.payeExempt) {
     payeNote = "Marked as exempt from PAYE.";
   } else if (gross <= regime.minimumWageMonthly) {
     payeNote = `Earns no more than the minimum wage (₦${regime.minimumWageMonthly.toLocaleString("en-NG")} a month), so no PAYE.`;
+  } else if (input.ytd && input.ytd.months > 0) {
+    // Cumulative: tax on everything paid this year so far, with the year's bands and reliefs cut
+    // to the months paid, less the PAYE already taken. Never a negative deduction: any
+    // over-deduction is noted for HR to refund.
+    const ytd = input.ytd;
+    const months = Math.min(12, ytd.months + 1);
+    const toDate = annualPaye({
+      regime,
+      grossAnnual: ytd.gross + gross,
+      pensionAnnual: ytd.pension + pensionEmployee,
+      nhfAnnual: ytd.nhf + nhf,
+      rentPaidAnnual: p.annualRentPaid,
+      otherReliefsAnnual: p.otherReliefsAnnual,
+      fraction: months / 12,
+    });
+    const due = toDate.tax - ytd.paye;
+    paye = Math.max(0, due);
+    payeMethod = "cumulative";
+    ytdGross = ytd.gross + gross;
+    ytdPaye = ytd.paye + paye;
+    // Shown as a yearly figure, like the annualised method.
+    taxableIncomeAnnual = (toDate.taxable * 12) / months;
+    payeAnnual = (toDate.tax * 12) / months;
+    rent = (toDate.rent * 12) / months;
+    cra = (toDate.cra * 12) / months;
+    if (due < -0.005) payeNote = `PAYE taken earlier this year is ₦${Math.abs(due).toLocaleString("en-NG", { maximumFractionDigits: 2 })} more than is due so far; refund it or let it even out.`;
+    else if (toDate.minimumTaxApplied) payeNote = "Minimum tax (1% of gross) applied.";
   } else {
     // Regular pay is taxed as if earned all year, then divided by 12. A one-off payment is
     // added to that year once (not 12 times), and the extra tax it causes is taken this month.
@@ -214,6 +261,8 @@ export function calculatePay(input: PayInputs): PayResult {
     payeAnnual: r2(payeAnnual),
     paye: r2(paye),
     payeNote,
+    payeMethod,
+    ...(ytdGross !== undefined ? { ytdGross: r2(ytdGross), ytdPaye: r2(ytdPaye ?? 0) } : {}),
     otherDeductions: r2(otherDeductions),
     netPay: r2(netPay),
     nsitf: r2(nsitf),

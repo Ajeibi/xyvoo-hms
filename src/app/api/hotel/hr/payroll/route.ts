@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { authHr, canSeeHrPrivate, fail, isFailure } from "@/lib/hms/hr/hr-api";
+import { emailPayslips } from "@/lib/hms/hr/hr-payslip-email";
 import { approvePayRun, createPayRun, markPayRunPaid, recalculatePayRun, voidPayRun } from "@/lib/hms/hr/hr-payroll";
 
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
@@ -12,6 +13,7 @@ const Body = z.discriminatedUnion("action", [
   z.object({ slug: z.string().min(1), action: z.literal("approve"), id: z.string().uuid() }),
   z.object({ slug: z.string().min(1), action: z.literal("paid"), id: z.string().uuid(), paidOn: date }),
   z.object({ slug: z.string().min(1), action: z.literal("void"), id: z.string().uuid(), reason: z.string().trim().min(3).max(300) }),
+  z.object({ slug: z.string().min(1), action: z.literal("email_payslips"), id: z.string().uuid(), employeeId: z.string().uuid().optional() }),
 ]);
 
 export async function POST(req: Request) {
@@ -49,6 +51,15 @@ export async function POST(req: Request) {
     case "void": {
       const r = await voidPayRun(privateDb, auth.service, tenantId, body.id, body.reason, actor);
       return r.error ? fail(r.error) : NextResponse.json({ ok: true });
+    }
+    case "email_payslips": {
+      const r = await emailPayslips(privateDb, auth.service, tenantId, body.id, actor, { employeeId: body.employeeId });
+      if (r.error) return fail(r.error);
+      const notes = [
+        r.noEmail.length ? `No email address for ${r.noEmail.join(", ")}.` : "",
+        r.failed.length ? `Couldn't send to ${r.failed.join(", ")}; try again later.` : "",
+      ].filter(Boolean);
+      return NextResponse.json({ sent: r.sent, warning: notes.join(" ") || null });
     }
   }
 }

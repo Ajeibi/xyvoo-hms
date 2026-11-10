@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Banknote, Download, FileSpreadsheet, Printer } from "lucide-react";
+import { Banknote, Download, FileSpreadsheet, Mail, Printer } from "lucide-react";
 import { HmsAlert, HmsCard, HmsEmptyState, HmsField, HmsPill, HmsWarning, hmsButton, hmsInput } from "@/components/hms/hms-ui";
 import { callHr } from "@/components/hms/hr/hr-ui";
 import { naira } from "@/lib/hms/hr/hr-shared";
 import type { PayRun, Payslip } from "@/lib/hms/hr/hr-payroll";
+import type { PayslipSend } from "@/lib/hms/hr/hr-payslip-email";
 
 const STATUS_TONE = { draft: "amber", approved: "blue", paid: "green", void: "slate" } as const;
 const STATUS_LABEL = { draft: "Draft", approved: "Approved", paid: "Paid", void: "Void" } as const;
@@ -85,11 +86,36 @@ export function PayRunsClient({ slug, runs, defaultStart, defaultEnd }: { slug: 
           </ul>
         )}
       </HmsCard>
+      <YearEndCard slug={slug} runs={runs} />
     </div>
   );
 }
 
-export function PayRunClient({ slug, run, slips, today }: { slug: string; run: PayRun; slips: Payslip[]; today: string }) {
+/** Year-end PAYE return (Form H1), due to the state tax office by 31 January. */
+function YearEndCard({ slug, runs }: { slug: string; runs: PayRun[] }) {
+  const years = [...new Set(runs.filter((r) => r.status === "approved" || r.status === "paid").map((r) => Number(r.periodEnd.slice(0, 4))))].sort((a, b) => b - a);
+  if (!years.length) return null;
+  const href = (y: number, format: string) => `/api/hotel/hr/payroll/annual?slug=${encodeURIComponent(slug)}&year=${y}&format=${format}`;
+  return (
+    <HmsCard title="Year-end PAYE return" icon={FileSpreadsheet} meaning="money" description="Pay and PAYE per person for the year, from approved runs, for Form H1. File it with your state tax office by 31 January.">
+      <ul className="space-y-2 text-sm">
+        {years.map((y) => (
+          <li key={y} className="flex flex-wrap items-center gap-2">
+            <span className="w-12 font-semibold text-slate-900">{y}</span>
+            <a className={hmsButton.small} href={href(y, "xlsx")}>
+              <Download className="h-4 w-4" aria-hidden /> Excel
+            </a>
+            <a className={hmsButton.small} href={href(y, "csv")}>
+              <Download className="h-4 w-4" aria-hidden /> CSV
+            </a>
+          </li>
+        ))}
+      </ul>
+    </HmsCard>
+  );
+}
+
+export function PayRunClient({ slug, run, slips, today, sends = {} }: { slug: string; run: PayRun; slips: Payslip[]; today: string; sends?: Record<string, PayslipSend> }) {
   const { busy, error, message, send } = useSend(slug);
   const [paidOn, setPaidOn] = useState(today);
   const [voidReason, setVoidReason] = useState("");
@@ -158,6 +184,20 @@ export function PayRunClient({ slug, run, slips, today }: { slug: string; run: P
             </button>
           </form>
         ) : null}
+        {run.status === "approved" || run.status === "paid" ? (
+          <button
+            type="button"
+            className={hmsButton.secondary}
+            disabled={busy}
+            onClick={() => {
+              const already = slips.filter((s) => sends[s.id]).length;
+              if (already && !window.confirm(`${already} of ${slips.length} payslips were emailed before. Send everyone's again?`)) return;
+              void send({ action: "email_payslips", id: run.id }, "Payslips emailed.");
+            }}
+          >
+            <Mail className="h-4 w-4" aria-hidden /> Email payslips to staff
+          </button>
+        ) : null}
       </div>
 
       <HmsCard title="Downloads" icon={Download} meaning="money" description="For the bank, the state tax office, pension administrators and the NHF.">
@@ -167,6 +207,9 @@ export function PayRunClient({ slug, run, slips, today }: { slug: string; run: P
           </a>
           <a className={hmsButton.small} href={exportHref("bank")}>
             Bank schedule (CSV)
+          </a>
+          <a className={hmsButton.small} href={exportHref("bank", "xlsx")}>
+            Bank schedule (Excel)
           </a>
           <a className={hmsButton.small} href={exportHref("paye")}>
             PAYE schedule (CSV)
@@ -246,6 +289,17 @@ export function PayRunClient({ slug, run, slips, today }: { slug: string; run: P
                     <Link className={hmsButton.quiet} href={`/hms/${slug}/hr/payroll/${run.id}/payslip/${s.employeeId}`}>
                       <Printer className="h-3.5 w-3.5" aria-hidden /> Payslip
                     </Link>
+                    {run.status === "approved" || run.status === "paid" ? (
+                      <button
+                        type="button"
+                        className={hmsButton.quiet}
+                        disabled={busy}
+                        title={sends[s.id] ? `Emailed to ${sends[s.id].sentTo} on ${new Date(sends[s.id].sentAt).toLocaleString("en-GB", { timeZone: "Africa/Lagos", dateStyle: "medium", timeStyle: "short" })}` : "Not emailed yet"}
+                        onClick={() => void send({ action: "email_payslips", id: run.id, employeeId: s.employeeId }, `Payslip emailed to ${s.snapshot.name}.`)}
+                      >
+                        <Mail className="h-3.5 w-3.5" aria-hidden /> {sends[s.id] ? "Sent · resend" : "Email"}
+                      </button>
+                    ) : null}
                     {run.status === "draft" ? (
                       <button type="button" className={hmsButton.quiet} onClick={() => setOneOff({ employeeId: s.employeeId, amount: String(s.result.oneOffAdditions || ""), note: run.oneOffs[s.employeeId]?.note ?? "" })}>
                         One-off

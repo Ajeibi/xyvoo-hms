@@ -159,7 +159,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       result = await addDocument(privateDb, tenantId, id, body, actor);
       break;
     case "document_remove":
-      result = await deleteDocument(privateDb, tenantId, id, body.documentId, actor);
+      result = await deleteDocument(privateDb, tenantId, id, body.documentId, actor, auth.service);
       break;
   }
   if (result.error) return fail(result.error);

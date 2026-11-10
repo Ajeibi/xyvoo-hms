@@ -107,6 +107,9 @@ export type EmployeeDocument = {
   receivedOn: string | null;
   expiresOn: string | null;
   note: string | null;
+  /** The uploaded scan's file name, if a file is held. */
+  fileName?: string | null;
+  hasFile?: boolean;
 };
 
 export type HrSettings = {
@@ -119,6 +122,8 @@ export type HrSettings = {
   overtimeMultiplier: number;
   kioskEnabled: boolean;
   kioskSelfService: boolean;
+  /** Take a photo with the tablet camera at each clock-in and clock-out. */
+  kioskPhoto: boolean;
   hasKioskLink: boolean;
   pensionEnabled: boolean;
   nsitfEnabled: boolean;
@@ -198,6 +203,9 @@ export type TimeEntry = {
   lateMinutes: number | null;
   /** Minutes left before the shift's end, or null. */
   leftEarlyMinutes: number | null;
+  /** Clock screen photos: a storage path from the database, swapped for a link that expires before it reaches the browser. */
+  clockInPhoto?: string | null;
+  clockOutPhoto?: string | null;
 };
 
 export type LeaveType = {

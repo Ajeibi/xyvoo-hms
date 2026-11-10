@@ -490,6 +490,53 @@ function PayCard({ slug, employee: e, pay, payrollSwitches }: Props) {
   );
 }
 
+/** A file picker that uploads a scan for one document as soon as a file is chosen. */
+function ScanUpload({ slug, employeeId, documentId, label, kind }: { slug: string; employeeId: string; documentId: string; label: string; kind: string }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const inputId = `scan-${documentId}`;
+  return (
+    <span className="inline-flex flex-col">
+      <label htmlFor={inputId} className={`${hmsButton.small} cursor-pointer ${busy ? "pointer-events-none opacity-50" : ""}`}>
+        {busy ? "Uploading…" : label}
+      </label>
+      <input
+        id={inputId}
+        type="file"
+        accept="application/pdf,image/jpeg,image/png,image/webp"
+        className="sr-only"
+        aria-label={`${label} for ${kind}`}
+        disabled={busy}
+        onChange={async (ev) => {
+          const file = ev.target.files?.[0];
+          ev.target.value = "";
+          if (!file) return;
+          setBusy(true);
+          setError("");
+          const fd = new FormData();
+          fd.set("slug", slug);
+          fd.set("documentId", documentId);
+          fd.set("file", file);
+          const res = await fetch(`/api/hotel/hr/employees/${employeeId}/documents`, { method: "POST", body: fd }).catch(() => null);
+          const json = res ? await res.json().catch(() => ({})) : {};
+          setBusy(false);
+          if (!res?.ok) {
+            setError((json as { error?: string }).error ?? "Couldn't upload the file.");
+            return;
+          }
+          router.refresh();
+        }}
+      />
+      {error ? (
+        <span role="alert" className="mt-1 text-xs text-red-700">
+          {error}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
 function DocumentsCard({ slug, employee: e, documents }: Props) {
   const { busy, error, saved, run } = useAction(slug, e.id);
   const [f, setF] = useState({ kind: DOCUMENT_KINDS[0] as string, reference: "", receivedOn: "", expiresOn: "", note: "" });
@@ -500,7 +547,7 @@ function DocumentsCard({ slug, employee: e, documents }: Props) {
   const held = new Set(documents.map((d) => d.kind));
   const missing = DOCUMENT_KINDS.filter((k) => k !== "Other" && k !== "Food handler certificate" && k !== "Reference letter" && !held.has(k));
   return (
-    <HmsCard title="Documents" icon={FileText} meaning="team" description="What the hotel holds for them and when it runs out. Keep the papers themselves in the HR file.">
+    <HmsCard title="Documents" icon={FileText} meaning="team" description="What the hotel holds for them, when it runs out, and a scan of each (PDF or photo, up to 8 MB). Only people who can see pay can open the scans.">
       {missing.length ? (
         <p className="mb-3 text-sm text-amber-800">Missing: {missing.join(", ")}.</p>
       ) : null}
@@ -521,9 +568,23 @@ function DocumentsCard({ slug, employee: e, documents }: Props) {
                   </>
                 ) : null}
               </span>
-              <button type="button" className={hmsButton.danger} disabled={busy} onClick={() => void run({ action: "document_remove", documentId: d.id }, "Removed.")}>
-                <Trash2 className="h-4 w-4" aria-hidden /> <span className="sr-only">Remove {d.kind}</span>
-              </button>
+              <span className="flex flex-wrap items-center gap-1">
+                {d.hasFile ? (
+                  <a
+                    className={hmsButton.small}
+                    href={`/api/hotel/hr/employees/${e.id}/documents?slug=${encodeURIComponent(slug)}&documentId=${d.id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    title={d.fileName ?? undefined}
+                  >
+                    Open scan
+                  </a>
+                ) : null}
+                <ScanUpload slug={slug} employeeId={e.id} documentId={d.id} label={d.hasFile ? "Replace" : "Upload scan"} kind={d.kind} />
+                <button type="button" className={hmsButton.danger} disabled={busy} onClick={() => void run({ action: "document_remove", documentId: d.id }, "Removed.")}>
+                  <Trash2 className="h-4 w-4" aria-hidden /> <span className="sr-only">Remove {d.kind}</span>
+                </button>
+              </span>
             </li>
           ))}
         </ul>

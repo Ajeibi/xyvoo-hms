@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
+import { MAX_HR_DOCUMENT_BYTES, hrFilePath, removeHrFiles, signHrFiles, sniffDocumentType, uploadHrFile } from "@/lib/hms/hr/hr-files";
 import {
   EMPTY_PAY_PROFILE,
   friendlyDbError,
@@ -321,7 +322,55 @@ const mapDoc = (r: any): EmployeeDocument => ({
   receivedOn: r.received_on ?? null,
   expiresOn: r.expires_on ?? null,
   note: r.note ?? null,
+  fileName: r.file_name ?? null,
+  hasFile: Boolean(r.file_path),
 });
+
+/**
+ * Attaches a scan (PDF or photo) to a document row. The row is read through the caller's own
+ * client first, so the database decides whether they may; only then does the server store the
+ * file in the private bucket.
+ */
+export async function attachDocumentFile(
+  privateDb: SupabaseClient,
+  service: SupabaseClient,
+  tenantId: string,
+  employeeId: string,
+  documentId: string,
+  file: { bytes: Uint8Array; name: string },
+  actor: HrActor,
+): Promise<{ error: string | null }> {
+  const { data: row } = await privateDb.schema("hotel").from("hr_employee_documents").select("id, file_path").eq("tenant_id", tenantId).eq("employee_id", employeeId).eq("id", documentId).maybeSingle();
+  if (!row) return { error: "Document not found, or you can't see staff documents." };
+  if (!file.bytes.length) return { error: "That file is empty." };
+  if (file.bytes.length > MAX_HR_DOCUMENT_BYTES) return { error: "That file is too large. Keep it under 8 MB." };
+  const type = sniffDocumentType(file.bytes);
+  if (!type) return { error: "Upload a PDF, JPEG, PNG or WebP file." };
+  const path = hrFilePath(tenantId, `documents/${employeeId}`, type);
+  const up = await uploadHrFile(service, path, file.bytes, type);
+  if (up.error) return up;
+  const { error } = await privateDb
+    .schema("hotel")
+    .from("hr_employee_documents")
+    .update({ file_path: path, file_name: file.name.slice(0, 120) || "document", file_type: type, file_size: file.bytes.length })
+    .eq("tenant_id", tenantId)
+    .eq("id", documentId);
+  if (error) {
+    await removeHrFiles(service, [path]);
+    return { error: friendlyDbError(error.message) };
+  }
+  if (row.file_path) await removeHrFiles(service, [row.file_path as string]);
+  await writeAuditLog({ tenantId, actorUserId: actor.userId, action: "hr.document.file_uploaded", entityType: "hr_employee", entityId: employeeId, after: { documentId, type, bytes: file.bytes.length } });
+  return { error: null };
+}
+
+/** A link that expires to download a document's scan, or null if the caller may not see it. */
+export async function documentFileUrl(privateDb: SupabaseClient, service: SupabaseClient, tenantId: string, employeeId: string, documentId: string): Promise<string | null> {
+  const { data: row } = await privateDb.schema("hotel").from("hr_employee_documents").select("file_path").eq("tenant_id", tenantId).eq("employee_id", employeeId).eq("id", documentId).maybeSingle();
+  if (!row?.file_path) return null;
+  const urls = await signHrFiles(service, tenantId, [row.file_path as string]);
+  return urls.get(row.file_path as string) ?? null;
+}
 
 export async function listDocuments(privateDb: SupabaseClient, tenantId: string, employeeId?: string): Promise<EmployeeDocument[]> {
   let q = privateDb.schema("hotel").from("hr_employee_documents").select("*").eq("tenant_id", tenantId).order("created_at");
@@ -351,9 +400,10 @@ export async function addDocument(
   return { error: null };
 }
 
-export async function deleteDocument(privateDb: SupabaseClient, tenantId: string, employeeId: string, documentId: string, actor: HrActor): Promise<{ error: string | null }> {
-  const { error } = await privateDb.schema("hotel").from("hr_employee_documents").delete().eq("tenant_id", tenantId).eq("employee_id", employeeId).eq("id", documentId);
+export async function deleteDocument(privateDb: SupabaseClient, tenantId: string, employeeId: string, documentId: string, actor: HrActor, service?: SupabaseClient): Promise<{ error: string | null }> {
+  const { data: gone, error } = await privateDb.schema("hotel").from("hr_employee_documents").delete().eq("tenant_id", tenantId).eq("employee_id", employeeId).eq("id", documentId).select("file_path");
   if (error) return { error: friendlyDbError(error.message) };
+  if (service) await removeHrFiles(service, (gone ?? []).map((r: any) => r.file_path as string).filter(Boolean));
   await writeAuditLog({ tenantId, actorUserId: actor.userId, action: "hr.document.removed", entityType: "hr_employee", entityId: employeeId });
   return { error: null };
 }

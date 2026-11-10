@@ -1,4 +1,8 @@
 import Link from "next/link";
+import { after } from "next/server";
+import { rateLimitShared } from "@/lib/rate-limit";
+import { alertMissingStaff } from "@/lib/hms/hr/hr-time";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { AlertTriangle, CalendarDays, CheckCircle2, Clock, FileWarning, Inbox, Palmtree, Repeat, UserCheck, Users } from "lucide-react";
 import HMSLayout from "@/components/hms/HMSLayout";
 import { HmsCard, HmsEmptyState, HmsPage, HmsPageHeader, HmsPill, HmsStatStrip, HmsStatTile, HmsWarning, hmsButton } from "@/components/hms/hms-ui";
@@ -31,6 +35,12 @@ export default async function HRPage({ params }: { params: Promise<{ slug: strin
     );
   }
   const d = await loadHrDashboard(ctx.service, ctx.privateDb, ctx.tenantId, ctx.canSeePrivate);
+  // Alerts for anyone late, at most every 5 minutes per hotel, after the page has been sent.
+  const tenantId = ctx.tenantId;
+  after(async () => {
+    const gate = await rateLimitShared(`hr-late-check:${tenantId}`, 1, 5 * 60_000);
+    if (gate.ok) await alertMissingStaff(createServerSupabaseClient(), tenantId).catch(() => undefined);
+  });
   const base = `/hms/${slug}/hr`;
 
   return (

@@ -6,6 +6,7 @@ import { PayRunClient } from "@/components/hms/hr/PayrollClient";
 import { HrSubNav, PrivateLocked } from "@/components/hms/hr/hr-ui";
 import { getPayRun } from "@/lib/hms/hr/hr-payroll";
 import { loadHrPage } from "@/lib/hms/hr/hr-page";
+import { listPayslipSends } from "@/lib/hms/hr/hr-payslip-email";
 import { isoToLocalDate } from "@/lib/hms/hr/hr-shared";
 
 export default async function HrPayRunPage({ params }: { params: Promise<{ slug: string; id: string }> }) {
@@ -14,6 +15,7 @@ export default async function HrPayRunPage({ params }: { params: Promise<{ slug:
   if (!ctx) notFound();
   const found = ctx.canSeePrivate ? await getPayRun(ctx.privateDb, ctx.tenantId, id) : null;
   if (ctx.canSeePrivate && !found) notFound();
+  const sends = found ? Object.fromEntries(await listPayslipSends(ctx.privateDb, ctx.tenantId, found.slips.map((s) => s.id))) : {};
 
   return (
     <HMSLayout slug={slug} requiredSection="hr">
@@ -31,7 +33,7 @@ export default async function HrPayRunPage({ params }: { params: Promise<{ slug:
         />
         <HrSubNav slug={slug} />
         {found ? (
-          <PayRunClient slug={slug} run={found.run} slips={found.slips} today={isoToLocalDate(new Date().toISOString())} />
+          <PayRunClient slug={slug} run={found.run} slips={found.slips} today={isoToLocalDate(new Date().toISOString())} sends={sends} />
         ) : (
           <HmsCard>
             <PrivateLocked what="payroll" />

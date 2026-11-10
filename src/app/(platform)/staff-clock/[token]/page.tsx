@@ -25,7 +25,7 @@ export default async function StaffClockPage({ params }: { params: Promise<{ tok
   const hotelName = (tenant?.display_name as string | null) || (tenant?.name as string | null) || "Staff clock";
   return (
     <main className="mx-auto min-h-screen w-full max-w-xl px-4 py-8">
-      <KioskClient token={token} hotelName={hotelName} />
+      <KioskClient token={token} hotelName={hotelName} photo={kiosk.photo} />
     </main>
   );
 }

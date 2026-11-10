@@ -4,11 +4,12 @@ import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { postJournalEntry, reverseJournalEntry } from "@/lib/hms/journal-entries";
 import type { HrActor } from "@/lib/hms/hr/hr-api";
 import { listEmployeePrivate, listEmployees, listPayProfiles } from "@/lib/hms/hr/hr-employees";
+import { holidayDates } from "@/lib/hms/hr/hr-holidays";
 import { unpaidLeaveDays } from "@/lib/hms/hr/hr-leave";
 import { getHrSettings } from "@/lib/hms/hr/hr-settings";
 import { addDays, entryHours, friendlyDbError, isoToLocalDate, weekStart, workingDaysBetween } from "@/lib/hms/hr/hr-shared";
 import { RULES_VERSION, payeRegimeFor } from "@/lib/hms/hr/payroll-rules";
-import { calculatePay, payRunJournalLines, splitOvertime, sumPayslips, type PayResult, type PayRunTotals } from "@/lib/hms/hr/payroll-calc";
+import { calculatePay, payRunJournalLines, splitOvertime, sumPayslips, type PayResult, type PayRunTotals, type YearToDate } from "@/lib/hms/hr/payroll-calc";
 
 /*
  * Pay runs and payslips are private tables: every read and write here goes through `privateDb`,
@@ -103,6 +104,44 @@ export async function getPayRun(privateDb: SupabaseClient, tenantId: string, id:
   };
 }
 
+/**
+ * Pay already taxed this calendar year, per person, from approved and paid runs that ended before
+ * this period started. Feeds cumulative PAYE.
+ */
+export async function yearToDate(privateDb: SupabaseClient, tenantId: string, periodStart: string): Promise<Map<string, YearToDate>> {
+  const out = new Map<string, YearToDate>();
+  const yearStart = `${periodStart.slice(0, 4)}-01-01`;
+  if (periodStart <= yearStart) return out;
+  const { data: runs } = await privateDb
+    .schema("hotel")
+    .from("hr_pay_runs")
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .in("status", ["approved", "paid"])
+    .gte("period_end", yearStart)
+    .lt("period_end", periodStart)
+    .limit(60);
+  const ids = (runs ?? []).map((r: any) => r.id as string);
+  if (!ids.length) return out;
+  const { data: slips } = await privateDb
+    .schema("hotel")
+    .from("hr_payslips")
+    .select("employee_id, gross, pension_employee, nhf, paye")
+    .eq("tenant_id", tenantId)
+    .in("run_id", ids)
+    .limit(20000);
+  for (const r of slips ?? []) {
+    const cur = out.get(r.employee_id) ?? { months: 0, gross: 0, pension: 0, nhf: 0, paye: 0 };
+    cur.months += 1;
+    cur.gross += num(r.gross);
+    cur.pension += num(r.pension_employee);
+    cur.nhf += num(r.nhf);
+    cur.paye += num(r.paye);
+    out.set(r.employee_id, cur);
+  }
+  return out;
+}
+
 /** Works out every payslip for a period from pay profiles, approved hours and unpaid leave. */
 async function computeSlips(
   privateDb: SupabaseClient,
@@ -113,11 +152,13 @@ async function computeSlips(
   oneOffs: Record<string, { amount: number; note: string | null }>,
 ): Promise<{ slips: { employeeId: string; snapshot: PayslipSnapshot; result: PayResult }[]; warnings: string[] }> {
   const settings = await getHrSettings(service, tenantId);
-  const [employees, profiles, personal, unpaid] = await Promise.all([
+  const [employees, profiles, personal, unpaid, ytd, holidays] = await Promise.all([
     listEmployees(service, tenantId),
     listPayProfiles(privateDb, tenantId),
     listEmployeePrivate(privateDb, tenantId),
     unpaidLeaveDays(service, tenantId, periodStart, periodEnd),
+    yearToDate(privateDb, tenantId, periodStart),
+    holidayDates(service, tenantId, periodStart, periodEnd),
   ]);
   const warnings: string[] = [];
   const inPeriod = employees.filter(
@@ -140,7 +181,7 @@ async function computeSlips(
   const pendingCount = entries.filter((r: any) => r.status !== "approved").length;
   if (pendingCount) warnings.push(`${pendingCount} time entries in this period are not approved yet, so they are left out. Approve them on the Time page, then recalculate.`);
 
-  const workingDays = workingDaysBetween(periodStart, periodEnd);
+  const workingDays = workingDaysBetween(periodStart, periodEnd, holidays);
   const slips: { employeeId: string; snapshot: PayslipSnapshot; result: PayResult }[] = [];
   const missingPay: string[] = [];
   const minimumWage = payeRegimeFor(periodEnd).minimumWageMonthly;
@@ -164,8 +205,8 @@ async function computeSlips(
     const split = splitOvertime([...weekly.values()], settings.overtimeAfterWeeklyHours);
     // A monthly salary is pro-rated for someone who joined or left during the period.
     let notEmployedDays = 0;
-    if (e.startDate && e.startDate > periodStart) notEmployedDays += workingDaysBetween(periodStart, addDays(e.startDate, -1));
-    if (e.endDate && e.endDate < periodEnd) notEmployedDays += workingDaysBetween(addDays(e.endDate, 1), periodEnd);
+    if (e.startDate && e.startDate > periodStart) notEmployedDays += workingDaysBetween(periodStart, addDays(e.startDate, -1), holidays);
+    if (e.endDate && e.endDate < periodEnd) notEmployedDays += workingDaysBetween(addDays(e.endDate, 1), periodEnd, holidays);
     const unpaidDays = Math.min(workingDays, (unpaid.get(e.id) ?? 0) + notEmployedDays);
     const oneOff = oneOffs[e.id]?.amount ?? 0;
 
@@ -184,6 +225,7 @@ async function computeSlips(
       pensionEnabled: settings.pensionEnabled,
       nsitfEnabled: settings.nsitfEnabled,
       itfEnabled: settings.itfEnabled,
+      ytd: ytd.get(e.id) ?? null,
     });
     if (profile.payBasis === "monthly" && unpaidDays === 0 && profile.basicMonthly + profile.housingMonthly + profile.transportMonthly + profile.otherAllowancesMonthly < minimumWage && e.employmentType === "full_time") {
       belowMinimum.push(e.fullName);
@@ -469,4 +511,69 @@ export function exportRows(kind: ExportKind, run: PayRun, slips: Payslip[]): Cel
           : []),
       ];
   }
+}
+
+/* ---------- year-end PAYE return (Form H1) ---------- */
+
+/**
+ * One row per person for a calendar year, from approved and paid runs: what the employer files
+ * with the state tax office by 31 January (Form H1). Read through `privateDb`, so only people who
+ * may see pay get anything back.
+ */
+export async function annualReturnRows(privateDb: SupabaseClient, tenantId: string, year: number): Promise<{ rows: Cell[][]; runs: number }> {
+  const header: Cell[] = ["Employee number", "Name", "TIN", "State of residence", "Months paid", "Gross pay", "Pension (employee)", "NHF", "Rent relief", "Taxable income", "PAYE deducted", "Pension (employer)"];
+  const { data: runs } = await privateDb
+    .schema("hotel")
+    .from("hr_pay_runs")
+    .select("id, period_end")
+    .eq("tenant_id", tenantId)
+    .in("status", ["approved", "paid"])
+    .gte("period_end", `${year}-01-01`)
+    .lte("period_end", `${year}-12-31`)
+    .order("period_end", { ascending: true })
+    .limit(60);
+  const ids = (runs ?? []).map((r: any) => r.id as string);
+  if (!ids.length) return { rows: [header], runs: 0 };
+  const order = new Map(ids.map((id, i) => [id, i]));
+  const { data: slips } = await privateDb
+    .schema("hotel")
+    .from("hr_payslips")
+    .select("run_id, employee_id, snapshot, breakdown, gross, pension_employee, pension_employer, nhf, paye")
+    .eq("tenant_id", tenantId)
+    .in("run_id", ids)
+    .limit(20000);
+  type Acc = { snap: PayslipSnapshot; last: number; months: number; gross: number; pension: number; nhf: number; rent: number; paye: number; employer: number };
+  const people = new Map<string, Acc>();
+  for (const s of (slips ?? []) as any[]) {
+    const i = order.get(s.run_id) ?? 0;
+    const b = (s.breakdown ?? {}) as Partial<PayResult>;
+    const cur: Acc = people.get(s.employee_id) ?? { snap: s.snapshot, last: -1, months: 0, gross: 0, pension: 0, nhf: 0, rent: 0, paye: 0, employer: 0 };
+    cur.months += 1;
+    cur.gross += num(s.gross);
+    cur.pension += num(s.pension_employee);
+    cur.nhf += num(s.nhf);
+    cur.paye += num(s.paye);
+    cur.employer += num(s.pension_employer);
+    // Rent relief is a yearly figure on each slip; the latest slip has the latest rent.
+    if (i >= cur.last) {
+      cur.last = i;
+      cur.snap = s.snapshot;
+      cur.rent = num(b.reliefs?.rent);
+    }
+    people.set(s.employee_id, cur);
+  }
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  const rows: Cell[][] = [header];
+  let gross = 0;
+  let paye = 0;
+  for (const p of [...people.values()].sort((a, b) => a.snap.name.localeCompare(b.snap.name))) {
+    // Rent relief applies to the share of the year the person was on the payroll.
+    const rent = (p.rent * Math.min(12, p.months)) / 12;
+    const taxable = Math.max(0, p.gross - p.pension - p.nhf - rent);
+    gross += p.gross;
+    paye += p.paye;
+    rows.push([p.snap.employeeNumber, p.snap.name, p.snap.tin, p.snap.stateOfResidence, p.months, r2(p.gross), r2(p.pension), r2(p.nhf), r2(rent), r2(taxable), r2(p.paye), r2(p.employer)]);
+  }
+  rows.push(["", "Total", "", "", "", r2(gross), "", "", "", "", r2(paye), ""]);
+  return { rows, runs: ids.length };
 }

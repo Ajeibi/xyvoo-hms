@@ -111,6 +111,11 @@ export default async function PayslipPage({ params }: { params: Promise<{ slug: 
             {r.reliefs.rent ? `, after rent relief of ${naira(r.reliefs.rent)}` : ""}
             {r.reliefs.cra ? `, after consolidated relief of ${naira(r.reliefs.cra)}` : ""}.{r.payeNote ? ` ${r.payeNote}` : ""}
           </p>
+          {r.payeMethod === "cumulative" && r.ytdGross !== undefined ? (
+            <p>
+              This year so far: gross {naira(r.ytdGross)}, PAYE {naira(r.ytdPaye ?? 0)}. PAYE is worked out on the year to date, so a change in pay evens out over the year.
+            </p>
+          ) : null}
         </div>
       </div>
     </HMSLayout>

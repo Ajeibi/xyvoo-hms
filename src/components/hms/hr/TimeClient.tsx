@@ -23,6 +23,7 @@ export function TimeClient(p: {
   employees: { id: string; name: string }[];
   overtimeAfter: number;
   kioskReady: boolean;
+  photosOn?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState<string | null>(null);
@@ -268,7 +269,23 @@ export function TimeClient(p: {
                                       {e.leftEarlyMinutes ? <span className="text-amber-800"> · left {e.leftEarlyMinutes} min early</span> : null}
                                       {!e.shiftId ? <span className="text-slate-500"> · not on the rota</span> : null}
                                       {e.editedReason ? <span className="text-slate-500"> · changed: {e.editedReason}</span> : null}
+                                      {p.photosOn && e.source === "kiosk" && !e.clockInPhoto ? <span className="text-amber-800"> · no clock-in photo</span> : null}
                                     </span>
+                                    {e.clockInPhoto || e.clockOutPhoto ? (
+                                      <span className="flex gap-1">
+                                        {[
+                                          ["In", e.clockInPhoto],
+                                          ["Out", e.clockOutPhoto],
+                                        ].map(([label, url]) =>
+                                          url ? (
+                                            <a key={label} href={url} target="_blank" rel="noreferrer" className="block" title={`Photo at clock-${label?.toLowerCase()}`}>
+                                              {/* eslint-disable-next-line @next/next/no-img-element -- a short-lived signed link, not an optimisable asset */}
+                                              <img src={url} alt={`${r.name} at clock-${label?.toLowerCase()}`} className="h-10 w-14 rounded object-cover" />
+                                            </a>
+                                          ) : null,
+                                        )}
+                                      </span>
+                                    ) : null}
                                     <span className="flex gap-1">
                                       {e.status === "approved" ? (
                                         <button type="button" className={hmsButton.quiet} disabled={busy} onClick={() => void send({ action: "reopen", ids: [e.id] }, "Reopened.")}>

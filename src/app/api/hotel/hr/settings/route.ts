@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { authHr, fail, isFailure } from "@/lib/hms/hr/hr-api";
+import { addHoliday, addNigeriaHolidays, removeHoliday } from "@/lib/hms/hr/hr-holidays";
 import { rotateKioskToken, saveHrSettings, saveLeaveType, setAccessGrant } from "@/lib/hms/hr/hr-settings";
 
 const code = z.string().trim().regex(/^[0-9A-Za-z.-]{2,12}$/);
@@ -19,6 +20,7 @@ const Body = z.discriminatedUnion("action", [
     overtimeMultiplier: z.number().min(1).max(5).optional(),
     kioskEnabled: z.boolean().optional(),
     kioskSelfService: z.boolean().optional(),
+    kioskPhoto: z.boolean().optional(),
     pensionEnabled: z.boolean().optional(),
     nsitfEnabled: z.boolean().optional(),
     itfEnabled: z.boolean().optional(),
@@ -42,6 +44,9 @@ const Body = z.discriminatedUnion("action", [
     active: z.boolean(),
   }),
   z.object({ slug: z.string().min(1), action: z.literal("grant"), userId: z.string().uuid(), granted: z.boolean() }),
+  z.object({ slug: z.string().min(1), action: z.literal("holiday_add"), date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), name: z.string().trim().min(1).max(80) }),
+  z.object({ slug: z.string().min(1), action: z.literal("holiday_remove"), id: z.string().uuid() }),
+  z.object({ slug: z.string().min(1), action: z.literal("holiday_defaults"), year: z.number().int().min(2020).max(2100) }),
 ]);
 
 export async function PATCH(req: Request) {
@@ -92,6 +97,24 @@ export async function PATCH(req: Request) {
         entityId: body.userId,
       });
       return NextResponse.json({ ok: true });
+    }
+    case "holiday_add": {
+      const r = await addHoliday(auth.service, tenantId, body.date, body.name);
+      if (r.error) return fail(r.error);
+      await writeAuditLog({ tenantId, actorUserId: actor.userId, action: "hr.holiday.added", entityType: "hr_public_holiday", after: { date: body.date, name: body.name } });
+      return NextResponse.json({ ok: true });
+    }
+    case "holiday_remove": {
+      const r = await removeHoliday(auth.service, tenantId, body.id);
+      if (r.error) return fail(r.error);
+      await writeAuditLog({ tenantId, actorUserId: actor.userId, action: "hr.holiday.removed", entityType: "hr_public_holiday", entityId: body.id });
+      return NextResponse.json({ ok: true });
+    }
+    case "holiday_defaults": {
+      const r = await addNigeriaHolidays(auth.service, tenantId, body.year);
+      if (r.error) return fail(r.error);
+      await writeAuditLog({ tenantId, actorUserId: actor.userId, action: "hr.holiday.defaults_added", entityType: "hr_public_holiday", after: { year: body.year, added: r.added } });
+      return NextResponse.json({ added: r.added });
     }
   }
 }

@@ -1,9 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { sendAlert } from "@/lib/hms/alerts";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import type { HrActor } from "@/lib/hms/hr/hr-api";
 import { hashPin, mapEmployee } from "@/lib/hms/hr/hr-employees";
 import { getHrSettings, hashKioskToken } from "@/lib/hms/hr/hr-settings";
-import { addDays, entryHours, friendlyDbError, isoToLocalDate, shiftHours, weekStart, type Employee, type TimeEntry } from "@/lib/hms/hr/hr-shared";
+import { addDays, entryHours, friendlyDbError, isoToLocalDate, isoToLocalTime, shiftHours, weekStart, type Employee, type TimeEntry } from "@/lib/hms/hr/hr-shared";
 import { splitOvertime } from "@/lib/hms/hr/payroll-calc";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -40,6 +41,8 @@ export function mapEntry(r: any, name: string, shift: ShiftLite | null, graceMin
     editedReason: r.edited_reason ?? null,
     lateMinutes,
     leftEarlyMinutes,
+    clockInPhoto: r.clock_in_photo_path ?? null,
+    clockOutPhoto: r.clock_out_photo_path ?? null,
   };
 }
 
@@ -83,11 +86,11 @@ export async function listEntries(
 /* ---------- the clock screen ---------- */
 
 /** The hotel a clock screen link belongs to, or null if the link is wrong or switched off. */
-export async function tenantForKiosk(service: SupabaseClient, token: string): Promise<{ tenantId: string; selfService: boolean } | null> {
+export async function tenantForKiosk(service: SupabaseClient, token: string): Promise<{ tenantId: string; selfService: boolean; photo: boolean } | null> {
   if (!token || token.length < 20) return null;
-  const { data } = await service.schema("hotel").from("hr_settings").select("tenant_id, kiosk_enabled, kiosk_self_service").eq("kiosk_token_hash", hashKioskToken(token)).maybeSingle();
+  const { data } = await service.schema("hotel").from("hr_settings").select("*").eq("kiosk_token_hash", hashKioskToken(token)).maybeSingle();
   if (!data || !data.kiosk_enabled) return null;
-  return { tenantId: data.tenant_id as string, selfService: data.kiosk_self_service !== false };
+  return { tenantId: data.tenant_id as string, selfService: data.kiosk_self_service !== false, photo: Boolean(data.kiosk_photo) };
 }
 
 export async function employeeByPin(service: SupabaseClient, tenantId: string, pin: string): Promise<Employee | null> {
@@ -119,7 +122,7 @@ async function matchShift(service: SupabaseClient, tenantId: string, employeeId:
 
 export type ClockAction = "clock_in" | "clock_out" | "break_start" | "break_end";
 
-export async function clock(service: SupabaseClient, tenantId: string, employee: Employee, action: ClockAction): Promise<{ error: string | null; message: string }> {
+export async function clock(service: SupabaseClient, tenantId: string, employee: Employee, action: ClockAction): Promise<{ error: string | null; message: string; entryId?: string }> {
   const now = new Date();
   const open = await openEntry(service, tenantId, employee.id);
   const table = () => service.schema("hotel").from("hr_time_entries");
@@ -127,9 +130,9 @@ export async function clock(service: SupabaseClient, tenantId: string, employee:
   if (action === "clock_in") {
     if (open) return { error: "You're already clocked in.", message: "" };
     const shiftId = await matchShift(service, tenantId, employee.id, now);
-    const { error } = await table().insert({ tenant_id: tenantId, employee_id: employee.id, shift_id: shiftId, clock_in: now.toISOString(), source: "kiosk" });
-    if (error) return { error: friendlyDbError(error.message), message: "" };
-    return { error: null, message: shiftId ? `Clocked in. Have a good shift, ${employee.firstName}.` : `Clocked in, ${employee.firstName}. You're not on the rota now, so a manager will check this.` };
+    const { data: made, error } = await table().insert({ tenant_id: tenantId, employee_id: employee.id, shift_id: shiftId, clock_in: now.toISOString(), source: "kiosk" }).select("id").single();
+    if (error || !made) return { error: friendlyDbError(error?.message), message: "" };
+    return { error: null, entryId: made.id as string, message: shiftId ? `Clocked in. Have a good shift, ${employee.firstName}.` : `Clocked in, ${employee.firstName}. You're not on the rota now, so a manager will check this.` };
   }
   if (!open) return { error: "You're not clocked in.", message: "" };
 
@@ -151,7 +154,7 @@ export async function clock(service: SupabaseClient, tenantId: string, employee:
   const { error } = await table().update({ clock_out: now.toISOString(), break_started_at: null, break_minutes: breakMinutes }).eq("id", open.id);
   if (error) return { error: friendlyDbError(error.message), message: "" };
   const hours = entryHours({ clockIn: open.clock_in, clockOut: now.toISOString(), breakMinutes });
-  return { error: null, message: `Clocked out after ${hours} hours. Thank you, ${employee.firstName}.` };
+  return { error: null, entryId: open.id as string, message: `Clocked out after ${hours} hours. Thank you, ${employee.firstName}.` };
 }
 
 /* ---------- manager corrections and approval ---------- */
@@ -338,4 +341,86 @@ export async function liveAttendance(service: SupabaseClient, tenantId: string, 
     .filter((s: any) => !covered.has(s.id) && !clockedInIds.has(s.employee_id))
     .map((s: any) => ({ shiftId: s.id as string, employeeId: s.employee_id as string, name: names.get(s.employee_id) ?? "Staff", startsAt: s.starts_at as string }));
   return { clockedIn, missing };
+}
+
+/* ---------- late and no-show alerts ---------- */
+
+/**
+ * Alerts HR when someone on the published rota hasn't clocked in once their shift is past the
+ * lateness grace. One alert per shift (deduplicated by the shift id). Runs when the clock screen
+ * is used and when the HR dashboard is opened, at most every few minutes per hotel.
+ */
+export async function alertMissingStaff(service: SupabaseClient, tenantId: string): Promise<number> {
+  const { data: emps } = await service.schema("hotel").from("hr_employees").select("*").eq("tenant_id", tenantId).eq("status", "active");
+  const employees = (emps ?? []).map(mapEmployee);
+  if (!employees.length) return 0;
+  const { missing } = await liveAttendance(service, tenantId, employees);
+  let sent = 0;
+  for (const m of missing) {
+    const r = await sendAlert({
+      tenantId,
+      type: "hr_not_clocked_in",
+      title: `${m.name} hasn't clocked in`,
+      body: `${m.name}'s shift started at ${isoToLocalTime(m.startsAt)} and they haven't clocked in yet.`,
+      severity: "warning",
+      entityType: "hr_shift",
+      entityId: m.shiftId,
+      department: "hr",
+      dedupeHours: 24,
+    });
+    if (r.id) sent += 1;
+  }
+  return sent;
+}
+
+/**
+ * Yesterday's no-shows (a published shift with nobody clocked in against it) and clock-ins left
+ * open for over 16 hours, as one morning summary per hotel. Called by the daily HR cron.
+ */
+export async function alertNoShowsAndOpenEntries(service: SupabaseClient, tenantId: string): Promise<number> {
+  const today = isoToLocalDate(new Date().toISOString());
+  const yesterday = addDays(today, -1);
+  const { data: shifts } = await service
+    .schema("hotel")
+    .from("hr_shifts")
+    .select("id, employee_id, starts_at")
+    .eq("tenant_id", tenantId)
+    .eq("status", "published")
+    .eq("shift_date", yesterday)
+    .not("employee_id", "is", null);
+  const ids = (shifts ?? []).map((s: any) => s.id as string);
+  const { data: linked } = ids.length ? await service.schema("hotel").from("hr_time_entries").select("shift_id, employee_id").eq("tenant_id", tenantId).in("shift_id", ids) : { data: [] as any[] };
+  const covered = new Set((linked ?? []).map((r: any) => r.shift_id));
+  // Approved leave that day excuses a shift left on the rota by mistake.
+  const { data: leave } = await service.schema("hotel").from("hr_leave_requests").select("employee_id").eq("tenant_id", tenantId).eq("status", "approved").lte("start_date", yesterday).gte("end_date", yesterday);
+  const onLeave = new Set((leave ?? []).map((r: any) => r.employee_id));
+  const noShows = (shifts ?? []).filter((s: any) => !covered.has(s.id) && !onLeave.has(s.employee_id));
+
+  const { data: open } = await service
+    .schema("hotel")
+    .from("hr_time_entries")
+    .select("employee_id, clock_in")
+    .eq("tenant_id", tenantId)
+    .is("clock_out", null)
+    .lt("clock_in", new Date(Date.now() - 16 * 3600000).toISOString());
+  if (!noShows.length && !open?.length) return 0;
+
+  const { data: emps } = await service.schema("hotel").from("hr_employees").select("id, first_name, last_name, preferred_name").eq("tenant_id", tenantId);
+  const names = new Map((emps ?? []).map((e: any) => [e.id as string, `${e.preferred_name || e.first_name} ${e.last_name}`]));
+  const parts: string[] = [];
+  if (noShows.length) parts.push(`No-shows on ${yesterday}: ${noShows.map((s: any) => `${names.get(s.employee_id) ?? "Staff"} (${isoToLocalTime(s.starts_at)})`).join(", ")}.`);
+  if (open?.length) parts.push(`Still clocked in from over 16 hours ago, so probably forgot to clock out: ${open.map((r: any) => names.get(r.employee_id) ?? "Staff").join(", ")}. Correct their times on the Time page.`);
+  const r = await sendAlert({
+    tenantId,
+    type: "hr_attendance_summary",
+    title: noShows.length ? `${noShows.length} no-show${noShows.length === 1 ? "" : "s"} yesterday` : "Clock-outs to correct",
+    body: parts.join(" "),
+    severity: "warning",
+    entityType: "hr_attendance",
+    // Once a day per hotel (entity ids are uuids, so the hotel's own id stands in).
+    entityId: tenantId,
+    department: "hr",
+    dedupeHours: 20,
+  });
+  return r.id ? 1 : 0;
 }

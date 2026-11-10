@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { sendAlert } from "@/lib/hms/alerts";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import type { HrActor } from "@/lib/hms/hr/hr-api";
+import { holidayDates } from "@/lib/hms/hr/hr-holidays";
 import { listLeaveTypes } from "@/lib/hms/hr/hr-settings";
 import { addDays, friendlyDbError, workingDaysBetween, type Employee, type LeaveRequest, type LeaveStatus, type LeaveType } from "@/lib/hms/hr/hr-shared";
 
@@ -96,8 +97,9 @@ export async function requestLeave(
   const types = await listLeaveTypes(service, tenantId, { activeOnly: true });
   const type = types.find((t) => t.id === input.leaveTypeId);
   if (!type) return { id: null, error: "Choose a type of leave.", warning: null };
-  const days = input.days && input.days > 0 ? input.days : workingDaysBetween(input.startDate, input.endDate);
-  if (days <= 0) return { id: null, error: "Those dates hold no working days. Enter the number of days if they work weekends.", warning: null };
+  const holidays = await holidayDates(service, tenantId, input.startDate, input.endDate);
+  const days = input.days && input.days > 0 ? input.days : workingDaysBetween(input.startDate, input.endDate, holidays);
+  if (days <= 0) return { id: null, error: "Those dates hold no working days (weekends and public holidays don't count). Enter the number of days if they work them.", warning: null };
 
   const { data: clash } = await service
     .schema("hotel")
@@ -236,12 +238,15 @@ export async function unpaidLeaveDays(service: SupabaseClient, tenantId: string,
   const out = new Map<string, number>();
   if (!unpaid.size) return out;
   const leave = await listLeave(service, tenantId, { from, to, statuses: ["approved"] });
+  const earliest = leave.reduce((m, l) => (l.startDate < m ? l.startDate : m), from);
+  const latest = leave.reduce((m, l) => (l.endDate > m ? l.endDate : m), to);
+  const holidays = await holidayDates(service, tenantId, earliest, latest);
   for (const l of leave) {
     if (!unpaid.has(l.leaveTypeId)) continue;
     const s = l.startDate < from ? from : l.startDate;
     const e = l.endDate > to ? to : l.endDate;
-    const full = workingDaysBetween(l.startDate, l.endDate);
-    const inside = workingDaysBetween(s, e);
+    const full = workingDaysBetween(l.startDate, l.endDate, holidays);
+    const inside = workingDaysBetween(s, e, holidays);
     // If the request recorded a different day count (weekend workers), scale it to the part inside the period.
     const days = full > 0 ? (l.days * inside) / full : 0;
     out.set(l.employeeId, (out.get(l.employeeId) ?? 0) + days);

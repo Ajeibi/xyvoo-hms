@@ -5,6 +5,8 @@ import { HmsPage, HmsPageHeader } from "@/components/hms/hms-ui";
 import { HrSettingsClient } from "@/components/hms/hr/HrSettingsClient";
 import { HrSubNav } from "@/components/hms/hr/hr-ui";
 import { loadHrPage } from "@/lib/hms/hr/hr-page";
+import { listHolidays } from "@/lib/hms/hr/hr-holidays";
+import { isoToLocalDate } from "@/lib/hms/hr/hr-shared";
 import { listTemplates } from "@/lib/hms/hr/hr-rota";
 import { getHrSettings, listAccessGrants, listGrantableLogins, listLeaveTypes } from "@/lib/hms/hr/hr-settings";
 
@@ -15,12 +17,14 @@ export default async function HRSettingsPage({ params }: { params: Promise<{ slu
   const h = await headers();
   const host = h.get("x-forwarded-host") ?? h.get("host") ?? "";
   const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
-  const [settings, leaveTypes, templates, logins, grants] = await Promise.all([
+  const year = Number(isoToLocalDate(new Date().toISOString()).slice(0, 4));
+  const [settings, leaveTypes, templates, logins, grants, holidays] = await Promise.all([
     getHrSettings(ctx.service, ctx.tenantId),
     listLeaveTypes(ctx.service, ctx.tenantId),
     listTemplates(ctx.service, ctx.tenantId),
     listGrantableLogins(ctx.service, ctx.tenantId),
     listAccessGrants(ctx.service, ctx.tenantId),
+    listHolidays(ctx.service, ctx.tenantId, { from: `${year}-01-01`, to: `${year + 1}-12-31` }),
   ]);
 
   return (
@@ -35,6 +39,8 @@ export default async function HRSettingsPage({ params }: { params: Promise<{ slu
           templates={templates}
           logins={logins}
           grants={grants}
+          holidays={holidays}
+          year={year}
           isOwner={ctx.isOwner}
           origin={host ? `${proto}://${host}` : ""}
         />

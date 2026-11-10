@@ -10,7 +10,67 @@ const IDLE_MS = 60_000;
 
 export type KioskCall = (action: string, extra?: Record<string, unknown>) => Promise<boolean>;
 
-export function KioskClient({ token, hotelName }: { token: string; hotelName: string }) {
+/**
+ * The tablet camera, kept open while the clock screen is up so each photo is instant. Returns a
+ * video ref to show the preview, a capture function (a small JPEG data URL, or null if the camera
+ * isn't available) and whether the camera is working.
+ */
+function useCamera(enabled: boolean) {
+  const video = useRef<HTMLVideoElement | null>(null);
+  const stream = useRef<MediaStream | null>(null);
+  const [status, setStatus] = useState<"off" | "starting" | "on" | "blocked">(enabled ? "starting" : "off");
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+    if (!navigator.mediaDevices?.getUserMedia) {
+      const t = setTimeout(() => setStatus("blocked"), 0);
+      return () => clearTimeout(t);
+    }
+    navigator.mediaDevices
+      .getUserMedia({ video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } }, audio: false })
+      .then((s) => {
+        if (cancelled) {
+          s.getTracks().forEach((tr) => tr.stop());
+          return;
+        }
+        stream.current = s;
+        setStatus("on");
+      })
+      .catch(() => {
+        if (!cancelled) setStatus("blocked");
+      });
+    return () => {
+      cancelled = true;
+      stream.current?.getTracks().forEach((tr) => tr.stop());
+      stream.current = null;
+    };
+  }, [enabled]);
+  // Attach the stream whenever the preview element appears.
+  const attach = useCallback((el: HTMLVideoElement | null) => {
+    video.current = el;
+    if (el && stream.current && el.srcObject !== stream.current) {
+      el.srcObject = stream.current;
+      void el.play().catch(() => undefined);
+    }
+  }, []);
+  const capture = useCallback((): string | null => {
+    const v = video.current;
+    if (!v || !stream.current || !v.videoWidth) return null;
+    const w = 320;
+    const h = Math.round((v.videoHeight / v.videoWidth) * w) || 240;
+    const c = document.createElement("canvas");
+    c.width = w;
+    c.height = h;
+    const ctx = c.getContext("2d");
+    if (!ctx) return null;
+    ctx.drawImage(v, 0, 0, w, h);
+    return c.toDataURL("image/jpeg", 0.7);
+  }, []);
+  return { attach, capture, status };
+}
+
+export function KioskClient({ token, hotelName, photo = false }: { token: string; hotelName: string; photo?: boolean }) {
+  const { attach: attachCamera, capture: capturePhoto, status: cameraStatus } = useCamera(photo);
   const [now, setNow] = useState<Date | null>(null);
   const [pin, setPin] = useState("");
   const [state, setState] = useState<KioskState | null>(null);
@@ -85,7 +145,8 @@ export function KioskClient({ token, hotelName }: { token: string; hotelName: st
   };
 
   async function doClock(action: "clock_in" | "clock_out" | "break_start" | "break_end") {
-    const ok = await call(action);
+    const shot = photo && (action === "clock_in" || action === "clock_out") ? capturePhoto() : null;
+    const ok = await call(action, shot ? { photo: shot } : {});
     if (ok && (action === "clock_in" || action === "clock_out")) setTimeout(reset, 2500);
   }
 
@@ -165,6 +226,14 @@ export function KioskClient({ token, hotelName }: { token: string; hotelName: st
                 : "You're not clocked in."}
             </p>
           </div>
+          {photo ? (
+            <div className="flex items-center justify-center gap-3 text-sm text-slate-600">
+              {cameraStatus === "on" ? (
+                <video ref={attachCamera} muted playsInline className="h-20 w-28 rounded-xl bg-slate-200 object-cover" aria-label="Camera preview" />
+              ) : null}
+              <span>{cameraStatus === "blocked" ? "The camera isn't available, so no photo will be taken. Tell a manager." : "A photo is taken when you clock in or out."}</span>
+            </div>
+          ) : null}
           <div className="grid gap-3 sm:grid-cols-2">
             {!state.clockedIn ? (
               <BigButton onClick={() => void doClock("clock_in")} disabled={busy} icon={LogIn} tone="primary">
