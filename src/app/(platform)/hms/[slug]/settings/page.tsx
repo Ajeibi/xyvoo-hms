@@ -15,6 +15,9 @@ import { InventoryLocationsClient } from "@/components/hms/inventory/InventoryLo
 import { InventoryLookupManager } from "@/components/hms/inventory/InventoryLookupManager";
 import { InventoryItemTypeManager } from "@/components/hms/inventory/InventoryItemTypeManager";
 import { InventorySupplierManager } from "@/components/hms/inventory/InventorySupplierManager";
+import { PlatformChargesCard } from "@/components/hms/settings/PlatformChargesCard";
+import { supabaseChargeStore } from "@/lib/hms/billing/store";
+import { toPublicCharge } from "@/lib/hms/billing/types";
 import { GuestServiceCategoriesManager } from "@/components/hms/settings/GuestServiceCategoriesManager";
 import { SettingsGroupHeader } from "@/components/hms/settings/SettingsSectionInfo";
 import { SettingsDepartmentPointer } from "@/components/hms/settings/SettingsDepartmentPointer";
@@ -69,6 +72,11 @@ export default async function SettingsPage({ params }: { params: Promise<{ slug:
   const floorPlan = normalizeFloorPlan(tenant?.floor_plan);
 
   const websiteState = tenant && access.isOwnerOrAdmin ? await loadWebsiteState(tenant, slug).catch((error) => (console.error("[settings] website section hidden", error), null)) : null;
+
+  // What the hotel has paid XYVOO; the page still opens if the table has not been created yet.
+  const platformCharges = tenant && access.isOwnerOrAdmin
+    ? await supabaseChargeStore().list(tenant.id, 50).then((rows) => rows.map(toPublicCharge)).catch((error) => (console.error("[settings] payments to XYVOO hidden", error), []))
+    : [];
 
   const [invLocations, invLocationTypes, invUnits, invItemTypes, invSuppliers, guestServiceCategories] = tenant
     ? await (async () => {
@@ -133,6 +141,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ slug:
             {tenant && access.isOwnerOrAdmin ? (
               <HotelGroupCard slug={slug} tenantId={tenant.id} userId={access.userId} isOwner={access.role === "owner"} />
             ) : null}
+            <PlatformChargesCard slug={slug} charges={platformCharges} canTryPayment={process.env.NODE_ENV !== "production"} />
           </section>
 
           <section id="front-desk-setup" aria-labelledby="front-desk-setup-title" className="scroll-mt-24 space-y-4">

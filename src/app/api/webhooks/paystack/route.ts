@@ -5,6 +5,8 @@ import { alertCardPaymentFailedByReference } from "@/lib/store/merchant-alerts";
 import { applyPaystackRefundEvent } from "@/lib/store/refunds-server";
 import { isValidWebhookSignature } from "@/lib/shop/paystack";
 import { getPlatformPaystack } from "@/lib/payments/platform-paystack";
+import { verifyCharge } from "@/lib/hms/billing/charges";
+import { CHARGE_PURPOSE, CHARGE_REFERENCE_PREFIX } from "@/lib/hms/billing/types";
 import {
   activateStandard,
   markSubscriptionPaymentFailed,
@@ -79,12 +81,24 @@ function isSubscriptionCharge(data: NonNullable<PaystackEvent["data"]>) {
   return meta?.purpose === "store_subscription";
 }
 
+function isPlatformCharge(data: NonNullable<PaystackEvent["data"]>) {
+  const meta = typeof data.metadata === "object" && data.metadata ? data.metadata : null;
+  return meta?.purpose === CHARGE_PURPOSE || data.reference?.startsWith(CHARGE_REFERENCE_PREFIX) === true;
+}
+
 async function handlePlatformEvent(payload: PaystackEvent) {
   const data = payload.data;
   if (!data) return;
 
   if (isRefundEvent(payload)) {
     await applyRefund(payload);
+    return;
+  }
+
+  // A hotel paying XYVOO itself (custom domain, ...): nothing to do with stores or subaccounts.
+  // verifyCharge asks Paystack and compares against our own row; the payload's amount is not used.
+  if ((payload.event === "charge.success" || payload.event === "charge.failed") && isPlatformCharge(data)) {
+    if (data.reference) await verifyCharge(data.reference);
     return;
   }
 
