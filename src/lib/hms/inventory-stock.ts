@@ -27,7 +27,7 @@ async function fixedAssetItemName(
   supabase: SupabaseClient,
   tenantId: string,
   itemId: string,
-): Promise<{ fixedAssetName: string | null; unitCost: number }> {
+): Promise<{ exists: boolean; fixedAssetName: string | null; unitCost: number }> {
   const { data: item } = await supabase
     .schema("hotel")
     .from("inventory_items")
@@ -35,10 +35,10 @@ async function fixedAssetItemName(
     .eq("tenant_id", tenantId)
     .eq("id", itemId)
     .maybeSingle();
-  if (!item) return { fixedAssetName: null, unitCost: 0 };
+  if (!item) return { exists: false, fixedAssetName: null, unitCost: 0 };
 
   const unitCost = num(item.unit_cost);
-  if (!item.item_type) return { fixedAssetName: null, unitCost };
+  if (!item.item_type) return { exists: true, fixedAssetName: null, unitCost };
 
   const { data: type } = await supabase
     .schema("hotel")
@@ -47,7 +47,7 @@ async function fixedAssetItemName(
     .eq("id", item.item_type as string)
     .maybeSingle();
 
-  return { fixedAssetName: type?.is_fixed_asset ? (item.name as string) : null, unitCost };
+  return { exists: true, fixedAssetName: type?.is_fixed_asset ? (item.name as string) : null, unitCost };
 }
 
 /** Batch version for pre-validating every line of a multi-line receipt/transfer/requisition before any writes happen. */
@@ -150,7 +150,8 @@ export type PostMovementParams = {
  * qty_on_hand directly.
  */
 export async function postStockMovement(supabase: SupabaseClient, params: PostMovementParams) {
-  const { fixedAssetName, unitCost: itemUnitCost } = await fixedAssetItemName(supabase, params.tenantId, params.itemId);
+  const { exists, fixedAssetName, unitCost: itemUnitCost } = await fixedAssetItemName(supabase, params.tenantId, params.itemId);
+  if (!exists) return { error: "Item not found.", movement: null, qtyOnHand: null };
   if (fixedAssetName) {
     return {
       error: `${fixedAssetName} is a fixed asset — record it on your asset register, not through stock movements.`,
@@ -159,35 +160,49 @@ export async function postStockMovement(supabase: SupabaseClient, params: PostMo
     };
   }
 
-  const { data: level } = await supabase
-    .schema("hotel")
-    .from("inventory_stock_levels")
-    .select("*")
-    .eq("item_id", params.itemId)
-    .eq("location_id", params.locationId)
-    .maybeSingle();
-
-  const currentQty = level ? num(level.qty_on_hand) : 0;
-  const newQty = round3(currentQty + params.qty);
-  if (newQty < 0) {
-    return { error: "Insufficient stock at this location.", movement: null, qtyOnHand: null };
-  }
-
+  // Change the balance only if it is still what was read (compare and swap), so two movements at the
+  // same moment cannot both pass the "enough stock" check. Retries when someone else got in first.
+  let level: Record<string, unknown> | null = null;
+  let currentQty = 0;
+  let newQty = 0;
   const now = new Date().toISOString();
-  if (level) {
-    await supabase
+  let saved = false;
+  for (let attempt = 0; attempt < 5 && !saved; attempt++) {
+    const { data } = await supabase
       .schema("hotel")
       .from("inventory_stock_levels")
-      .update({ qty_on_hand: newQty, updated_at: now })
-      .eq("id", level.id);
-  } else {
-    await supabase.schema("hotel").from("inventory_stock_levels").insert({
-      tenant_id: params.tenantId,
-      item_id: params.itemId,
-      location_id: params.locationId,
-      qty_on_hand: newQty,
-    });
+      .select("*")
+      .eq("tenant_id", params.tenantId)
+      .eq("item_id", params.itemId)
+      .eq("location_id", params.locationId)
+      .maybeSingle();
+    level = data as Record<string, unknown> | null;
+    currentQty = level ? num(level.qty_on_hand) : 0;
+    newQty = round3(currentQty + params.qty);
+    if (newQty < 0) {
+      return { error: "Insufficient stock at this location.", movement: null, qtyOnHand: null };
+    }
+    if (level) {
+      const { data: updated } = await supabase
+        .schema("hotel")
+        .from("inventory_stock_levels")
+        .update({ qty_on_hand: newQty, updated_at: now })
+        .eq("tenant_id", params.tenantId)
+        .eq("id", level.id as string)
+        .eq("qty_on_hand", level.qty_on_hand)
+        .select("id");
+      saved = (updated ?? []).length > 0;
+    } else {
+      const { error: insertError } = await supabase.schema("hotel").from("inventory_stock_levels").insert({
+        tenant_id: params.tenantId,
+        item_id: params.itemId,
+        location_id: params.locationId,
+        qty_on_hand: newQty,
+      });
+      saved = !insertError;
+    }
   }
+  if (!saved) return { error: "Stock changed at the same time. Please try again.", movement: null, qtyOnHand: null };
 
   const { data: movement, error } = await supabase
     .schema("hotel")
@@ -210,6 +225,15 @@ export async function postStockMovement(supabase: SupabaseClient, params: PostMo
     .single();
 
   if (error || !movement) {
+    // The ledger row failed: put the balance back so the two never disagree.
+    await supabase
+      .schema("hotel")
+      .from("inventory_stock_levels")
+      .update({ qty_on_hand: currentQty, updated_at: new Date().toISOString() })
+      .eq("tenant_id", params.tenantId)
+      .eq("item_id", params.itemId)
+      .eq("location_id", params.locationId)
+      .eq("qty_on_hand", newQty);
     return { error: error?.message ?? "Could not record stock movement.", movement: null, qtyOnHand: null };
   }
 
@@ -296,7 +320,7 @@ export async function recordWaste(
 
   const value = Math.round(Math.abs(params.qty) * num(result.movement.unit_cost_at_movement) * 100) / 100;
   if (value > 0) {
-    await postJournalEntry(supabase, {
+    const posted = await postJournalEntry(supabase, {
       tenantId: params.tenantId,
       entryDate: new Date().toISOString().slice(0, 10),
       memo: `Inventory waste — ${params.reason}`,
@@ -317,6 +341,19 @@ export async function recordWaste(
         },
       ],
     });
+    if (!posted.ok) {
+      // The cost could not be booked: put the stock back so the shelf and the books still agree.
+      await postStockMovement(supabase, {
+        tenantId: params.tenantId,
+        itemId: params.itemId,
+        locationId: params.locationId,
+        movementType: "adjustment",
+        qty: Math.abs(params.qty),
+        reason: "Waste reversed: the cost could not be booked",
+        performedBy: params.performedBy,
+      });
+      return { error: `Waste not recorded: ${posted.error}`, movement: null, qtyOnHand: null };
+    }
   }
 
   return result;
@@ -524,7 +561,7 @@ export async function getInventoryDashboardStats(
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
 
-  const [{ data: items }, levels, { count: pendingCount }, { data: todayMovements }] = await Promise.all([
+  const [{ count: skuCount }, levels, { count: pendingCount }, { data: todayMovements }] = await Promise.all([
     supabase.schema("hotel").from("inventory_items").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("is_active", true),
     getStockLevels(supabase, tenantId),
     supabase
@@ -554,7 +591,7 @@ export async function getInventoryDashboardStats(
   }
 
   return {
-    skuCount: (items as unknown as { length: number } | null)?.length ?? 0,
+    skuCount: skuCount ?? 0,
     stockValue: Math.round(stockValue * 100) / 100,
     lowStockCount,
     pendingRequisitions: pendingCount ?? 0,

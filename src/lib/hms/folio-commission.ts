@@ -3,7 +3,7 @@ import { EARLY_CHECKOUT_ADJUSTMENT_REF, isBookedStayLine, stayLinePart, type Fol
 import { EXTRA_NIGHT_REF_PREFIX } from "@/lib/hms/folio-extra-nights";
 import { DISCOUNT_REF_PREFIX } from "@/lib/hms/folio-discounts";
 import { createVendor } from "@/lib/hms/procurement-vendors";
-import { createVendorBill, getApAccountId } from "@/lib/hms/vendor-bills";
+import { createVendorBill, getApAccountId, voidVendorBill } from "@/lib/hms/vendor-bills";
 
 /*
  * Travel agent commission. Agents (and booking sites the hotel pays commission to) are suppliers
@@ -184,6 +184,18 @@ export async function postCommissionBill(
   });
   if (!bill.ok) return { posted: false, reason: bill.error };
 
-  await supabase.schema("hotel").from("reservations").update({ commission_bill_id: bill.id, commission_value: amount }).eq("id", params.reservationId);
+  // Claim the stay only if nobody else has: when two check-outs race, one wins and the other voids its duplicate bill.
+  const { data: claimed } = await supabase
+    .schema("hotel")
+    .from("reservations")
+    .update({ commission_bill_id: bill.id, commission_value: amount })
+    .eq("tenant_id", params.tenantId)
+    .eq("id", params.reservationId)
+    .is("commission_bill_id", null)
+    .select("id");
+  if (!claimed || claimed.length === 0) {
+    await voidVendorBill(supabase, { tenantId: params.tenantId, billId: bill.id, voidedBy: params.userId });
+    return { posted: false, reason: "Commission already billed for this stay." };
+  }
   return { posted: true, billId: bill.id, amount, agentName, status: bill.status };
 }

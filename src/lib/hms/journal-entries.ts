@@ -62,7 +62,7 @@ function validateLines(lines: JournalEntryLineInput[]): string | null {
     totalDebit += debit;
     totalCredit += credit;
   }
-  if (Math.abs(totalDebit - totalCredit) > ROUNDING_TOLERANCE) {
+  if (Math.round(Math.abs(totalDebit - totalCredit) * 100) / 100 > ROUNDING_TOLERANCE) {
     return `Entry does not balance — debits ${totalDebit.toFixed(2)} vs credits ${totalCredit.toFixed(2)}.`;
   }
   return null;

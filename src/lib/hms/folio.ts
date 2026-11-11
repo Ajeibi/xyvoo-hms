@@ -108,7 +108,8 @@ export function computeFolioBalance(
     if (l.amount >= 0) charges += l.amount;
     else credits += Math.abs(l.amount);
   }
-  const balance = active.reduce((sum, l) => sum + l.amount, 0);
+  // Whole kobo, so 0.10 + 0.20 charged and 0.30 paid is exactly settled.
+  const balance = Math.round(active.reduce((sum, l) => sum + l.amount, 0) * 100) / 100;
 
   let displayStatus: PaymentDisplayStatus;
   if (hasRefundPending) {
@@ -317,10 +318,13 @@ export async function insertFolioLine(
   input: InsertFolioLineInput,
 ): Promise<{ line: FolioLineRow | null; error: string | null }> {
   // Payments and discounts take money off the bill; charges and refunds (money handed back) add to it.
+  // A transfer keeps the sign it was given: one side moves out (negative), the other in (positive).
   const signedAmount =
-    input.kind === "payment" || input.kind === "discount"
-      ? -Math.abs(input.amount)
-      : Math.abs(input.amount);
+    input.kind === "transfer"
+      ? input.amount
+      : input.kind === "payment" || input.kind === "discount"
+        ? -Math.abs(input.amount)
+        : Math.abs(input.amount);
 
   const { data, error } = await supabase
     .schema("hotel")
