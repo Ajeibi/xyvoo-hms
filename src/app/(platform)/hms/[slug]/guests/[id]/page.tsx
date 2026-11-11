@@ -8,6 +8,7 @@ import { getGuestConsent } from "@/lib/hms/guest-consent";
 import { signUnsubscribeToken } from "@/lib/hms/guest-consent";
 import { getGuestLoyalty, getLoyaltySettings } from "@/lib/hms/guest-loyalty";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
+import { KnownInGroupPanel } from "@/components/hms/groups/KnownInGroupPanel";
 
 export default async function GuestProfilePage({
   params,
@@ -43,6 +44,8 @@ export default async function GuestProfilePage({
         loyalty={loyalty}
         pointValueLabel={formatPricingAmount(loyaltySettings.pointValue, ctx.currency)}
       />
+      {/* Hotel groups: the same guest at the group's other hotels (nothing for a hotel on its own). */}
+      <KnownInGroupPanel slug={slug} tenantId={ctx.tenant.id} guestId={id} currency={ctx.currency} canEdit={ctx.canEdit} />
     </HMSLayout>
   );
 }

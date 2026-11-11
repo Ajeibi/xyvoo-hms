@@ -22,7 +22,7 @@ import {
   storefrontRewritePath,
 } from "@/lib/store/subdomain";
 
-const PROTECTED_PREFIXES = ["/admin", "/tenants", "/onboard", "/hms", "/storefront"];
+const PROTECTED_PREFIXES = ["/admin", "/tenants", "/onboard", "/hms", "/hms-group", "/storefront"];
 
 function loginPathFor(pathname: string) {
   return matchesPrefix(pathname, ["/storefront"]) ? "/auth/login/storefront" : "/auth/login";

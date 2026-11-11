@@ -1,3 +1,4 @@
+import { insertHotelMembership } from "@/lib/hms/membership-role";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getDepartmentLoginRolesForTenant } from "@/lib/hms/department-logins";
@@ -66,10 +67,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: createUserError?.message || "Unable to create staff login." }, { status: 400 });
     }
 
-    const { error: membershipError } = await service.schema("hotel").from("memberships").insert({
+    const { error: membershipError } = await insertHotelMembership(service, {
       tenant_id: tenant.id,
       user_id: createdUser.user.id,
       role: systemRole,
+      department_role: parsed.department_role,
     });
 
     if (membershipError) {

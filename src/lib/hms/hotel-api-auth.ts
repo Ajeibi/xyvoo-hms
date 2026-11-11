@@ -1,6 +1,7 @@
 import { getSessionUser } from "@/lib/supabase/auth-server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
+import { effectiveDepartmentRole, readHotelMembership } from "@/lib/hms/membership-role";
 import { getDepartmentScopeDefinition, hasFullHotelAccess, type HmsSectionKey } from "@/lib/hms/department-access";
 
 export async function requireHotelApiMember(slug: string) {
@@ -11,20 +12,12 @@ export async function requireHotelApiMember(slug: string) {
   if (!tenant) return { error: "Tenant not found." as const, status: 404 as const };
 
   const service = createServerSupabaseClient();
-  const { data: membership } = await service
-    .schema("hotel")
-    .from("memberships")
-    .select("role")
-    .eq("tenant_id", tenant.id)
-    .eq("user_id", user.id)
-    .maybeSingle();
+  const membership = await readHotelMembership(service, tenant.id, user.id);
 
   if (!membership) return { error: "Forbidden" as const, status: 403 as const };
 
-  const departmentRole =
-    typeof user.user_metadata?.department_role === "string"
-      ? (user.user_metadata.department_role as string)
-      : null;
+  // The department role at this hotel; the login's metadata while the membership has none.
+  const departmentRole = effectiveDepartmentRole(membership.departmentRole, user.user_metadata);
 
   return { user, tenant, service, role: membership.role as string, departmentRole };
 }

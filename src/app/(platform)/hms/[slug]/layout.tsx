@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getHmsAccessContext } from "@/lib/hms/access";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
+import { listUserPlaces } from "@/lib/hms/groups/group-access";
 import { normalizePricingSetup } from "@/lib/hms/room-pricing";
 import HMSLayoutShell from "@/components/hms/HMSLayoutShell";
 import { CardBlockSkeleton, PageHeaderSkeleton } from "@/components/hms/PageSkeletons";
@@ -57,7 +58,11 @@ export default async function HmsSlugLayout({
     redirect(access.homePath);
   }
 
-  const tenant = await getHotelTenantBySlug(slug);
+  const [tenant, places] = await Promise.all([
+    getHotelTenantBySlug(slug),
+    // The hotel switcher; a failure here must never stop the hotel's own pages.
+    listUserPlaces(access.userId).catch(() => []),
+  ]);
   const currency = normalizePricingSetup(tenant?.pricing_setup).currency;
 
   return (
@@ -72,6 +77,7 @@ export default async function HmsSlugLayout({
       settingsPath={access.settingsPath}
       canAccessAllDepartments={access.canAccessAllDepartments}
       navItems={access.navItems}
+      places={places}
     >
       <Suspense
         fallback={

@@ -2,6 +2,7 @@ import { cache } from "react";
 import { getSessionUser } from "@/lib/supabase/auth-server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
+import { effectiveDepartmentRole, readHotelMembership } from "@/lib/hms/membership-role";
 import {
   getAdminAllowedSections,
   getAdminNavItems,
@@ -66,7 +67,7 @@ export const getHmsAccessContext = cache(async (slug: string): Promise<HmsAccess
   }
 
   const tenant = await getHotelTenantBySlug(slug);
-  const departmentRole =
+  const metadataDepartmentRole =
     typeof user.user_metadata?.department_role === "string"
       ? user.user_metadata.department_role
       : null;
@@ -77,10 +78,10 @@ export const getHmsAccessContext = cache(async (slug: string): Promise<HmsAccess
     return {
       userId: user.id,
       role: null,
-      departmentRole,
+      departmentRole: metadataDepartmentRole,
       isOwnerOrAdmin: false,
       canAccessAllDepartments: false,
-      roleLabel: departmentRole || "Hotel User",
+      roleLabel: metadataDepartmentRole || "Hotel User",
       currentUserName: fullNameFromMetadata || user.email || "Hotel User",
       hotelDisplayName: slug,
       logoUrl: null,
@@ -92,14 +93,8 @@ export const getHmsAccessContext = cache(async (slug: string): Promise<HmsAccess
   }
 
   const service = createServerSupabaseClient();
-  const [{ data: membership }, { data: profile }] = await Promise.all([
-    service
-      .schema("hotel")
-      .from("memberships")
-      .select("role")
-      .eq("tenant_id", tenant.id)
-      .eq("user_id", user.id)
-      .maybeSingle(),
+  const [membership, { data: profile }] = await Promise.all([
+    readHotelMembership(service, tenant.id, user.id),
     service
       .schema("hotel")
       .from("profiles")
@@ -110,6 +105,8 @@ export const getHmsAccessContext = cache(async (slug: string): Promise<HmsAccess
   ]);
 
   const role = membership?.role || null;
+  // The department role at this hotel (one login can hold a different one at each hotel in a group).
+  const departmentRole = effectiveDepartmentRole(membership?.departmentRole, user.user_metadata);
   const isOwnerOrAdmin = isAdminLikeRole(role);
   const canAccessAllDepartments = hasFullHotelAccess(role, departmentRole);
   const hotelDisplayName = tenant.display_name?.trim() || tenant.name?.trim() || slug;

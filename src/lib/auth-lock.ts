@@ -15,7 +15,7 @@ export const WAITLIST_PATH = "/waitlist";
 /** The product a locked page belongs to, so the waitlist can say which one they were after. */
 export function waitlistProductFor(pathname: string): "hms" | "storefront" | null {
   if (matchesPrefix(pathname, ["/auth/login/storefront", "/register/storefront", "/storefront"])) return "storefront";
-  if (matchesPrefix(pathname, ["/auth/login", "/register", "/hms"])) return "hms";
+  if (matchesPrefix(pathname, ["/auth/login", "/register", "/hms", "/hms-group"])) return "hms";
   return null;
 }
 

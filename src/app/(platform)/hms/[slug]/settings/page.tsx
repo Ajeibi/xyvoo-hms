@@ -9,6 +9,7 @@ import { SmartLockSettingsCard } from "@/components/hms/settings/SmartLockSettin
 import { WebsiteSettingsCard } from "@/components/hms/settings/WebsiteSettingsCard";
 import { loadWebsiteState } from "@/lib/hms/site/state";
 import HotelBrandingSetup from "@/components/hms/HotelBrandingSetup";
+import { HotelGroupCard } from "@/components/hms/groups/HotelGroupCard";
 import HotelRoomPricingSetup from "@/components/hms/HotelRoomPricingSetup";
 import { InventoryLocationsClient } from "@/components/hms/inventory/InventoryLocationsClient";
 import { InventoryLookupManager } from "@/components/hms/inventory/InventoryLookupManager";
@@ -129,6 +130,9 @@ export default async function SettingsPage({ params }: { params: Promise<{ slug:
               initialName={displayName}
               initialLogoUrl={logoUrl}
             />
+            {tenant && access.isOwnerOrAdmin ? (
+              <HotelGroupCard slug={slug} tenantId={tenant.id} userId={access.userId} isOwner={access.role === "owner"} />
+            ) : null}
           </section>
 
           <section id="front-desk-setup" aria-labelledby="front-desk-setup-title" className="scroll-mt-24 space-y-4">

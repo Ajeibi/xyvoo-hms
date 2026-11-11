@@ -2,6 +2,8 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import type { HotelMembershipRow, HotelTenantCore } from "@/types";
 import { getDepartmentScopeDefinition, hasFullHotelAccess } from "@/lib/hms/department-access";
 import { getOnboardingProgress } from "@/lib/store/site/data";
+import { effectiveDepartmentRole, readHotelMembership } from "@/lib/hms/membership-role";
+import { getUserGroupHomePath } from "@/lib/hms/groups/group-access";
 
 export function isPlatformAdminEmail(email?: string | null) {
   if (!email) return false;
@@ -11,22 +13,32 @@ export function isPlatformAdminEmail(email?: string | null) {
 export async function getUserHotelDashboardPath(userId: string): Promise<string | null> {
   const supabase = createServerSupabaseClient();
 
+  // Someone who runs a group of several hotels starts on the group overview.
+  const groupPath = await getUserGroupHomePath(userId);
+  if (groupPath) return groupPath;
+
   const { data: memberships } = await supabase
     .schema("hotel")
     .from("memberships")
     .select("tenant_id, role")
     .eq("user_id", userId)
     .order("created_at", { ascending: true })
-    .limit(1);
+    .limit(2);
+
+  // A login that works at more than one hotel picks where to go.
+  if ((memberships ?? []).length > 1) return "/hms-group";
 
   const membership = (memberships as HotelMembershipRow[] | null)?.[0];
   if (!membership?.tenant_id) return null;
 
-  const { data: userResult, error: userError } = await supabase.auth.admin.getUserById(userId);
-  const departmentRole =
-    !userError && typeof userResult.user?.user_metadata?.department_role === "string"
-      ? userResult.user.user_metadata.department_role
-      : null;
+  const [{ data: userResult, error: userError }, membershipRole] = await Promise.all([
+    supabase.auth.admin.getUserById(userId),
+    readHotelMembership(supabase, membership.tenant_id, userId),
+  ]);
+  const departmentRole = effectiveDepartmentRole(
+    membershipRole?.departmentRole,
+    userError ? null : (userResult.user?.user_metadata as Record<string, unknown> | undefined),
+  );
 
   const { data: tenant } = await supabase
     .from("tenants")

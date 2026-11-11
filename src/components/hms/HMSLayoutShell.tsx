@@ -50,6 +50,8 @@ import { HmsNotificationsBell } from "@/components/hms/header/HmsNotificationsBe
 import { HmsQuickActionsMenu } from "@/components/hms/header/HmsQuickActionsMenu";
 import { HMS_MEANING, NAV_ICON_MEANING } from "@/components/hms/meaning";
 import { ResponsiveTables } from "@/components/hms/ResponsiveTables";
+import { PlaceSwitcher } from "@/components/hms/groups/PlaceSwitcher";
+import type { UserPlace } from "@/lib/hms/groups/group-types";
 
 type HMSLayoutShellProps = {
   children: React.ReactNode;
@@ -63,6 +65,8 @@ type HMSLayoutShellProps = {
   settingsPath: string;
   canAccessAllDepartments: boolean;
   navItems: HmsNavItem[];
+  /** Hotels and groups this login can reach; the switcher only shows when there is more than one. */
+  places?: UserPlace[];
 };
 
 /** Matches Tailwind's `md` breakpoint: below it the sidebar becomes a drawer. */
@@ -112,6 +116,7 @@ export default function HMSLayoutShell({
   settingsPath,
   canAccessAllDepartments,
   navItems,
+  places = [],
 }: HMSLayoutShellProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -462,6 +467,7 @@ export default function HMSLayoutShell({
 
             <div className="flex shrink-0 items-center gap-1 sm:gap-4">
               <form id={logoutFormId} action="/auth/logout" method="post" hidden />
+              <PlaceSwitcher places={places} current={{ kind: "hotel", slug }} />
 
               {showFrontDeskCta ? (
                 <>

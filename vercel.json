@@ -17,6 +17,7 @@
     { "path": "/api/cron/hms-accounting-sync", "schedule": "30 6 * * *" },
     { "path": "/api/cron/hms-locks", "schedule": "10 5 * * *" },
     { "path": "/api/cron/hms-maintenance", "schedule": "40 5 * * *" },
-    { "path": "/api/cron/hms-hr", "schedule": "0 7 * * *" }
+    { "path": "/api/cron/hms-hr", "schedule": "0 7 * * *" },
+    { "path": "/api/cron/hms-groups", "schedule": "35 6 * * *" }
   ]
 }
