@@ -53,17 +53,20 @@ const HMS_WATERMARKS: Record<string, string> = {
 };
 
 export function HmsExtraLanding({ page }: { page: HmsExtraPage }) {
-  const siblings = hmsSiblingLinks(page.id);
+  const siblings: { id: string; title: string; description: string; href: string; label?: string }[] =
+    page.heroLinks ?? hmsSiblingLinks(page.id);
 
   const atAGlance = (
     <SolutionAtAGlance
       accentRgb={HMS_ACCENT_RGB}
-      stats={[
-        { label: "Part Of", value: "XYVOO HMS" },
-        { label: "Built For", value: "Hotels & properties" },
-        { label: "Live In", value: "<60s provisioning" },
-      ]}
-      tagsLabel="Includes"
+      stats={
+        page.glance?.stats ?? [
+          { label: "Part Of", value: "XYVOO HMS" },
+          { label: "Built For", value: "Hotels & properties" },
+          { label: "Live In", value: "<60s provisioning" },
+        ]
+      }
+      tagsLabel={page.glance?.tagsLabel ?? "Includes"}
       tags={page.features.map((f) => f.number.replace(/^\d+\s*(?:—|–|\.|:)\s*/, "").trim())}
     />
   );
@@ -150,7 +153,8 @@ export function HmsExtraLanding({ page }: { page: HmsExtraPage }) {
     />
   ) : null;
 
-  const stepReel = (
+  // Pages with no onboarding steps (e.g. /white-labeling) skip the reel.
+  const stepReel = page.onboarding.cards.length === 0 ? null : (
     <SolutionStepReel
       headingId={`${page.id}-onboarding-heading`}
       heading={page.onboarding.heading}
@@ -175,7 +179,7 @@ export function HmsExtraLanding({ page }: { page: HmsExtraPage }) {
       {/* Hero — dense split layout, same bg as /solution/hms's own hero */}
       <section className="relative isolate overflow-hidden border-b border-white/5 bg-[#000d1f] px-6 pt-36 pb-20 md:px-12 md:pb-24 lg:px-6">
         <div className="pointer-events-none absolute inset-0 z-0" style={DARK_GRID_STYLE} aria-hidden />
-        <HeroWatermark text={HMS_WATERMARKS[page.id] ?? "hotels"} tone="dark" />
+        <HeroWatermark text={page.watermark ?? HMS_WATERMARKS[page.id] ?? "hotels"} tone="dark" />
         <div
           className="pointer-events-none absolute -top-16 right-[8%] z-0 h-[360px] w-[360px] rounded-full blur-[100px]"
           style={{ background: "rgb(var(--xyvoo-blue-rgb) / 0.24)" }}
@@ -206,7 +210,7 @@ export function HmsExtraLanding({ page }: { page: HmsExtraPage }) {
                 <div className="flex items-baseline justify-between gap-4">
                   <h3 className="text-lg font-bold text-white">{link.title}</h3>
                   <span className="inline-flex shrink-0 items-center gap-1 text-xs font-bold uppercase tracking-wider text-[#90caf9] transition-colors group-hover:text-white">
-                    Explore
+                    {link.label ?? "Explore"}
                     <ArrowUpRight className="h-3 w-3" />
                   </span>
                 </div>

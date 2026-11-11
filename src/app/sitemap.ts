@@ -19,6 +19,7 @@ const routes: Array<{
   { path: "/templates/fernhollow", changeFrequency: "monthly", priority: 0.6 },
   { path: "/templates/aldwin", changeFrequency: "monthly", priority: 0.6 },
   { path: "/about", changeFrequency: "monthly", priority: 0.7 },
+  { path: "/white-labeling", changeFrequency: "monthly", priority: 0.6 },
   { path: "/blog", changeFrequency: "weekly", priority: 0.6 },
   { path: "/support", changeFrequency: "monthly", priority: 0.6 },
   { path: "/contact", changeFrequency: "monthly", priority: 0.6 },

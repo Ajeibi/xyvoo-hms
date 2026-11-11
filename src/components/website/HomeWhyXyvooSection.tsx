@@ -52,7 +52,7 @@ const TOP_CARDS: TopCard[] = [
     description:
       "Your customers see your brand. You control the experience. XYVOO powers the technology behind the scenes, with fully white-label platforms designed to make your digital presence feel entirely yours.",
     linkLabel: "How white-labelling works",
-    linkHref: "/about",
+    linkHref: "/white-labeling",
   },
 ];
 

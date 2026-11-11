@@ -133,6 +133,8 @@ const HMS_PATH_PREFIXES = [
   "/solution/hms",
   "/business-types/independent-hotels",
   "/business-types/hotel-groups",
+  // Shares the HMS landing template, so its dark hero needs the same transparent header.
+  "/white-labeling",
 ];
 
 function isHmsPath(pathname: string | null): boolean {

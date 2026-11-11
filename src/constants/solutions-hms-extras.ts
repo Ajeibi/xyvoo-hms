@@ -21,6 +21,10 @@ export type HmsExtraPage = {
    * "rich" leads with the arc-card stack right after At a Glance (a fuller,
    * more impressive-looking page for an enterprise/scaling audience). */
   layout?: "compact" | "rich";
+  /** Optional overrides for pages that aren't an HMS-only feature page. */
+  watermark?: string;
+  heroLinks?: { id: string; title: string; description: string; href: string; label?: string }[];
+  glance?: { stats: { label: string; value: string }[]; tagsLabel: string };
   /** "rich" layout only — bold qualitative callouts for SolutionStatBand. */
   stats?: { headline: string; label: string }[];
   features: HmsExtraFeature[];
@@ -412,7 +416,7 @@ export const HMS_INDEPENDENT_HOTELS: HmsExtraPage = {
         alt: "The XYVOO housekeeping board and procurement dashboard shown on a laptop and a phone",
         width: 1535,
         height: 1024,
-        side: "left",
+        side: "right",
       },
     },
   ],
