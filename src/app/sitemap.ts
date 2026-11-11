@@ -18,6 +18,7 @@ const routes: Array<{
   { path: "/templates/coral-tide", changeFrequency: "monthly", priority: 0.6 },
   { path: "/templates/fernhollow", changeFrequency: "monthly", priority: 0.6 },
   { path: "/templates/aldwin", changeFrequency: "monthly", priority: 0.6 },
+  { path: "/waitlist", changeFrequency: "monthly", priority: 0.7 },
   { path: "/about", changeFrequency: "monthly", priority: 0.7 },
   { path: "/white-labeling", changeFrequency: "monthly", priority: 0.6 },
   { path: "/blog", changeFrequency: "weekly", priority: 0.6 },

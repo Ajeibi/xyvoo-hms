@@ -7,7 +7,9 @@ import { parseWaitlistProduct, waitlistProductName } from "@/lib/marketing/waitl
 export const metadata: Metadata = {
   title: "Join the waitlist",
   description: "XYVOO HMS and Storefront are in alpha testing. Join the waitlist and we'll email you when a place opens.",
-  robots: { index: false, follow: true },
+  // The ?product= variants are the same page, so they all point at one URL.
+  alternates: { canonical: "/waitlist" },
+  robots: { index: true, follow: true },
 };
 
 const WHAT_HAPPENS = [
