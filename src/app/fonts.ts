@@ -1,26 +1,39 @@
-import { DM_Sans, Exo_2, Fraunces, Inter } from "next/font/google";
+import localFont from "next/font/local";
 
 /*
- * The platform's typefaces, self-hosted by next/font so the browser never waits on
- * fonts.googleapis.com before it can paint. globals.css reads them through these
- * CSS variables. Only Inter (the body face on every page) is preloaded; DM Sans and
- * Exo 2 appear in one home-page section and load when it is used.
+ * The platform's typefaces, self-hosted from src/app/font-files so the build never
+ * calls fonts.googleapis.com (a bad response from Google used to fail the whole
+ * deploy). globals.css reads them through these CSS variables. Only Inter (the body
+ * face on every page) is preloaded; DM Sans, Exo 2 and Fraunces load when used.
  */
-const inter = Inter({ subsets: ["latin"], display: "swap", variable: "--font-inter" });
-const dmSans = DM_Sans({ subsets: ["latin"], display: "swap", preload: false, variable: "--font-dm-sans" });
-const exo2 = Exo_2({
-  subsets: ["latin"],
-  weight: ["700", "800"],
+const inter = localFont({
+  src: "./font-files/inter-latin-wght-normal.woff2",
+  weight: "100 900",
+  display: "swap",
+  variable: "--font-inter",
+});
+const dmSans = localFont({
+  src: "./font-files/dm-sans-latin-wght-normal.woff2",
+  weight: "100 1000",
+  display: "swap",
+  preload: false,
+  variable: "--font-dm-sans",
+});
+const exo2 = localFont({
+  src: [
+    { path: "./font-files/exo-2-latin-700-normal.woff2", weight: "700", style: "normal" },
+    { path: "./font-files/exo-2-latin-800-normal.woff2", weight: "800", style: "normal" },
+  ],
   display: "swap",
   preload: false,
   variable: "--font-exo-2",
 });
 
 // Soft, playful italic for the oversized hero watermarks (lowercase words).
-const fraunces = Fraunces({
-  subsets: ["latin"],
-  style: ["italic"],
-  axes: ["SOFT", "WONK"],
+const fraunces = localFont({
+  src: "./font-files/fraunces-latin-full-italic.woff2",
+  weight: "100 900",
+  style: "italic",
   display: "swap",
   preload: false,
   variable: "--font-fraunces",

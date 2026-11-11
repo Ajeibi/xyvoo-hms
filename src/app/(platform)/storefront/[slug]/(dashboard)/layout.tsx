@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import localFont from "next/font/local";
 import StorefrontDashboardShell from "@/components/storefront/StorefrontDashboardShell";
 import { canUseStoreSection, getStoreAccessContext, getStoreCapabilities, STORE_SECTIONS } from "@/lib/store/access";
 import { getOnboardingProgress, getStoreSite } from "@/lib/store/site/data";
 
 // A rounder, friendlier face for dashboard headings; body text stays in Inter.
-const headingFont = Plus_Jakarta_Sans({ subsets: ["latin"], weight: ["600", "700", "800"], variable: "--font-dash-heading", display: "swap" });
+const headingFont = localFont({ src: "../../../../font-files/plus-jakarta-sans-latin-wght-normal.woff2", weight: "200 800", variable: "--font-dash-heading", display: "swap" });
 
 const ROLE_LABELS: Record<string, string> = {
   owner: "Owner",

@@ -1,8 +1,8 @@
-import { DM_Sans, DM_Serif_Display, Fraunces, Inter, Jost, Playfair_Display, Plus_Jakarta_Sans, Source_Sans_3 } from "next/font/google";
+import localFont from "next/font/local";
 import type { FontFamilyKey, FontPairing } from "./fonts";
 
 /*
- * next/font downloads these at build time and serves them from the app, so a
+ * these are self-hosted files (src/app/font-files) served from the app, so a
  * storefront makes no request to Google. Variable names must match fontCssVar().
  * preload is off: Next preloads every font a route imports, which would make
  * every store download all eight families (~250 KB) before its own content.
@@ -12,14 +12,14 @@ import type { FontFamilyKey, FontPairing } from "./fonts";
  * fallback, and the store font from the next page on, once it is cached.
  */
 // next/font requires every option to be a literal written in the call itself.
-const jost = Jost({ subsets: ["latin"], display: "optional", preload: false, variable: "--sf-font-jost" });
-const dmSans = DM_Sans({ subsets: ["latin"], display: "optional", preload: false, variable: "--sf-font-dmSans" });
-const dmSerifDisplay = DM_Serif_Display({ subsets: ["latin"], display: "optional", preload: false, weight: "400", variable: "--sf-font-dmSerifDisplay" });
-const plusJakarta = Plus_Jakarta_Sans({ subsets: ["latin"], display: "optional", preload: false, variable: "--sf-font-plusJakarta" });
-const fraunces = Fraunces({ subsets: ["latin"], display: "optional", preload: false, variable: "--sf-font-fraunces" });
-const inter = Inter({ subsets: ["latin"], display: "optional", preload: false, variable: "--sf-font-inter" });
-const playfair = Playfair_Display({ subsets: ["latin"], display: "optional", preload: false, variable: "--sf-font-playfair" });
-const sourceSans = Source_Sans_3({ subsets: ["latin"], display: "optional", preload: false, variable: "--sf-font-sourceSans" });
+const jost = localFont({ src: "../../../app/font-files/jost-latin-wght-normal.woff2", weight: "100 900", display: "optional", preload: false, variable: "--sf-font-jost" });
+const dmSans = localFont({ src: "../../../app/font-files/dm-sans-latin-wght-normal.woff2", weight: "100 1000", display: "optional", preload: false, variable: "--sf-font-dmSans" });
+const dmSerifDisplay = localFont({ src: "../../../app/font-files/dm-serif-display-latin-400-normal.woff2", weight: "400", display: "optional", preload: false, variable: "--sf-font-dmSerifDisplay" });
+const plusJakarta = localFont({ src: "../../../app/font-files/plus-jakarta-sans-latin-wght-normal.woff2", weight: "200 800", display: "optional", preload: false, variable: "--sf-font-plusJakarta" });
+const fraunces = localFont({ src: "../../../app/font-files/fraunces-latin-wght-normal.woff2", weight: "100 900", display: "optional", preload: false, variable: "--sf-font-fraunces" });
+const inter = localFont({ src: "../../../app/font-files/inter-latin-wght-normal.woff2", weight: "100 900", display: "optional", preload: false, variable: "--sf-font-inter" });
+const playfair = localFont({ src: "../../../app/font-files/playfair-display-latin-wght-normal.woff2", weight: "400 900", display: "optional", preload: false, variable: "--sf-font-playfair" });
+const sourceSans = localFont({ src: "../../../app/font-files/source-sans-3-latin-wght-normal.woff2", weight: "200 900", display: "optional", preload: false, variable: "--sf-font-sourceSans" });
 
 const FONTS: Record<FontFamilyKey, { variable: string }> = {
   jost,
