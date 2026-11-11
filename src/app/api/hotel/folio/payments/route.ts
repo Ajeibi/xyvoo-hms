@@ -5,6 +5,7 @@ import { requireHotelApiSection } from "@/lib/hms/hotel-api-auth";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { getActiveCashFloatSession, insertFolioLine, openCashFloatSession } from "@/lib/hms/folio";
 import { notifyPaymentReceived } from "@/lib/hms/notification-rules";
+import { resolvePosTerminalForPayment } from "@/lib/hms/pos-terminals";
 import { loadFolioPayload, loadReservation } from "../_lib";
 
 const BodySchema = z.object({
@@ -12,6 +13,8 @@ const BodySchema = z.object({
   reservationId: z.string().uuid(),
   amount: z.coerce.number().positive(),
   method: z.enum(["cash", "pos", "direct_bill"]),
+  /** Which card machine took a Card machine (POS) payment. */
+  posTerminalId: z.string().uuid().nullish(),
   reference: z.string().max(120).optional(),
   splitLeg: z.enum(FOLIO_WINDOWS).optional(),
 });
@@ -24,6 +27,9 @@ export async function POST(req: Request) {
 
     const reservation = await loadReservation(auth, body.reservationId);
     if (!reservation) return NextResponse.json({ error: "Reservation not found." }, { status: 404 });
+
+    const terminal = await resolvePosTerminalForPayment(auth.service, auth.tenant.id, body.method, body.posTerminalId);
+    if (!terminal.ok) return NextResponse.json({ error: terminal.error }, { status: 400 });
 
     let cashFloatSessionId: string | undefined;
     let cashFloatAutoOpened = false;
@@ -61,7 +67,8 @@ export async function POST(req: Request) {
       kind: "payment",
       amount: body.amount,
       method: body.method,
-      description: `Payment (${body.method})`,
+      description: terminal.terminal ? `Payment (pos · ${terminal.terminal.name})` : `Payment (${body.method})`,
+      posTerminal: terminal.terminal,
       postedBy: auth.user.id,
       reference: body.reference,
       splitLeg: body.splitLeg ?? "guest",
@@ -75,7 +82,7 @@ export async function POST(req: Request) {
       action: "folio_payment_posted",
       entityType: "folio_transaction",
       entityId: line.id,
-      after: { amount: body.amount, method: body.method },
+      after: { amount: body.amount, method: body.method, posTerminal: terminal.terminal?.name ?? null },
     });
 
     await notifyPaymentReceived({

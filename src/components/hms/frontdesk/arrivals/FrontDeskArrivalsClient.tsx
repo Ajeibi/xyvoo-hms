@@ -145,6 +145,9 @@ const ARRIVAL_SOURCE_FILTER_OPTIONS = [
   { value: "phone", label: "Phone" },
   { value: "travel_agent", label: "Travel agent" },
   { value: "referral", label: "Referral" },
+  { value: "airbnb", label: "Airbnb" },
+  { value: "e_guest", label: "E-guest" },
+  { value: "e_commerce", label: "E-commerce" },
 ];
 
 const ARRIVAL_READINESS_FILTER_OPTIONS = [
@@ -756,7 +759,12 @@ export function FrontDeskArrivalsClient({
                   </div>
                   <div className="min-w-0">
                     <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">Room</dt>
-                    <dd className="mt-0.5 font-medium text-slate-900">{row.roomCode ?? "Not assigned"}</dd>
+                    <dd className="mt-0.5 font-medium text-slate-900">
+                      {row.roomCode ?? "Not assigned"}
+                      {row.requestedRoomCode && row.requestedRoomCode !== row.roomCode ? (
+                        <span className="mt-0.5 block text-xs font-semibold text-amber-800">Guest asked for {row.requestedRoomCode}</span>
+                      ) : null}
+                    </dd>
                   </div>
                   <div className="min-w-0">
                     <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">Room type</dt>
@@ -971,7 +979,12 @@ export function FrontDeskArrivalsClient({
                       <div className="font-medium">{row.roomTypeName}</div>
                       {row.floor != null ? <div className="text-slate-600">Floor {row.floor}</div> : null}
                     </td>
-                    <td className={cn(TD, "font-medium text-slate-900", surface)}>{row.roomCode ?? "—"}</td>
+                    <td className={cn(TD, "font-medium text-slate-900", surface)}>
+                      {row.roomCode ?? "—"}
+                      {row.requestedRoomCode && row.requestedRoomCode !== row.roomCode ? (
+                        <div className="text-xs font-semibold text-amber-800">Asked for {row.requestedRoomCode}</div>
+                      ) : null}
+                    </td>
                     <td className={cn(TD, "text-center tabular-nums", surface)}>{row.partySize}</td>
                     <td className={cn(TD, "whitespace-nowrap text-right text-xs tabular-nums", surface)}>
                       {formatPricingAmount(row.totalCharges, currency)}

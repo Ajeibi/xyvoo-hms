@@ -5,9 +5,10 @@ import { FrontDeskPopoverSelect } from "@/components/hms/frontdesk/FrontDeskPopo
 import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 
+import type { BookingSource, MarketSegment } from "@/lib/hms/reservation-create-shared";
+import { useBookingOptions } from "@/lib/hms/useBookingOptions";
+
 type RateType = "rack" | "corporate" | "walk_in_bar" | "promotional";
-type MarketSegment = "transient" | "corporate" | "group" | "government" | "wholesale";
-type BookingSource = "walk_in" | "phone" | "referral" | "ota" | "website" | "travel_agent";
 
 /** Extracted verbatim from FrontDeskCheckInForm.tsx (P2 refactor — no behavior change). */
 export function SeasonRateTypeFieldset({
@@ -88,6 +89,9 @@ export function BusinessSourceFieldset({
   slug: string;
   travelAgentId?: string | null;
 }) {
+  // The built-ins plus the hotel's own (added in Settings). The stay's current value always stays listed.
+  const segmentOptions = useBookingOptions(slug, "segment", { keep: marketSegment });
+  const sourceOptions = useBookingOptions(slug, "source", { style: "check_in", keep: source });
   return (
     <fieldset className="space-y-4">
       <legend className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-900">
@@ -102,7 +106,7 @@ export function BusinessSourceFieldset({
           <CheckInFieldLabelRow
             htmlFor="marketSegment"
             helpTitle="Market segment"
-            helpText="High-level guest category (transient leisure, corporate, group, government, wholesale). Feeds STR-style reporting and rate access."
+            helpText="High-level guest category (transient leisure, corporate, group, government, wholesale, hotel booking). Feeds STR-style reporting and rate access."
           >
             Market segment
           </CheckInFieldLabelRow>
@@ -111,20 +115,14 @@ export function BusinessSourceFieldset({
             value={marketSegment}
             onChange={(v) => setMarketSegment(v as MarketSegment)}
             placeholder="Select segment…"
-            options={[
-              { value: "transient", label: "Transient" },
-              { value: "corporate", label: "Corporate" },
-              { value: "group", label: "Group" },
-              { value: "government", label: "Government" },
-              { value: "wholesale", label: "Wholesale" },
-            ]}
+            options={segmentOptions.map((s) => ({ value: s.value, label: s.label }))}
           />
         </div>
         <div className="space-y-2">
           <CheckInFieldLabelRow
             htmlFor="source"
             helpTitle="Source"
-            helpText="Booking acquisition channel (walk-in, phone, OTA, website, travel agent). Pair with booking channel for precise attribution."
+            helpText="Booking acquisition channel (walk-in, phone, OTA, Airbnb, e-guest, e-commerce, website, travel agent). Pair with booking channel for precise attribution."
           >
             Source
           </CheckInFieldLabelRow>
@@ -133,14 +131,7 @@ export function BusinessSourceFieldset({
             value={source}
             onChange={(v) => setSource(v as BookingSource)}
             placeholder="Select source…"
-            options={[
-              { value: "walk_in", label: "Walk-in" },
-              { value: "phone", label: "Phone" },
-              { value: "referral", label: "Referral" },
-              { value: "ota", label: "OTA" },
-              { value: "website", label: "Website" },
-              { value: "travel_agent", label: "Travel agent" },
-            ]}
+            options={sourceOptions.map((s) => ({ value: s.value, label: s.label }))}
           />
         </div>
         <div className="space-y-2">

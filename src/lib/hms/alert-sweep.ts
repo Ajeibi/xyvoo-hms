@@ -34,7 +34,7 @@ export async function sweepOverdueCheckouts(service: SupabaseClient, tenantId: s
   const { data } = await service
     .schema("hotel")
     .from("reservations")
-    .select("id,departure_at,room_units(room_code),reservation_guests(is_primary,guests(first_name,last_name))")
+    .select("id,departure_at,room_units!room_unit_id(room_code),reservation_guests(is_primary,guests(first_name,last_name))")
     .eq("tenant_id", tenantId)
     .eq("status", "checked_in")
     .lt("departure_at", now.toISOString())

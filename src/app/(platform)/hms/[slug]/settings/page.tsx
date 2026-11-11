@@ -15,6 +15,12 @@ import { InventoryLocationsClient } from "@/components/hms/inventory/InventoryLo
 import { InventoryLookupManager } from "@/components/hms/inventory/InventoryLookupManager";
 import { InventoryItemTypeManager } from "@/components/hms/inventory/InventoryItemTypeManager";
 import { InventorySupplierManager } from "@/components/hms/inventory/InventorySupplierManager";
+import { DiscountPackagesManager } from "@/components/hms/settings/DiscountPackagesManager";
+import { DEFAULT_CHECKIN_DISCOUNT_THRESHOLD, getCheckInDiscountThreshold, listDiscountPackages } from "@/lib/hms/discount-packages";
+import { PosTerminalsManager } from "@/components/hms/settings/PosTerminalsManager";
+import { listPosTerminals } from "@/lib/hms/pos-terminals";
+import { BookingOptionsManager } from "@/components/hms/settings/BookingOptionsManager";
+import { listCustomBookingOptionsSafe } from "@/lib/hms/booking-options";
 import { PlatformChargesCard } from "@/components/hms/settings/PlatformChargesCard";
 import { supabaseChargeStore } from "@/lib/hms/billing/store";
 import { toPublicCharge } from "@/lib/hms/billing/types";
@@ -73,10 +79,25 @@ export default async function SettingsPage({ params }: { params: Promise<{ slug:
 
   const websiteState = tenant && access.isOwnerOrAdmin ? await loadWebsiteState(tenant, slug).catch((error) => (console.error("[settings] website section hidden", error), null)) : null;
 
+  // Card machines come from a table added later; the page still opens if it has not been created yet.
+  const posTerminals = tenant
+    ? await listPosTerminals(createServerSupabaseClient(), tenant.id).catch((error) => (console.error("[settings] card machines hidden", error), []))
+    : [];
+
+  // The hotel's own booking sources and market segments; none until the table exists.
+  const bookingOptions = tenant ? await listCustomBookingOptionsSafe(createServerSupabaseClient(), tenant.id) : [];
+
   // What the hotel has paid XYVOO; the page still opens if the table has not been created yet.
   const platformCharges = tenant && access.isOwnerOrAdmin
     ? await supabaseChargeStore().list(tenant.id, 50).then((rows) => rows.map(toPublicCharge)).catch((error) => (console.error("[settings] payments to XYVOO hidden", error), []))
     : [];
+
+  const discountPackages = tenant
+    ? await listDiscountPackages(createServerSupabaseClient(), tenant.id).catch((error) => (console.error("[settings] discount codes hidden", error), []))
+    : [];
+  const discountThreshold = tenant
+    ? await getCheckInDiscountThreshold(createServerSupabaseClient(), tenant.id)
+    : DEFAULT_CHECKIN_DISCOUNT_THRESHOLD;
 
   const [invLocations, invLocationTypes, invUnits, invItemTypes, invSuppliers, guestServiceCategories] = tenant
     ? await (async () => {
@@ -162,6 +183,9 @@ export default async function SettingsPage({ params }: { params: Promise<{ slug:
               inventoryRoomCount={inventoryRoomCount}
             />
             <GuestServiceCategoriesManager slug={slug} rows={guestServiceCategories} />
+            <PosTerminalsManager slug={slug} rows={posTerminals} />
+            <BookingOptionsManager slug={slug} custom={bookingOptions} />
+            <DiscountPackagesManager slug={slug} rows={discountPackages} threshold={discountThreshold} />
             <SmartLockSettingsCard slug={slug} />
           </section>
 

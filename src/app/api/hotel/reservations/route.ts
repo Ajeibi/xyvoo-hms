@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { managerApproved, requireReservationsApi, todayDay } from "@/lib/hms/reservations-api";
-import { BOOKING_SOURCES, createReservation, MARKET_SEGMENTS } from "@/lib/hms/reservation-create";
+import { createReservation } from "@/lib/hms/reservation-create";
+import { assertBookingOptionAllowed } from "@/lib/hms/booking-options";
 import { sendReservationEmail } from "@/lib/hms/reservation-emails";
 import { normalizePricingSetup, normalizeRoomTypes } from "@/lib/hms/room-pricing";
 
@@ -29,12 +30,14 @@ const Body = z.object({
     })
     .nullable()
     .optional(),
-  source: z.enum(BOOKING_SOURCES).default("phone"),
-  marketSegment: z.enum(MARKET_SEGMENTS).optional(),
+  // A built-in value or one of the hotel's own; checked against the hotel's list below.
+  source: z.string().trim().min(1).max(80).default("phone"),
+  marketSegment: z.string().trim().min(1).max(80).optional(),
   purpose: z.enum(["leisure", "business", "transit"]).optional(),
   bookingChannel: z.string().max(120).nullable().optional(),
   notes: z.string().max(1000).nullable().optional(),
   vip: z.boolean().optional(),
+  requestedRoomUnitId: z.string().uuid().nullable().optional(),
   travelAgentId: z.string().uuid().nullable().optional(),
   allotmentId: z.string().uuid().nullable().optional(),
   sendEmail: z.boolean().optional(),
@@ -50,6 +53,11 @@ export async function POST(req: Request) {
     const body = Body.parse(await req.json());
     const auth = await requireReservationsApi(body.slug);
     if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
+
+    const optionError =
+      (await assertBookingOptionAllowed(auth.service, auth.tenant.id, "source", body.source)) ??
+      (body.marketSegment ? await assertBookingOptionAllowed(auth.service, auth.tenant.id, "segment", body.marketSegment) : null);
+    if (optionError) return NextResponse.json({ error: optionError }, { status: 400 });
 
     let overrideLimit: { reason: string } | null = null;
     if (body.overrideReason) {
@@ -85,6 +93,7 @@ export async function POST(req: Request) {
       departureDay: body.departureDay,
       roomTypeCode: body.roomTypeCode,
       roomUnitId: body.roomUnitId,
+      requestedRoomUnitId: body.requestedRoomUnitId,
       adults: body.adults,
       children: body.children,
       guestId: body.guestId,

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { GUEST_TITLE_MAX_LENGTH, normaliseGuestTitle } from "@/lib/hms/guest-title";
 
 /** Stored on the guest profile when ID type is national ID (no expiry on document; column is NOT NULL). */
 export const NATIONAL_ID_ID_EXPIRY_PLACEHOLDER = "9999-12-31";
@@ -11,7 +12,8 @@ export const discountScopeSchema = z.enum([
   "first_and_last",
 ]);
 
-export const guestTitleSchema = z.enum(["mr", "mrs", "ms", "dr", "chief", "other"]);
+/** A salutation: one of the listed titles, or any custom text typed under "Other". */
+export const guestTitleSchema = z.string().trim().max(GUEST_TITLE_MAX_LENGTH);
 
 /** Full identity for adults accompanying the primary guest. */
 export const accompanyingAdultGuestSchema = z.object({
@@ -75,12 +77,18 @@ export const walkInCheckInPayloadSchema = z
 
     roomTypeCode: z.string().min(1).max(40),
     roomCode: z.string().max(20).optional(),
+    /** The room the guest asked for. A wish, not a hold: the booking goes through even if it is busy. */
+    requestedRoomCode: z.string().max(20).optional().nullable(),
 
     /** Published BAR for the room type (server recomputes; must match within tolerance). */
     ratePerNightBar: z.coerce.number().min(0),
 
     discountPercent: z.coerce.number().min(0).max(100).default(0),
     discountScope: discountScopeSchema.default("none"),
+    /** A promo code from the hotel's list. The server looks it up and sets the percent and nights itself. */
+    discountCode: z.string().max(40).optional().nullable(),
+    /** The manager's PIN, for a manual discount above the hotel's limit. Never stored. */
+    managerPin: z.string().max(40).optional().nullable(),
 
     taxExemptVat: z.coerce.boolean().optional().default(false),
     taxExemptServiceCharge: z.coerce.boolean().optional().default(false),
@@ -97,6 +105,9 @@ export const walkInCheckInPayloadSchema = z
     cardExpiry: z.string().max(5).optional().nullable(),
     billToAccount: z.string().max(200).optional().nullable(),
     poNumber: z.string().max(80).optional().nullable(),
+    billToContactName: z.string().max(200).optional().nullable(),
+    billToContactPhone: z.string().max(40).optional().nullable(),
+    billToContactEmail: z.string().max(200).optional().nullable(),
     preauthAmount: z.coerce.number().min(0).optional().nullable(),
 
     guestRemarksReservation: z.string().max(2000).optional().nullable(),
@@ -109,10 +120,9 @@ export const walkInCheckInPayloadSchema = z
     seasonCode: z.string().max(40).optional().nullable(),
     rateType: z.enum(["rack", "corporate", "walk_in_bar", "promotional"]).default("walk_in_bar"),
 
-    marketSegment: z
-      .enum(["transient", "corporate", "group", "government", "wholesale"])
-      .default("transient"),
-    source: z.enum(["walk_in", "phone", "referral", "ota", "website", "travel_agent"]).default("walk_in"),
+    // A built-in value or one of the hotel's own; the route checks it against the hotel's list.
+    marketSegment: z.string().trim().min(1).max(80).default("transient"),
+    source: z.string().trim().min(1).max(80).default("walk_in"),
     bookingChannel: z.string().max(120).optional().nullable(),
     travelAgentName: z.string().max(120).optional().nullable(),
     /** A travel agent from the hotel's list; they earn commission on this stay. */
@@ -180,16 +190,7 @@ export type AccompanyingAdultGuest = z.infer<typeof accompanyingAdultGuestSchema
 export type MinorGuest = z.infer<typeof minorGuestSchema>;
 
 export function guestTitleFromPayload(title: WalkInCheckInPayload["title"]): string | null {
-  if (!title) return null;
-  const map: Record<string, string> = {
-    mr: "Mr",
-    mrs: "Mrs",
-    ms: "Ms",
-    dr: "Dr",
-    chief: "Chief",
-    other: "Other",
-  };
-  return map[title] ?? null;
+  return normaliseGuestTitle(title);
 }
 
 export function resolveGuestIdExpiry(

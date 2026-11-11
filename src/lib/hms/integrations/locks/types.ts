@@ -20,7 +20,7 @@ export const LOCK_PROVIDERS: LockProviderInfo[] = [
   { id: "audit_only", label: "Record only (no hardware)", needs: "Nothing. Key events are only written to the log.", hasCloudAccount: false },
   { id: "ttlock", label: "TTLock", needs: "A TTLock account that owns the locks, and a TTLock gateway for remote codes.", hasCloudAccount: true },
   { id: "http_webhook", label: "Your own lock server (HTTP)", needs: "A server on your side that accepts unlock, revoke and reissue calls.", hasCloudAccount: false },
-  { id: "mock", label: "Demo (simulated)", needs: "Nothing. Pretends to work so staff can practise.", hasCloudAccount: false },
+  { id: "mock", label: "Practice mode", needs: "Nothing. Pretends to work so staff can practise.", hasCloudAccount: false },
 ];
 
 export type LockResult<T = Record<string, never>> =

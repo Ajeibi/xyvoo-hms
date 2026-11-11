@@ -35,6 +35,9 @@ export type FolioLineRow = {
   split_leg: FolioSplitLeg;
   related_reservation_id: string | null;
   cash_float_session_id: string | null;
+  /** The card machine that took a card payment; empty for cash and for payments from before terminals existed. */
+  pos_terminal_id?: string | null;
+  pos_terminal_name?: string | null;
   metadata: Record<string, unknown>;
   created_at: string;
 };
@@ -82,6 +85,8 @@ export function mapFolioLineRow(row: Record<string, unknown>): FolioLineRow {
     split_leg: (row.split_leg as FolioSplitLeg) ?? "guest",
     related_reservation_id: (row.related_reservation_id as string | null) ?? null,
     cash_float_session_id: (row.cash_float_session_id as string | null) ?? null,
+    pos_terminal_id: (row.pos_terminal_id as string | null) ?? null,
+    pos_terminal_name: (row.pos_terminal_name as string | null) ?? null,
     metadata: (row.metadata as Record<string, unknown>) ?? {},
     created_at: row.created_at as string,
   };
@@ -308,6 +313,7 @@ export type InsertFolioLineInput = {
   originalCurrency?: string;
   relatedReservationId?: string;
   cashFloatSessionId?: string;
+  posTerminal?: { id: string; name: string } | null;
   metadata?: Record<string, unknown>;
   /** The business day the line belongs to; left out, the database stamps the current business date. */
   businessDate?: string;
@@ -347,6 +353,8 @@ export async function insertFolioLine(
       original_currency: input.originalCurrency ?? null,
       related_reservation_id: input.relatedReservationId ?? null,
       cash_float_session_id: input.cashFloatSessionId ?? null,
+      pos_terminal_id: input.posTerminal?.id ?? null,
+      pos_terminal_name: input.posTerminal?.name ?? null,
       metadata: input.metadata ?? {},
       ...(input.businessDate ? { business_date: input.businessDate } : {}),
     })

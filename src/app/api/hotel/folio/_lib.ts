@@ -52,7 +52,7 @@ export async function loadReservation(
     .schema("hotel")
     .from("reservations")
     .select(
-      "id,confirmation_code,folio_number,status,settlement_method,preauth_amount,total_room_charges,rate_per_night,room_type_code,nights,departure_at,arrival_at,checked_in_at,rate_overridden,rate_override_reason,vat_applicable,tax_exempt,pricing_snapshot,extra_nights_confirmed_on,travel_agent_vendor_id,agent_commission_percent,commission_bill_id,bill_to_account,po_number,folio_split_notes,commission_plan,commission_value,credit_limit,reservation_guests(is_primary,guests(first_name,last_name,email,phone,whatsapp))",
+      "id,confirmation_code,folio_number,status,settlement_method,preauth_amount,total_room_charges,rate_per_night,room_type_code,nights,departure_at,arrival_at,checked_in_at,rate_overridden,rate_override_reason,vat_applicable,tax_exempt,pricing_snapshot,extra_nights_confirmed_on,travel_agent_vendor_id,agent_commission_percent,commission_bill_id,bill_to_account,po_number,bill_to_contact_name,bill_to_contact_phone,bill_to_contact_email,folio_split_notes,commission_plan,commission_value,credit_limit,reservation_guests(is_primary,guests(first_name,last_name,email,phone,whatsapp))",
     )
     .eq("id", reservationId)
     .eq("tenant_id", auth.tenant.id)

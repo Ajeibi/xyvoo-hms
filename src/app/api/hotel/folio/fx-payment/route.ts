@@ -5,6 +5,7 @@ import { requireHotelApiSection } from "@/lib/hms/hotel-api-auth";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { insertFolioLine } from "@/lib/hms/folio";
 import { notifyPaymentReceived } from "@/lib/hms/notification-rules";
+import { resolvePosTerminalForPayment } from "@/lib/hms/pos-terminals";
 import { loadFolioPayload, loadReservation } from "../_lib";
 
 const BodySchema = z.object({
@@ -15,6 +16,7 @@ const BodySchema = z.object({
   originalCurrency: z.string().length(3),
   fxRate: z.coerce.number().positive(),
   method: z.enum(["cash", "pos", "direct_bill"]).default("cash"),
+  posTerminalId: z.string().uuid().nullish(),
   reference: z.string().max(120).optional(),
   splitLeg: z.enum(FOLIO_WINDOWS).optional(),
 });
@@ -28,19 +30,23 @@ export async function POST(req: Request) {
     const reservation = await loadReservation(auth, body.reservationId);
     if (!reservation) return NextResponse.json({ error: "Reservation not found." }, { status: 404 });
 
+    const terminal = await resolvePosTerminalForPayment(auth.service, auth.tenant.id, body.method, body.posTerminalId);
+    if (!terminal.ok) return NextResponse.json({ error: terminal.error }, { status: 400 });
+
     const { line, error } = await insertFolioLine(auth.service, {
       tenantId: auth.tenant.id,
       reservationId: body.reservationId,
       kind: "payment",
       amount: body.amountLocal,
       method: body.method,
-      description: `FX payment ${body.originalAmount} ${body.originalCurrency} @ ${body.fxRate}`,
+      description: `FX payment ${body.originalAmount} ${body.originalCurrency} @ ${body.fxRate}${terminal.terminal ? ` · ${terminal.terminal.name}` : ""}`,
       postedBy: auth.user.id,
       reference: body.reference,
       fxRate: body.fxRate,
       originalAmount: body.originalAmount,
       originalCurrency: body.originalCurrency,
       splitLeg: body.splitLeg,
+      posTerminal: terminal.terminal,
     });
     if (error || !line) return NextResponse.json({ error: error ?? "Could not post payment." }, { status: 500 });
 

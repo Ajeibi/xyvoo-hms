@@ -9,6 +9,8 @@ import { getManagersReport, managersReportDocument } from "@/lib/hms/reports/man
 import type { ReportCell, ReportDocument, ReportSection } from "@/lib/hms/reports/model";
 import { buildDaySeries, nightsSold, proratedBudget, round2, sumPeriod } from "@/lib/hms/reports/numbers";
 import { loadRoomTypeBudgets, loadRoomTypes } from "@/lib/hms/room-type-budgets";
+import { customLabelMap, listCustomBookingOptionsSafe } from "@/lib/hms/booking-options";
+import { prettifyOptionValue } from "@/lib/hms/booking-options-shared";
 
 /*
  * The standard report library. Each report reads other modules' data and never changes it. A report
@@ -79,8 +81,24 @@ const SOURCE_LABEL: Record<string, string> = {
   ota: "Online travel site",
   website: "Website",
   travel_agent: "Travel agent",
+  airbnb: "Airbnb",
+  e_guest: "E-guest",
+  e_commerce: "E-commerce",
 };
-const SEGMENT_LABEL: Record<string, string> = { transient: "Individual", corporate: "Corporate", group: "Group", government: "Government", wholesale: "Wholesale" };
+const SEGMENT_LABEL: Record<string, string> = { transient: "Individual", corporate: "Corporate", group: "Group", government: "Government", wholesale: "Wholesale", hotel_booking: "Hotel booking" };
+
+/**
+ * Names for a stay's source and market segment: the standard wording, then the hotel's own options (renamed
+ * or switched off included), then a tidy version of the stored key, so a custom value is never dropped or shown raw.
+ */
+async function optionLabelers(ctx: ReportContext) {
+  const custom = await listCustomBookingOptionsSafe(ctx.service, ctx.tenantId);
+  const own = { source: customLabelMap(custom, "source"), segment: customLabelMap(custom, "segment") };
+  return {
+    source: (v: string) => SOURCE_LABEL[v] ?? own.source[v] ?? prettifyOptionValue(v),
+    segment: (v: string) => SEGMENT_LABEL[v] ?? own.segment[v] ?? prettifyOptionValue(v),
+  };
+}
 
 type StayListRow = {
   id: string;
@@ -100,7 +118,7 @@ type StayListRow = {
 };
 
 const STAY_LIST_SELECT =
-  "id,confirmation_code,status,arrival_at,departure_at,nights,adults,room_type_code,rate_per_night,total_room_charges,source,market_segment,room_units(room_code),reservation_guests(is_primary,guests(first_name,last_name))";
+  "id,confirmation_code,status,arrival_at,departure_at,nights,adults,room_type_code,rate_per_night,total_room_charges,source,market_segment,room_units!room_unit_id(room_code),reservation_guests(is_primary,guests(first_name,last_name))";
 
 function one<T>(v: T | T[] | null | undefined): T | null {
   return Array.isArray(v) ? (v[0] ?? null) : (v ?? null);
@@ -196,6 +214,7 @@ const ARRIVALS: ReportDef = {
   period: "day",
   async build(ctx, p) {
     const rows = await listStays(ctx, { statuses: ["confirmed", "checked_in", "checked_out"], arrival: dayRange(p.date) });
+    const label = await optionLabelers(ctx);
     return doc(
       ARRIVALS,
       ctx,
@@ -217,7 +236,7 @@ const ARRIVALS: ReportDef = {
             arrival: r.arrival_at.slice(11, 16),
             nights: num(r.nights),
             adults: num(r.adults),
-            source: SOURCE_LABEL[r.source] ?? r.source,
+            source: label.source(r.source),
             status: STATUS_LABEL[r.status] ?? r.status,
           })),
           totals: rows.length ? { code: `${rows.length} arrival${rows.length === 1 ? "" : "s"}`, nights: num(rows.reduce((s, r) => s + r.nights, 0)), adults: num(rows.reduce((s, r) => s + r.adults, 0)) } : undefined,
@@ -362,11 +381,11 @@ const CASHIER: ReportDef = {
   period: "range",
   async build(ctx, params) {
     const p = clampParams(params);
-    const lines = await fetchAll<{ kind: string; method: string; amount: number | string; created_at: string }>((a, b) =>
+    const lines = await fetchAll<{ kind: string; method: string; amount: number | string; created_at: string; pos_terminal_name: string | null }>((a, b) =>
       ctx.service
         .schema("hotel")
         .from("folio_transactions")
-        .select("kind,method,amount,created_at")
+        .select("kind,method,amount,created_at,pos_terminal_name")
         .eq("tenant_id", ctx.tenantId)
         .is("voided_at", null)
         .in("kind", ["payment", "refund"])
@@ -392,6 +411,8 @@ const CASHIER: ReportDef = {
     type Day = { cash: number; card: number; other: number; refunds: number };
     const days = new Map<string, Day>(eachDate(p.from, p.to).map((d) => [d, { cash: 0, card: 0, other: 0, refunds: 0 }]));
     const methods = new Map<string, { count: number; total: number }>();
+    // Card machine payments by machine; payments with no machine (older ones, or a hotel with none set up) are grouped apart.
+    const terminals = new Map<string, { count: number; total: number }>();
     for (const l of lines) {
       const day = days.get(hotelDate(l.created_at, ctx.timeZone));
       const amount = Math.abs(n(l.amount));
@@ -403,6 +424,13 @@ const CASHIER: ReportDef = {
       m.count += 1;
       m.total += amount;
       methods.set(key, m);
+      if (l.kind !== "refund" && l.method === "pos") {
+        const tKey = l.pos_terminal_name?.trim() || "No machine recorded";
+        const t = terminals.get(tKey) ?? { count: 0, total: 0 };
+        t.count += 1;
+        t.total += amount;
+        terminals.set(tKey, t);
+      }
     }
     for (const o of fb) {
       const day = days.get(hotelDate(o.closed_at, ctx.timeZone));
@@ -455,6 +483,16 @@ const CASHIER: ReportDef = {
           ],
           rows: [...methods.entries()].sort((a, b) => b[1].total - a[1].total).map(([method, m]) => ({ method, count: num(m.count), total: money(round2(m.total)) })),
           emptyMessage: "No payments or refunds in this period.",
+        },
+        {
+          title: "Card machines",
+          columns: [
+            { key: "terminal", label: "Card machine", kind: "text" },
+            { key: "count", label: "Payments", kind: "number" },
+            { key: "total", label: "Amount", kind: "money" },
+          ],
+          rows: [...terminals.entries()].sort((a, b) => b[1].total - a[1].total).map(([terminal, t]) => ({ terminal, count: num(t.count), total: money(round2(t.total)) })),
+          emptyMessage: "No card machine payments in this period.",
         },
         {
           title: "Cash drawers",
@@ -779,6 +817,7 @@ const CANCELLATIONS: ReportDef = {
     } catch {
       cancelledOn.clear();
     }
+    const sourceLabel = (await optionLabelers(ctx)).source;
     return doc(CANCELLATIONS, ctx, `Arrivals ${rangeText(p)}`, [
       {
         columns: stayColumns([
@@ -789,7 +828,7 @@ const CANCELLATIONS: ReportDef = {
           { key: "status", label: "What happened", kind: "text" },
           { key: "at", label: "Room revenue at stake", kind: "money" },
         ]),
-        rows: rows.map((r) => ({ code: r.confirmation_code, guest: guestOf(r), room: roomOf(r), type: r.room_type_code, arrival: r.arrival_at.slice(0, 10), cancelledOn: cancelledOn.get(r.id) ?? "Not recorded", nights: num(r.nights), source: SOURCE_LABEL[r.source] ?? r.source, status: STATUS_LABEL[r.status] ?? r.status, at: money(n(r.total_room_charges)) })),
+        rows: rows.map((r) => ({ code: r.confirmation_code, guest: guestOf(r), room: roomOf(r), type: r.room_type_code, arrival: r.arrival_at.slice(0, 10), cancelledOn: cancelledOn.get(r.id) ?? "Not recorded", nights: num(r.nights), source: sourceLabel(r.source), status: STATUS_LABEL[r.status] ?? r.status, at: money(n(r.total_room_charges)) })),
         totals: rows.length ? { code: `${rows.length} booking${rows.length === 1 ? "" : "s"}`, nights: num(rows.reduce((s, r) => s + r.nights, 0)), at: money(round2(at)) } : undefined,
         emptyMessage: "No cancellations or no-shows in this period.",
       },
@@ -808,18 +847,20 @@ const PRODUCTION: ReportDef = {
     const p = clampParams(params);
     const rows = await listStays(ctx, { statuses: ["confirmed", "checked_in", "checked_out"], arrival: spanRange(p.from, p.to) });
     const totalRevenue = rows.reduce((s, r) => s + n(r.total_room_charges), 0);
-    const group = (label: (r: StayListRow) => string): ReportSection["rows"] => {
-      const m = new Map<string, { stays: number; nights: number; revenue: number }>();
+    const label = await optionLabelers(ctx);
+    // Grouped by the stored value, so two options with the same wording stay on separate lines.
+    const group = (pick: (r: StayListRow) => { key: string; name: string }): ReportSection["rows"] => {
+      const m = new Map<string, { name: string; stays: number; nights: number; revenue: number }>();
       for (const r of rows) {
-        const k = label(r);
-        const v = m.get(k) ?? { stays: 0, nights: 0, revenue: 0 };
+        const { key: k, name } = pick(r);
+        const v = m.get(k) ?? { name, stays: 0, nights: 0, revenue: 0 };
         v.stays += 1;
         v.nights += r.nights;
         v.revenue += n(r.total_room_charges);
         m.set(k, v);
       }
-      return [...m.entries()].sort((a, b) => b[1].revenue - a[1].revenue).map(([name, v]) => ({
-        name,
+      return [...m.values()].sort((a, b) => b.revenue - a.revenue).map((v) => ({
+        name: v.name,
         stays: num(v.stays),
         nights: num(v.nights),
         adr: money(v.nights ? round2(v.revenue / v.nights) : null),
@@ -840,8 +881,8 @@ const PRODUCTION: ReportDef = {
       ctx,
       `Arrivals ${rangeText(p)}`,
       [
-        { title: "By source", columns: cols("Booked through"), rows: group((r) => SOURCE_LABEL[r.source] ?? r.source), emptyMessage: "No bookings with arrivals in this period." },
-        { title: "By segment", columns: cols("Guest type"), rows: group((r) => SEGMENT_LABEL[r.market_segment] ?? r.market_segment), emptyMessage: "No bookings with arrivals in this period." },
+        { title: "By source", columns: cols("Booked through"), rows: group((r) => ({ key: r.source, name: label.source(r.source) })), emptyMessage: "No bookings with arrivals in this period." },
+        { title: "By segment", columns: cols("Guest type"), rows: group((r) => ({ key: r.market_segment, name: label.segment(r.market_segment) })), emptyMessage: "No bookings with arrivals in this period." },
       ],
       ["Room revenue is each booking's room charge after booking discounts, before tax, counted in the period the guest is due to arrive. Cancellations and no-shows are left out."],
     );

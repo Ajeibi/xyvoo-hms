@@ -11,6 +11,7 @@ import { rateBookFor } from "@/lib/hms/rates/book";
 import { priceStay, stayTotals, type StayTotals } from "@/lib/hms/rates/pricing";
 import type { RateIssue } from "@/lib/hms/rates/types";
 import { findFreeRooms, friendlyReservationError, nightsBetweenDays } from "@/lib/hms/reservation-availability";
+import { setGuestTag } from "@/lib/hms/guest-management";
 
 /*
  * Making a booking for a stay in the future. The guest and their stay are saved; the room is not
@@ -117,6 +118,8 @@ export type CreateReservationInput = {
   departureDay: string;
   roomTypeCode: string;
   roomUnitId?: string | null;
+  /** A room the guest asked for. A wish, not a hold: it never blocks the booking. */
+  requestedRoomUnitId?: string | null;
   adults: number;
   children: number;
   guestId?: string | null;
@@ -168,6 +171,12 @@ export async function createReservation(db: SupabaseClient, input: CreateReserva
     }
     roomUnitId = unit.id as string;
     roomTypeCode = unit.room_type_code as string;
+  }
+
+  let requestedRoomUnitId: string | null = null;
+  if (input.requestedRoomUnitId) {
+    const { data: reqUnit } = await db.schema("hotel").from("room_units").select("id").eq("tenant_id", input.tenantId).eq("id", input.requestedRoomUnitId).maybeSingle();
+    requestedRoomUnitId = (reqUnit?.id as string | undefined) ?? null;
   }
 
   // The guest: someone already on file, or a new person (matched to a profile we already have when we can).
@@ -283,6 +292,7 @@ export async function createReservation(db: SupabaseClient, input: CreateReserva
       purpose_of_visit: input.purpose ?? "leisure",
       room_type_code: roomTypeCode,
       room_unit_id: roomUnitId,
+      requested_room_unit_id: requestedRoomUnitId,
       rate_type: rated.plan.arCustomerId ? "corporate" : "rack",
       rate_per_night: bar,
       total_room_charges: priced.roomSubtotalAfterDiscount,
@@ -319,6 +329,9 @@ export async function createReservation(db: SupabaseClient, input: CreateReserva
     await db.schema("hotel").from("reservations").delete().eq("id", reservationId);
     return { ok: false, error: "The guest couldn't be linked to the booking." };
   }
+
+  // A VIP guest stays VIP on every later stay.
+  if (input.vip) await setGuestTag(db, { tenantId: input.tenantId, guestId, tag: "vip", enabled: true, actorUserId: input.userId }).catch(() => undefined);
 
   await snapshotDeposit(db, input.tenantId, reservationId).catch(() => undefined);
   await snapshotCancellationPolicy(db, input.tenantId, reservationId, roomTypeCode).catch(() => undefined);

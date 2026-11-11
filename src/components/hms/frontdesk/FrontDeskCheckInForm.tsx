@@ -14,6 +14,8 @@ import {
   ReleaseExtensionFieldset,
   TaxExemptionsFieldset,
 } from "@/components/hms/frontdesk/CheckInMiscFields";
+import type { BookingSource, MarketSegment } from "@/lib/hms/reservation-create-shared";
+import { normaliseGuestTitle } from "@/lib/hms/guest-title";
 import { CheckInPrimaryGuestFieldset } from "@/components/hms/frontdesk/CheckInPrimaryGuestFieldset";
 import { CheckInRateSummaryCard } from "@/components/hms/frontdesk/CheckInRateSummaryCard";
 import { CheckInRegistrationComplianceFieldset } from "@/components/hms/frontdesk/CheckInRegistrationComplianceFieldset";
@@ -32,7 +34,7 @@ import type { HotelPricingSetup, HotelRoomTypeSetup } from "@/lib/hms/room-prici
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import { NATIONAL_ID_ID_EXPIRY_PLACEHOLDER, type AccompanyingAdultGuest, type MinorGuest } from "@/lib/hms/walk-in-check-in-payload";
 import type { CheckInFormInitialData } from "@/lib/hms/check-in-form-initial-data";
-import { toastError, toastSuccess } from "@/lib/app-toast";
+import { toastError, toastInfo, toastSuccess } from "@/lib/app-toast";
 import type { DiscountScope } from "@/lib/hms/walk-in-pricing";
 import type { RateBook } from "@/lib/hms/rates/types";
 import { stayRates } from "@/lib/hms/rates/stay-rates";
@@ -145,6 +147,10 @@ export function FrontDeskCheckInForm({
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [sendToRestaurant, setSendToRestaurant] = useState(false);
+  const [discountCode, setDiscountCode] = useState("");
+  const [managerPin, setManagerPin] = useState("");
+  const [requestedRoom, setRequestedRoom] = useState(initialData?.requestedRoomCode ?? "");
   const [phone, setPhone] = useState<string | undefined>(initialData?.phone);
   const [primaryEmailInput, setPrimaryEmailInput] = useState(initialData?.email ?? "");
   const [roomTypeCode, setRoomTypeCode] = useState(initialData?.roomTypeCode || defaultType);
@@ -200,12 +206,8 @@ export function FrontDeskCheckInForm({
   const [rateTypeField, setRateTypeField] = useState<"rack" | "corporate" | "walk_in_bar" | "promotional">(
     initialData?.rateType ?? "walk_in_bar",
   );
-  const [marketSegmentField, setMarketSegmentField] = useState<
-    "transient" | "corporate" | "group" | "government" | "wholesale"
-  >(initialData?.marketSegment ?? "transient");
-  const [sourceField, setSourceField] = useState<
-    "walk_in" | "phone" | "referral" | "ota" | "website" | "travel_agent"
-  >(initialData?.source ?? (mode === "reserve" ? "phone" : "walk_in"));
+  const [marketSegmentField, setMarketSegmentField] = useState<MarketSegment>(initialData?.marketSegment ?? "transient");
+  const [sourceField, setSourceField] = useState<BookingSource>(initialData?.source ?? (mode === "reserve" ? "phone" : "walk_in"));
   const [additionalAdults, setAdditionalAdults] = useState<AccompanyingAdultGuest[]>(
     initialData?.additionalAdults ?? [],
   );
@@ -457,16 +459,7 @@ export function FrontDeskCheckInForm({
       }
     }
 
-    const titleRaw = guestTitle.trim();
-    const title =
-      titleRaw === "mr" ||
-      titleRaw === "mrs" ||
-      titleRaw === "ms" ||
-      titleRaw === "dr" ||
-      titleRaw === "chief" ||
-      titleRaw === "other"
-        ? titleRaw
-        : null;
+    const title = normaliseGuestTitle(guestTitle);
 
     const idExpiryDate =
       idTypeField === "national_id"
@@ -544,6 +537,9 @@ export function FrontDeskCheckInForm({
       cardExpiry: String(form.get("cardExpiry") ?? "").trim() || null,
       billToAccount: String(form.get("billToAccount") ?? "").trim() || null,
       poNumber: String(form.get("poNumber") ?? "").trim() || null,
+      billToContactName: String(form.get("billToContactName") ?? "").trim() || null,
+      billToContactPhone: String(form.get("billToContactPhone") ?? "").trim() || null,
+      billToContactEmail: String(form.get("billToContactEmail") ?? "").trim() || null,
       preauthAmount: (() => {
         const v = String(form.get("preauthAmount") ?? "").trim();
         if (!v) return null;
@@ -584,6 +580,9 @@ export function FrontDeskCheckInForm({
       rateOverrideReason: String(form.get("rateOverrideReason") ?? "").trim() || null,
       immigrationRegistrationRequired: form.get("immigrationRegistrationRequired") === "on",
       vipFlag: form.get("vipFlag") === "on",
+      requestedRoomCode: requestedRoom.trim() || null,
+      discountCode: discountCode || null,
+      managerPin: managerPin.trim() || null,
     };
 
     setLoading(true);
@@ -598,12 +597,31 @@ export function FrontDeskCheckInForm({
         confirmationCode?: string;
         folioNumber?: string;
         registrationNumber?: string;
+        warnings?: string[];
+        reservationId?: string;
       };
       if (!res.ok) {
         const msg = data.error ?? (mode === "reserve" ? "Could not create reservation." : "Check-in failed.");
         setError(msg);
         toastError(mode === "reserve" ? "Reservation failed" : "Check-in failed", msg);
         return;
+      }
+      // A requested room that is not free never blocks the booking; the desk is told instead.
+      if (data.warnings?.length) toastInfo("Heads up", data.warnings.join(" "));
+      // A kitchen-relevant check-in note goes to the restaurant as a guest service request for this stay.
+      const noteForKitchen = payload.guestRemarksCheckIn?.trim();
+      if (sendToRestaurant && noteForKitchen && data.reservationId) {
+        try {
+          const r = await fetch(`/api/hotel/frontdesk/arrivals/${data.reservationId}/requests`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ slug, requestType: "Check-in note for the kitchen", department: "food_beverage", notes: noteForKitchen.slice(0, 500) }),
+          });
+          if (r.ok) toastSuccess("Sent to the restaurant", "A guest service request was created for Food & beverage.");
+          else toastError("Saved, but the note wasn't sent to the restaurant", "Add it from the guest's requests instead.");
+        } catch {
+          toastError("Saved, but the note wasn't sent to the restaurant", "Add it from the guest's requests instead.");
+        }
       }
       if (mode === "reserve") {
         toastSuccess("Reservation created", data.confirmationCode ? `Ref ${data.confirmationCode}` : undefined);
@@ -691,6 +709,8 @@ export function FrontDeskCheckInForm({
             roomUnits={roomUnits}
             assignedRoom={assignedRoom}
             setAssignedRoom={setAssignedRoom}
+            requestedRoom={requestedRoom}
+            setRequestedRoom={setRequestedRoom}
             adultsInput={adultsInput}
             setAdultsInput={setAdultsInput}
             adults={adults}
@@ -729,6 +749,11 @@ export function FrontDeskCheckInForm({
           />
 
           <DiscountFieldset
+            slug={slug}
+            appliedCode={discountCode}
+            setAppliedCode={setDiscountCode}
+            managerPin={managerPin}
+            setManagerPin={setManagerPin}
             discountPercentInput={discountPercentInput}
             setDiscountPercentInput={setDiscountPercentInput}
             discountScope={discountScope}
@@ -755,6 +780,9 @@ export function FrontDeskCheckInForm({
             settlementType={initialData?.settlementType}
             billToAccount={initialData?.billToAccount}
             poNumber={initialData?.poNumber}
+            billToContactName={initialData?.billToContactName}
+            billToContactPhone={initialData?.billToContactPhone}
+            billToContactEmail={initialData?.billToContactEmail}
           />
 
           <ReleaseExtensionFieldset
@@ -773,6 +801,8 @@ export function FrontDeskCheckInForm({
             meaning="neutral"
           >
           <GuestRemarksFieldset
+            sendToRestaurant={sendToRestaurant}
+            setSendToRestaurant={setSendToRestaurant}
             fieldClass={fieldClass}
             guestRemarksReservation={initialData?.guestRemarksReservation}
             guestRemarksCheckIn={initialData?.guestRemarksCheckIn}

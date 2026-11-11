@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import PhoneInput from "react-phone-number-input";
 import type { FolioLineRow } from "@/lib/hms/folio";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
+import { PosTerminalSelect } from "@/components/hms/frontdesk/PosTerminalSelect";
 import { PAYMENT_STATUS_LABEL } from "@/components/hms/frontdesk/board/payment-styles";
 import { ArrowLeft, Banknote, Building2, Coins, Percent, Plus, Receipt, Search, Wallet } from "lucide-react";
 import {
@@ -43,6 +45,9 @@ type FolioPayload = {
     settlementMethod: string;
     billToAccount: string | null;
     poNumber: string | null;
+    billToContactName?: string | null;
+    billToContactPhone?: string | null;
+    billToContactEmail?: string | null;
     folioSplitNotes: string | null;
     commissionPlan: string | null;
     commissionValue: number | null;
@@ -88,6 +93,10 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
   const initialCode = searchParams.get("code");
 
   const [query, setQuery] = useState("");
+  const [payMethod, setPayMethod] = useState("cash");
+  const [payTerminal, setPayTerminal] = useState("");
+  const [fxMethod, setFxMethod] = useState("cash");
+  const [fxTerminal, setFxTerminal] = useState("");
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [reservationId, setReservationId] = useState(initialId ?? "");
   const [payload, setPayload] = useState<FolioPayload | null>(null);
@@ -211,6 +220,7 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
         reservationId,
         amount: Number(fd.get("amount")),
         method: fd.get("method"),
+        posTerminalId: fd.get("method") === "pos" ? fd.get("posTerminalId") || null : null,
         reference: fd.get("reference") || undefined,
         splitLeg: fd.get("splitLeg") || undefined,
       }),
@@ -272,6 +282,7 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
         fxRate,
         amountLocal: Math.round(originalAmount * fxRate * 100) / 100,
         method: fd.get("method"),
+        posTerminalId: fd.get("method") === "pos" ? fd.get("posTerminalId") || null : null,
         reference: fd.get("reference") || undefined,
         splitLeg: fd.get("splitLeg") || undefined,
       }),
@@ -609,12 +620,13 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
                         <input id="payment-amount" name="amount" type="number" step="0.01" min="0.01" required className={hmsInput} />
                       </F>
                       <F id="payment-method" label="How they paid">
-                        <select id="payment-method" name="method" required className={hmsInput}>
+                        <select id="payment-method" name="method" required className={hmsInput} value={payMethod} onChange={(e) => setPayMethod(e.target.value)}>
                           <option value="cash">Cash</option>
                           <option value="pos">Card machine (POS)</option>
                           <option value="direct_bill">Direct bill</option>
                         </select>
                       </F>
+                      <PosTerminalSelect slug={slug} method={payMethod} value={payTerminal} onChange={setPayTerminal} id="payment-terminal" />
                       <LegSelect id="payment-leg" paying windows={payload.billing?.windows ?? []} />
                       <F id="payment-reference" label="Receipt or reference" optional>
                         <input id="payment-reference" name="reference" className={hmsInput} />
@@ -649,12 +661,13 @@ export function FrontDeskFolioClient({ slug, currency }: { slug: string; currenc
                         <input id="fx-rate" name="fxRate" type="number" step="0.0001" min="0.0001" required className={hmsInput} />
                       </F>
                       <F id="fx-method" label="How they paid">
-                        <select id="fx-method" name="method" required className={hmsInput}>
+                        <select id="fx-method" name="method" required className={hmsInput} value={fxMethod} onChange={(e) => setFxMethod(e.target.value)}>
                           <option value="cash">Cash</option>
                           <option value="pos">Card machine (POS)</option>
                           <option value="direct_bill">Direct bill</option>
                         </select>
                       </F>
+                      <PosTerminalSelect slug={slug} method={fxMethod} value={fxTerminal} onChange={setFxTerminal} id="fx-terminal" name="posTerminalId" />
                       <LegSelect id="fx-leg" paying windows={payload.billing?.windows ?? []} />
                       <F id="fx-reference" label="Receipt or reference" optional>
                         <input id="fx-reference" name="reference" className={hmsInput} />
@@ -1219,6 +1232,7 @@ function CorporateBillingForm({
   payload: FolioPayload;
   onSaved: () => void;
 }) {
+  const [contactPhone, setContactPhone] = useState<string | undefined>(payload.reservation.billToContactPhone ?? undefined);
   const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
@@ -1230,6 +1244,9 @@ function CorporateBillingForm({
         reservationId,
         billToAccount: fd.get("billToAccount") || null,
         poNumber: fd.get("poNumber") || null,
+        billToContactName: fd.get("billToContactName") || null,
+        billToContactPhone: contactPhone || null,
+        billToContactEmail: fd.get("billToContactEmail") || null,
         folioSplitNotes: fd.get("folioSplitNotes") || null,
       }),
     });
@@ -1251,6 +1268,24 @@ function CorporateBillingForm({
           </F>
           <F id="po-number" label="Purchase order (PO) number" optional>
             <input id="po-number" name="poNumber" defaultValue={payload.reservation.poNumber ?? ""} className={hmsInput} />
+          </F>
+          <F id="bill-to-contact-name" label="Billing contact name" optional>
+            <input id="bill-to-contact-name" name="billToContactName" defaultValue={payload.reservation.billToContactName ?? ""} className={hmsInput} />
+          </F>
+          <F id="bill-to-contact-phone" label="Billing contact phone" optional>
+            <PhoneInput
+              id="bill-to-contact-phone"
+              international
+              defaultCountry="NG"
+              value={contactPhone}
+              onChange={(v) => setContactPhone(v)}
+              placeholder="Phone number"
+              className="phone-input-wrapper !rounded-xl"
+              style={{ ["--PhoneInputCountryFlag-height" as string]: "1.1em" }}
+            />
+          </F>
+          <F id="bill-to-contact-email" label="Billing contact email" optional>
+            <input id="bill-to-contact-email" name="billToContactEmail" type="email" defaultValue={payload.reservation.billToContactEmail ?? ""} className={hmsInput} />
           </F>
         </div>
         <F id="split-notes" label="Notes on splitting the bill" optional>

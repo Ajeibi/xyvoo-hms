@@ -7,6 +7,8 @@ import {
   type PaymentDisplayStatus,
 } from "@/lib/hms/front-desk-board";
 import { formatAuditMessage } from "@/lib/hms/front-desk-ops";
+import { customLabelMap, listCustomBookingOptionsSafe } from "@/lib/hms/booking-options";
+import { bookingOptionLabel } from "@/lib/hms/booking-options-shared";
 import { computeFolioBalance, getFolioForReservation, mapFolioLineRow, type FolioLineRow } from "@/lib/hms/folio";
 import { mapRoomReadiness, type RoomUnitSnapshot } from "@/lib/hms/arrivals-room";
 import { maybeEmitArrivalAlerts } from "@/lib/hms/arrivals-alerts";
@@ -56,6 +58,8 @@ export type ArrivalWorkbenchRow = {
   roomTypeName: string;
   roomUnitId: string | null;
   roomCode: string | null;
+  /** The room the guest asked for; the desk should honour it when it can. */
+  requestedRoomCode: string | null;
   floor: number | null;
   totalCharges: number;
   amountPaid: number;
@@ -108,6 +112,7 @@ export type ArrivalDetailPayload = {
     roomTypeName: string;
     roomUnitId: string | null;
     roomCode: string | null;
+    requestedRoomCode: string | null;
     floor: number | null;
     roomReadiness: RoomReadinessStatus | null;
     unitStatus: string | null;
@@ -121,6 +126,7 @@ export type ArrivalDetailPayload = {
     isVip: boolean;
     marketSegment: string;
     billToAccount: string | null;
+    billToContact: string | null;
     folioNumber: string;
   };
   guest: ReturnType<typeof toGuestInfo> | null;
@@ -208,6 +214,7 @@ type ReservationRow = {
   adults: number;
   children_json: unknown;
   room_unit_id: string | null;
+  requested_room_unit_id?: string | null;
   room_type_code: string;
   settlement_method: string;
   preauth_amount: string | number | null;
@@ -223,6 +230,9 @@ type ReservationRow = {
   folio_number: string;
   market_segment: string;
   bill_to_account: string | null;
+  bill_to_contact_name?: string | null;
+  bill_to_contact_phone?: string | null;
+  bill_to_contact_email?: string | null;
   checked_in_at: string | null;
   reservation_guests: {
     is_primary: boolean;
@@ -342,6 +352,8 @@ export async function getArrivalsWorkbenchData(params: {
     "id,title,first_name,last_name,nationality,phone,email,id_number,tags";
 
   const roomTypeNames = await loadRoomTypeNames(supabase, params.tenantId);
+  const optionLabels = await listCustomBookingOptionsSafe(supabase, params.tenantId);
+  const sourceLabels = customLabelMap(optionLabels, "source");
 
   const results = await Promise.all([
     // Each arrival brings its own folio lines (rather than every folio line the hotel has ever posted).
@@ -349,7 +361,7 @@ export async function getArrivalsWorkbenchData(params: {
       .schema("hotel")
       .from("reservations")
       .select(
-        `id,confirmation_code,status,created_at,arrival_at,departure_at,nights,adults,children_json,room_unit_id,room_type_code,settlement_method,preauth_amount,total_room_charges,guest_remarks,room_preferences_text,vip_notes,dietary_notes,accessibility_notes,vip_flag,source,booking_channel,folio_number,market_segment,bill_to_account,checked_in_at,reservation_guests(is_primary,guests(${guestSelect})),folio_transactions!folio_transactions_reservation_id_fkey(*)`,
+        `id,confirmation_code,status,created_at,arrival_at,departure_at,nights,adults,children_json,room_unit_id,requested_room_unit_id,room_type_code,settlement_method,preauth_amount,total_room_charges,guest_remarks,room_preferences_text,vip_notes,dietary_notes,accessibility_notes,vip_flag,source,booking_channel,folio_number,market_segment,bill_to_account,bill_to_contact_name,bill_to_contact_phone,bill_to_contact_email,checked_in_at,reservation_guests(is_primary,guests(${guestSelect})),folio_transactions!folio_transactions_reservation_id_fkey(*)`,
       )
       .eq("tenant_id", params.tenantId)
       .gte("arrival_at", startIso)
@@ -415,7 +427,7 @@ export async function getArrivalsWorkbenchData(params: {
       id: r.id,
       confirmationCode: r.confirmation_code,
       bookingDate: r.created_at,
-      bookingSourceLabel: bookingSourceLabel(r),
+      bookingSourceLabel: bookingSourceLabel(r, sourceLabels),
       source: r.source,
       guestId: guest?.id ?? null,
       guestName: guest ? formatGuestDisplayName(guest as Parameters<typeof formatGuestDisplayName>[0]) : "Guest not linked",
@@ -430,6 +442,7 @@ export async function getArrivalsWorkbenchData(params: {
       roomTypeName: roomTypeNames.get(r.room_type_code) ?? r.room_type_code,
       roomUnitId: r.room_unit_id,
       roomCode: room?.room_code ?? null,
+      requestedRoomCode: r.requested_room_unit_id ? (roomById.get(r.requested_room_unit_id)?.room_code ?? null) : null,
       floor: room?.floor ?? null,
       totalCharges: num(r.total_room_charges),
       amountPaid: folioBal.credits,
@@ -487,13 +500,14 @@ export async function getArrivalDetail(params: {
     .schema("hotel")
     .from("reservations")
     .select(
-      `id,confirmation_code,status,created_at,arrival_at,departure_at,nights,adults,children_json,room_unit_id,room_type_code,settlement_method,preauth_amount,total_room_charges,guest_remarks,room_preferences_text,vip_notes,dietary_notes,accessibility_notes,vip_flag,source,booking_channel,folio_number,market_segment,bill_to_account,reservation_guests(is_primary,guests(${guestSelect}))`,
+      `id,confirmation_code,status,created_at,arrival_at,departure_at,nights,adults,children_json,room_unit_id,requested_room_unit_id,room_type_code,settlement_method,preauth_amount,total_room_charges,guest_remarks,room_preferences_text,vip_notes,dietary_notes,accessibility_notes,vip_flag,source,booking_channel,folio_number,market_segment,bill_to_account,bill_to_contact_name,bill_to_contact_phone,bill_to_contact_email,reservation_guests(is_primary,guests(${guestSelect}))`,
     )
     .eq("tenant_id", params.tenantId)
     .eq("id", params.reservationId)
     .maybeSingle();
 
   if (error || !r) return null;
+  const optionLabels = await listCustomBookingOptionsSafe(supabase, params.tenantId);
 
   const reservation = r as unknown as ReservationRow;
   const guestEmbed = primaryGuest(reservation);
@@ -508,6 +522,17 @@ export async function getArrivalDetail(params: {
       .eq("id", reservation.room_unit_id)
       .maybeSingle();
     room = unit;
+  }
+
+  let requestedRoomCode: string | null = null;
+  if (reservation.requested_room_unit_id) {
+    const { data: reqUnit } = await supabase
+      .schema("hotel")
+      .from("room_units")
+      .select("room_code")
+      .eq("id", reservation.requested_room_unit_id)
+      .maybeSingle();
+    requestedRoomCode = (reqUnit?.room_code as string | undefined) ?? null;
   }
 
   const { data: hk } = reservation.room_unit_id
@@ -642,7 +667,7 @@ export async function getArrivalDetail(params: {
       status: reservation.status,
       source: reservation.source,
       bookingChannel: reservation.booking_channel,
-      bookingSourceLabel: bookingSourceLabel(reservation),
+      bookingSourceLabel: bookingSourceLabel(reservation, customLabelMap(optionLabels, "source")),
       createdAt: reservation.created_at,
       arrivalAt: reservation.arrival_at,
       departureAt: reservation.departure_at,
@@ -655,6 +680,7 @@ export async function getArrivalDetail(params: {
         reservation.room_type_code,
       roomUnitId: reservation.room_unit_id,
       roomCode: room?.room_code ?? null,
+      requestedRoomCode,
       floor: room?.floor ?? null,
       roomReadiness: room
         ? mapRoomReadiness(room.status, hk?.status as string | undefined)
@@ -668,8 +694,12 @@ export async function getArrivalDetail(params: {
       dietaryNotes: reservation.dietary_notes,
       accessibilityNotes: reservation.accessibility_notes,
       isVip: reservation.vip_flag || guestHasVipTag(guestEmbed ?? undefined),
-      marketSegment: reservation.market_segment,
+      marketSegment: bookingOptionLabel("segment", reservation.market_segment, optionLabels),
       billToAccount: reservation.bill_to_account,
+      billToContact:
+        [reservation.bill_to_contact_name, reservation.bill_to_contact_phone, reservation.bill_to_contact_email]
+          .filter(Boolean)
+          .join(", ") || null,
       folioNumber: reservation.folio_number,
     },
     guest,

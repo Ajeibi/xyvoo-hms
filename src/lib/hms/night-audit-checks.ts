@@ -55,7 +55,7 @@ type StayRow = {
   reservation_guests: GuestEmbed[] | null;
 };
 
-const STAY_COLUMNS = "id,confirmation_code,status,arrival_at,departure_at,room_units(room_code),reservation_guests(is_primary,guests(first_name,last_name))";
+const STAY_COLUMNS = "id,confirmation_code,status,arrival_at,departure_at,room_units!room_unit_id(room_code),reservation_guests(is_primary,guests(first_name,last_name))";
 
 function stayLabel(r: StayRow, extra?: string) {
   const room = Array.isArray(r.room_units) ? r.room_units[0]?.room_code : r.room_units?.room_code;

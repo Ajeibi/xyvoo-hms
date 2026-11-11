@@ -219,7 +219,12 @@ export function GuestRemarksFieldset({
   guestRemarksReservation,
   guestRemarksCheckIn,
   guestRemarksCheckOut,
+  sendToRestaurant,
+  setSendToRestaurant,
 }: {
+  /** When ticked, the check-in note is also sent to the restaurant as a guest service request once saved. */
+  sendToRestaurant: boolean;
+  setSendToRestaurant: (v: boolean) => void;
   fieldClass: string;
   guestRemarksReservation?: string | null;
   guestRemarksCheckIn?: string | null;
@@ -268,6 +273,22 @@ export function GuestRemarksFieldset({
             placeholder="Front desk notes at arrival…"
             defaultValue={guestRemarksCheckIn ?? undefined}
           />
+          <div className="flex items-start gap-2">
+            <input
+              type="checkbox"
+              id="sendCheckInNoteToRestaurant"
+              checked={sendToRestaurant}
+              onChange={(e) => setSendToRestaurant(e.target.checked)}
+              className="mt-1 rounded border-slate-300"
+            />
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 text-sm text-slate-700">
+              <label htmlFor="sendCheckInNoteToRestaurant">Also send this note to the restaurant</label>
+              <CheckInFieldInfo
+                label="Send to restaurant"
+                text="For kitchen-relevant notes such as an allergy or a birthday cake. When you save, a guest service request for Food & beverage is created for this stay with this note. Saving again will not create a duplicate."
+              />
+            </div>
+          </div>
         </div>
         <div className="space-y-2">
           <CheckInFieldLabelRow

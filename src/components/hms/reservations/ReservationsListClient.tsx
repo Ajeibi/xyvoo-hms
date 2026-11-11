@@ -17,7 +17,7 @@ import {
   hmsInput,
 } from "@/components/hms/hms-ui";
 import { HmsFilterChips, HmsSectionIntro } from "@/components/hms/hms-ui-client";
-import { BOOKING_SOURCES } from "@/lib/hms/reservation-create-shared";
+import { useBookingOptions } from "@/lib/hms/useBookingOptions";
 import { formatBoardDateTime } from "@/lib/hms/front-desk-board";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import { cn } from "@/lib/utils";
@@ -76,6 +76,9 @@ export function ReservationsListClient({
   const [search, setSearch] = useState(query.search);
   const statusFilter = query.status;
   const [cancelRow, setCancelRow] = useState<ReservationListRow | null>(null);
+  // Switched-off custom sources stay in the filter so old stays can still be found.
+  const sourceOptions = useBookingOptions(slug, "source", { includeInactive: true });
+  const sourceLabel = (value: string) => sourceOptions.find((o) => o.value === value)?.label ?? value.replace(/_/g, " ");
 
   /** Search, status and page live in the URL; the server loads just the matching page. */
   function navigate(next: Partial<ReservationsListQuery>, { replace = false } = {}) {
@@ -228,9 +231,9 @@ export function ReservationsListClient({
             Booked through
             <select className={`${hmsInput} mt-1`} value={query.source} onChange={(e) => navigate({ source: e.target.value, page: 1 })}>
               <option value="">Any</option>
-              {BOOKING_SOURCES.map((s) => (
-                <option key={s} value={s}>
-                  {s.replace(/_/g, " ")}
+              {sourceOptions.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
                 </option>
               ))}
             </select>
@@ -366,7 +369,7 @@ export function ReservationsListClient({
                     </div>
                     <div className="min-w-0">
                       <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">Booked through</dt>
-                      <dd className="mt-0.5 capitalize text-slate-800">{row.source.replace(/_/g, " ")}</dd>
+                      <dd className="mt-0.5 text-slate-800">{sourceLabel(row.source)}</dd>
                     </div>
                   </dl>
 
@@ -454,7 +457,7 @@ export function ReservationsListClient({
                       <td className="whitespace-nowrap px-6 py-3 tabular-nums text-slate-800">
                         {formatPricingAmount(row.totalRoomCharges, currency)}
                       </td>
-                      <td className="whitespace-nowrap px-6 py-3 capitalize text-slate-700">{row.source.replace(/_/g, " ")}</td>
+                      <td className="whitespace-nowrap px-6 py-3 text-slate-700">{sourceLabel(row.source)}</td>
                       <td className="whitespace-nowrap px-6 py-3">
                         {row.status === "confirmed" ? (
                           <div className="flex items-center gap-2">

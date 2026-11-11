@@ -10,6 +10,7 @@ import { requestNotificationsRefresh } from "@/lib/hms/notifications-bus";
 import { ExtraNightsNotice, type ExtraNightsInfo } from "@/components/hms/frontdesk/folio/ExtraNightsNotice";
 import { CheckoutStayBill } from "@/components/hms/frontdesk/checkout/CheckoutStayBill";
 import { CheckoutDiscountForm } from "@/components/hms/frontdesk/checkout/CheckoutDiscountForm";
+import { PosTerminalSelect } from "@/components/hms/frontdesk/PosTerminalSelect";
 import { InvoiceActions } from "@/components/hms/frontdesk/folio/InvoiceActions";
 import { RefundForm } from "@/components/hms/frontdesk/folio/RefundForm";
 import type { StaySummary } from "@/lib/hms/folio-stay-summary";
@@ -108,6 +109,7 @@ export function FrontDeskCheckoutDialog({
   const [submitting, setSubmitting] = useState(false);
   const [manualPayAmount, setManualPayAmount] = useState("");
   const [manualMethod, setManualMethod] = useState("cash");
+  const [manualTerminalId, setManualTerminalId] = useState("");
   const [overrideBalance, setOverrideBalance] = useState(false);
   const [cashFloatActive, setCashFloatActive] = useState<boolean | null>(null);
   const [confirmOverrideOpen, setConfirmOverrideOpen] = useState(false);
@@ -272,7 +274,7 @@ export function FrontDeskCheckoutDialog({
     const res = await fetch("/api/hotel/folio/payments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ slug, reservationId, amount, method: manualMethod }),
+      body: JSON.stringify({ slug, reservationId, amount, method: manualMethod, posTerminalId: manualMethod === "pos" ? manualTerminalId || null : null }),
     });
     const data = await res.json();
     if (!res.ok) {
@@ -653,6 +655,7 @@ export function FrontDeskCheckoutDialog({
                       </p>
                     ) : null}
                   </div>
+                  <PosTerminalSelect slug={slug} method={manualMethod} value={manualTerminalId} onChange={setManualTerminalId} id="checkout-pay-terminal" />
                 </fieldset>
               ) : (
                 <p role="status" className="flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">

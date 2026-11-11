@@ -9,6 +9,9 @@ const PatchSchema = z.object({
   reservationId: z.string().uuid(),
   billToAccount: z.string().max(200).optional().nullable(),
   poNumber: z.string().max(80).optional().nullable(),
+  billToContactName: z.string().max(200).optional().nullable(),
+  billToContactPhone: z.string().max(40).optional().nullable(),
+  billToContactEmail: z.string().max(200).optional().nullable(),
   folioSplitNotes: z.string().max(500).optional().nullable(),
   commissionPlan: z.string().max(120).optional().nullable(),
   commissionValue: z.number().min(0).optional().nullable(),
@@ -23,6 +26,9 @@ export async function PATCH(req: Request) {
     const patch: Record<string, unknown> = {};
     if (body.billToAccount !== undefined) patch.bill_to_account = body.billToAccount;
     if (body.poNumber !== undefined) patch.po_number = body.poNumber;
+    if (body.billToContactName !== undefined) patch.bill_to_contact_name = body.billToContactName;
+    if (body.billToContactPhone !== undefined) patch.bill_to_contact_phone = body.billToContactPhone;
+    if (body.billToContactEmail !== undefined) patch.bill_to_contact_email = body.billToContactEmail;
     if (body.folioSplitNotes !== undefined) patch.folio_split_notes = body.folioSplitNotes;
     if (body.commissionPlan !== undefined) patch.commission_plan = body.commissionPlan;
     if (body.commissionValue !== undefined) patch.commission_value = body.commissionValue;

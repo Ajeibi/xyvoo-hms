@@ -28,6 +28,8 @@ type FrontDeskPopoverSelectProps = {
   placeholder?: string;
   disabled?: boolean;
   emptyStateMessage?: string;
+  /** Adds a search box that filters the list as the user types (for long lists such as countries). */
+  searchable?: boolean;
   /** Names the trigger when there is no `<label htmlFor>` pointing at it. */
   "aria-labelledby"?: string;
   "aria-describedby"?: string;
@@ -44,13 +46,21 @@ export function FrontDeskPopoverSelect({
   placeholder = "Select…",
   disabled = false,
   emptyStateMessage = "No options available.",
+  searchable = false,
   "aria-labelledby": ariaLabelledBy,
   "aria-describedby": ariaDescribedBy,
 }: FrontDeskPopoverSelectProps) {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const valueId = useId();
 
   const selected = useMemo(() => options.find((o) => o.value === value), [options, value]);
+
+  const visibleOptions = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!searchable || !q) return options;
+    return options.filter((o) => o.label.toLowerCase().includes(q) || o.value.toLowerCase() === q);
+  }, [options, query, searchable]);
 
   const triggerLabel =
     allowEmpty && value === "" ? emptyLabel : selected ? selected.label : placeholder;
@@ -60,7 +70,13 @@ export function FrontDeskPopoverSelect({
   return (
     <div className="space-y-0">
       {name ? <input type="hidden" name={name} value={value} readOnly /> : null}
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover
+        open={open}
+        onOpenChange={(next) => {
+          setOpen(next);
+          if (!next) setQuery("");
+        }}
+      >
         <PopoverTrigger asChild>
           <Button
             type="button"
@@ -77,6 +93,17 @@ export function FrontDeskPopoverSelect({
         </PopoverTrigger>
         <PopoverContent className={cn(FRONT_DESK_PICKER_POPOVER_CLASS)} align="start">
           <div className="p-1">
+            {searchable ? (
+              <input
+                type="search"
+                autoFocus
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search…"
+                aria-label="Search options"
+                className="mb-1 h-9 w-full rounded-lg border border-slate-200 px-2 text-sm text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              />
+            ) : null}
             {listEmpty ? (
               <p className="px-2 py-6 text-center text-sm text-slate-500">{emptyStateMessage}</p>
             ) : (
@@ -98,7 +125,10 @@ export function FrontDeskPopoverSelect({
                   </button>
                 ) : null}
                 <ul className={cn("space-y-0.5", allowEmpty && options.length > 0 && "mt-0.5")}>
-                  {options.map((opt) => {
+                  {searchable && visibleOptions.length === 0 ? (
+                    <li className="px-2 py-4 text-center text-sm text-slate-500">No match.</li>
+                  ) : null}
+                  {visibleOptions.map((opt) => {
                     const isSelected = value === opt.value && !opt.disabled;
                     return (
                       <li key={opt.value}>

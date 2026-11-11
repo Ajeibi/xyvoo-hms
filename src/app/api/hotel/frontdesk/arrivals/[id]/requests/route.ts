@@ -85,6 +85,23 @@ export async function POST(
       .eq("id", id)
       .maybeSingle();
 
+    // The same note sent twice (a double click, or saving the form again) doesn't make a second request.
+    if (body.notes) {
+      const { data: same } = await auth.service
+        .schema("hotel")
+        .from("guest_requests")
+        .select("id,request_type,department,status,notes,created_at")
+        .eq("tenant_id", auth.tenant.id)
+        .eq("reservation_id", id)
+        .eq("department", dept)
+        .eq("request_type", body.requestType)
+        .eq("notes", body.notes)
+        .not("status", "in", "(completed,cancelled)")
+        .limit(1)
+        .maybeSingle();
+      if (same) return NextResponse.json({ ok: true, request: same, duplicate: true });
+    }
+
     const createdAtIso = new Date().toISOString();
     const expectedAt = computeExpectedCompletedIso(createdAtIso, serviceCategory);
 

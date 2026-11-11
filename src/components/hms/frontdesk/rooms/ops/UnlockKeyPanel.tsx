@@ -16,7 +16,7 @@ export function UnlockKeyPanel({ slug, action }: { slug: string; action: "unlock
     providerMode === "audit_only"
       ? "Recorded only — configure a smart lock provider in Settings to send commands remotely."
       : providerMode === "mock"
-        ? "Mock provider — unlock/reissue will be simulated for demo."
+        ? "Practice mode — nothing is sent to a real lock."
         : "Commands will be sent to your configured lock webhook.";
 
   return (

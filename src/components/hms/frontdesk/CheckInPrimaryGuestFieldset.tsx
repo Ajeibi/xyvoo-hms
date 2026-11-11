@@ -4,6 +4,8 @@ import type { Value as PhoneInputValue } from "react-phone-number-input";
 import PhoneInput from "react-phone-number-input";
 import { CheckInFieldInfo, CheckInFieldLabelRow } from "@/components/hms/frontdesk/CheckInFieldInfo";
 import { FrontDeskPopoverSelect } from "@/components/hms/frontdesk/FrontDeskPopoverSelect";
+import { NationalitySelect } from "@/components/hms/frontdesk/NationalitySelect";
+import { GuestTitleField } from "@/components/hms/frontdesk/GuestTitleField";
 import { Input } from "@/components/ui/input";
 
 type PurposeOfVisit = "leisure" | "business" | "transit";
@@ -59,26 +61,11 @@ export function CheckInPrimaryGuestFieldset({
           <CheckInFieldLabelRow
             htmlFor="title"
             helpTitle="Title"
-            helpText="Salutation for registration cards, folio, and formal correspondence (Mr, Mrs, Dr, etc.). Optional."
+            helpText="Salutation for registration cards, folio, and formal correspondence (Mr, Mrs, Miss, Dr, etc.). Choose Other to type a title that is not listed. Optional."
           >
             Title
           </CheckInFieldLabelRow>
-          <FrontDeskPopoverSelect
-            id="title"
-            value={guestTitle}
-            onChange={setGuestTitle}
-            allowEmpty
-            emptyLabel="—"
-            placeholder="Select title…"
-            options={[
-              { value: "mr", label: "Mr" },
-              { value: "mrs", label: "Mrs" },
-              { value: "ms", label: "Ms" },
-              { value: "dr", label: "Dr" },
-              { value: "chief", label: "Chief" },
-              { value: "other", label: "Other" },
-            ]}
-          />
+          <GuestTitleField id="title" value={guestTitle} onChange={(t) => setGuestTitle(t ?? "")} />
         </div>
         <div className="space-y-2">
           <CheckInFieldLabelRow
@@ -157,12 +144,12 @@ export function CheckInPrimaryGuestFieldset({
         <div className="space-y-2">
           <CheckInFieldLabelRow
             htmlFor="nationality"
-            helpTitle="Nationality (ISO)"
-            helpText="Two-letter ISO country code (e.g. NG). Used for guest statistics, immigration-related flags, and reporting."
+            helpTitle="Nationality"
+            helpText="Guest's country. Search by name. Saved as the two-letter ISO code (e.g. NG). Used for guest statistics, immigration-related flags, and reporting."
           >
-            Nationality (ISO)
+            Nationality
           </CheckInFieldLabelRow>
-          <Input id="nationality" name="nationality" defaultValue={nationality ?? "NG"} maxLength={2} className="h-10 rounded-xl" />
+          <NationalitySelect id="nationality" name="nationality" defaultValue={nationality ?? "NG"} />
         </div>
         <div className="space-y-2">
           <CheckInFieldLabelRow

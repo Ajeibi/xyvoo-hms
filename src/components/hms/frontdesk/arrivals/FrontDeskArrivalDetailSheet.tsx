@@ -443,6 +443,7 @@ export function FrontDeskArrivalDetailSheet({
                     />
                     <DetailField label="Market" value={r.marketSegment} />
                     <DetailField label="Bill to" value={r.billToAccount} />
+                    {r.billToContact ? <DetailField label="Billing contact" value={r.billToContact} /> : null}
                   </dl>
                 </SectionCard>
               </div>
@@ -464,6 +465,12 @@ export function FrontDeskArrivalDetailSheet({
                     label="Assignment"
                     value={r.roomCode ? `Room ${r.roomCode}` : "Not assigned"}
                   />
+                  {r.requestedRoomCode ? (
+                    <DetailField
+                      label="Guest requested"
+                      value={r.requestedRoomCode === r.roomCode ? `Room ${r.requestedRoomCode} (given)` : `Room ${r.requestedRoomCode}: please honour if free`}
+                    />
+                  ) : null}
                   <DetailField label="Type" value={r.roomTypeName} />
                   <DetailField label="Floor" value={r.floor != null ? String(r.floor) : null} />
                   {r.unitStatus ? <DetailField label="Unit status" value={r.unitStatus} /> : null}

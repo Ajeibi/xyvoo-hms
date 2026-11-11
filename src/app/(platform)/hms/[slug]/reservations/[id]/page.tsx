@@ -149,6 +149,7 @@ export default async function ReservationDetailPage({
               <Field label="Party size" value={`${r.adults} adults, ${r.childrenCount} children`} />
               <Field label="Market segment" value={r.marketSegment} />
               <Field label="Bill to" value={r.billToAccount} />
+              {r.billToContact ? <Field label="Billing contact" value={r.billToContact} /> : null}
             </dl>
           </HmsCard>
 

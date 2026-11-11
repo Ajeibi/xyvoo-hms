@@ -5,7 +5,7 @@ import { FrontDeskPopoverSelect } from "@/components/hms/frontdesk/FrontDeskPopo
 import { FrontDeskRoomAssignmentPicker } from "@/components/hms/frontdesk/FrontDeskRoomAssignmentPicker";
 import { WalkInAccompanyingAdultCard, WalkInMinorGuestCard } from "@/components/hms/frontdesk/WalkInGuestDetailFields";
 import { Input } from "@/components/ui/input";
-import type { CheckInRoomUnit } from "@/lib/hms/check-in-room-units";
+import { canAssignRoomUnit, type CheckInRoomUnit } from "@/lib/hms/check-in-room-units";
 import type { HotelRoomTypeSetup } from "@/lib/hms/room-pricing";
 import type { AccompanyingAdultGuest, MinorGuest } from "@/lib/hms/walk-in-check-in-payload";
 
@@ -34,6 +34,8 @@ export function StayInformationFieldset({
   roomUnits,
   assignedRoom,
   setAssignedRoom,
+  requestedRoom,
+  setRequestedRoom,
   adultsInput,
   setAdultsInput,
   adults,
@@ -64,6 +66,8 @@ export function StayInformationFieldset({
   roomUnits: CheckInRoomUnit[];
   assignedRoom: string;
   setAssignedRoom: (v: string) => void;
+  requestedRoom: string;
+  setRequestedRoom: (v: string) => void;
   adultsInput: string;
   setAdultsInput: (v: string) => void;
   adults: number;
@@ -216,6 +220,30 @@ export function StayInformationFieldset({
           <p className="text-xs text-slate-500">
             Only vacant keys for <strong>{selectedType?.name ?? "the selected room type"}</strong> are listed.
           </p>
+        </div>
+        <div className="space-y-2 sm:col-span-2">
+          <CheckInFieldLabelRow
+            htmlFor="requestedRoom"
+            helpTitle="Requested room (optional)"
+            helpText="A room the guest asked for. It does not hold the room or block the booking: the arrivals board shows it so the desk can honour it, and you are warned if it is already taken."
+          >
+            Requested room (optional)
+          </CheckInFieldLabelRow>
+          <FrontDeskPopoverSelect
+            id="requestedRoom"
+            value={requestedRoom}
+            onChange={setRequestedRoom}
+            allowEmpty
+            emptyLabel="No request"
+            placeholder="No request"
+            searchable
+            options={[...roomUnits]
+              .sort((a, b) => a.roomCode.localeCompare(b.roomCode, undefined, { numeric: true }))
+              .map((r) => ({
+                value: r.roomCode,
+                label: `Room ${r.roomCode}${r.roomTypeName ? ` · ${r.roomTypeName}` : ""}${canAssignRoomUnit(r.status) ? "" : ` · ${r.status.replace(/_/g, " ")}`}`,
+              }))}
+          />
         </div>
         <div className="space-y-2">
           <CheckInFieldLabelRow

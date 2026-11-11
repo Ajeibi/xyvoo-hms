@@ -10,6 +10,8 @@ import type { DashboardFbOrderRow } from "@/lib/hms/dashboard-fb-metrics";
 import { countChildrenJson, countInHouseGuestHeadcount } from "@/lib/hms/reservation-metrics";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getBusinessDate } from "@/lib/hms/business-date";
+import { customLabelMap, listCustomBookingOptionsSafe } from "@/lib/hms/booking-options";
+import { prettifyOptionValue } from "@/lib/hms/booking-options-shared";
 import { hotelDate } from "@/lib/hms/reports/dates";
 import { getReportTimeZone, getRoomInventory, loadPeriodData } from "@/lib/hms/reports/load";
 import { buildDaySeries, sumPeriod } from "@/lib/hms/reports/numbers";
@@ -571,7 +573,11 @@ function floorLabel(floor: number) {
 
 export { floorLabel };
 
-export function bookingSourceLabel(reservation: Pick<ReservationRow, "source" | "booking_channel">) {
+/** `customLabels` is the hotel's own sources (value to name); without it a custom value shows as a tidied key. */
+export function bookingSourceLabel(
+  reservation: Pick<ReservationRow, "source" | "booking_channel">,
+  customLabels?: Record<string, string>,
+) {
   const channel = reservation.booking_channel?.trim();
   const sourceMap: Record<string, string> = {
     walk_in: "Walk-in",
@@ -580,8 +586,11 @@ export function bookingSourceLabel(reservation: Pick<ReservationRow, "source" | 
     ota: "OTA",
     website: "Website",
     travel_agent: "Travel agent",
+    airbnb: "Airbnb",
+    e_guest: "E-guest",
+    e_commerce: "E-commerce",
   };
-  const base = sourceMap[reservation.source] ?? reservation.source;
+  const base = sourceMap[reservation.source] ?? customLabels?.[reservation.source] ?? prettifyOptionValue(reservation.source);
   return channel ? `${base} · ${channel}` : base;
 }
 
@@ -618,6 +627,7 @@ function buildStayInfo(
   guest: GuestRow | undefined,
   folioLines: FolioLineRow[] = [],
   partyGuests: StayGuestRow[] = [],
+  sourceLabels?: Record<string, string>,
 ): FrontDeskStayInfo {
   const party =
     partyGuests.length > 0
@@ -653,7 +663,7 @@ function buildStayInfo(
     settlementMethod: reservation.settlement_method,
     paymentLabel: settlementLabel(reservation.settlement_method),
     paymentStatus: derivePaymentStatus(reservation, folioLines),
-    bookingSourceLabel: bookingSourceLabel(reservation),
+    bookingSourceLabel: bookingSourceLabel(reservation, sourceLabels),
     isVip: reservation.vip_flag || guestHasVipTag(guest),
     totalRoomCharges: num(reservation.total_room_charges),
     ratePerNight: num(reservation.rate_per_night),
@@ -1147,6 +1157,7 @@ export async function getFrontDeskBoardData(params: {
 
   const { primaryByReservation: guestByReservation, partyByReservation } =
     await resolveReservationGuests(supabase, tenantId, guestSelect, reservationsRaw);
+  const sourceLabels = customLabelMap(await listCustomBookingOptionsSafe(supabase, tenantId), "source");
 
   const now = new Date();
   const inHouseByRoom = new Map<string, ReservationRow>();
@@ -1210,6 +1221,7 @@ export async function getFrontDeskBoardData(params: {
             guestForActive,
             folioLinesByReservation.get(activeStay.id) ?? [],
             partyByReservation.get(activeStay.id) ?? [],
+            sourceLabels,
           )
         : null,
       reservedStay: reservedStay
@@ -1218,6 +1230,7 @@ export async function getFrontDeskBoardData(params: {
             guestForReserved,
             folioLinesByReservation.get(reservedStay.id) ?? [],
             partyByReservation.get(reservedStay.id) ?? [],
+            sourceLabels,
           )
         : null,
       lastCheckoutAt: lastCheckoutByRoom.get(room.id) ?? null,
@@ -1295,7 +1308,7 @@ export async function getFrontDeskBoardData(params: {
       timeIso: r.departure_at,
       paymentLabel: settlementLabel(r.settlement_method),
       paymentStatus: derivePaymentStatus(r, lines),
-      bookingSourceLabel: bookingSourceLabel(r),
+      bookingSourceLabel: bookingSourceLabel(r, sourceLabels),
       isVip: r.vip_flag,
       confirmationCode: r.confirmation_code,
       highlight: movementHighlight("departure", r.departure_at, now, isOverdue),
@@ -1311,7 +1324,7 @@ export async function getFrontDeskBoardData(params: {
       roomCode: room?.room_code ?? null,
       checkInTime: formatTime(r.arrival_at),
       timeIso: r.arrival_at,
-      bookingSourceLabel: bookingSourceLabel(r),
+      bookingSourceLabel: bookingSourceLabel(r, sourceLabels),
       isVip: r.vip_flag,
       confirmationCode: r.confirmation_code,
       highlight: movementHighlight("arrival", r.arrival_at, now, false),
@@ -1341,7 +1354,7 @@ export async function getFrontDeskBoardData(params: {
         roomCode: room?.room_code ?? null,
         time: formatTime(r.arrival_at),
         timeIso: r.arrival_at,
-        bookingSourceLabel: bookingSourceLabel(r),
+        bookingSourceLabel: bookingSourceLabel(r, sourceLabels),
         isVip: r.vip_flag,
         paymentLabel: settlementLabel(r.settlement_method),
         highlight: movementHighlight("arrival", r.arrival_at, now, false),
@@ -1367,7 +1380,7 @@ export async function getFrontDeskBoardData(params: {
         roomCode: room?.room_code ?? null,
         time: formatTime(r.departure_at),
         timeIso: r.departure_at,
-        bookingSourceLabel: bookingSourceLabel(r),
+        bookingSourceLabel: bookingSourceLabel(r, sourceLabels),
         isVip: r.vip_flag,
         paymentLabel: settlementLabel(r.settlement_method),
         highlight: movementHighlight("departure", r.departure_at, now, isOverdue),
@@ -1664,6 +1677,7 @@ export async function loadFrontDeskRoomBoardItemForUnit(params: {
 
   const { primaryByReservation: guestByReservation, partyByReservation } =
     await resolveReservationGuests(supabase, tenantId, guestSelect, reservationsRaw);
+  const sourceLabels = customLabelMap(await listCustomBookingOptionsSafe(supabase, tenantId), "source");
 
   const reservationIds = reservations.map((r) => r.id);
 
@@ -1799,6 +1813,7 @@ export async function loadFrontDeskRoomBoardItemForUnit(params: {
           guestForActive,
           folioLinesByReservation.get(activeStay.id) ?? [],
           partyByReservation.get(activeStay.id) ?? [],
+          sourceLabels,
         )
       : null,
     reservedStay: reservedStay
@@ -1807,6 +1822,7 @@ export async function loadFrontDeskRoomBoardItemForUnit(params: {
           guestForReserved,
           folioLinesByReservation.get(reservedStay.id) ?? [],
           partyByReservation.get(reservedStay.id) ?? [],
+          sourceLabels,
         )
       : null,
     lastCheckoutAt,

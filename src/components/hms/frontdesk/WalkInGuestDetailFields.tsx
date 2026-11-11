@@ -4,6 +4,8 @@ import PhoneInput, { isValidPhoneNumber } from "react-phone-number-input";
 import { CheckInFieldLabelRow } from "@/components/hms/frontdesk/CheckInFieldInfo";
 import { FrontDeskPopoverSelect } from "@/components/hms/frontdesk/FrontDeskPopoverSelect";
 import { Input } from "@/components/ui/input";
+import { NationalitySelect } from "@/components/hms/frontdesk/NationalitySelect";
+import { GuestTitleField } from "@/components/hms/frontdesk/GuestTitleField";
 import type { AccompanyingAdultGuest, MinorGuest } from "@/lib/hms/walk-in-check-in-payload";
 
 export function emptyAccompanyingAdult(): AccompanyingAdultGuest {
@@ -55,21 +57,10 @@ export function WalkInAccompanyingAdultCard({
           <CheckInFieldLabelRow htmlFor={`adult-${guestNumber}-title`} helpTitle="Title" helpText="Optional salutation.">
             Title
           </CheckInFieldLabelRow>
-          <FrontDeskPopoverSelect
+          <GuestTitleField
             id={`adult-${guestNumber}-title`}
-            value={value.title ?? ""}
-            onChange={(v) => patch({ title: v ? (v as AccompanyingAdultGuest["title"]) : null })}
-            allowEmpty
-            emptyLabel="—"
-            placeholder="Select title…"
-            options={[
-              { value: "mr", label: "Mr" },
-              { value: "mrs", label: "Mrs" },
-              { value: "ms", label: "Ms" },
-              { value: "dr", label: "Dr" },
-              { value: "chief", label: "Chief" },
-              { value: "other", label: "Other" },
-            ]}
+            value={value.title}
+            onChange={(title) => patch({ title })}
           />
         </div>
         <div className="space-y-2">
@@ -132,16 +123,13 @@ export function WalkInAccompanyingAdultCard({
           />
         </div>
         <div className="space-y-2">
-          <CheckInFieldLabelRow htmlFor={`adult-${guestNumber}-nationality`} helpTitle="Nationality" helpText="ISO country code.">
-            Nationality (ISO)
+          <CheckInFieldLabelRow htmlFor={`adult-${guestNumber}-nationality`} helpTitle="Nationality" helpText="Guest's country. Search by name.">
+            Nationality
           </CheckInFieldLabelRow>
-          <Input
+          <NationalitySelect
             id={`adult-${guestNumber}-nationality`}
-            value={value.nationality}
-            onChange={(e) => patch({ nationality: e.target.value.toUpperCase().slice(0, 2) })}
-            maxLength={2}
-            required
-            className="h-10 rounded-xl"
+            value={value.nationality || "NG"}
+            onChange={(nationality) => patch({ nationality })}
           />
         </div>
         <div className="space-y-2">
@@ -259,15 +247,10 @@ export function WalkInMinorGuestCard({
           />
         </div>
         <div className="space-y-2">
-          <CheckInFieldLabelRow htmlFor="" helpTitle="Nationality" helpText="ISO country code.">
-            Nationality (ISO)
+          <CheckInFieldLabelRow htmlFor="" helpTitle="Nationality" helpText="Guest's country. Search by name.">
+            Nationality
           </CheckInFieldLabelRow>
-          <Input
-            value={value.nationality ?? "NG"}
-            onChange={(e) => patch({ nationality: e.target.value.toUpperCase().slice(0, 2) })}
-            maxLength={2}
-            className="h-10 rounded-xl"
-          />
+          <NationalitySelect value={value.nationality || "NG"} onChange={(nationality) => patch({ nationality })} />
         </div>
       </div>
     </div>

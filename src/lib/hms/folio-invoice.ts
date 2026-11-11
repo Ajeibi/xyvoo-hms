@@ -78,7 +78,7 @@ export function buildInvoiceBody(lines: FolioLineRow[]): InvoiceBody {
         description:
           l.kind === "refund" || l.method === "deposit" || l.method === "direct_bill"
             ? (l.description ?? (l.kind === "refund" ? "Refund" : "Billed to an account"))
-            : `Paid by ${(METHOD_LABEL[l.method] ?? l.method).toLowerCase()}`,
+            : `Paid by ${(METHOD_LABEL[l.method] ?? l.method).toLowerCase()}${l.pos_terminal_name ? ` (${l.pos_terminal_name})` : ""}`,
         amount: roundMoney(-l.amount),
       });
       continue;
@@ -133,7 +133,13 @@ export type InvoiceData = InvoiceBody & {
   guest: { name: string; email: string | null; phone: string | null; whatsapp: string | null };
   /** The hotel's country as saved on its profile, for reading local phone numbers. */
   hotelCountry: string | null;
-  company: { account: string | null; po: string | null };
+  company: {
+    account: string | null;
+    po: string | null;
+    contactName: string | null;
+    contactPhone: string | null;
+    contactEmail: string | null;
+  };
   roomCode: string | null;
   confirmationCode: string;
   folioNumber: string;
@@ -156,7 +162,7 @@ export async function loadInvoiceData(supabase: SupabaseClient, tenantId: string
     .schema("hotel")
     .from("reservations")
     .select(
-      "id,status,confirmation_code,folio_number,arrival_at,departure_at,checked_in_at,checked_out_at,nights,room_unit_id,bill_to_account,po_number,invoice_number,invoice_issued_at,reservation_guests(is_primary,guests(first_name,last_name,title,email,phone,whatsapp))",
+      "id,status,confirmation_code,folio_number,arrival_at,departure_at,checked_in_at,checked_out_at,nights,room_unit_id,bill_to_account,po_number,bill_to_contact_name,bill_to_contact_phone,bill_to_contact_email,invoice_number,invoice_issued_at,reservation_guests(is_primary,guests(first_name,last_name,title,email,phone,whatsapp))",
     )
     .eq("tenant_id", tenantId)
     .eq("id", reservationId)
@@ -213,7 +219,13 @@ export async function loadInvoiceData(supabase: SupabaseClient, tenantId: string
     currency: normalizePricingSetup(tenant?.pricing_setup).currency,
     guest: { name: guestName, email: g?.email ?? null, phone: g?.phone ?? null, whatsapp: g?.whatsapp ?? null },
     hotelCountry: typeof profile?.country === "string" ? profile.country.trim() || null : null,
-    company: { account: (r.bill_to_account as string | null) ?? null, po: (r.po_number as string | null) ?? null },
+    company: {
+      account: (r.bill_to_account as string | null) ?? null,
+      po: (r.po_number as string | null) ?? null,
+      contactName: (r.bill_to_contact_name as string | null) ?? null,
+      contactPhone: (r.bill_to_contact_phone as string | null) ?? null,
+      contactEmail: (r.bill_to_contact_email as string | null) ?? null,
+    },
     roomCode: (unit?.room_code as string | undefined) ?? null,
     confirmationCode: r.confirmation_code as string,
     folioNumber: r.folio_number as string,
@@ -278,6 +290,9 @@ export async function renderInvoicePdf(d: InvoiceData) {
     ["Booking reference", d.confirmationCode],
     ["Bill number", d.folioNumber],
     ...(d.company.account ? [["Billed to company", `${d.company.account}${d.company.po ? `, PO ${d.company.po}` : ""}`]] : []),
+    ...(d.company.account && (d.company.contactName || d.company.contactPhone || d.company.contactEmail)
+      ? [["Billing contact", [d.company.contactName, d.company.contactPhone, d.company.contactEmail].filter(Boolean).join(", ")]]
+      : []),
   ];
   pdf.table(
     [

@@ -1,4 +1,7 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import type { BookingSource, MarketSegment } from "@/lib/hms/reservation-create-shared";
+import { guestHasVipTag } from "@/lib/hms/front-desk-board";
+import { normaliseGuestTitle } from "@/lib/hms/guest-title";
 import type { DiscountScope } from "@/lib/hms/walk-in-pricing";
 import type { AccompanyingAdultGuest, MinorGuest } from "@/lib/hms/walk-in-check-in-payload";
 
@@ -26,6 +29,8 @@ export type CheckInFormInitialData = {
   purposeOfVisit: "leisure" | "business" | "transit";
   roomTypeCode: string;
   roomCode: string | null;
+  /** The room the guest asked for (a wish, not a hold). */
+  requestedRoomCode: string | null;
   discountPercent: number;
   discountScope: DiscountScope;
   taxExemptVat: boolean;
@@ -40,6 +45,9 @@ export type CheckInFormInitialData = {
   cardExpiry: string | null;
   billToAccount: string | null;
   poNumber: string | null;
+  billToContactName: string | null;
+  billToContactPhone: string | null;
+  billToContactEmail: string | null;
   preauthAmount: number | null;
   guestRemarksReservation: string | null;
   guestRemarksCheckIn: string | null;
@@ -48,8 +56,8 @@ export type CheckInFormInitialData = {
   minPaymentPerDayToExtend: number | null;
   seasonCode: string | null;
   rateType: "rack" | "corporate" | "walk_in_bar" | "promotional";
-  marketSegment: "transient" | "corporate" | "group" | "government" | "wholesale";
-  source: "walk_in" | "phone" | "referral" | "ota" | "website" | "travel_agent";
+  marketSegment: MarketSegment;
+  source: BookingSource;
   bookingChannel: string | null;
   travelAgentName: string | null;
   travelAgentId: string | null;
@@ -78,9 +86,10 @@ type GuestFullRow = {
   id_number: string;
   id_expiry_date: string;
   date_of_birth: string;
+  tags?: unknown;
 };
 
-const GUEST_SELECT = "id,title,first_name,last_name,phone,email,nationality,id_type,id_number,id_expiry_date,date_of_birth";
+const GUEST_SELECT = "id,title,first_name,last_name,phone,email,nationality,id_type,id_number,id_expiry_date,date_of_birth,tags";
 
 function ymd(iso: string) {
   return iso.slice(0, 10);
@@ -91,9 +100,7 @@ function hhmm(iso: string) {
 }
 
 function guestTitleToPayload(title: string | null): AccompanyingAdultGuest["title"] {
-  const t = title?.trim().toLowerCase();
-  if (t === "mr" || t === "mrs" || t === "ms" || t === "dr" || t === "chief" || t === "other") return t;
-  return null;
+  return normaliseGuestTitle(title);
 }
 
 /** Loads an existing "confirmed" reservation's full guest/stay/billing detail, shaped to seed
@@ -114,9 +121,9 @@ export async function getCheckInFormInitialData(
     .schema("hotel")
     .from("reservations")
     .select(
-      `id,confirmation_code,status,arrival_at,departure_at,adults,purpose_of_visit,room_type_code,room_unit_id,
+      `id,confirmation_code,status,arrival_at,departure_at,adults,purpose_of_visit,room_type_code,room_unit_id,requested_room_unit_id,
        rate_type,season_code,rate_overridden,rate_override_reason,show_rate_on_registration_card,
-       tax_exemption_reason,tax_exemption_doc_ref,settlement_method,preauth_amount,bill_to_account,po_number,
+       tax_exemption_reason,tax_exemption_doc_ref,settlement_method,preauth_amount,bill_to_account,po_number,bill_to_contact_name,bill_to_contact_phone,bill_to_contact_email,
        min_payment_per_day,booking_channel,market_segment,source,travel_agent_name,travel_agent_vendor_id,commission_plan,commission_value,
        voucher_number,vip_flag,generate_bill,immigration_registration_required,pricing_snapshot,remarks_by_phase,
        guarantee_release_date,reservation_guests(is_primary,relationship,guests(${GUEST_SELECT}))`,
@@ -148,6 +155,17 @@ export async function getCheckInFormInitialData(
       .eq("id", reservation.room_unit_id)
       .maybeSingle();
     roomCode = (unit?.room_code as string | undefined) ?? null;
+  }
+
+  let requestedRoomCode: string | null = null;
+  if (reservation.requested_room_unit_id) {
+    const { data: unit } = await supabase
+      .schema("hotel")
+      .from("room_units")
+      .select("room_code")
+      .eq("id", reservation.requested_room_unit_id)
+      .maybeSingle();
+    requestedRoomCode = (unit?.room_code as string | undefined) ?? null;
   }
 
   const additionalAdults: AccompanyingAdultGuest[] = links
@@ -185,7 +203,7 @@ export async function getCheckInFormInitialData(
   const remarksByPhase = (reservation.remarks_by_phase ?? {}) as Record<string, unknown>;
 
   const initialData: CheckInFormInitialData = {
-    title: primary.title,
+    title: normaliseGuestTitle(primary.title),
     firstName: primary.first_name,
     lastName: primary.last_name,
     phone: primary.phone,
@@ -208,6 +226,7 @@ export async function getCheckInFormInitialData(
     purposeOfVisit: reservation.purpose_of_visit as CheckInFormInitialData["purposeOfVisit"],
     roomTypeCode: reservation.room_type_code as string,
     roomCode,
+    requestedRoomCode,
     discountPercent: typeof snapshot.discountPercent === "number" ? snapshot.discountPercent : 0,
     discountScope: (snapshot.discountScope as DiscountScope | undefined) ?? "none",
     taxExemptVat: Boolean(taxExemptions.vat),
@@ -222,6 +241,9 @@ export async function getCheckInFormInitialData(
     cardExpiry: (settlementSnapshot.cardExpiry as string | null | undefined) ?? null,
     billToAccount: reservation.bill_to_account as string | null,
     poNumber: reservation.po_number as string | null,
+    billToContactName: (reservation.bill_to_contact_name as string | null) ?? null,
+    billToContactPhone: (reservation.bill_to_contact_phone as string | null) ?? null,
+    billToContactEmail: (reservation.bill_to_contact_email as string | null) ?? null,
     preauthAmount: reservation.preauth_amount as number | null,
     guestRemarksReservation: (remarksByPhase.reservation as string | undefined) || null,
     guestRemarksCheckIn: (remarksByPhase.check_in as string | undefined) || null,
@@ -244,7 +266,8 @@ export async function getCheckInFormInitialData(
     rateOverridden: reservation.rate_overridden as boolean,
     rateOverrideReason: reservation.rate_override_reason as string | null,
     immigrationRegistrationRequired: reservation.immigration_registration_required as boolean,
-    vipFlag: reservation.vip_flag as boolean,
+    // VIP on this booking, or a guest who is VIP from an earlier stay.
+    vipFlag: Boolean(reservation.vip_flag) || guestHasVipTag(primary as { tags?: unknown } as Parameters<typeof guestHasVipTag>[0]),
   };
 
   const guestName = `${primary.first_name} ${primary.last_name}`.trim();

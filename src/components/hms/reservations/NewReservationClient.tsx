@@ -7,7 +7,8 @@ import { HmsCard, HmsPill, HmsWarning, hmsButton, hmsInput } from "@/components/
 import { toastError } from "@/lib/app-toast";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import { addDays, formatDayLong, formatDayShort, nightsBetweenDays } from "@/lib/hms/reservation-availability-shared";
-import { BOOKING_SOURCE_LABEL, BOOKING_SOURCES, type BookingSource } from "@/lib/hms/reservation-create-shared";
+import type { BookingSource } from "@/lib/hms/reservation-create-shared";
+import { useBookingOptions } from "@/lib/hms/useBookingOptions";
 
 type TypeRow = {
   id: string;
@@ -82,6 +83,7 @@ export function NewReservationClient({
   const [email, setEmail] = useState("");
 
   const [source, setSource] = useState<BookingSource>("phone");
+  const sourceOptions = useBookingOptions(slug, "source");
   const [agents, setAgents] = useState<Agent[]>([]);
   const [agentId, setAgentId] = useState("");
   const [notes, setNotes] = useState("");
@@ -471,9 +473,9 @@ export function NewReservationClient({
             <div>
               <Label htmlFor={`${ids}-src`}>Where did the booking come from?</Label>
               <select id={`${ids}-src`} className={hmsInput} value={source} onChange={(e) => setSource(e.target.value as BookingSource)}>
-                {BOOKING_SOURCES.map((s) => (
-                  <option key={s} value={s}>
-                    {BOOKING_SOURCE_LABEL[s]}
+                {sourceOptions.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
                   </option>
                 ))}
               </select>

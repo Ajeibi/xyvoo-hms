@@ -8,6 +8,13 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { postWalkInFolioBundle } from "@/lib/hms/folio";
+import { setGuestTag } from "@/lib/hms/guest-management";
+import { findUsableDiscountPackage, getCheckInDiscountThreshold } from "@/lib/hms/discount-packages";
+import { assertBookingOptionAllowed } from "@/lib/hms/booking-options";
+import { postingDate } from "@/lib/hms/business-date";
+import { isAdminLikeRole } from "@/lib/hms/department-access";
+import { verifyManagerPin } from "@/lib/hms/folio";
+import { readHotelMembership } from "@/lib/hms/membership-role";
 import { notifyReservationCreated, notifyVipArrival, notifyWalkInCheckIn } from "@/lib/hms/notification-rules";
 import { normalizePricingSetup, normalizeRoomTypes } from "@/lib/hms/room-pricing";
 import { rateBookFor } from "@/lib/hms/rates/book";
@@ -166,6 +173,73 @@ export async function POST(req: Request) {
     const roomTypes = normalizeRoomTypes(tenant.room_types);
     const pricing = normalizePricingSetup(tenant.pricing_setup);
     const service = createServerSupabaseClient();
+
+    // Source and market segment: a built-in value or one of the hotel's own that is switched on. A stay that
+    // already holds a value (even a custom one since switched off) may keep it.
+    {
+      const held = parsed.reservationId
+        ? (
+            await service
+              .schema("hotel")
+              .from("reservations")
+              .select("source,market_segment")
+              .eq("tenant_id", tenant.id)
+              .eq("id", parsed.reservationId)
+              .maybeSingle()
+          ).data
+        : null;
+      const optionError =
+        (await assertBookingOptionAllowed(service, tenant.id, "source", parsed.source, held?.source as string | undefined)) ??
+        (await assertBookingOptionAllowed(service, tenant.id, "segment", parsed.marketSegment, held?.market_segment as string | undefined));
+      if (optionError) return NextResponse.json({ error: optionError }, { status: 400 });
+    }
+
+    // Discount. A code from the hotel's list sets the percent and nights itself (the browser's numbers are
+    // ignored). A typed percent above the hotel's limit needs a manager: an owner/admin signed in, or the PIN.
+    let discountPackageCode: string | null = null;
+    let newDiscountApproval: { via: "admin" | "manager_pin"; percent: number; scope: string } | null = null;
+    const codeTyped = parsed.discountCode?.trim();
+    if (codeTyped) {
+      const found = await findUsableDiscountPackage(service, tenant.id, codeTyped, await postingDate(service, tenant.id));
+      if (!found.ok) return NextResponse.json({ error: found.error }, { status: 400 });
+      parsed.discountPercent = found.pkg.percent;
+      parsed.discountScope = found.pkg.scope;
+      discountPackageCode = found.pkg.code;
+    } else if (parsed.discountPercent > 0 && parsed.discountScope !== "none") {
+      const threshold = await getCheckInDiscountThreshold(service, tenant.id);
+      if (parsed.discountPercent > threshold) {
+        // A booking that already carries this exact discount was approved when it was made.
+        let unchanged = false;
+        if (parsed.reservationId) {
+          const { data: prev } = await service
+            .schema("hotel")
+            .from("reservations")
+            .select("pricing_snapshot")
+            .eq("tenant_id", tenant.id)
+            .eq("id", parsed.reservationId)
+            .maybeSingle();
+          const snap = (prev?.pricing_snapshot ?? {}) as { discountPercent?: number; discountScope?: string };
+          unchanged = Number(snap.discountPercent) === parsed.discountPercent && snap.discountScope === parsed.discountScope;
+        }
+        if (!unchanged) {
+          const membership = await readHotelMembership(service, tenant.id, user.id);
+          const role = membership?.role ?? "";
+          const pin = parsed.managerPin?.trim() || undefined;
+          if (!(await verifyManagerPin(service, tenant.id, pin, role))) {
+            return NextResponse.json(
+              {
+                error: pin
+                  ? "That manager PIN isn't right."
+                  : `A discount above ${threshold}% needs a manager's approval. Ask an owner or admin to sign in, or enter the manager PIN.`,
+                requiresManagerApproval: true,
+              },
+              { status: 403 },
+            );
+          }
+          newDiscountApproval = { via: isAdminLikeRole(role) ? "admin" : "manager_pin", percent: parsed.discountPercent, scope: parsed.discountScope };
+        }
+      }
+    }
 
     let roomUnitId: string | null = null;
     let roomTypeCode = parsed.roomTypeCode;
@@ -416,6 +490,12 @@ export async function POST(req: Request) {
       }
     }
 
+    // A VIP guest stays VIP on every later stay: the flag lives on the guest as well as on this booking.
+    if (parsed.vipFlag) {
+      const tagged = await setGuestTag(service, { tenantId: tenant.id, guestId, tag: "vip", enabled: true, actorUserId: user.id });
+      if (!tagged.ok) console.warn("[check-in] vip tag not saved", tagged.error);
+    }
+
     const confirmationCode = existingReservation?.confirmation_code ?? uniqueCode("XYV");
     const folioNumber = existingReservation?.folio_number ?? uniqueCode("XYV-F");
     const registrationNumber = existingReservation?.registration_number ?? uniqueCode("XYV-R");
@@ -469,6 +549,44 @@ export async function POST(req: Request) {
       computedAt: nowIso,
     };
 
+    // The room the guest asked for is a wish, not a hold: it never blocks the booking, but the desk is told
+    // when it will not be free so they can talk to the guest.
+    const warnings: string[] = [];
+    let requestedRoomUnitId: string | null = null;
+    const requestedCode = parsed.requestedRoomCode?.trim();
+    if (requestedCode) {
+      const { data: reqUnit } = await service
+        .schema("hotel")
+        .from("room_units")
+        .select("id,room_code,status")
+        .eq("tenant_id", tenant.id)
+        .eq("room_code", requestedCode)
+        .maybeSingle();
+      if (!reqUnit) {
+        warnings.push(`Requested room ${requestedCode} was not found, so it was not saved.`);
+      } else {
+        requestedRoomUnitId = reqUnit.id as string;
+        if (reqUnit.status === "out_of_order" || reqUnit.status === "maintenance") {
+          warnings.push(`Requested room ${requestedCode} is out of service right now.`);
+        } else {
+          const { data: busy } = await service
+            .schema("hotel")
+            .from("reservations")
+            .select("id,confirmation_code")
+            .eq("tenant_id", tenant.id)
+            .eq("room_unit_id", reqUnit.id)
+            .in("status", ["confirmed", "checked_in"])
+            .lt("arrival_at", departureAt)
+            .gt("departure_at", arrivalAt)
+            .neq("id", parsed.reservationId ?? "00000000-0000-0000-0000-000000000000")
+            .limit(1);
+          if (busy && busy.length > 0) {
+            warnings.push(`Requested room ${requestedCode} is already taken for some of these nights (booking ${busy[0]!.confirmation_code}).`);
+          }
+        }
+      }
+    }
+
     const reservationFields = {
       status: parsed.checkInNow ? ("checked_in" as const) : ("confirmed" as const),
       arrival_at: arrivalAt,
@@ -479,6 +597,14 @@ export async function POST(req: Request) {
       purpose_of_visit: parsed.purposeOfVisit,
       room_type_code: roomTypeCode,
       room_unit_id: roomUnitId,
+      requested_room_unit_id: requestedRoomUnitId,
+      discount_package_code: discountPackageCode,
+      // Who agreed to a discount above the limit. Cleared if the discount is gone; kept as is when unchanged.
+      ...(newDiscountApproval
+        ? { discount_approved_by: user.id, discount_approved_at: nowIso }
+        : parsed.discountPercent <= 0 || parsed.discountScope === "none"
+          ? { discount_approved_by: null, discount_approved_at: null }
+          : {}),
       rate_type: parsed.rateType,
       season_code: parsed.seasonCode?.trim() || null,
       rate_per_night: expectedBar,
@@ -495,6 +621,9 @@ export async function POST(req: Request) {
       preauth_amount: parsed.preauthAmount ?? null,
       bill_to_account: parsed.billToAccount?.trim() || null,
       po_number: parsed.poNumber?.trim() || null,
+      bill_to_contact_name: parsed.billToContactName?.trim() || null,
+      bill_to_contact_phone: parsed.billToContactPhone?.trim() || null,
+      bill_to_contact_email: parsed.billToContactEmail?.trim() || null,
       min_payment_per_day: parsed.minPaymentPerDayToExtend ?? null,
       booking_channel: parsed.bookingChannel?.trim() || null,
       market_segment: parsed.marketSegment,
@@ -674,6 +803,17 @@ export async function POST(req: Request) {
       after: { confirmation_code: reservation.confirmation_code },
     });
 
+    if (newDiscountApproval) {
+      await writeAuditLog({
+        tenantId: tenant.id,
+        actorUserId: user.id,
+        action: "checkin_discount_approved",
+        entityType: "reservation",
+        entityId: reservation.id,
+        after: { ...newDiscountApproval, approvedBy: user.id, code: discountPackageCode },
+      }).catch(() => undefined);
+    }
+
     if (parsed.checkInNow) {
       await postWalkInFolioBundle(service, {
         tenantId: tenant.id,
@@ -734,6 +874,7 @@ export async function POST(req: Request) {
       folioNumber,
       registrationNumber,
       grandTotal: pricingModel.taxes.grandTotal,
+      warnings,
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
