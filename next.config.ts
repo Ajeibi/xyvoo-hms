@@ -33,6 +33,15 @@ const nextConfig: NextConfig = {
     // The build was killed for running out of memory on Vercel's 8 GB builder.
     webpackMemoryOptimizations: true,
     serverSourceMaps: false,
+    // A custom webpack config turns the build worker off, so ask for it again:
+    // it runs each compilation in its own process and frees memory between them.
+    webpackBuildWorker: true,
+  },
+  webpack: (config, { dev }) => {
+    // The in-memory/on-disk webpack cache only speeds up repeat builds; on a
+    // fresh Vercel builder it just adds to the memory peak.
+    if (!dev) config.cache = false;
+    return config;
   },
   productionBrowserSourceMaps: false,
   // Receipts and report PDFs are made in API routes and read these fonts from disk.

@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "build": { "env": { "NODE_OPTIONS": "--max-old-space-size=6144" } },
   "crons": [
     { "path": "/api/cron/analytics", "schedule": "30 2 * * *" },
     { "path": "/api/cron/fx-rates", "schedule": "0 1 * * *" },
