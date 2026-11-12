@@ -9,6 +9,7 @@ import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { postWalkInFolioBundle } from "@/lib/hms/folio";
 import { setGuestTag } from "@/lib/hms/guest-management";
+import { heldDiscountFor, resolveDiscountApprover } from "@/lib/hms/discount-approval";
 import { findUsableDiscountPackage, getCheckInDiscountThreshold } from "@/lib/hms/discount-packages";
 import { assertBookingOptionAllowed } from "@/lib/hms/booking-options";
 import { postingDate } from "@/lib/hms/business-date";
@@ -213,11 +214,11 @@ export async function POST(req: Request) {
             .maybeSingle()
         ).data
       : null;
-    const heldSnap = (heldDiscount?.pricing_snapshot ?? {}) as { discountPercent?: number; discountScope?: string };
-    if (codeTyped && heldDiscount?.discount_package_code && heldDiscount.discount_package_code.toUpperCase() === codeTyped.toUpperCase() && heldSnap.discountScope) {
-      parsed.discountPercent = Number(heldSnap.discountPercent) || 0;
-      parsed.discountScope = heldSnap.discountScope as typeof parsed.discountScope;
-      discountPackageCode = heldDiscount.discount_package_code as string;
+    const held = codeTyped ? heldDiscountFor(codeTyped, heldDiscount) : null;
+    if (held) {
+      parsed.discountPercent = held.percent;
+      parsed.discountScope = held.scope as typeof parsed.discountScope;
+      discountPackageCode = held.code;
     } else if (codeTyped) {
       const found = await findUsableDiscountPackage(service, tenant.id, codeTyped, await postingDate(service, tenant.id));
       if (!found.ok) return NextResponse.json({ error: found.error }, { status: 400 });
@@ -257,18 +258,15 @@ export async function POST(req: Request) {
           }
           // A signed-in owner or admin approves for themselves. With the shared PIN the desk says which manager
           // approved, and that person must be an owner or admin of this hotel.
-          let approverId = user.id;
-          if (!isAdminLikeRole(role)) {
-            const chosen = parsed.discountApprovedBy ?? null;
-            const managers = (await fetchCheckInStaffOptions(service, tenant.id)).filter((m) => isAdminLikeRole(m.role));
-            if (!chosen || !managers.some((m) => m.userId === chosen)) {
-              return NextResponse.json(
-                { error: "Choose which owner or admin approved this discount.", requiresManagerApproval: true },
-                { status: 403 },
-              );
-            }
-            approverId = chosen;
-          }
+          const signedInIsAdmin = isAdminLikeRole(role);
+          const approval = resolveDiscountApprover({
+            signedInUserId: user.id,
+            signedInIsAdmin,
+            chosenApproverId: parsed.discountApprovedBy,
+            managers: signedInIsAdmin ? [] : (await fetchCheckInStaffOptions(service, tenant.id)).map((m) => ({ userId: m.userId, isAdmin: isAdminLikeRole(m.role) })),
+          });
+          if (!approval.ok) return NextResponse.json({ error: approval.error, requiresManagerApproval: true }, { status: 403 });
+          const approverId = approval.approverId;
           newDiscountApproval = { via: isAdminLikeRole(role) ? "admin" : "manager_pin", percent: parsed.discountPercent, scope: parsed.discountScope, approverId };
         }
       }

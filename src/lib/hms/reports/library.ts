@@ -381,11 +381,11 @@ const CASHIER: ReportDef = {
   period: "range",
   async build(ctx, params) {
     const p = clampParams(params);
-    const lines = await fetchAll<{ kind: string; method: string; amount: number | string; created_at: string; pos_terminal_name: string | null }>((a, b) =>
+    const lines = await fetchAll<{ kind: string; method: string; amount: number | string; created_at: string; pos_terminal_name: string | null; metadata: { depositMethod?: string } | null }>((a, b) =>
       ctx.service
         .schema("hotel")
         .from("folio_transactions")
-        .select("kind,method,amount,created_at,pos_terminal_name")
+        .select("kind,method,amount,created_at,pos_terminal_name,metadata")
         .eq("tenant_id", ctx.tenantId)
         .is("voided_at", null)
         .in("kind", ["payment", "refund"])
@@ -424,7 +424,9 @@ const CASHIER: ReportDef = {
       m.count += 1;
       m.total += amount;
       methods.set(key, m);
-      if (l.kind !== "refund" && l.method === "pos") {
+      // A deposit taken on a card machine counts here too, once it is on the bill (it shows under Other by day).
+      const onCardMachine = l.method === "pos" || (l.method === "deposit" && l.metadata?.depositMethod === "pos");
+      if (l.kind !== "refund" && onCardMachine) {
         const tKey = l.pos_terminal_name?.trim() || "No machine recorded";
         const t = terminals.get(tKey) ?? { count: 0, total: 0 };
         t.count += 1;
@@ -515,7 +517,7 @@ const CASHIER: ReportDef = {
           emptyMessage: "No cash drawers were opened in this period.",
         },
       ],
-      ["Bills settled to a company or deposit are shown as Other. Outlet sales are closed restaurant and bar bills paid in cash, by card or by POS at the outlet; room-charged bills are already on guests' bills."],
+      ["Bills settled to a company or deposit are shown as Other, and the Card machines table also counts deposits taken on a card machine. Outlet sales are closed restaurant and bar bills paid in cash, by card or by POS at the outlet; room-charged bills are already on guests' bills."],
     );
   },
 };

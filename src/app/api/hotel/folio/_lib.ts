@@ -18,8 +18,8 @@ export type FolioAuth = Exclude<Awaited<ReturnType<typeof requireHotelApiMember>
 type ReservationGuestEmbed = {
   is_primary: boolean;
   guests:
-    | { first_name: string; last_name: string; email?: string | null; phone?: string | null; whatsapp?: string | null }
-    | { first_name: string; last_name: string; email?: string | null; phone?: string | null; whatsapp?: string | null }[]
+    | { first_name: string; last_name: string; title?: string | null; email?: string | null; phone?: string | null; whatsapp?: string | null }
+    | { first_name: string; last_name: string; title?: string | null; email?: string | null; phone?: string | null; whatsapp?: string | null }[]
     | null;
 }[] | null;
 
@@ -41,7 +41,7 @@ function guestNameFrom(reservationGuests: ReservationGuestEmbed) {
   const primary = reservationGuests?.find((e) => e.is_primary) ?? reservationGuests?.[0];
   const g = primary?.guests;
   const guest = Array.isArray(g) ? g[0] : g;
-  return guest ? `${guest.first_name} ${guest.last_name}`.trim() : "Guest";
+  return guest ? [guest.title, guest.first_name, guest.last_name].filter(Boolean).join(" ").trim() : "Guest";
 }
 
 export async function loadReservation(
@@ -52,7 +52,7 @@ export async function loadReservation(
     .schema("hotel")
     .from("reservations")
     .select(
-      "id,confirmation_code,folio_number,status,settlement_method,preauth_amount,total_room_charges,rate_per_night,room_type_code,nights,departure_at,arrival_at,checked_in_at,rate_overridden,rate_override_reason,vat_applicable,tax_exempt,pricing_snapshot,extra_nights_confirmed_on,travel_agent_vendor_id,agent_commission_percent,commission_bill_id,bill_to_account,po_number,bill_to_contact_name,bill_to_contact_phone,bill_to_contact_email,folio_split_notes,commission_plan,commission_value,credit_limit,reservation_guests(is_primary,guests(first_name,last_name,email,phone,whatsapp))",
+      "id,confirmation_code,folio_number,status,settlement_method,preauth_amount,total_room_charges,rate_per_night,room_type_code,nights,departure_at,arrival_at,checked_in_at,rate_overridden,rate_override_reason,vat_applicable,tax_exempt,pricing_snapshot,extra_nights_confirmed_on,travel_agent_vendor_id,agent_commission_percent,commission_bill_id,bill_to_account,po_number,bill_to_contact_name,bill_to_contact_phone,bill_to_contact_email,folio_split_notes,commission_plan,commission_value,credit_limit,reservation_guests(is_primary,guests(first_name,last_name,title,email,phone,whatsapp))",
     )
     .eq("id", reservationId)
     .eq("tenant_id", auth.tenant.id)
