@@ -243,7 +243,7 @@ export function AlertPreferencesCard({ slug }: { slug: string }) {
         ) : null}
         {showWhatsApp && data.whatsapp.testMode ? (
           <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            WhatsApp messages are in test mode: they&rsquo;re listed under WhatsApp messages below, but not sent yet.
+            WhatsApp sending isn&rsquo;t switched on yet: messages are listed under WhatsApp messages below, but not sent.
           </p>
         ) : null}
         <div className="overflow-x-auto">

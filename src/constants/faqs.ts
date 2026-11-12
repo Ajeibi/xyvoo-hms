@@ -68,7 +68,7 @@ export const XYVOO_FAQS: XyvooFaq[] = [
     question: "What languages does XYVOO support?",
     keywords: ["languages", "language support", "french", "arabic", "multilingual", "local language", "translation"],
     answer:
-      "XYVOO V1 launches with support for 18 languages. Additional languages can be added based on demand. The system interface, guest-facing outputs, and email templates all support the configured language for each tenant.",
+      "XYVOO supports 18 languages. Additional languages can be added based on demand. The system interface, guest-facing outputs, and email templates all support the configured language for each tenant.",
   },
   {
     category: "General / About XYVOO",
@@ -626,7 +626,7 @@ export const XYVOO_FAQS: XyvooFaq[] = [
     question: "Can I have multiple admin accounts?",
     keywords: ["multiple admins", "two admins", "admin accounts", "shared admin", "co admin", "admin access"],
     answer:
-      "In V1, each tenant has one master admin account created at signup. Additional staff accounts can be created with GM-level access which provides near-full system access. True multi-admin with separate billing authority is on the V2 roadmap.",
+      "Each tenant has one master admin account created at signup. Additional staff accounts can be created with GM-level access, which provides near-full system access.",
   },
   {
     category: "Support & Account Management",

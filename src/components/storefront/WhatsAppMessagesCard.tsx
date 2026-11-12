@@ -41,7 +41,7 @@ export default function WhatsAppMessagesCard({ slug }: { slug: string }) {
       {data ? (
         <div className="space-y-3">
           {data.testMode ? (
-            <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">Test mode: these messages are recorded here but not sent to anyone yet.</p>
+            <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">WhatsApp sending isn&rsquo;t switched on yet, so these messages are recorded here but not sent to anyone.</p>
           ) : null}
           {data.messages.length === 0 ? (
             <p className="text-sm text-slate-600">No WhatsApp messages yet. They&rsquo;ll appear here with your next order.</p>
