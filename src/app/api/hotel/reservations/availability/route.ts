@@ -86,7 +86,20 @@ export async function GET(req: Request) {
     const { data: planRows } = await auth.service.schema("hotel").from("rate_plans").select("id,code,name,board_basis,refundable,ar_customer_id,is_default").eq("tenant_id", auth.tenant.id).eq("active", true).order("sort_order");
     const plans = (planRows ?? []).map((p) => ({ id: p.id as string, code: p.code as string, name: p.name as string, boardBasis: p.board_basis as string, refundable: p.refundable !== false, arCustomerId: (p.ar_customer_id as string | null) ?? null, isDefault: p.is_default === true }));
 
-    return NextResponse.json({ currency: pricing.currency, plans, nights: nightsBetweenDays(q.arrival, q.departure), types, allotments: openAllotments });
+    // Every room, for the "Requested room" wish: it can be any room, free or not, and the screen says which are taken.
+    const { data: unitRows } = await auth.service.schema("hotel").from("room_units").select("id,room_code,room_type_code,status").eq("tenant_id", auth.tenant.id);
+    const freeIds = new Set(freeRooms.map((r) => r.id));
+    const allRooms = (unitRows ?? [])
+      .map((u) => ({
+        id: u.id as string,
+        roomCode: u.room_code as string,
+        roomTypeCode: u.room_type_code as string,
+        outOfService: u.status === "out_of_order" || u.status === "maintenance",
+        free: freeIds.has(u.id as string),
+      }))
+      .sort((a, b) => a.roomCode.localeCompare(b.roomCode, undefined, { numeric: true }));
+
+    return NextResponse.json({ currency: pricing.currency, plans, nights: nightsBetweenDays(q.arrival, q.departure), types, allotments: openAllotments, allRooms });
   } catch (e) {
     if (e instanceof z.ZodError) return NextResponse.json({ error: "Choose valid dates." }, { status: 400 });
     console.error("[reservations availability]", e);

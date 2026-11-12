@@ -47,6 +47,8 @@ export type DepositState = {
     amount: number;
     method: DepositMethod;
     reference: string | null;
+    /** The card machine a card-machine deposit was taken on. Empty for cash and for deposits taken before machines were tracked. */
+    posTerminalName?: string | null;
     status: "held" | "applied" | "refunded" | "kept";
     settleReason?: string | null;
     receivedAt: string;

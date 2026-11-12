@@ -89,6 +89,8 @@ export const walkInCheckInPayloadSchema = z
     discountCode: z.string().max(40).optional().nullable(),
     /** The manager's PIN, for a manual discount above the hotel's limit. Never stored. */
     managerPin: z.string().max(40).optional().nullable(),
+    /** The owner or admin who approved the discount when the PIN is used. The server checks they are one. */
+    discountApprovedBy: z.string().uuid().optional().nullable(),
 
     taxExemptVat: z.coerce.boolean().optional().default(false),
     taxExemptServiceCharge: z.coerce.boolean().optional().default(false),

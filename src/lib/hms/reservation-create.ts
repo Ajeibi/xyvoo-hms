@@ -143,7 +143,7 @@ export type CreateReservationInput = {
 };
 
 export type CreateReservationResult =
-  | { ok: true; reservationId: string; confirmationCode: string; guestId: string; matchedExistingGuest: boolean; grandTotal: number }
+  | { ok: true; reservationId: string; confirmationCode: string; guestId: string; matchedExistingGuest: boolean; grandTotal: number; warnings: string[] }
   | { ok: false; error: string; code?: "room_taken" | "type_full" | "restricted" };
 
 export async function createReservation(db: SupabaseClient, input: CreateReservationInput): Promise<CreateReservationResult> {
@@ -173,10 +173,21 @@ export async function createReservation(db: SupabaseClient, input: CreateReserva
     roomTypeCode = unit.room_type_code as string;
   }
 
+  // The room the guest asked for is a wish, not a hold: it never blocks the booking, but the desk is told
+  // when it will not be free so they can talk to the guest.
   let requestedRoomUnitId: string | null = null;
+  const warnings: string[] = [];
   if (input.requestedRoomUnitId) {
-    const { data: reqUnit } = await db.schema("hotel").from("room_units").select("id").eq("tenant_id", input.tenantId).eq("id", input.requestedRoomUnitId).maybeSingle();
+    const { data: reqUnit } = await db.schema("hotel").from("room_units").select("id,room_code,status").eq("tenant_id", input.tenantId).eq("id", input.requestedRoomUnitId).maybeSingle();
     requestedRoomUnitId = (reqUnit?.id as string | undefined) ?? null;
+    if (reqUnit) {
+      if (reqUnit.status === "out_of_order" || reqUnit.status === "maintenance") {
+        warnings.push(`Requested room ${reqUnit.room_code} is out of service right now.`);
+      } else {
+        const free = await findFreeRooms(db, { tenantId: input.tenantId, fromDay: input.arrivalDay, toDay: input.departureDay });
+        if (!free.some((u) => u.id === reqUnit.id)) warnings.push(`Requested room ${reqUnit.room_code} is already taken for some of these nights.`);
+      }
+    }
   }
 
   // The guest: someone already on file, or a new person (matched to a profile we already have when we can).
@@ -366,5 +377,5 @@ export async function createReservation(db: SupabaseClient, input: CreateReserva
     entityId: reservationId,
   }).catch(() => undefined);
 
-  return { ok: true, reservationId, confirmationCode: inserted.confirmation_code as string, guestId: guestId!, matchedExistingGuest, grandTotal: priced.taxes.grandTotal };
+  return { ok: true, reservationId, confirmationCode: inserted.confirmation_code as string, guestId: guestId!, matchedExistingGuest, grandTotal: priced.taxes.grandTotal, warnings };
 }

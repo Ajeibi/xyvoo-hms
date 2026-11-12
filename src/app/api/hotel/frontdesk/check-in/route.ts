@@ -15,6 +15,7 @@ import { postingDate } from "@/lib/hms/business-date";
 import { isAdminLikeRole } from "@/lib/hms/department-access";
 import { verifyManagerPin } from "@/lib/hms/folio";
 import { readHotelMembership } from "@/lib/hms/membership-role";
+import { fetchCheckInStaffOptions } from "@/lib/hms/check-in-staff-options";
 import { notifyReservationCreated, notifyVipArrival, notifyWalkInCheckIn } from "@/lib/hms/notification-rules";
 import { normalizePricingSetup, normalizeRoomTypes } from "@/lib/hms/room-pricing";
 import { rateBookFor } from "@/lib/hms/rates/book";
@@ -197,9 +198,27 @@ export async function POST(req: Request) {
     // Discount. A code from the hotel's list sets the percent and nights itself (the browser's numbers are
     // ignored). A typed percent above the hotel's limit needs a manager: an owner/admin signed in, or the PIN.
     let discountPackageCode: string | null = null;
-    let newDiscountApproval: { via: "admin" | "manager_pin"; percent: number; scope: string } | null = null;
+    let newDiscountApproval: { via: "admin" | "manager_pin"; percent: number; scope: string; approverId: string } | null = null;
     const codeTyped = parsed.discountCode?.trim();
-    if (codeTyped) {
+    // A booking reopened with its code already on it keeps that code and the discount it was given, even if the
+    // code has expired or been switched off since: the guest was promised it when the booking was made.
+    const heldDiscount = codeTyped && parsed.reservationId
+      ? (
+          await service
+            .schema("hotel")
+            .from("reservations")
+            .select("discount_package_code,pricing_snapshot")
+            .eq("tenant_id", tenant.id)
+            .eq("id", parsed.reservationId)
+            .maybeSingle()
+        ).data
+      : null;
+    const heldSnap = (heldDiscount?.pricing_snapshot ?? {}) as { discountPercent?: number; discountScope?: string };
+    if (codeTyped && heldDiscount?.discount_package_code && heldDiscount.discount_package_code.toUpperCase() === codeTyped.toUpperCase() && heldSnap.discountScope) {
+      parsed.discountPercent = Number(heldSnap.discountPercent) || 0;
+      parsed.discountScope = heldSnap.discountScope as typeof parsed.discountScope;
+      discountPackageCode = heldDiscount.discount_package_code as string;
+    } else if (codeTyped) {
       const found = await findUsableDiscountPackage(service, tenant.id, codeTyped, await postingDate(service, tenant.id));
       if (!found.ok) return NextResponse.json({ error: found.error }, { status: 400 });
       parsed.discountPercent = found.pkg.percent;
@@ -236,7 +255,21 @@ export async function POST(req: Request) {
               { status: 403 },
             );
           }
-          newDiscountApproval = { via: isAdminLikeRole(role) ? "admin" : "manager_pin", percent: parsed.discountPercent, scope: parsed.discountScope };
+          // A signed-in owner or admin approves for themselves. With the shared PIN the desk says which manager
+          // approved, and that person must be an owner or admin of this hotel.
+          let approverId = user.id;
+          if (!isAdminLikeRole(role)) {
+            const chosen = parsed.discountApprovedBy ?? null;
+            const managers = (await fetchCheckInStaffOptions(service, tenant.id)).filter((m) => isAdminLikeRole(m.role));
+            if (!chosen || !managers.some((m) => m.userId === chosen)) {
+              return NextResponse.json(
+                { error: "Choose which owner or admin approved this discount.", requiresManagerApproval: true },
+                { status: 403 },
+              );
+            }
+            approverId = chosen;
+          }
+          newDiscountApproval = { via: isAdminLikeRole(role) ? "admin" : "manager_pin", percent: parsed.discountPercent, scope: parsed.discountScope, approverId };
         }
       }
     }
@@ -494,6 +527,12 @@ export async function POST(req: Request) {
     if (parsed.vipFlag) {
       const tagged = await setGuestTag(service, { tenantId: tenant.id, guestId, tag: "vip", enabled: true, actorUserId: user.id });
       if (!tagged.ok) console.warn("[check-in] vip tag not saved", tagged.error);
+    } else if (existingReservation) {
+      // Checking in an existing booking, the VIP box starts from the guest's own VIP status, so clearing it means
+      // the desk is taking the status off. A walk-in can't do this: its form doesn't know the guest, so an empty
+      // box there says nothing about whether they are VIP.
+      const untagged = await setGuestTag(service, { tenantId: tenant.id, guestId, tag: "vip", enabled: false, actorUserId: user.id });
+      if (!untagged.ok) console.warn("[check-in] vip tag not removed", untagged.error);
     }
 
     const confirmationCode = existingReservation?.confirmation_code ?? uniqueCode("XYV");
@@ -601,7 +640,7 @@ export async function POST(req: Request) {
       discount_package_code: discountPackageCode,
       // Who agreed to a discount above the limit. Cleared if the discount is gone; kept as is when unchanged.
       ...(newDiscountApproval
-        ? { discount_approved_by: user.id, discount_approved_at: nowIso }
+        ? { discount_approved_by: newDiscountApproval.approverId, discount_approved_at: nowIso }
         : parsed.discountPercent <= 0 || parsed.discountScope === "none"
           ? { discount_approved_by: null, discount_approved_at: null }
           : {}),
@@ -810,7 +849,7 @@ export async function POST(req: Request) {
         action: "checkin_discount_approved",
         entityType: "reservation",
         entityId: reservation.id,
-        after: { ...newDiscountApproval, approvedBy: user.id, code: discountPackageCode },
+        after: { via: newDiscountApproval.via, percent: newDiscountApproval.percent, scope: newDiscountApproval.scope, approvedBy: newDiscountApproval.approverId, enteredBy: user.id, code: discountPackageCode },
       }).catch(() => undefined);
     }
 

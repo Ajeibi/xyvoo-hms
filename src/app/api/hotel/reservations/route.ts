@@ -121,7 +121,7 @@ export async function POST(req: Request) {
       const sent = await sendReservationEmail(auth.service, { tenantId: auth.tenant.id, reservationId: result.reservationId, kind: "confirmation", userId: auth.user.id });
       email = { status: sent.status, reason: sent.reason };
     }
-    return NextResponse.json({ ok: true, reservationId: result.reservationId, confirmationCode: result.confirmationCode, matchedExistingGuest: result.matchedExistingGuest, grandTotal: result.grandTotal, email });
+    return NextResponse.json({ ok: true, reservationId: result.reservationId, confirmationCode: result.confirmationCode, matchedExistingGuest: result.matchedExistingGuest, grandTotal: result.grandTotal, warnings: result.warnings, email });
   } catch (e) {
     if (e instanceof z.ZodError) return NextResponse.json({ error: e.issues[0]?.message ?? "Invalid request." }, { status: 400 });
     console.error("[reservations create]", e);

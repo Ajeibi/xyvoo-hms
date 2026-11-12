@@ -32,7 +32,8 @@ type TypeRow = {
   rateIssues?: string[];
 };
 type PlanOption = { id: string; code: string; name: string; boardBasis: string; refundable: boolean; arCustomerId: string | null; isDefault: boolean };
-type Availability = { currency: string; plans?: PlanOption[]; nights: number; types: TypeRow[]; allotments: { id: string; name: string; roomTypeCode: string; rooms: number }[] };
+type RoomOption = { id: string; roomCode: string; roomTypeCode: string; outOfService: boolean; free: boolean };
+type Availability = { currency: string; plans?: PlanOption[]; nights: number; types: TypeRow[]; allotments: { id: string; name: string; roomTypeCode: string; rooms: number }[]; allRooms?: RoomOption[] };
 type GuestHit = { id: string; name: string; phone: string; email: string; isVip: boolean; visitCount: number; tier: string | null };
 type Agent = { id: string; name: string };
 
@@ -69,6 +70,8 @@ export function NewReservationClient({
   const [loading, setLoading] = useState(false);
   const [typeId, setTypeId] = useState<string | null>(initial?.roomTypeCode ?? null);
   const [roomId, setRoomId] = useState<string>(initial?.roomUnitId ?? "");
+  /** A room the guest asked for. A wish, not a hold: it never blocks the booking. */
+  const [requestedRoomId, setRequestedRoomId] = useState("");
   const [allotmentId, setAllotmentId] = useState("");
   const [planCode, setPlanCode] = useState("");
   const [restrictionOverride, setRestrictionOverride] = useState(false);
@@ -93,7 +96,7 @@ export function NewReservationClient({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [override, setOverride] = useState<{ reason: string; pin: string } | null>(null);
-  const [done, setDone] = useState<{ id: string; code: string; email: { status: string; reason?: string } | null; matched: boolean; total: number } | null>(null);
+  const [done, setDone] = useState<{ id: string; code: string; email: { status: string; reason?: string } | null; matched: boolean; total: number; warnings: string[] } | null>(null);
 
   const nights = departure > arrival ? nightsBetweenDays(arrival, departure) : 0;
 
@@ -153,7 +156,8 @@ export function NewReservationClient({
   const currency = avail?.currency ?? "NGN";
   const soldOut = selected ? selected.roomsLeft <= 0 : false;
   const overLimit = selected ? selected.roomsLeftWithAllowance <= 0 : false;
-  const allotmentOptions = (avail?.allotments ?? []).filter((a) => a.roomTypeCode === typeId);
+  const requestedRoom = avail?.allRooms?.find((r) => r.id === requestedRoomId) ?? null;
+  const allotmentOptions =(avail?.allotments ?? []).filter((a) => a.roomTypeCode === typeId);
 
   const guestReady = mode === "search" ? Boolean(picked) : Boolean(first.trim() && last.trim() && (phone.trim() || email.trim()));
   const canBook = Boolean(selected && selected.fits && guestReady && nights > 0 && !busy);
@@ -173,6 +177,7 @@ export function NewReservationClient({
             departureDay: departure,
             roomTypeCode: selected.id,
             roomUnitId: roomId || null,
+            requestedRoomUnitId: requestedRoomId || null,
             adults,
             children,
             guestId: mode === "search" ? picked?.id : null,
@@ -199,12 +204,12 @@ export function NewReservationClient({
           if (!data.canOverride && !data.canOverrideRestriction && !data.requiresPin) toastError("Not booked", data.error ?? "Try again.");
           return;
         }
-        setDone({ id: data.reservationId, code: data.confirmationCode, email: data.email ?? null, matched: Boolean(data.matchedExistingGuest), total: data.grandTotal });
+        setDone({ id: data.reservationId, code: data.confirmationCode, email: data.email ?? null, matched: Boolean(data.matchedExistingGuest), total: data.grandTotal, warnings: Array.isArray(data.warnings) ? data.warnings : [] });
       } finally {
         setBusy(false);
       }
     },
-    [selected, slug, arrival, departure, roomId, adults, children, mode, picked, first, last, phone, email, source, agentId, allotmentId, notes, vip, sendEmail, planCode, restrictionOverride],
+    [selected, slug, arrival, departure, roomId, requestedRoomId, adults, children, mode, picked, first, last, phone, email, source, agentId, allotmentId, notes, vip, sendEmail, planCode, restrictionOverride],
   );
 
   if (done) {
@@ -216,6 +221,11 @@ export function NewReservationClient({
             {formatDayLong(arrival)} to {formatDayLong(departure)}, {nights} night{nights === 1 ? "" : "s"}. Total {formatPricingAmount(done.total, currency)} with taxes.
           </p>
           {done.matched ? <p>This guest was already on file, so the booking is on their existing profile.</p> : null}
+          {done.warnings.map((w) => (
+            <HmsWarning key={w} title="Heads up">
+              {w} The request is saved, so the desk can talk to the guest about another room.
+            </HmsWarning>
+          ))}
           {done.email ? (
             <p>
               {done.email.status === "sent"
@@ -352,6 +362,28 @@ export function NewReservationClient({
                 </select>
                 {selected.freeRooms.length === 0 ? <p className="mt-1 text-xs text-slate-600">No room of this type is free for every night, but a room can be chosen later.</p> : null}
               </div>
+              {(avail?.allRooms?.length ?? 0) > 0 ? (
+                <div className="sm:col-span-2">
+                  <Label htmlFor={`${ids}-requested`}>Requested room (optional)</Label>
+                  <select id={`${ids}-requested`} className={hmsInput} value={requestedRoomId} onChange={(e) => setRequestedRoomId(e.target.value)}>
+                    <option value="">No request</option>
+                    {(avail?.allRooms ?? []).map((r) => (
+                      <option key={r.id} value={r.id}>
+                        Room {r.roomCode}
+                        {r.outOfService ? " · out of service" : r.free ? "" : " · taken on these dates"}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-slate-600">A room the guest asked for. It doesn&apos;t hold the room or block the booking; the arrivals board shows it so the desk can honour it if it is free.</p>
+                  {requestedRoom && (requestedRoom.outOfService || !requestedRoom.free) ? (
+                    <div className="mt-2">
+                      <HmsWarning title="This room won't be free">
+                        {requestedRoom.outOfService ? `Room ${requestedRoom.roomCode} is out of service right now.` : `Room ${requestedRoom.roomCode} is already taken for some of these nights.`} You can still save the request.
+                      </HmsWarning>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
               {allotmentOptions.length > 0 ? (
                 <div>
                   <Label htmlFor={`${ids}-allot`}>Book against a group allotment</Label>

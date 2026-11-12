@@ -33,6 +33,8 @@ export type CheckInFormInitialData = {
   requestedRoomCode: string | null;
   discountPercent: number;
   discountScope: DiscountScope;
+  /** The promo code that gave this booking its discount, when one did. */
+  discountCode: string | null;
   taxExemptVat: boolean;
   taxExemptServiceCharge: boolean;
   taxExemptStateLevy: boolean;
@@ -125,7 +127,7 @@ export async function getCheckInFormInitialData(
        rate_type,season_code,rate_overridden,rate_override_reason,show_rate_on_registration_card,
        tax_exemption_reason,tax_exemption_doc_ref,settlement_method,preauth_amount,bill_to_account,po_number,bill_to_contact_name,bill_to_contact_phone,bill_to_contact_email,
        min_payment_per_day,booking_channel,market_segment,source,travel_agent_name,travel_agent_vendor_id,commission_plan,commission_value,
-       voucher_number,vip_flag,generate_bill,immigration_registration_required,pricing_snapshot,remarks_by_phase,
+       voucher_number,vip_flag,discount_package_code,generate_bill,immigration_registration_required,pricing_snapshot,remarks_by_phase,
        guarantee_release_date,reservation_guests(is_primary,relationship,guests(${GUEST_SELECT}))`,
     )
     .eq("tenant_id", tenantId)
@@ -229,6 +231,7 @@ export async function getCheckInFormInitialData(
     requestedRoomCode,
     discountPercent: typeof snapshot.discountPercent === "number" ? snapshot.discountPercent : 0,
     discountScope: (snapshot.discountScope as DiscountScope | undefined) ?? "none",
+    discountCode: (reservation.discount_package_code as string | null | undefined) ?? null,
     taxExemptVat: Boolean(taxExemptions.vat),
     taxExemptServiceCharge: Boolean(taxExemptions.serviceCharge),
     taxExemptStateLevy: Boolean(taxExemptions.stateLevy),

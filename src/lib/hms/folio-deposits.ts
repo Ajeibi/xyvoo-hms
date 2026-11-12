@@ -127,7 +127,7 @@ export async function getDepositState(supabase: SupabaseClient, tenantId: string
     supabase
       .schema("hotel")
       .from("reservation_deposits")
-      .select("id,amount,method,reference,status,received_at,applied_at,settle_reason")
+      .select("id,amount,method,reference,status,received_at,applied_at,settle_reason,pos_terminal_name")
       .eq("tenant_id", tenantId)
       .eq("reservation_id", r.id)
       .order("received_at"),
@@ -143,6 +143,7 @@ export async function getDepositState(supabase: SupabaseClient, tenantId: string
     amount: Number(p.amount) || 0,
     method: p.method as DepositMethod,
     reference: (p.reference as string | null) ?? null,
+    posTerminalName: (p.pos_terminal_name as string | null) ?? null,
     status: p.status as "held" | "applied" | "refunded" | "kept",
     settleReason: (p.settle_reason as string | null) ?? null,
     receivedAt: p.received_at as string,
@@ -168,7 +169,17 @@ export async function getDepositState(supabase: SupabaseClient, tenantId: string
  */
 export async function recordDeposit(
   supabase: SupabaseClient,
-  params: { tenantId: string; reservationId: string; confirmationCode: string; amount: number; method: DepositMethod; reference?: string | null; userId: string },
+  params: {
+    tenantId: string;
+    reservationId: string;
+    confirmationCode: string;
+    amount: number;
+    method: DepositMethod;
+    reference?: string | null;
+    userId: string;
+    /** The card machine a card-machine deposit was taken on (already checked by the caller). */
+    posTerminal?: { id: string; name: string } | null;
+  },
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   const amount = roundMoney(params.amount);
   if (!(amount > 0)) return { ok: false, error: "Enter an amount above zero." };
@@ -200,6 +211,8 @@ export async function recordDeposit(
       reference: params.reference?.trim() || null,
       received_by: params.userId,
       cash_float_session_id: cashFloatSessionId,
+      pos_terminal_id: params.method === "pos" ? (params.posTerminal?.id ?? null) : null,
+      pos_terminal_name: params.method === "pos" ? (params.posTerminal?.name ?? null) : null,
     })
     .select("id")
     .single();
@@ -236,7 +249,7 @@ export async function applyDepositsToFolio(
   const { data: held } = await supabase
     .schema("hotel")
     .from("reservation_deposits")
-    .select("id,amount,method,received_at")
+    .select("id,amount,method,received_at,pos_terminal_id,pos_terminal_name")
     .eq("tenant_id", params.tenantId)
     .eq("reservation_id", params.reservationId)
     .eq("status", "held");
@@ -265,7 +278,9 @@ export async function applyDepositsToFolio(
         amount: -Math.abs(Number(d.amount)),
         method: "deposit",
         status: "posted",
-        description: `Deposit paid ${day} (${DEPOSIT_METHOD_LABEL[method].toLowerCase()})`,
+        description: `Deposit paid ${day} (${DEPOSIT_METHOD_LABEL[method].toLowerCase()}${d.pos_terminal_name ? `, ${d.pos_terminal_name}` : ""})`,
+        pos_terminal_id: (d.pos_terminal_id as string | null) ?? null,
+        pos_terminal_name: (d.pos_terminal_name as string | null) ?? null,
         department: null,
         posted_by: params.userId,
         reference: `deposit:${d.id}`,

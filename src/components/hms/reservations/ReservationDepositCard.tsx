@@ -3,6 +3,7 @@
 import { useEffect, useId, useState } from "react";
 import { Landmark } from "lucide-react";
 import { HmsAlert, HmsCard, HmsPill, hmsButton, hmsInput } from "@/components/hms/hms-ui";
+import { PosTerminalSelect } from "@/components/hms/frontdesk/PosTerminalSelect";
 import { toastSuccess } from "@/lib/app-toast";
 import { formatPricingAmount } from "@/lib/hms/room-pricing";
 import {
@@ -39,6 +40,7 @@ export function ReservationDepositCard({ slug, reservationId, currency }: { slug
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<DepositMethod>("cash");
   const [reference, setReference] = useState("");
+  const [terminalId, setTerminalId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [settling, setSettling] = useState<{ id: string; action: "refund" | "keep" } | null>(null);
@@ -117,7 +119,14 @@ export function ReservationDepositCard({ slug, reservationId, currency }: { slug
       const res = await fetch("/api/hotel/reservations/deposits", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug, reservationId, amount: Number(amount), method, reference: reference.trim() || undefined }),
+        body: JSON.stringify({
+          slug,
+          reservationId,
+          amount: Number(amount),
+          method,
+          reference: reference.trim() || undefined,
+          posTerminalId: method === "pos" ? terminalId || null : null,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -129,6 +138,7 @@ export function ReservationDepositCard({ slug, reservationId, currency }: { slug
       setOpen(false);
       setAmount("");
       setReference("");
+      setTerminalId("");
     } finally {
       setBusy(false);
     }
@@ -155,7 +165,8 @@ export function ReservationDepositCard({ slug, reservationId, currency }: { slug
             {deposit.payments.map((p) => (
               <li key={p.id} className="flex flex-wrap justify-between gap-2 px-3 py-2">
                 <span>
-                  {DEPOSIT_METHOD_LABEL[p.method]}, {day(p.receivedAt)}
+                  {DEPOSIT_METHOD_LABEL[p.method]}
+                  {p.posTerminalName ? ` (${p.posTerminalName})` : ""}, {day(p.receivedAt)}
                   {p.reference ? <span className="text-slate-600"> · {p.reference}</span> : null}
                   <span className="block text-xs text-slate-600">
                     {p.status === "applied" && p.appliedAt
@@ -280,6 +291,7 @@ export function ReservationDepositCard({ slug, reservationId, currency }: { slug
                 </select>
               </div>
             </div>
+            <PosTerminalSelect slug={slug} method={method} value={terminalId} onChange={setTerminalId} id={`${ids}-terminal`} />
             <div>
               <label htmlFor={`${ids}-ref`} className="mb-1 block font-medium text-slate-800">
                 Receipt or transfer reference (optional)

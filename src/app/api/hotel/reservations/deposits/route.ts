@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireHotelApiSection } from "@/lib/hms/hotel-api-auth";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
+import { resolvePosTerminalForPayment } from "@/lib/hms/pos-terminals";
 import {
   DEPOSIT_METHODS,
   DEPOSIT_RESERVATION_COLUMNS,
@@ -44,6 +45,8 @@ const PostSchema = z.object({
   reservationId: z.string().uuid(),
   amount: z.coerce.number().positive("Enter an amount above zero."),
   method: z.enum(DEPOSIT_METHODS),
+  /** Which card machine took a Card machine deposit. */
+  posTerminalId: z.string().uuid().nullish(),
   reference: z.string().max(120).optional(),
 });
 
@@ -62,6 +65,9 @@ export async function POST(req: Request) {
       );
     }
 
+    const terminal = await resolvePosTerminalForPayment(auth.service, auth.tenant.id, body.method, body.posTerminalId);
+    if (!terminal.ok) return NextResponse.json({ error: terminal.error }, { status: 400 });
+
     const result = await recordDeposit(auth.service, {
       tenantId: auth.tenant.id,
       reservationId: booking.id,
@@ -70,6 +76,7 @@ export async function POST(req: Request) {
       method: body.method,
       reference: body.reference,
       userId: auth.user.id,
+      posTerminal: terminal.terminal,
     });
     if (!result.ok) return NextResponse.json({ error: result.error }, { status: 400 });
 
@@ -79,7 +86,7 @@ export async function POST(req: Request) {
       action: "deposit_taken",
       entityType: "reservation",
       entityId: booking.id,
-      after: { amount: body.amount, method: body.method, reference: body.reference ?? null },
+      after: { amount: body.amount, method: body.method, reference: body.reference ?? null, posTerminal: terminal.terminal?.name ?? null },
     });
     return NextResponse.json({ ok: true, deposit: await getDepositState(auth.service, auth.tenant.id, booking) });
   } catch (e) {

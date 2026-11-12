@@ -94,7 +94,8 @@ export async function getGuestsDirectory(
         `first_name.ilike.%${escaped}%,last_name.ilike.%${escaped}%,phone.ilike.%${escaped}%,email.ilike.%${escaped}%,id_number.ilike.%${escaped}%`,
       );
     }
-    if (opts?.vipOnly) query = query.contains("tags", ["vip"]);
+    // `tags` is jsonb, so the value goes as a JSON string. An array would be sent as a Postgres array literal and the query would fail.
+    if (opts?.vipOnly) query = query.contains("tags", JSON.stringify(["vip"]));
     if (segmentIds) {
       // The segment is cut into pages by its own id list.
       return query.in("id", segmentIds.length > 0 ? segmentIds.slice(from, to + 1) : [NO_MATCH]).order("last_name");

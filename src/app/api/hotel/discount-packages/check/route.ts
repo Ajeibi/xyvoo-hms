@@ -4,6 +4,7 @@ import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
 import { isAdminLikeRole } from "@/lib/hms/department-access";
 import { findUsableDiscountPackage, getCheckInDiscountThreshold, setCheckInDiscountThreshold } from "@/lib/hms/discount-packages";
 import { postingDate } from "@/lib/hms/business-date";
+import { fetchCheckInStaffOptions } from "@/lib/hms/check-in-staff-options";
 
 /** The manual-discount limit, for the check-in form. */
 export async function GET(req: Request) {
@@ -12,7 +13,14 @@ export async function GET(req: Request) {
     const auth = await requireHotelApiMember(slug);
     if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
     const threshold = await getCheckInDiscountThreshold(auth.service, auth.tenant.id);
-    return NextResponse.json({ threshold, canApprove: isAdminLikeRole(auth.role) });
+    const canApprove = isAdminLikeRole(auth.role);
+    // Staff who use the shared PIN say which owner or admin approved. An owner or admin approves for themselves.
+    const managers = canApprove
+      ? []
+      : (await fetchCheckInStaffOptions(auth.service, auth.tenant.id))
+          .filter((m) => isAdminLikeRole(m.role))
+          .map((m) => ({ userId: m.userId, name: m.displayName }));
+    return NextResponse.json({ threshold, canApprove, managers });
   } catch {
     return NextResponse.json({ error: "Could not load the discount limit." }, { status: 400 });
   }

@@ -51,8 +51,13 @@ export function DiscountFieldset({
   setAppliedCode,
   managerPin,
   setManagerPin,
+  approvedBy,
+  setApprovedBy,
 }: {
   slug: string;
+  /** The owner or admin who approved, when the PIN is used. */
+  approvedBy: string;
+  setApprovedBy: (userId: string) => void;
   /** The promo code that filled the discount; empty when the discount is typed by hand. */
   appliedCode: string;
   setAppliedCode: (code: string) => void;
@@ -67,15 +72,17 @@ export function DiscountFieldset({
   const [codeBusy, setCodeBusy] = useState(false);
   const [codeError, setCodeError] = useState<string | null>(null);
   const [codeNote, setCodeNote] = useState<string | null>(null);
-  const [policy, setPolicy] = useState<{ threshold: number; canApprove: boolean } | null>(null);
+  const [policy, setPolicy] = useState<{ threshold: number; canApprove: boolean; managers: { userId: string; name: string }[] } | null>(null);
 
   // The hotel's limit for a discount typed by hand. Above it, a manager must approve.
   useEffect(() => {
     let cancelled = false;
     fetch(`/api/hotel/discount-packages/check?slug=${encodeURIComponent(slug)}`)
       .then((r) => (r.ok ? r.json() : null))
-      .then((d: { threshold?: number; canApprove?: boolean } | null) => {
-        if (!cancelled && d && typeof d.threshold === "number") setPolicy({ threshold: d.threshold, canApprove: Boolean(d.canApprove) });
+      .then((d: { threshold?: number; canApprove?: boolean; managers?: { userId: string; name: string }[] } | null) => {
+        if (!cancelled && d && typeof d.threshold === "number") {
+          setPolicy({ threshold: d.threshold, canApprove: Boolean(d.canApprove), managers: d.managers ?? [] });
+        }
       })
       .catch(() => undefined);
     return () => {
@@ -109,6 +116,7 @@ export function DiscountFieldset({
       setDiscountPercentInput(String(data.percent));
       setDiscountScope(data.scope);
       setManagerPin("");
+      setApprovedBy("");
       const scopeLabel = DISCOUNT_SCOPES.find((s) => s.value === data.scope)?.label.toLowerCase() ?? "";
       setCodeNote(`${data.code}${data.name ? ` (${data.name})` : ""}: ${data.percent}% off, ${scopeLabel}.`);
     } finally {
@@ -256,8 +264,28 @@ export function DiscountFieldset({
               className="h-10 max-w-xs rounded-xl"
             />
             <p className="text-xs text-slate-600">
-              Discounts above {policy?.threshold}% need a manager. {policy?.canApprove ? "As an owner or admin your sign-in counts as the approval." : "Enter the manager PIN to continue."}
+              Discounts above {policy?.threshold}% need a manager. {policy?.canApprove ? "As an owner or admin your sign-in counts as the approval." : "Enter the manager PIN and choose who approved."}
             </p>
+            {policy && !policy.canApprove ? (
+              <div className="space-y-1">
+                <label htmlFor="discountApprovedBy" className="text-sm font-medium text-slate-700">
+                  Approved by <span className="text-rose-600">*</span>
+                </label>
+                <select
+                  id="discountApprovedBy"
+                  value={approvedBy}
+                  onChange={(e) => setApprovedBy(e.target.value)}
+                  className="h-10 w-full max-w-xs cursor-pointer rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                >
+                  <option value="">Choose the owner or admin…</option>
+                  {policy.managers.map((m) => (
+                    <option key={m.userId} value={m.userId}>
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>

@@ -148,8 +148,9 @@ export function FrontDeskCheckInForm({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [sendToRestaurant, setSendToRestaurant] = useState(false);
-  const [discountCode, setDiscountCode] = useState("");
+  const [discountCode, setDiscountCode] = useState(initialData?.discountCode ?? "");
   const [managerPin, setManagerPin] = useState("");
+  const [discountApprovedBy, setDiscountApprovedBy] = useState("");
   const [requestedRoom, setRequestedRoom] = useState(initialData?.requestedRoomCode ?? "");
   const [phone, setPhone] = useState<string | undefined>(initialData?.phone);
   const [primaryEmailInput, setPrimaryEmailInput] = useState(initialData?.email ?? "");
@@ -583,6 +584,7 @@ export function FrontDeskCheckInForm({
       requestedRoomCode: requestedRoom.trim() || null,
       discountCode: discountCode || null,
       managerPin: managerPin.trim() || null,
+      discountApprovedBy: managerPin.trim() && discountApprovedBy ? discountApprovedBy : null,
     };
 
     setLoading(true);
@@ -754,6 +756,8 @@ export function FrontDeskCheckInForm({
             setAppliedCode={setDiscountCode}
             managerPin={managerPin}
             setManagerPin={setManagerPin}
+            approvedBy={discountApprovedBy}
+            setApprovedBy={setDiscountApprovedBy}
             discountPercentInput={discountPercentInput}
             setDiscountPercentInput={setDiscountPercentInput}
             discountScope={discountScope}
