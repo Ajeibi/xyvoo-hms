@@ -344,8 +344,8 @@ export function FrontDeskRoomDetailSheet({
                 <SheetTitle className="text-xl font-bold">Room {headerRoom.roomCode}</SheetTitle>
                 <span
                   className={cn(
-                    "rounded-full px-2 py-0.5 text-xs font-semibold text-white",
-                    ROOM_STATUS_CELL_CLASS[headerRoom.displayStatus].split(" ")[0],
+                    "rounded-full px-2 py-0.5 text-xs font-semibold",
+                    ROOM_STATUS_CELL_CLASS[headerRoom.displayStatus].split(" ").filter((c) => !c.startsWith("hover:")).join(" "),
                   )}
                 >
                   {headerRoom.statusShortLabel}

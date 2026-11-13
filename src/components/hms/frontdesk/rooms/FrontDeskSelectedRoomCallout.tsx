@@ -27,7 +27,7 @@ export function FrontDeskSelectedRoomCallout({
       <div className="flex flex-wrap items-center gap-4 rounded-[10px] bg-white px-4 py-3 sm:px-5">
         <div
           className={cn(
-            "flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-2xl font-black tabular-nums text-white shadow-inner",
+            "flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-2xl font-black tabular-nums shadow-inner",
             ROOM_STATUS_CELL_CLASS[room.displayStatus],
           )}
         >

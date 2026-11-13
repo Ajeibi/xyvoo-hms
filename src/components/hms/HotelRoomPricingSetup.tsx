@@ -731,7 +731,7 @@ export default function HotelRoomPricingSetup({
           <p className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-700">
             Add room types with how many keys you sell for each category (or complete registration
             with a hotel room total). Then you can map floors here, or leave floors empty to keep
-            everything on the ground floor.
+            everything on floor 1.
           </p>
         ) : (
           <>
@@ -774,7 +774,7 @@ export default function HotelRoomPricingSetup({
               </span>
               {floorPlanOk && floorRows.length === 0 ? (
                 <span className="rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-800 ring-1 ring-emerald-200">
-                  Ground floor (default)
+                  Floor 1 (default)
                 </span>
               ) : floorPlanOk ? (
                 <span className="rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-800 ring-1 ring-emerald-200">

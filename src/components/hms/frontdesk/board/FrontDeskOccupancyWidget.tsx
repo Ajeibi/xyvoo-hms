@@ -10,8 +10,8 @@ export function FrontDeskOccupancyWidget({ stats }: { stats: FrontDeskOccupancyS
   const segments = [
     { label: "Occupied rooms", value: stats.occupiedRooms, color: "rgb(37, 99, 235)" },
     { label: "Available", value: stats.availableRooms, color: "rgb(16, 185, 129)" },
-    { label: "Reserved", value: stats.reservedRooms, color: "rgb(251, 191, 36)" },
-    { label: "Maintenance", value: stats.maintenanceRooms, color: "rgb(249, 115, 22)" },
+    { label: "Reserved", value: stats.reservedRooms, color: "rgb(219, 39, 119)" },
+    { label: "Maintenance", value: stats.maintenanceRooms, color: "rgb(14, 116, 144)" },
   ];
   const total = Math.max(stats.totalRooms, 1);
 

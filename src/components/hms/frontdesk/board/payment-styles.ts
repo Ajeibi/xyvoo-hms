@@ -6,7 +6,7 @@ export const PAYMENT_DOT_CLASS: Record<PaymentDisplayStatus, string> = {
   paid: "bg-emerald-600 ring-2 ring-white",
   partial: "bg-sky-500 ring-2 ring-white",
   unpaid: "bg-red-600 ring-2 ring-white",
-  refund_pending: "bg-amber-400 ring-2 ring-white",
+  refund_pending: "bg-purple-700 ring-2 ring-white",
   unknown: "bg-slate-500 ring-2 ring-white",
 };
 

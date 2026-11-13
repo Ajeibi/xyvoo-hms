@@ -30,7 +30,6 @@ const ROOM_STATUS_OPTIONS = [
   { value: "available", label: "Available" },
   { value: "ready", label: "Clean and ready" },
   { value: "occupied", label: "Occupied" },
-  { value: "inHouse", label: "Guests staying" },
   { value: "overdueCheckout", label: "Overdue check-out" },
   { value: "reserved", label: "Reserved" },
   { value: "dirty", label: "Dirty" },

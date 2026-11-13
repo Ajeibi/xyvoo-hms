@@ -117,8 +117,8 @@ export async function POST(req: Request) {
         {
           error:
             roomUnitCount > 0
-              ? `Floor plan must allocate all ${floorTarget} room keys across floors (currently ${allocated}). Leave floors empty to keep every key on the ground floor.`
-              : `Floor plan must allocate all ${floorTarget} hotel rooms across floors (currently ${allocated}). Leave floors empty to keep every room on the ground floor.`,
+              ? `Floor plan must allocate all ${floorTarget} room keys across floors (currently ${allocated}). Leave floors empty to keep every key on floor 1.`
+              : `Floor plan must allocate all ${floorTarget} hotel rooms across floors (currently ${allocated}). Leave floors empty to keep every room on floor 1.`,
         },
         { status: 400 },
       );

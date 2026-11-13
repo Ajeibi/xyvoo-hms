@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import type { FrontDeskDisplayStatus } from "@/lib/hms/front-desk-board";
 import { PaymentLegend } from "./PaymentLegend";
-import { ROOM_FLAG_RING_CLASS, SUMMARY_CARD_CLASS } from "./status-styles";
+import { NEEDS_ATTENTION_BADGE_CLASS, ROOM_FLAG_RING_CLASS, SUMMARY_CARD_CLASS } from "./status-styles";
 
 /** Built from the same maps the cells use, so the legend cannot drift from the board. */
 const LEGEND_LABELS: Record<FrontDeskDisplayStatus, string> = {
@@ -76,6 +76,13 @@ export function FrontDeskBoardLegend() {
             className={`mr-1.5 inline-block h-3 w-3 rounded-sm bg-white align-[-2px] ${ROOM_FLAG_RING_CLASS}`}
           />
           Dark ring = DND, security hold, or staff-restricted · moon / shield icons on the cell
+        </p>
+        <p className="mt-1.5 text-xs text-slate-600">
+          <span
+            aria-hidden
+            className={`mr-1.5 inline-block h-3 w-3 rounded-full align-[-2px] ${NEEDS_ATTENTION_BADGE_CLASS}`}
+          />
+          Amber pill inside a cell = needs attention: &ldquo;Priority&rdquo; (priority clean requested) or &ldquo;Inspect&rdquo; (cleaned, awaiting inspection)
         </p>
       </div>
     </div>

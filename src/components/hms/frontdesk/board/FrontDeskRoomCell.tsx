@@ -6,8 +6,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils";
 import { GuestDetailBlock } from "./guest-details";
 import { PAYMENT_DOT_CLASS, PAYMENT_STATUS_HINT, PAYMENT_STATUS_LABEL } from "./payment-styles";
-import { ROOM_FLAG_RING_CLASS, ROOM_STATUS_CELL_CLASS } from "./status-styles";
-import { Moon, MoreVertical, ShieldAlert, Star } from "lucide-react";
+import { NEEDS_ATTENTION_BADGE_CLASS, ROOM_FLAG_RING_CLASS, ROOM_STATUS_CELL_CLASS } from "./status-styles";
+import { ClipboardCheck, Moon, MoreVertical, ShieldAlert, Star, Zap } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -134,6 +134,9 @@ export function FrontDeskRoomCell({
   onRoomAction?: (action: RoomOpsAction, room: FrontDeskRoomBoardItem) => void;
 }) {
   const stay = room.stay ?? room.reservedStay;
+  const priorityClean = ["high", "urgent", "vip"].includes(room.housekeeping?.priorityLevel ?? "") && room.housekeeping?.status !== "inspected" && room.housekeeping?.status !== "ready";
+  const awaitingInspection = room.housekeeping?.status === "cleaned";
+  const attentionLabel = priorityClean ? "Priority clean requested" : awaitingInspection ? "Awaiting inspection" : null;
   const emergency =
     room.roomFlags.securityHold || room.roomFlags.dnd || room.roomFlags.staffRestricted;
 
@@ -149,6 +152,7 @@ export function FrontDeskRoomCell({
               "relative h-auto min-h-[5.25rem] w-full min-w-[7.25rem] flex-col justify-center gap-1 rounded-xl px-2.5 py-2.5 text-center text-xs font-semibold shadow-sm transition-all hover:translate-y-0 active:translate-y-0",
               ROOM_STATUS_CELL_CLASS[room.displayStatus],
               emergency && !selected && ROOM_FLAG_RING_CLASS,
+              emergency && (attentionLabel || room.creditAlert) && "pb-6",
               selected &&
                 "z-20 scale-[1.08] shadow-2xl shadow-blue-600/50 ring-[5px] ring-blue-500 ring-offset-[3px] ring-offset-white outline outline-2 outline-dashed outline-white",
             )}
@@ -157,6 +161,7 @@ export function FrontDeskRoomCell({
               [
                 selected ? `Selected — Room ${room.roomCode}` : `Room ${room.roomCode}`,
                 room.statusLabel,
+                attentionLabel,
                 !selected && room.paymentStatus ? PAYMENT_STATUS_LABEL[room.paymentStatus] : null,
                 room.creditAlert ? CREDIT_LABEL[room.creditAlert] : null,
               ]
@@ -185,11 +190,11 @@ export function FrontDeskRoomCell({
               />
             ) : null}
             {room.roomFlags.dnd ? (
-              <Moon className="absolute bottom-1 left-1.5 h-3 w-3 text-white/90" aria-label="Do not disturb" />
+              <Moon className="absolute bottom-1 left-1.5 h-3 w-3 text-current" aria-label="Do not disturb" />
             ) : null}
             {room.roomFlags.securityHold ? (
               <ShieldAlert
-                className={`absolute bottom-1 h-3 w-3 text-white/90 ${room.roomFlags.dnd ? "left-5" : "left-1.5"}`}
+                className={`absolute bottom-1 h-3 w-3 text-current ${room.roomFlags.dnd ? "left-5" : "left-1.5"}`}
                 aria-label="Security hold"
               />
             ) : null}
@@ -200,6 +205,17 @@ export function FrontDeskRoomCell({
             <span className="line-clamp-2 text-[11px] leading-snug font-medium whitespace-normal opacity-95">
               {room.statusShortLabel}
             </span>
+            {attentionLabel ? (
+              <span
+                className={cn("inline-flex items-center gap-0.5 rounded-full px-1.5 py-px text-[9px] font-black uppercase tracking-wide shadow-sm", NEEDS_ATTENTION_BADGE_CLASS)}
+                title={attentionLabel}
+                role="img"
+                aria-label={attentionLabel}
+              >
+                {priorityClean ? <Zap className="h-2.5 w-2.5" aria-hidden /> : <ClipboardCheck className="h-2.5 w-2.5" aria-hidden />}
+                {priorityClean ? "Priority" : "Inspect"}
+              </span>
+            ) : null}
             {room.creditAlert ? (
               <span
                 className={cn(
@@ -221,7 +237,7 @@ export function FrontDeskRoomCell({
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="absolute right-1 bottom-1 z-30 rounded p-0.5 text-white/90 hover:bg-black/20"
+              className="absolute right-1 bottom-1 z-30 rounded p-0.5 text-current hover:bg-black/20"
               aria-label={`Room ${room.roomCode} actions`}
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => e.stopPropagation()}

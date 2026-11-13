@@ -108,10 +108,10 @@ export async function getDashboardSetupSummary(slug: string): Promise<HMSDashboa
         floorTarget <= 0
           ? "Add room types with inventory counts (or complete registration with a room total) so floors can be mapped when you need them."
           : floorPlanComplete && floorPlan.length === 0
-            ? `All ${floorTarget} room(s) use the default ground floor. Optional: split across floors in Settings.`
+            ? `All ${floorTarget} room(s) use the default floor 1. Optional: split across floors in Settings.`
             : floorPlanComplete
               ? `All ${floorTarget} rooms are mapped across ${floorPlan.length} floor(s).`
-              : `You have ${floorTarget} room${floorTarget === 1 ? "" : "s"} to place. ${getFloorPlanRoomTotal(floorPlan)} are assigned across floors — match the total in Settings, or clear rows to use ground floor only.`,
+              : `You have ${floorTarget} room${floorTarget === 1 ? "" : "s"} to place. ${getFloorPlanRoomTotal(floorPlan)} are assigned across floors — match the total in Settings, or clear rows to use floor 1 only.`,
       complete: floorPlanComplete,
       href: `/hms/${slug}/settings#floor-plan-setup`,
     },

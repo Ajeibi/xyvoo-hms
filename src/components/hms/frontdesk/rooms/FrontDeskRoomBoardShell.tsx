@@ -60,7 +60,8 @@ export function FrontDeskRoomBoardShell({
   return (
     <TooltipProvider>
       <div className={mode === "rooms" ? "space-y-4" : "space-y-6"}>
-        <FrontDeskRoomStatusSummary
+        {/* The Rooms page has its own clickable figures above; a second set would give two "occupied" counts. */}
+        {mode === "rooms" ? null : <FrontDeskRoomStatusSummary
           counts={data.summaryCounts}
           rooms={allRooms}
           pendingArrivals={data.pendingCheckInsToday}
@@ -70,7 +71,7 @@ export function FrontDeskRoomBoardShell({
               setActiveFloor(room.floor);
             }
           }}
-        />
+        />}
 
         {beforeFloorPlan}
 
