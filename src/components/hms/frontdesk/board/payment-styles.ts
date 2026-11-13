@@ -1,12 +1,12 @@
 import type { PaymentDisplayStatus } from "@/lib/hms/front-desk-board";
 
-/** Corner-dot colors — kept distinct from room-status legend (e.g. amber = reserved cell). */
+/** Corner-dot colors — kept distinct from every room-status cell colour (see status-styles.ts). */
 /** High-contrast hues — each state far apart on the color wheel. */
 export const PAYMENT_DOT_CLASS: Record<PaymentDisplayStatus, string> = {
   paid: "bg-emerald-600 ring-2 ring-white",
   partial: "bg-sky-500 ring-2 ring-white",
   unpaid: "bg-red-600 ring-2 ring-white",
-  refund_pending: "bg-fuchsia-600 ring-2 ring-white",
+  refund_pending: "bg-amber-400 ring-2 ring-white",
   unknown: "bg-slate-500 ring-2 ring-white",
 };
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { floorLabelPlain } from "@/lib/hms/floor-label";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ListFilter, RefreshCw, Search } from "lucide-react";
@@ -224,7 +225,7 @@ export function FrontDeskRoomsClient({
                 id="rooms-search"
                 type="search"
                 className="h-11 rounded-xl border-slate-300 pl-10"
-                placeholder="Room number, guest name or room type"
+                placeholder="Room number, guest name, phone or room type"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -240,7 +241,7 @@ export function FrontDeskRoomsClient({
               <option value="">All floors</option>
               {data.board.floors.map((f) => (
                 <option key={f} value={String(f)}>
-                  Floor {f}
+                  {floorLabelPlain(f)}
                 </option>
               ))}
             </select>

@@ -45,7 +45,7 @@ const PricingSetupSchema = z.object({
 
 const FloorEntrySchema = z
   .object({
-    floor: z.coerce.number().int().min(1).max(500),
+    floor: z.coerce.number().int().min(0).max(500),
     room_count: z.coerce.number().int().min(1).max(10000),
     room_codes: z.array(z.string().min(1).max(32)).max(10000).optional(),
   })

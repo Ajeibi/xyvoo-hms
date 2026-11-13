@@ -1,5 +1,6 @@
 "use client";
 
+import { floorLabelPlain } from "@/lib/hms/floor-label";
 import { useMemo } from "react";
 import { Star } from "lucide-react";
 import type {
@@ -92,7 +93,7 @@ function RoomRow({
             Room {room.roomCode}
           </p>
           <span className="text-xs font-medium text-slate-500">
-            Floor {room.floor} · {room.roomTypeCode}
+            {floorLabelPlain(room.floor)} · {room.roomTypeCode}
           </span>
         </div>
         <p className="mt-1 text-slate-600">{roomSubtitle(status, room)}</p>

@@ -19,6 +19,7 @@ import { computeFolioBalance, getTenantFolioSettings, mapFolioLineRow, type Foli
 import { creditLimitState } from "@/lib/hms/folio-credit-limits-shared";
 import { assertQueriesSucceeded } from "@/lib/hms/data-unavailable";
 import { isUnpaidStay } from "@/lib/hms/frontdesk-stays";
+import { floorLabel } from "@/lib/hms/floor-label";
 
 export type PaymentDisplayStatus = "paid" | "partial" | "unpaid" | "refund_pending" | "unknown";
 
@@ -563,12 +564,6 @@ function settlementLabel(method: string) {
     partial_credit: "Partial credit",
   };
   return map[method] ?? method;
-}
-
-function floorLabel(floor: number) {
-  const ordinals = ["", "First", "Second", "Third", "Fourth", "Fifth", "Sixth", "Seventh", "Eighth", "Ninth", "Tenth"];
-  if (floor >= 1 && floor <= 10) return `${ordinals[floor]} Floor`;
-  return `Floor ${floor}`;
 }
 
 export { floorLabel };

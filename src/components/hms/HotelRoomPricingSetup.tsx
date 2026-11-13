@@ -75,14 +75,21 @@ function toFloorRowsFromPlan(plan: HotelFloorPlanEntry[]): FloorRowDraft[] {
   }));
 }
 
+/** A typed floor number; blank is "not entered" (not floor 0). 0 is the ground floor. */
+function parseFloorDraft(value: string): number | null {
+  if (!value.trim()) return null;
+  const n = Math.trunc(Number(value));
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
 /** Counts only (for totals / completeness). Ignores room number text. */
 function toFloorPlanPayloadCountsOnly(rows: FloorRowDraft[]): HotelFloorPlanEntry[] {
   const raw = rows
     .map((r) => ({
-      floor: Math.trunc(Number(r.floor)),
+      floor: parseFloorDraft(r.floor),
       room_count: Math.trunc(Number(r.room_count)),
     }))
-    .filter((r) => Number.isFinite(r.floor) && Number.isFinite(r.room_count) && r.floor >= 1 && r.room_count >= 1);
+    .filter((r): r is { floor: number; room_count: number } => r.floor !== null && Number.isFinite(r.room_count) && r.room_count >= 1);
   return normalizeFloorPlan(raw);
 }
 
@@ -91,9 +98,9 @@ function toFloorPlanPayloadWithCodes(
 ): { ok: true; entries: HotelFloorPlanEntry[] } | { ok: false; error: string } {
   const raw: Array<{ floor: number; room_count: number; room_codes?: string[] }> = [];
   for (const r of rows) {
-    const floor = Math.trunc(Number(r.floor));
+    const floor = parseFloorDraft(r.floor);
     const room_count = Math.trunc(Number(r.room_count));
-    if (!Number.isFinite(floor) || !Number.isFinite(room_count) || floor < 1 || room_count < 1) {
+    if (floor === null || !Number.isFinite(room_count) || room_count < 1) {
       continue;
     }
     const spec = r.room_numbers.trim();
@@ -113,9 +120,9 @@ function toFloorPlanPayloadWithCodes(
 function buildCodeToFloorsFromDrafts(rows: FloorRowDraft[]): Map<string, Set<number>> {
   const codeToFloors = new Map<string, Set<number>>();
   for (const r of rows) {
-    const floor = Math.trunc(Number(r.floor));
+    const floor = parseFloorDraft(r.floor);
     const spec = r.room_numbers.trim();
-    if (!spec || !Number.isFinite(floor) || floor < 1) continue;
+    if (!spec || floor === null) continue;
     const expanded = expandRoomNumbersSpec(spec);
     if (!expanded.ok) continue;
     for (const c of expanded.codes) {
@@ -547,7 +554,7 @@ export default function HotelRoomPricingSetup({
 
   const addFloorRow = () => {
     setFloorRows((current) => {
-      const floors = current.map((r) => Number(r.floor)).filter((n) => Number.isFinite(n) && n >= 1);
+      const floors = current.map((r) => parseFloorDraft(r.floor)).filter((n): n is number => n !== null);
       const next = floors.length ? Math.max(...floors) + 1 : 1;
       return [...current, { id: newFloorRowId(), floor: String(next), room_count: "", room_numbers: "" }];
     });
@@ -587,8 +594,8 @@ export default function HotelRoomPricingSetup({
       setLoading(false);
       setError(
         inventoryRoomCount > 0
-          ? `Floor plan must allocate exactly ${saveFloorTarget} room keys across floors (currently ${getFloorPlanRoomTotal(floorPayload)}), or remove all floor rows to keep every key on the ground floor.`
-          : `Floor plan must allocate exactly ${saveFloorTarget} rooms across floors (currently ${getFloorPlanRoomTotal(floorPayload)}), or remove all floor rows to keep every room on the ground floor.`,
+          ? `Floor plan must allocate exactly ${saveFloorTarget} room keys across floors (currently ${getFloorPlanRoomTotal(floorPayload)}), or remove all floor rows to keep every key on floor 1.`
+          : `Floor plan must allocate exactly ${saveFloorTarget} rooms across floors (currently ${getFloorPlanRoomTotal(floorPayload)}), or remove all floor rows to keep every room on floor 1.`,
       );
       return;
     }
@@ -706,7 +713,7 @@ export default function HotelRoomPricingSetup({
                 like 1–40, comma lists, or scattered segments with &quot;;&quot;). Leave numbering
                 blank to keep existing key labels. Totals follow registration or room-type counts
                 when no keys exist yet; once keys exist, floor totals must match key count. With no
-                floor rows, every key stays on the ground floor (floor 1).
+                floor rows, every key stays on floor 1. If your guest rooms start on the ground floor, add a floor row numbered 0.
               </p>
             </div>
           </div>
@@ -817,9 +824,8 @@ export default function HotelRoomPricingSetup({
                 {floorRows.map((row) => {
                   const numFb = floorRowNumberingFeedback(row, floorRoomCodeToFloors);
                   const rcNum = Math.trunc(Number(row.room_count));
-                  const floorNum = Math.trunc(Number(row.floor));
-                  const startEx =
-                    Number.isFinite(floorNum) && floorNum >= 1 ? floorNum * 100 : 100;
+                  const floorNum = parseFloorDraft(row.floor);
+                  const startEx = floorNum === null ? 100 : floorNum === 0 ? 1 : floorNum * 100;
                   const numberingPlaceholder =
                     Number.isFinite(rcNum) && rcNum >= 1
                       ? `e.g. ${startEx}–${startEx + rcNum - 1} (${rcNum} rooms; both ends count) or 10,12,14; 20–22 with ";" between parts`
@@ -832,7 +838,7 @@ export default function HotelRoomPricingSetup({
                       <div className="flex flex-wrap items-end gap-3">
                         <div className="min-w-[100px] flex-1 space-y-1.5">
                           <label htmlFor={`floor-num-${row.id}`} className="block text-sm font-medium text-slate-800">
-                            Floor number
+                            Floor number <span className="font-normal text-slate-500">(0 = ground floor)</span>
                           </label>
                           <input
                             id={`floor-num-${row.id}`}

@@ -1,5 +1,6 @@
 "use client";
 
+import { floorLabelPlain } from "@/lib/hms/floor-label";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlarmClock, BedDouble, ClipboardCheck, Layers, Loader2, Sparkles, SprayCan } from "lucide-react";
@@ -10,7 +11,7 @@ import { useClientNow } from "@/hooks/useClientNow";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import type { HousekeepingTaskRow } from "@/lib/hms/housekeeping-tasks";
 import { effectiveTaskDueBy, type TenantHousekeepingSettings } from "@/lib/hms/housekeeping-settings";
-import { PriorityBadge, SlaCountdown, StatusBadge, taskTypeLabel } from "@/components/hms/housekeeping/HousekeepingBadges";
+import { PriorityBadge, RoomFlagBadges, SlaCountdown, StatusBadge, taskTypeLabel } from "@/components/hms/housekeeping/HousekeepingBadges";
 import { HousekeepingSubNav } from "@/components/hms/housekeeping/HousekeepingSubNav";
 import { HousekeepingAssigneeField } from "@/components/hms/housekeeping/HousekeepingAssigneeField";
 import { HousekeepingNewTaskDialog, type HousekeepingRoomOption } from "@/components/hms/housekeeping/HousekeepingNewTaskDialog";
@@ -190,7 +191,7 @@ export function HousekeepingBoardClient({
             <HmsCard
               key={floor}
               id={`housekeeping-floor-${floor}`}
-              title={`Floor ${floor}`}
+              title={floorLabelPlain(floor)}
               description={`${floorTasks.length} room${floorTasks.length === 1 ? "" : "s"} to look after`}
               icon={Layers}
               meaning="care"
@@ -206,6 +207,9 @@ export function HousekeepingBoardClient({
                           <p className="text-sm text-slate-700">{taskTypeLabel(t.taskType)}</p>
                         </div>
                         <PriorityBadge level={t.priorityLevel} />
+                      </div>
+                      <div className="mt-2">
+                        <RoomFlagBadges flags={t.roomFlags} />
                       </div>
                       <div className="mt-2 flex flex-wrap items-center gap-2">
                         <StatusBadge status={t.status} />

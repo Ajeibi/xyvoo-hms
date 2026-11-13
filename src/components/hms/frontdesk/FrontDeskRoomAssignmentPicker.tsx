@@ -1,5 +1,6 @@
 "use client";
 
+import { floorLabelPlain } from "@/lib/hms/floor-label";
 import { useMemo, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -51,7 +52,7 @@ export function FrontDeskRoomAssignmentPicker({
   const selected = value ? rooms.find((r) => r.roomCode === value) : undefined;
 
   const triggerLabel = selected
-    ? `${selected.roomCode} (Floor ${typeof selected.floor === "number" ? selected.floor : "—"})${
+    ? `${selected.roomCode} (${typeof selected.floor === "number" ? floorLabelPlain(selected.floor) : "Floor —"})${
         selected.roomTypeName ? ` · ${selected.roomTypeName}` : ""
       }`
     : "— Select later —";
@@ -105,7 +106,7 @@ export function FrontDeskRoomAssignmentPicker({
                 className={floorIdx > 0 ? "mt-1 border-t border-slate-100 pt-1" : "mt-1"}
               >
                 <div className="px-2 py-1.5 text-xs font-semibold text-slate-600">
-                  Floor {floor}
+                  {floorLabelPlain(floor)}
                 </div>
                 <ul className="space-y-0.5">
                   {floorRooms.map((r) => {

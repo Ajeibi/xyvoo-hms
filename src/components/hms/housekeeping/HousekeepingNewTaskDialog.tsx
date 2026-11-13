@@ -1,5 +1,6 @@
 "use client";
 
+import { floorLabelPlain } from "@/lib/hms/floor-label";
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import { HmsField, hmsButton, hmsInput } from "@/components/hms/hms-ui";
@@ -119,7 +120,7 @@ export function HousekeepingNewTaskDialog({
                   <option value="">Select a room…</option>
                   {rooms.map((r) => (
                     <option key={r.id} value={r.roomCode}>
-                      Room {r.roomCode} · Floor {r.floor}
+                      Room {r.roomCode} · {floorLabelPlain(r.floor)}
                     </option>
                   ))}
                 </select>

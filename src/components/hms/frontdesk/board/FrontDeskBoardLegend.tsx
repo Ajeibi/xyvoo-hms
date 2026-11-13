@@ -1,15 +1,22 @@
 import { cn } from "@/lib/utils";
+import type { FrontDeskDisplayStatus } from "@/lib/hms/front-desk-board";
 import { PaymentLegend } from "./PaymentLegend";
+import { ROOM_FLAG_RING_CLASS, SUMMARY_CARD_CLASS } from "./status-styles";
 
-const ROOM_STATUS_LEGEND = [
-  { label: "Overdue checkout", className: "bg-red-500" },
-  { label: "Available", className: "bg-emerald-500" },
-  { label: "Reserved", className: "bg-amber-400" },
-  { label: "Dirty / cleaning", className: "bg-orange-500" },
-  { label: "Maintenance", className: "bg-violet-500" },
-  { label: "Out of service", className: "bg-slate-400" },
-  { label: "In-house", className: "bg-blue-600" },
-] as const;
+/** Built from the same maps the cells use, so the legend cannot drift from the board. */
+const LEGEND_LABELS: Record<FrontDeskDisplayStatus, string> = {
+  overdueCheckout: "Overdue checkout",
+  available: "Available",
+  reserved: "Reserved",
+  dirty: "Dirty / cleaning",
+  maintenance: "Maintenance",
+  outOfService: "Out of service",
+  inHouse: "In-house",
+};
+const ROOM_STATUS_LEGEND = (Object.keys(LEGEND_LABELS) as FrontDeskDisplayStatus[]).map((key) => ({
+  label: LEGEND_LABELS[key],
+  className: SUMMARY_CARD_CLASS[key],
+}));
 
 function LegendSwatch({
   className,
@@ -64,7 +71,11 @@ export function FrontDeskBoardLegend() {
           Room flags
         </p>
         <p className="mt-0.5 text-xs text-slate-600">
-          Violet ring = DND, security hold, or staff-restricted · moon / shield icons on the cell
+          <span
+            aria-hidden
+            className={`mr-1.5 inline-block h-3 w-3 rounded-sm bg-white align-[-2px] ${ROOM_FLAG_RING_CLASS}`}
+          />
+          Dark ring = DND, security hold, or staff-restricted · moon / shield icons on the cell
         </p>
       </div>
     </div>

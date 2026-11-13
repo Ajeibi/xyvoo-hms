@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { floorLabelPlain } from "@/lib/hms/floor-label";
 import { getBusinessDate } from "@/lib/hms/business-date";
 import { getHousekeepingDailyReport } from "@/lib/hms/housekeeping-reports";
 import { stayLinePart } from "@/lib/hms/folio";
@@ -929,7 +930,7 @@ const HOUSEKEEPING: ReportDef = {
         {
           title: "Room status by floor",
           columns: [{ key: "floor", label: "Floor", kind: "text" }, ...STATUS.map(([key, label]) => ({ key, label, kind: "number" as const })), { key: "all", label: "Rooms", kind: "number" as const }],
-          rows: floors.map(([floor, f]) => ({ floor: `Floor ${floor}`, ...Object.fromEntries(STATUS.map(([k]) => [k, num(f[k] ?? 0)])), all: num(Object.values(f).reduce((s, v) => s + v, 0)) })),
+          rows: floors.map(([floor, f]) => ({ floor: floorLabelPlain(Number(floor)), ...Object.fromEntries(STATUS.map(([k]) => [k, num(f[k] ?? 0)])), all: num(Object.values(f).reduce((s, v) => s + v, 0)) })),
           totals: floors.length ? { floor: "All floors", ...Object.fromEntries(STATUS.map(([k]) => [k, num(sum(k))])), all: num(floors.reduce((s, [, f]) => s + Object.values(f).reduce((a, v) => a + v, 0), 0)) } : undefined,
           emptyMessage: "No rooms have been added yet.",
         },

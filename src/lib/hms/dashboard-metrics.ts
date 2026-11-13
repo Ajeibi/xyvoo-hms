@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { floorLabelPlain } from "@/lib/hms/floor-label";
 import type {
   DashboardAnalyticsModel,
   DashboardPeriod,
@@ -514,7 +515,7 @@ export async function getHotelDashboardMetrics(params: {
   const palette = ["rgba(37, 99, 235, 0.9)", "rgba(14, 165, 233, 0.88)", "rgba(99, 102, 241, 0.88)"];
   const floorClasses = ["bg-blue-500", "bg-sky-500", "bg-indigo-500"];
   const floorStatusItems: FloorStatusItem[] = sortedFloors.map((fl, idx) => ({
-    label: `Floor ${fl}`,
+    label: floorLabelPlain(fl),
     value: occupiedByFloor.get(fl) ?? 0,
     color: palette[idx % palette.length] ?? "rgba(100, 116, 139, 0.85)",
     colorClass: floorClasses[idx % floorClasses.length] ?? "bg-slate-400",

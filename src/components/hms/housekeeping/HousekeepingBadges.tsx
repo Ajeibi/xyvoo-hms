@@ -1,6 +1,6 @@
 "use client";
 
-import { AlarmClock, Clock } from "lucide-react";
+import { AlarmClock, Clock, Lock, Moon, ShieldAlert } from "lucide-react";
 
 const TASK_TYPE_LABELS: Record<string, string> = {
   checkout_clean: "Checkout clean",
@@ -60,6 +60,46 @@ export function PriorityBadge({ level }: { level: string }) {
     <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${tone[level] ?? tone.high}`}>
       {label[level] ?? level}
     </span>
+  );
+}
+
+export type RoomFlagsInfo = { dnd: boolean; securityHold: boolean; staffRestricted: boolean };
+
+/**
+ * DND, security hold and staff-restricted badges for a room, shared by every housekeeping view.
+ * Dark pills (matching the dark ring on the front desk Rooms board) with an icon and words.
+ * The note under them says what the flag means for the cleaner.
+ */
+export function RoomFlagBadges({ flags, showNote = true }: { flags: RoomFlagsInfo; showNote?: boolean }) {
+  if (!flags.dnd && !flags.securityHold && !flags.staffRestricted) return null;
+  const pill = "inline-flex items-center gap-1 rounded-full border border-slate-900 bg-slate-900 px-2.5 py-1 text-xs font-semibold text-white";
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex flex-wrap items-center gap-1.5">
+        {flags.dnd ? (
+          <span className={pill}>
+            <Moon className="h-3 w-3" aria-hidden /> Do not disturb
+          </span>
+        ) : null}
+        {flags.securityHold ? (
+          <span className={pill}>
+            <ShieldAlert className="h-3 w-3" aria-hidden /> Security hold
+          </span>
+        ) : null}
+        {flags.staffRestricted ? (
+          <span className={pill}>
+            <Lock className="h-3 w-3" aria-hidden /> Staff restricted
+          </span>
+        ) : null}
+      </div>
+      {showNote ? (
+        <p className="text-xs font-medium text-slate-800">
+          {flags.securityHold || flags.staffRestricted
+            ? "Do not enter without permission from the front desk or security."
+            : "Routine cleaning needs the guest's permission. Check with the front desk before entering."}
+        </p>
+      ) : null}
+    </div>
   );
 }
 

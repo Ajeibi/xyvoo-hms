@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { floorLabelPlain } from "@/lib/hms/floor-label";
 import { notFound } from "next/navigation";
 import { ArrowLeft, BedDouble, History, NotebookPen, Receipt, UserRound } from "lucide-react";
 import HMSLayout from "@/components/hms/HMSLayout";
@@ -138,7 +139,7 @@ export default async function ReservationDetailPage({
 
           <HmsCard id="reservation-stay" icon={BedDouble} meaning="rooms" title="Stay">
             <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Room" value={r.roomCode ? `${r.roomCode} (floor ${r.floor})` : "Not assigned yet"} />
+              <Field label="Room" value={r.roomCode ? `${r.roomCode} (${r.floor == null ? "floor —" : floorLabelPlain(r.floor).toLowerCase()})` : "Not assigned yet"} />
               <Field
                 label="Room readiness"
                 value={r.roomReadiness ? READINESS_LABEL[r.roomReadiness] ?? r.roomReadiness : null}

@@ -179,7 +179,7 @@ const ROOM_STATUS_TONES: Record<string, { tint: string; dot: string }> = {
   "Vacant clean": { tint: "bg-emerald-50", dot: "bg-emerald-500" },
   Dirty: { tint: "bg-orange-50", dot: "bg-orange-500" },
   Inspected: { tint: "bg-teal-50", dot: "bg-teal-500" },
-  "Maintenance / OOO": { tint: "bg-violet-50", dot: "bg-violet-600" },
+  "Maintenance / OOO": { tint: "bg-cyan-50", dot: "bg-cyan-700" },
 };
 
 function roomStatusTone(label: string) {

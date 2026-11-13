@@ -61,6 +61,8 @@ export type HousekeepingTaskRow = {
   roomCode: string;
   roomTypeCode: string | null;
   floor: number;
+  /** Do-not-disturb, security hold and staff-restricted flags on the room (set at the front desk). */
+  roomFlags: { dnd: boolean; securityHold: boolean; staffRestricted: boolean };
   taskType: HousekeepingTaskType;
   status: HousekeepingTaskStatus;
   priorityLevel: HousekeepingPriorityLevel;
@@ -111,7 +113,7 @@ async function hydrateTasks(
   const roomIds = [...new Set(rows.map((r) => r.room_unit_id))];
   const staffIds = [...new Set(rows.map((r) => r.assigned_staff_id).filter((x): x is string => Boolean(x)))];
 
-  const [{ data: rooms }, { data: profiles }] = await Promise.all([
+  const [{ data: rooms }, { data: profiles }, { data: flagRows }] = await Promise.all([
     service
       .schema("hotel")
       .from("room_units")
@@ -121,7 +123,17 @@ async function hydrateTasks(
     staffIds.length > 0
       ? service.schema("hotel").from("profiles").select("user_id,contact_name").eq("tenant_id", tenantId).in("user_id", staffIds)
       : Promise.resolve({ data: [] as { user_id: string; contact_name: string | null }[] }),
+    service
+      .schema("hotel")
+      .from("room_unit_flags")
+      .select("room_unit_id,dnd,security_hold,staff_restricted")
+      .eq("tenant_id", tenantId)
+      .in("room_unit_id", roomIds),
   ]);
+  const flagsByRoom = new Map<string, { dnd: boolean; securityHold: boolean; staffRestricted: boolean }>();
+  for (const f of (flagRows ?? []) as { room_unit_id: string; dnd: boolean; security_hold: boolean; staff_restricted: boolean }[]) {
+    flagsByRoom.set(f.room_unit_id, { dnd: f.dnd, securityHold: f.security_hold, staffRestricted: f.staff_restricted });
+  }
 
   const roomById = new Map<string, { room_code: string; floor: number; room_type_code: string | null }>();
   for (const r of (rooms ?? []) as { id: string; room_code: string; floor: number; room_type_code: string | null }[]) {
@@ -141,6 +153,7 @@ async function hydrateTasks(
       roomCode: room?.room_code ?? "—",
       roomTypeCode: room?.room_type_code ?? null,
       floor: room?.floor ?? 0,
+      roomFlags: flagsByRoom.get(r.room_unit_id) ?? { dnd: false, securityHold: false, staffRestricted: false },
       taskType: r.task_type as HousekeepingTaskType,
       status: r.status as HousekeepingTaskStatus,
       priorityLevel: (r.priority_level as HousekeepingPriorityLevel) ?? "normal",
@@ -306,7 +319,7 @@ export async function openOrEscalateHousekeepingTask(
   const { data: existing } = await service
     .schema("hotel")
     .from("housekeeping_tasks")
-    .select("id")
+    .select("id,priority_level")
     .eq("tenant_id", params.tenantId)
     .eq("room_unit_id", params.roomUnitId)
     .neq("status", "ready")
@@ -314,7 +327,9 @@ export async function openOrEscalateHousekeepingTask(
 
   if (existing) {
     const patch: Record<string, unknown> = {};
-    if (params.priorityLevel) patch.priority_level = params.priorityLevel;
+    // A request can raise a task's priority, never lower it (a normal clean must not undo a VIP flag).
+    const currentWeight = PRIORITY_WEIGHT[(existing.priority_level as HousekeepingPriorityLevel) ?? "normal"] ?? PRIORITY_WEIGHT.normal;
+    if (params.priorityLevel && PRIORITY_WEIGHT[params.priorityLevel] < currentWeight) patch.priority_level = params.priorityLevel;
     if (params.dueBy !== undefined) patch.due_by = params.dueBy;
     if (params.notes !== undefined) patch.notes = params.notes;
     if (params.reservationId !== undefined) patch.reservation_id = params.reservationId;

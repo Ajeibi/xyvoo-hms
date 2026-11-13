@@ -27,7 +27,7 @@ async function runBatchedUpdates<T>(
 /**
  * Writes `hotel.room_units.floor` from the canonical tenant `floor_plan`.
  * Optionally writes `room_code` when each plan row includes `room_codes` with length === room_count.
- * - Empty plan: every key is set to floor 1 (ground).
+ * - Empty plan: every key is set to floor 1 (floor 0 is the ground floor and must be listed in the plan).
  * - Non-empty plan: keys are sorted by `room_code` (numeric-aware), then consecutive
  *   segments receive each plan row's floor for `room_count` keys.
  */

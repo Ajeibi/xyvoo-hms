@@ -1,5 +1,6 @@
 "use client";
 
+import { floorLabelPlain } from "@/lib/hms/floor-label";
 import { useId, useMemo } from "react";
 import { HmsField, hmsInput } from "@/components/hms/hms-ui";
 import type { AssignableRoomOption } from "@/lib/hms/arrivals-workbench";
@@ -68,7 +69,7 @@ export function FrontDeskAssignRoomPicker({
             <option value="">All floors</option>
             {floors.map((f) => (
               <option key={f} value={String(f)}>
-                Floor {f}
+                {floorLabelPlain(f)}
               </option>
             ))}
           </select>
@@ -85,7 +86,7 @@ export function FrontDeskAssignRoomPicker({
           <option value="">Choose a room…</option>
           {filtered.map((u) => (
             <option key={u.id} value={u.id}>
-              {u.roomCode} · Floor {u.floor} · {u.roomTypeCode} ·{" "}
+              {u.roomCode} · {floorLabelPlain(u.floor)} · {u.roomTypeCode} ·{" "}
               {READINESS_LABEL[u.readiness] ?? u.readiness}
             </option>
           ))}

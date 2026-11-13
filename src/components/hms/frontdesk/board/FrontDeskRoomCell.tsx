@@ -6,7 +6,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils";
 import { GuestDetailBlock } from "./guest-details";
 import { PAYMENT_DOT_CLASS, PAYMENT_STATUS_HINT, PAYMENT_STATUS_LABEL } from "./payment-styles";
-import { ROOM_STATUS_CELL_CLASS } from "./status-styles";
+import { ROOM_FLAG_RING_CLASS, ROOM_STATUS_CELL_CLASS } from "./status-styles";
 import { Moon, MoreVertical, ShieldAlert, Star } from "lucide-react";
 import {
   DropdownMenu,
@@ -148,7 +148,7 @@ export function FrontDeskRoomCell({
             className={cn(
               "relative h-auto min-h-[5.25rem] w-full min-w-[7.25rem] flex-col justify-center gap-1 rounded-xl px-2.5 py-2.5 text-center text-xs font-semibold shadow-sm transition-all hover:translate-y-0 active:translate-y-0",
               ROOM_STATUS_CELL_CLASS[room.displayStatus],
-              emergency && !selected && "ring-2 ring-violet-400 ring-offset-1",
+              emergency && !selected && ROOM_FLAG_RING_CLASS,
               selected &&
                 "z-20 scale-[1.08] shadow-2xl shadow-blue-600/50 ring-[5px] ring-blue-500 ring-offset-[3px] ring-offset-white outline outline-2 outline-dashed outline-white",
             )}

@@ -1,5 +1,6 @@
 "use client";
 
+import { floorLabelPlain } from "@/lib/hms/floor-label";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { openCheckoutDialog } from "@/lib/hms/open-checkout-bus";
@@ -351,7 +352,7 @@ export function FrontDeskRoomDetailSheet({
                 </span>
               </div>
               <SheetDescription>
-                Floor {headerRoom.floor} · {headerRoom.roomTypeName}
+                {floorLabelPlain(headerRoom.floor)} · {headerRoom.roomTypeName}
               </SheetDescription>
             </>
           ) : null}
@@ -377,7 +378,7 @@ export function FrontDeskRoomDetailSheet({
                   </div>
                   <div>
                     <p className="text-xs text-slate-500">Floor</p>
-                    <p className="font-medium">{room.floor}</p>
+                    <p className="font-medium">{room.floor === 0 ? "Ground" : room.floor}</p>
                   </div>
                   <div>
                     <p className="text-xs text-slate-500">Type</p>

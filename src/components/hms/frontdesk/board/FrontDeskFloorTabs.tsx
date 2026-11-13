@@ -1,6 +1,6 @@
 "use client";
 
-import { floorLabel } from "@/lib/hms/front-desk-board";
+import { floorLabel } from "@/lib/hms/floor-label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Layers } from "lucide-react";
 

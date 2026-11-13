@@ -49,7 +49,7 @@ export function normalizeFloorPlan(raw: unknown): HotelFloorPlanEntry[] {
     if (!Number.isFinite(floor) || !Number.isFinite(roomCount)) continue;
     const fi = Math.trunc(floor);
     const rc = Math.trunc(roomCount);
-    if (fi < 1 || fi > 500) continue;
+    if (fi < 0 || fi > 500) continue; // 0 is the ground floor
     if (rc < 1 || rc > 10000) continue;
 
     const rcodes = normalizeRoomCodesField(o.room_codes, rc);
@@ -116,7 +116,7 @@ export function getFloorPlanEffectiveTarget(
 
 /**
  * When there are no rooms to place, floor plan is not required.
- * An empty plan means every room is treated as ground floor (floor 1) implicitly.
+ * An empty plan means every room is treated as floor 1 implicitly; a hotel whose rooms start on the ground floor lists floor 0.
  * If the hotel adds explicit rows, their room counts must sum to `targetRoomCount`.
  */
 export function isFloorPlanComplete(plan: HotelFloorPlanEntry[], targetRoomCount: number): boolean {
@@ -125,7 +125,7 @@ export function isFloorPlanComplete(plan: HotelFloorPlanEntry[], targetRoomCount
   return getFloorPlanRoomTotal(plan) === targetRoomCount;
 }
 
-/** Distinct levels in the saved plan; empty plan counts as one (ground) level. */
+/** Distinct levels in the saved plan; empty plan counts as one level. */
 export function getFloorPlanLevelCount(plan: HotelFloorPlanEntry[]): number {
   return plan.length > 0 ? plan.length : 1;
 }

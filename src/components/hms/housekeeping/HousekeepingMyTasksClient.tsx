@@ -11,7 +11,7 @@ import { toastError, toastSuccess } from "@/lib/app-toast";
 import type { HousekeepingGuestRequest, HousekeepingTaskRow } from "@/lib/hms/housekeeping-tasks";
 import { effectiveTaskDueBy, type TenantHousekeepingSettings } from "@/lib/hms/housekeeping-settings";
 import type { RoomTypePar } from "@/lib/hms/housekeeping-inventory";
-import { PriorityBadge, SlaCountdown, StatusBadge, taskTypeLabel } from "@/components/hms/housekeeping/HousekeepingBadges";
+import { PriorityBadge, RoomFlagBadges, SlaCountdown, StatusBadge, taskTypeLabel } from "@/components/hms/housekeeping/HousekeepingBadges";
 import { HousekeepingSubNav } from "@/components/hms/housekeeping/HousekeepingSubNav";
 import { HousekeepingAssigneeField } from "@/components/hms/housekeeping/HousekeepingAssigneeField";
 import { HousekeepingNewTaskDialog, type HousekeepingRoomOption } from "@/components/hms/housekeeping/HousekeepingNewTaskDialog";
@@ -193,6 +193,10 @@ export function HousekeepingMyTasksClient({
                     <p className="text-sm text-slate-700">{taskTypeLabel(t.taskType)}</p>
                   </div>
                   <PriorityBadge level={t.priorityLevel} />
+                </div>
+
+                <div className="mt-3">
+                  <RoomFlagBadges flags={t.roomFlags} />
                 </div>
 
                 <div className="mt-3 flex flex-wrap items-center gap-2">

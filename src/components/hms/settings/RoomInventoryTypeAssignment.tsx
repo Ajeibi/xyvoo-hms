@@ -1,5 +1,6 @@
 "use client";
 
+import { floorLabelPlain } from "@/lib/hms/floor-label";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Check, CircleAlert, KeyRound, Loader2 } from "lucide-react";
 import { HmsAlert, hmsButton } from "@/components/hms/hms-ui";
@@ -452,7 +453,7 @@ export function RoomInventoryTypeAssignment({ slug, inventoryRoomCount, roomType
                   <div key={floor}>
                     <div className="mb-2 flex items-center justify-between gap-2">
                       <p className="text-sm font-semibold text-slate-800">
-                        Floor {floor} · {list.length} keys
+                        {floorLabelPlain(floor)} · {list.length} keys
                       </p>
                       <button
                         type="button"

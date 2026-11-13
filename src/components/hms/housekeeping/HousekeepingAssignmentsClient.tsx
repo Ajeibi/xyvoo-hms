@@ -1,12 +1,13 @@
 "use client";
 
+import { floorLabelPlain } from "@/lib/hms/floor-label";
 import { useRouter } from "next/navigation";
 import { BedDouble, UserX, Users } from "lucide-react";
 import { HmsCard, HmsEmptyState, HmsPage, HmsPageHeader, HmsStatStrip, HmsStatTile } from "@/components/hms/hms-ui";
 import { useFrontDeskRealtime } from "@/hooks/useFrontDeskRealtime";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import type { HousekeepingTaskRow } from "@/lib/hms/housekeeping-tasks";
-import { PriorityBadge, StatusBadge, taskTypeLabel } from "@/components/hms/housekeeping/HousekeepingBadges";
+import { PriorityBadge, RoomFlagBadges, StatusBadge, taskTypeLabel } from "@/components/hms/housekeeping/HousekeepingBadges";
 import { HousekeepingSubNav } from "@/components/hms/housekeeping/HousekeepingSubNav";
 
 export function HousekeepingAssignmentsClient({
@@ -94,7 +95,10 @@ export function HousekeepingAssignmentsClient({
                 {tasks.map((t) => (
                   <tr key={t.id} className="border-t border-slate-100 hover:bg-slate-50/70">
                     <td className="px-6 py-3 font-medium text-slate-900">
-                      Room {t.roomCode} <span className="font-normal text-slate-600">· Floor {t.floor}</span>
+                      Room {t.roomCode} <span className="font-normal text-slate-600">· {floorLabelPlain(t.floor)}</span>
+                      <div className="mt-1 font-normal">
+                        <RoomFlagBadges flags={t.roomFlags} />
+                      </div>
                     </td>
                     <td className="px-6 py-3 text-slate-700">{taskTypeLabel(t.taskType)}</td>
                     <td className="px-6 py-3">

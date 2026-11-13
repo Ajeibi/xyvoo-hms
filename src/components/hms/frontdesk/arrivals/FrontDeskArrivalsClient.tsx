@@ -1,5 +1,6 @@
 "use client";
 
+import { floorLabelPlain } from "@/lib/hms/floor-label";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -770,7 +771,7 @@ export function FrontDeskArrivalsClient({
                     <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-600">Room type</dt>
                     <dd className="mt-0.5 text-slate-900">
                       {row.roomTypeName}
-                      {row.floor != null ? <span className="text-slate-600"> · Floor {row.floor}</span> : null}
+                      {row.floor != null ? <span className="text-slate-600"> · {floorLabelPlain(row.floor)}</span> : null}
                     </dd>
                   </div>
                 </dl>
@@ -977,7 +978,7 @@ export function FrontDeskArrivalsClient({
                     <td className={cn(TD, "text-center text-sm font-medium tabular-nums", surface)}>{row.nights}</td>
                     <td className={cn(TD, "whitespace-nowrap text-xs", surface)}>
                       <div className="font-medium">{row.roomTypeName}</div>
-                      {row.floor != null ? <div className="text-slate-600">Floor {row.floor}</div> : null}
+                      {row.floor != null ? <div className="text-slate-600">{floorLabelPlain(row.floor)}</div> : null}
                     </td>
                     <td className={cn(TD, "font-medium text-slate-900", surface)}>
                       {row.roomCode ?? "—"}

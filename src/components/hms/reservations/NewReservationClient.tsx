@@ -1,5 +1,6 @@
 "use client";
 
+import { floorLabelPlain } from "@/lib/hms/floor-label";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { BedDouble, CalendarDays, CheckCircle2, Search, UserRound } from "lucide-react";
@@ -356,7 +357,7 @@ export function NewReservationClient({
                   <option value="">Choose a room later</option>
                   {selected.freeRooms.map((r) => (
                     <option key={r.id} value={r.id}>
-                      Room {r.roomCode} (floor {r.floor})
+                      Room {r.roomCode} ({floorLabelPlain(r.floor).toLowerCase()})
                     </option>
                   ))}
                 </select>

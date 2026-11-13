@@ -1,4 +1,4 @@
-import type { FrontDeskBoardData, FrontDeskRoomBoardItem } from "@/lib/hms/front-desk-board";
+import type { FrontDeskBoardData, FrontDeskRoomBoardItem, FrontDeskStayInfo } from "@/lib/hms/front-desk-board";
 import { getFrontDeskBoardData, loadFrontDeskRoomBoardItemForUnit, READY_UNIT_STATUSES } from "@/lib/hms/front-desk-board";
 import { formatAuditMessage } from "@/lib/hms/front-desk-ops";
 import { mapRoomReadiness } from "@/lib/hms/arrivals-room";
@@ -86,6 +86,26 @@ export function buildRoomsSummary(board: FrontDeskBoardData, priorityCleaning: n
   };
 }
 
+/** Fewest digits typed before the search also looks at phone numbers (so a room number like "204" does not match every phone). */
+const PHONE_SEARCH_MIN_DIGITS = 5;
+
+function digitsOnly(value: string | null | undefined) {
+  return (value ?? "").replace(/\D/g, "");
+}
+
+/** True when the typed digits appear in the stay's guest phone or WhatsApp numbers (formatting ignored; a leading 0 also matches +234 style numbers). */
+function stayPhoneMatches(stay: FrontDeskStayInfo | null, queryDigits: string) {
+  if (!stay || queryDigits.length < PHONE_SEARCH_MIN_DIGITS) return false;
+  const tail = queryDigits.startsWith("0") ? queryDigits.slice(1) : null;
+  const guests = stay.partyGuests.length ? stay.partyGuests : stay.guest ? [stay.guest] : [];
+  return guests.some((g) =>
+    [g.phone, g.whatsapp].some((raw) => {
+      const d = digitsOnly(raw);
+      return d.length > 0 && (d.includes(queryDigits) || (tail !== null && tail.length >= PHONE_SEARCH_MIN_DIGITS - 1 && d.includes(tail)));
+    }),
+  );
+}
+
 export function filterBoardRooms(
   board: FrontDeskBoardData,
   filters?: RoomsWorkbenchFilters,
@@ -120,7 +140,9 @@ export function filterBoardRooms(
   }
   if (filters.q?.trim()) {
     const q = filters.q.trim().toLowerCase();
+    const qDigits = digitsOnly(q);
     rooms = rooms.filter((r) => {
+      if (stayPhoneMatches(r.stay, qDigits) || stayPhoneMatches(r.reservedStay, qDigits)) return true;
       if (r.roomCode.toLowerCase().includes(q)) return true;
       if (r.stay?.guestName.toLowerCase().includes(q)) return true;
       if (r.reservedStay?.guestName.toLowerCase().includes(q)) return true;
