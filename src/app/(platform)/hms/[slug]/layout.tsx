@@ -6,6 +6,9 @@ import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { listUserPlaces } from "@/lib/hms/groups/group-access";
 import { normalizePricingSetup } from "@/lib/hms/room-pricing";
 import HMSLayoutShell from "@/components/hms/HMSLayoutShell";
+import type { LockPerson } from "@/components/hms/LockScreen";
+import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { listSwitchablePeople } from "@/lib/hms/session-switch";
 import { CardBlockSkeleton, PageHeaderSkeleton } from "@/components/hms/PageSkeletons";
 
 export async function generateMetadata({
@@ -57,6 +60,13 @@ export default async function HmsSlugLayout({
   if (!access.userId) {
     redirect(access.homePath);
   }
+  // A suspended login is shut out at once; a new one must replace its temporary password first.
+  if (access.status === "suspended") {
+    redirect("/auth/login?notice=suspended");
+  }
+  if (access.mustChangePassword) {
+    redirect(`/auth/change-password?from=${encodeURIComponent(`/hms/${slug}`)}`);
+  }
 
   const [tenant, places] = await Promise.all([
     getHotelTenantBySlug(slug),
@@ -64,6 +74,34 @@ export default async function HmsSlugLayout({
     listUserPlaces(access.userId).catch(() => []),
   ]);
   const currency = normalizePricingSetup(tenant?.pricing_setup).currency;
+
+  // Shared-screen lock: who can take the keys, and how long before the screen locks itself.
+  // Any failure (migration not run yet) just leaves the lock off.
+  let lockPeople: LockPerson[] = [];
+  let idleLockMinutes = 0;
+  if (tenant) {
+    const sessionUserId = access.sessionUserId ?? access.userId;
+    try {
+      const service = createServerSupabaseClient();
+      const [people, settings] = await Promise.all([
+        listSwitchablePeople(service, tenant.id, sessionUserId),
+        service
+          .schema("hotel")
+          .from("security_settings")
+          .select("idle_lock_enabled, idle_lock_minutes")
+          .eq("tenant_id", tenant.id)
+          .maybeSingle(),
+      ]);
+      lockPeople = people;
+      const enabled = settings.error ? true : (settings.data?.idle_lock_enabled ?? true);
+      const minutes = settings.error ? 5 : (settings.data?.idle_lock_minutes ?? 5);
+      // Only lock when someone has a PIN to unlock with; otherwise nobody could get back in.
+      const canUnlock = people.some((p) => p.hasPin && !p.pinLocked);
+      idleLockMinutes = enabled && canUnlock ? Number(minutes) : 0;
+    } catch {
+      lockPeople = [];
+    }
+  }
 
   return (
     <HMSLayoutShell
@@ -78,6 +116,9 @@ export default async function HmsSlugLayout({
       canAccessAllDepartments={access.canAccessAllDepartments}
       navItems={access.navItems}
       places={places}
+      locked={Boolean(access.locked)}
+      lockPeople={lockPeople}
+      idleLockMinutes={idleLockMinutes}
     >
       <Suspense
         fallback={

@@ -31,6 +31,8 @@ import {
   Sparkles,
   Trash2,
   Truck,
+  KeyRound,
+  Lock,
   UserPlus,
   Users,
   Wallet,
@@ -52,6 +54,7 @@ import { HMS_MEANING, NAV_ICON_MEANING } from "@/components/hms/meaning";
 import { ResponsiveTables } from "@/components/hms/ResponsiveTables";
 import { PlaceSwitcher } from "@/components/hms/groups/PlaceSwitcher";
 import type { UserPlace } from "@/lib/hms/groups/group-types";
+import LockScreen, { type LockPerson } from "@/components/hms/LockScreen";
 
 type HMSLayoutShellProps = {
   children: React.ReactNode;
@@ -67,6 +70,12 @@ type HMSLayoutShellProps = {
   navItems: HmsNavItem[];
   /** Hotels and groups this login can reach; the switcher only shows when there is more than one. */
   places?: UserPlace[];
+  /** Per-person logins: the screen is locked until someone enters their PIN. */
+  locked?: boolean;
+  /** People who can take the keys on this screen. */
+  lockPeople?: LockPerson[];
+  /** Lock after this many idle minutes; 0 = never. */
+  idleLockMinutes?: number;
 };
 
 /** Matches Tailwind's `md` breakpoint: below it the sidebar becomes a drawer. */
@@ -117,7 +126,12 @@ export default function HMSLayoutShell({
   canAccessAllDepartments,
   navItems,
   places = [],
+  locked = false,
+  lockPeople = [],
+  idleLockMinutes = 0,
 }: HMSLayoutShellProps) {
+  const [switchOpen, setSwitchOpen] = useState(false);
+  const [pinOpen, setPinOpen] = useState(false);
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const frontDeskBase = `/hms/${slug}/frontdesk`;
@@ -545,6 +559,15 @@ export default function HMSLayoutShell({
                     </>
                   ) : null}
                   <DropdownMenuSeparator className="bg-slate-100" />
+                  <DropdownMenuItem className="cursor-pointer rounded-xl px-3 py-2 text-sm text-slate-700" onSelect={() => setSwitchOpen(true)}>
+                    <Lock className="h-4 w-4" />
+                    Lock / switch user
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="cursor-pointer rounded-xl px-3 py-2 text-sm text-slate-700" onSelect={() => setPinOpen(true)}>
+                    <KeyRound className="h-4 w-4" />
+                    My PIN
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="bg-slate-100" />
                   <DropdownMenuItem variant="destructive" asChild className="cursor-pointer rounded-xl px-0 py-0">
                     <Button
                       type="submit"
@@ -580,6 +603,16 @@ export default function HMSLayoutShell({
 
         <main ref={mainRef} className="min-h-0 min-w-0 flex-1 overflow-y-auto pb-12 max-md:wrap-break-word sm:pb-0">{children}</main>
         <ResponsiveTables />
+        <LockScreen
+          slug={slug}
+          locked={locked}
+          people={lockPeople}
+          idleMinutes={idleLockMinutes}
+          switchOpen={switchOpen}
+          onSwitchClose={() => setSwitchOpen(false)}
+          pinOpen={pinOpen}
+          onPinClose={() => setPinOpen(false)}
+        />
       </div>
 
       {showFrontDeskNavShortcut && frontDeskNavOpen ? (

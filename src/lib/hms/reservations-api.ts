@@ -15,7 +15,7 @@ export async function requireReservationsApi(slug: string): Promise<Reservations
   const ok = auth as HotelAuthOk;
   const caps = getArrivalsCapabilities(ok.departmentRole ?? ok.role);
   if (!caps.canCheckIn) return { error: "Your role can't change bookings.", status: 403 };
-  return { user: ok.user, tenant: ok.tenant, service: ok.service, role: ok.role, departmentRole: ok.departmentRole, caps, isAdmin: isAdminLikeRole(ok.role) };
+  return { user: ok.user, tenant: ok.tenant, service: ok.service, role: ok.role, departmentRole: ok.departmentRole, staffLevel: ok.staffLevel, actor: ok.actor, caps, isAdmin: isAdminLikeRole(ok.role) };
 }
 
 /** True for owners and admins, or for staff who gave the manager's PIN. */

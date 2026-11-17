@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
 
@@ -6,6 +7,12 @@ const ALLOWED_REDIRECTS = new Set(["/auth/login", "/auth/login/storefront"]);
 export async function POST(request: Request) {
   const supabase = await createSupabaseAuthServerClient();
   await supabase.auth.signOut();
+
+  // Forget whoever had the keys on this screen.
+  const jar = await cookies();
+  for (const cookie of jar.getAll()) {
+    if (cookie.name.startsWith("hms_active_")) jar.delete(cookie.name);
+  }
 
   const requested = new URL(request.url).searchParams.get("redirect") || "";
   const destination = ALLOWED_REDIRECTS.has(requested) ? requested : "/auth/login";
