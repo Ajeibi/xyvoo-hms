@@ -67,7 +67,10 @@ export type HmsSectionKey =
   | "hr"
   | "hr-settings"
   | "revenue"
-  | "revenue-settings";
+  | "revenue-settings"
+  | "team"
+  | "activity"
+  | "my-work";
 
 export type HmsNavIconKey =
   | "dashboard"
@@ -183,6 +186,8 @@ const ADMIN_SECTIONS: HmsSectionKey[] = [
   "hr-settings",
   "revenue",
   "revenue-settings",
+  "team",
+  "activity",
 ];
 
 export const DEPARTMENT_ROLE_SCOPES: Record<string, DepartmentScopeDefinition> = {
@@ -587,6 +592,12 @@ export function getAdminNavItems(slug: string): HmsNavItem[] {
       icon: "revenue",
       label: "Revenue",
       path: `/hms/${slug}/revenue`,
+    },
+    {
+      key: "activity",
+      icon: "clipboardCheck",
+      label: "Activity",
+      path: `/hms/${slug}/activity`,
     },
     {
       key: "settings",
