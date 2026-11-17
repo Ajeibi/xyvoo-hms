@@ -43,6 +43,7 @@ export default async function NotificationsPage({
       ? hideMutedFilter(await mutedInAppGroups(supabase, tenant.id, access.userId))
       : null;
     if (mutedFilter) query = query.or(mutedFilter);
+    if (access.userId && access.staffLevel === "staff" && access.role !== "owner" && access.role !== "admin") query = query.eq("assignee_user_id", access.userId);
 
     const { data } = await query.order("created_at", { ascending: false }).limit(100);
 

@@ -27,6 +27,8 @@ export type AlertInput = {
   /** Skip this alert if one of the same type for the same entity was raised in the last
    * this-many hours. Needs `entityId`. */
   dedupeHours?: number;
+  /** The person this alert is for (the one a task was given to). Their head of department gets it too; other staff don't. */
+  assigneeUserId?: string | null;
 };
 
 /*
@@ -78,7 +80,10 @@ export async function sendAlert(input: AlertInput): Promise<AlertResult> {
       department: input.department ?? null,
     };
     const table = () => supabase.schema("hotel").from("notifications");
-    let { data, error } = await table().insert({ ...row, category: alertGroupForType(input.type) }).select("id").single();
+    const assigned = input.assigneeUserId ? { assignee_user_id: input.assigneeUserId } : {};
+    let { data, error } = await table().insert({ ...row, ...assigned, category: alertGroupForType(input.type) }).select("id").single();
+    // The category and assignee columns arrive with migrations; until they have run, save what can be saved.
+    if (missingColumn(error)) ({ data, error } = await table().insert({ ...row, category: alertGroupForType(input.type) }).select("id").single());
     if (missingColumn(error)) ({ data, error } = await table().insert(row).select("id").single());
     if (error || !data) {
       console.warn("[sendAlert]", error);
@@ -94,6 +99,7 @@ export async function sendAlert(input: AlertInput): Promise<AlertResult> {
       body: input.body,
       severity: input.severity ?? "info",
       department: input.department ?? null,
+      assigneeUserId: input.assigneeUserId ?? null,
     });
     return { id: data.id as string };
   } catch (e) {

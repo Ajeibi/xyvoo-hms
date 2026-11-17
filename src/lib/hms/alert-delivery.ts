@@ -25,6 +25,8 @@ export type SavedAlert = {
   body: string;
   severity: AlertSeverity;
   department: string | null;
+  /** Set when the alert is for one person: it then goes to them and their head of department only. */
+  assigneeUserId?: string | null;
 };
 
 type Recipient = { userId: string; email: string | null; departmentScope: string | null; departmentRole: string | null; settings: NotificationUserSettings };
@@ -66,6 +68,47 @@ async function membersWithRole(service: SupabaseClient, tenantId: string): Promi
   return new Map((members ?? []).map((m) => [m.user_id as string, (m.role as string | null) ?? null]));
 }
 
+export type RoutingMember = { role: string | null; staffLevel: "hod" | "staff"; department: string | null };
+
+/**
+ * Who may be told about an alert. A person's own staff login only hears about what was given to them;
+ * their head of department hears about what was given to anyone in the department; owners and admins
+ * keep hearing what they chose. Pure, so it can be tested.
+ */
+export function routeMembers(members: Map<string, RoutingMember>, assigneeUserId: string | null | undefined): string[] {
+  const assignee = assigneeUserId ? members.get(assigneeUserId) : undefined;
+  const out: string[] = [];
+  for (const [id, m] of members) {
+    if (m.staffLevel === "staff" && m.role !== "owner" && m.role !== "admin") {
+      if (id === assigneeUserId) out.push(id);
+      continue;
+    }
+    // Owners, admins and heads of department.
+    if (assigneeUserId && m.role !== "owner" && m.role !== "admin" && (!assignee || assignee.department !== m.department)) continue;
+    out.push(id);
+  }
+  return out;
+}
+
+async function routingMembers(service: SupabaseClient, tenantId: string): Promise<Map<string, RoutingMember>> {
+  const full = await service.schema("hotel").from("memberships").select("user_id,role,staff_level,department_role").eq("tenant_id", tenantId);
+  if (!full.error) {
+    return new Map(
+      (full.data ?? []).map((m) => [
+        m.user_id as string,
+        {
+          role: (m.role as string | null) ?? null,
+          staffLevel: m.staff_level === "staff" ? "staff" : "hod",
+          department: typeof m.department_role === "string" && m.department_role.trim() ? (m.department_role as string) : null,
+        } satisfies RoutingMember,
+      ]),
+    );
+  }
+  // Before the staff-logins migration everyone is a head of their department.
+  const { data } = await service.schema("hotel").from("memberships").select("user_id,role").eq("tenant_id", tenantId);
+  return new Map((data ?? []).map((m) => [m.user_id as string, { role: (m.role as string | null) ?? null, staffLevel: "hod", department: null } satisfies RoutingMember]));
+}
+
 async function memberIds(service: SupabaseClient, tenantId: string): Promise<string[]> {
   return [...(await membersWithRole(service, tenantId)).keys()];
 }
@@ -73,10 +116,14 @@ async function memberIds(service: SupabaseClient, tenantId: string): Promise<str
 /** The people behind these user ids: email address, department and their own settings. */
 async function loadRecipients(service: SupabaseClient, tenantId: string, ids: string[]): Promise<Recipient[]> {
   const settings = await getUserSettingsFor(service, tenantId, ids);
+  // The department comes from the membership; the login's metadata only for an old login that has none.
+  const { data: deptRows } = await service.schema("hotel").from("memberships").select("user_id,department_role").eq("tenant_id", tenantId).in("user_id", ids);
+  const deptByUser = new Map((deptRows ?? []).map((r) => [r.user_id as string, typeof r.department_role === "string" && r.department_role.trim() ? (r.department_role as string) : null]));
   const people = await Promise.all(
     ids.map(async (userId) => {
       const { data } = await service.auth.admin.getUserById(userId);
-      const dept = typeof data?.user?.user_metadata?.department_role === "string" ? (data.user.user_metadata.department_role as string) : null;
+      const metaDept = typeof data?.user?.user_metadata?.department_role === "string" ? (data.user.user_metadata.department_role as string) : null;
+      const dept = deptByUser.get(userId) ?? metaDept;
       return {
         userId,
         email: data?.user?.email ?? null,
@@ -132,7 +179,8 @@ export async function deliverAlert(service: SupabaseClient, alert: SavedAlert, n
   try {
     const group: AlertGroup = alertGroupForType(alert.type);
     const roles = await membersWithRole(service, alert.tenantId);
-    const ids = [...roles.keys()];
+    const routed = new Set(routeMembers(await routingMembers(service, alert.tenantId), alert.assigneeUserId));
+    const ids = [...roles.keys()].filter((id) => routed.has(id));
     if (ids.length === 0) return;
     // Most alerts reach nobody outside the app, so find that out before looking anyone up.
     const choices = await choicesByUser(service, alert.tenantId, ids);

@@ -25,6 +25,8 @@ export async function GET(req: Request) {
   if (roleFilter) query = query.or(roleFilter);
   const mutedFilter = hideMutedFilter(await mutedInAppGroups(auth.service, auth.tenant.id, auth.user.id));
   if (mutedFilter) query = query.or(mutedFilter);
+  // A staff login hears only about what was given to them; their head of department hears about the team.
+  if (auth.staffLevel === "staff" && auth.role !== "owner" && auth.role !== "admin") query = query.eq("assignee_user_id", auth.user.id);
 
   const { data, error } = await query.order("created_at", { ascending: false }).limit(30);
 

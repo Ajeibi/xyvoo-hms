@@ -181,6 +181,7 @@ export async function PATCH(
         severity: "info",
         entityType: "guest_request",
         entityId: id,
+        assigneeUserId: body.assignedUserId,
       });
     }
 

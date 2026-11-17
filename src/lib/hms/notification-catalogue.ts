@@ -40,6 +40,7 @@ const TYPE_GROUP: Record<string, AlertGroup> = {
   priority_clean: "housekeeping",
   housekeeping_priority_overdue: "housekeeping",
   housekeeping_inspection_failed: "housekeeping",
+  housekeeping_task_assigned: "housekeeping",
 
   guest_incident_logged: "guest_services",
   guest_incident_escalated: "guest_services",

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
+import { sendAlert } from "@/lib/hms/alerts";
 import { notifyInspectionFailed, notifyRoomReady } from "@/lib/hms/notification-rules";
 import { getTenantHousekeepingSettings } from "@/lib/hms/housekeeping-settings";
 import { writeRoomStatus, type RoomUnitStatus } from "@/lib/hms/room-status";
@@ -562,12 +563,40 @@ export async function assignHousekeepingTask(
     if (!membership) return { ok: false, error: "That staff member is not a member of this property." };
   }
 
+  const { data: before } = await service
+    .schema("hotel")
+    .from("housekeeping_tasks")
+    .select("assigned_staff_id,room_unit_id")
+    .eq("tenant_id", params.tenantId)
+    .eq("id", params.taskId)
+    .maybeSingle();
+
   await service
     .schema("hotel")
     .from("housekeeping_tasks")
     .update({ assigned_staff_id: params.staffUserId })
     .eq("tenant_id", params.tenantId)
     .eq("id", params.taskId);
+
+  // Tell the person it was given to (and their head of department), not the whole department.
+  if (params.staffUserId && params.staffUserId !== before?.assigned_staff_id) {
+    let roomCode = "";
+    if (before?.room_unit_id) {
+      const { data: room } = await service.schema("hotel").from("room_units").select("room_code").eq("tenant_id", params.tenantId).eq("id", before.room_unit_id).maybeSingle();
+      roomCode = (room?.room_code as string | undefined) ?? "";
+    }
+    await sendAlert({
+      tenantId: params.tenantId,
+      type: "housekeeping_task_assigned",
+      title: roomCode ? `Room ${roomCode} given to you` : "A task was given to you",
+      body: "Open My work to see it.",
+      severity: "info",
+      entityType: "housekeeping_task",
+      entityId: params.taskId,
+      department: "housekeeping",
+      assigneeUserId: params.staffUserId,
+    });
+  }
 
   await writeAuditLog({
     tenantId: params.tenantId,
