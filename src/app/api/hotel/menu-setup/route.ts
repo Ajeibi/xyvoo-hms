@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
+import { isActiveHotelAdmin } from "@/lib/hms/membership-role";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
 import {
@@ -12,7 +13,6 @@ import {
   saveMenuSetupBatch,
 } from "@/lib/hms/fb-menu";
 
-const ADMIN_LIKE_ROLES = new Set(["owner", "admin"]);
 
 const UpsertCategorySchema = z.object({
   id: z.string().uuid().optional(),
@@ -80,16 +80,7 @@ const MenuSetupPostSchema = z.object({
 });
 
 async function canManageMenuSetup(tenantId: string, userId: string) {
-  const service = createServerSupabaseClient();
-  const { data: membership } = await service
-    .schema("hotel")
-    .from("memberships")
-    .select("role")
-    .eq("tenant_id", tenantId)
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  return Boolean(membership && ADMIN_LIKE_ROLES.has(membership.role));
+  return isActiveHotelAdmin(createServerSupabaseClient(), tenantId, userId);
 }
 
 export async function GET(req: Request) {

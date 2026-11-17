@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
+import { requireHotelApiCapability, requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
 import { getAccountsCapabilities } from "@/lib/hms/accounts-rbac";
 import { listNightAuditRuns } from "@/lib/hms/night-audit";
 import { closeBusinessDay, previewBusinessDay } from "@/lib/hms/night-audit-cycle";
@@ -65,7 +65,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = PostBody.parse(await req.json());
-    const auth = await requireHotelApiMember(body.slug);
+    const auth = await requireHotelApiCapability(body.slug, "close_day");
     if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
     const caps = getAccountsCapabilities({ membershipRole: auth.role, departmentRole: auth.departmentRole });

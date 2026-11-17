@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
+import { mirrorEmployeeLogin } from "@/lib/hms/hr-link";
 import { MAX_HR_DOCUMENT_BYTES, hrFilePath, removeHrFiles, signHrFiles, sniffDocumentType, uploadHrFile } from "@/lib/hms/hr/hr-files";
 import {
   EMPTY_PAY_PROFILE,
@@ -117,6 +118,7 @@ export async function createEmployee(service: SupabaseClient, tenantId: string, 
     entityId: data.id,
     after: { employeeNumber, name: `${input.firstName} ${input.lastName}`, department: input.department ?? null, jobTitle: input.jobTitle ?? null },
   });
+  if (input.userId) await mirrorEmployeeLogin(service, tenantId, data.id as string, input.userId);
   return { id: data.id as string, error: null };
 }
 
@@ -126,6 +128,7 @@ export async function updateEmployee(service: SupabaseClient, tenantId: string, 
   const row = toRow(input);
   const { error } = await service.schema("hotel").from("hr_employees").update({ ...row, updated_at: new Date().toISOString() }).eq("tenant_id", tenantId).eq("id", id);
   if (error) return { error: friendlyDbError(error.message) };
+  if (input.userId !== undefined) await mirrorEmployeeLogin(service, tenantId, id, input.userId || null);
   await writeAuditLog({ tenantId, actorUserId: actor.userId, action: "hr.employee.updated", entityType: "hr_employee", entityId: id, after: { fields: Object.keys(input) } });
   return { error: null };
 }

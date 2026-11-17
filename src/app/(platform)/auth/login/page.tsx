@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { CircleAlert, Eye, EyeOff } from "lucide-react";
 import { supabaseAuthBrowser } from "@/lib/supabase/auth-browser";
 import { formatSignInError } from "@/lib/auth-errors";
+import { signInEmailFor } from "@/lib/hms/staff-identity";
 import { toastError, toastSuccess } from "@/lib/app-toast";
 import HotelAuthLayout from "@/features/hotel-register/components/HotelAuthLayout";
 import RegisterHighlights from "@/features/hotel-register/components/RegisterHighlights";
@@ -25,6 +26,12 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  // Sent here from inside the HMS when a login has been suspended.
+  const suspended = useSyncExternalStore(
+    () => () => {},
+    () => new URLSearchParams(window.location.search).get("notice") === "suspended",
+    () => false,
+  );
 
   const clearError = () => {
     if (error) setError("");
@@ -35,8 +42,15 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
     try {
-      const { error: signInError } = await supabaseAuthBrowser.auth.signInWithPassword({ email, password });
+      // Staff type username@hotel; that becomes the hidden email behind their login.
+      const { error: signInError } = await supabaseAuthBrowser.auth.signInWithPassword({ email: signInEmailFor(email), password });
       if (signInError) {
+        // A staff username that failed goes in the hotel's activity log (the answer is always the same, so it reveals nothing).
+        void fetch("/api/auth/staff-login-failed", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ identifier: email.trim() }),
+        }).catch(() => {});
         const { title, message } = formatSignInError(signInError);
         setError(message);
         toastError(title, message);
@@ -96,7 +110,7 @@ export default function LoginPage() {
         </motion.p>
       </motion.div>
 
-      {error ? (
+      {error || suspended ? (
         <motion.div
           role="alert"
           aria-live="polite"
@@ -105,7 +119,7 @@ export default function LoginPage() {
           animate={{ opacity: 1, y: 0 }}
         >
           <CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-red-600" aria-hidden />
-          <p>{error}</p>
+          <p>{error || "This login is suspended. Ask your manager to reactivate it."}</p>
         </motion.div>
       ) : null}
 
@@ -118,15 +132,18 @@ export default function LoginPage() {
       >
         <div>
           <label htmlFor="login-email" className="mb-1.5 block text-sm font-medium text-black">
-            Email address
+            Email or staff username
           </label>
           <input
             id="login-email"
             name="email"
             className={INPUT_CLASS}
-            type="email"
-            placeholder="you@yourhotel.com"
-            autoComplete="email"
+            type="text"
+            inputMode="email"
+            autoCapitalize="none"
+            spellCheck={false}
+            placeholder="you@yourhotel.com or username@hotel"
+            autoComplete="username"
             value={email}
             onChange={(e) => {
               clearError();

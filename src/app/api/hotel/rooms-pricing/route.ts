@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
+import { isActiveHotelAdmin } from "@/lib/hms/membership-role";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { applyFloorPlanToRoomUnits } from "@/lib/hms/apply-floor-plan-units";
 import { getHotelTenantBySlug, getRoomUnitCountForTenant, getTenantRoomCount, listRoomUnitsForTenant } from "@/lib/hms/data";
@@ -18,7 +19,6 @@ import {
   normalizeRoomTypes,
 } from "@/lib/hms/room-pricing";
 
-const ADMIN_LIKE_ROLES = new Set(["owner", "admin"]);
 
 const RoomTypeSchema = z.object({
   id: z.string().min(1),
@@ -68,16 +68,7 @@ const RoomsPricingSchema = z.object({
 });
 
 async function canManageRoomPricing(tenantId: string, userId: string) {
-  const service = createServerSupabaseClient();
-  const { data: membership } = await service
-    .schema("hotel")
-    .from("memberships")
-    .select("role")
-    .eq("tenant_id", tenantId)
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  return Boolean(membership && ADMIN_LIKE_ROLES.has(membership.role));
+  return isActiveHotelAdmin(createServerSupabaseClient(), tenantId, userId);
 }
 
 export async function POST(req: Request) {

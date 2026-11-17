@@ -1,21 +1,13 @@
 import { NextResponse } from "next/server";
 import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
+import { isActiveHotelAdmin } from "@/lib/hms/membership-role";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getHotelTenantBySlug } from "@/lib/hms/data";
 
-const ADMIN_LIKE_ROLES = new Set(["owner", "admin"]);
 const BRANDING_BUCKET = "tenant-assets";
 
 async function canManageBranding(tenantId: string, userId: string) {
-  const service = createServerSupabaseClient();
-  const { data: membership } = await service
-    .schema("hotel")
-    .from("memberships")
-    .select("role")
-    .eq("tenant_id", tenantId)
-    .eq("user_id", userId)
-    .maybeSingle();
-  return Boolean(membership && ADMIN_LIKE_ROLES.has(membership.role));
+  return isActiveHotelAdmin(createServerSupabaseClient(), tenantId, userId);
 }
 
 export async function GET(req: Request) {

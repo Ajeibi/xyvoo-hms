@@ -72,8 +72,7 @@ export async function POST(req: Request) {
     const auth = await requireHotelApiMember(body.slug);
     if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
-    const departmentRole =
-      typeof auth.user.user_metadata?.department_role === "string" ? auth.user.user_metadata.department_role : null;
+    const departmentRole = auth.departmentRole;
     const canOriginate = departmentRole === "Store / Inventory" || isAdminLikeRole(auth.role);
     if (!canOriginate) {
       return NextResponse.json(

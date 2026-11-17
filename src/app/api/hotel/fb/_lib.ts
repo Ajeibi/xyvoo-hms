@@ -21,10 +21,8 @@ export async function requireFbApi(slug: string): Promise<FbApiAuth | FbApiError
     return { error: auth.error ?? "Forbidden", status: auth.status ?? 403 };
   }
 
-  const departmentRole =
-    typeof auth.user.user_metadata?.department_role === "string"
-      ? auth.user.user_metadata.department_role
-      : null;
+  // From the membership (the login's own metadata can be edited by the user, so it isn't trusted).
+  const departmentRole = auth.departmentRole;
 
   const capabilities = getFbCapabilities(auth.role, departmentRole);
 

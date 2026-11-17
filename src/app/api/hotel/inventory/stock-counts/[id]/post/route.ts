@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { requireHotelApiMember } from "@/lib/hms/hotel-api-auth";
+import { requireHotelApiCapability } from "@/lib/hms/hotel-api-auth";
 import { postStockCount } from "@/lib/hms/inventory-counts";
 
 const PatchSchema = z.object({ slug: z.string().min(1) });
@@ -9,7 +9,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   try {
     const { id } = await params;
     const body = PatchSchema.parse(await req.json());
-    const auth = await requireHotelApiMember(body.slug);
+    const auth = await requireHotelApiCapability(body.slug, "stock_adjust");
     if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
     const { error } = await postStockCount(auth.service, auth.tenant.id, id, auth.user.id);

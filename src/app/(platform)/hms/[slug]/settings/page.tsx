@@ -5,6 +5,12 @@ import HMSLayout from "@/components/hms/HMSLayout";
 import { HmsEmptyState, HmsPage, HmsPageHeader, hmsButton } from "@/components/hms/hms-ui";
 import { HMS_MEANING, type HmsMeaning } from "@/components/hms/meaning";
 import DepartmentAccessSetup from "@/components/hms/DepartmentAccessSetup";
+import ApprovalPinCard from "@/components/hms/ApprovalPinCard";
+import HodActionsSettings from "@/components/hms/HodActionsSettings";
+import IdleLockSettings from "@/components/hms/IdleLockSettings";
+import { listLinkableEmployees } from "@/lib/hms/hr-link";
+import { HOD_ACTIONS, loadHodOverrides, resolveHodOnly } from "@/lib/hms/capabilities";
+import { CREATABLE_DEPARTMENT_ROLES } from "@/lib/hms/role-sections";
 import { SmartLockSettingsCard } from "@/components/hms/settings/SmartLockSettingsCard";
 import { WebsiteSettingsCard } from "@/components/hms/settings/WebsiteSettingsCard";
 import { loadWebsiteState } from "@/lib/hms/site/state";
@@ -62,7 +68,7 @@ export default async function SettingsPage({ params }: { params: Promise<{ slug:
   const { slug } = await params;
   const [tenant, departmentLogins, access] = await Promise.all([
     getHotelTenantBySlug(slug),
-    getDepartmentLoginsBySlug(slug),
+    getDepartmentLoginsBySlug(slug, { includeSuspended: true }),
     getHotelRoleAccess(slug),
   ]);
   const displayName = tenant?.display_name || tenant?.name || slug;
@@ -91,6 +97,28 @@ export default async function SettingsPage({ params }: { params: Promise<{ slug:
   const platformCharges = tenant && access.isOwnerOrAdmin
     ? await supabaseChargeStore().list(tenant.id, 50).then((rows) => rows.map(toPublicCharge)).catch((error) => (console.error("[settings] payments to XYVOO hidden", error), []))
     : [];
+
+  // Which actions need a head of department, per department (defaults plus this hotel's changes).
+  const hrEmployees = tenant && access.isOwnerOrAdmin ? await listLinkableEmployees(createServerSupabaseClient(), tenant.id) : [];
+  const idleLock = { enabled: true, minutes: 5 };
+  if (tenant) {
+    const { data, error } = await createServerSupabaseClient()
+      .schema("hotel")
+      .from("security_settings")
+      .select("idle_lock_enabled, idle_lock_minutes")
+      .eq("tenant_id", tenant.id)
+      .maybeSingle();
+    if (!error && data) {
+      idleLock.enabled = Boolean(data.idle_lock_enabled);
+      idleLock.minutes = Number(data.idle_lock_minutes) || 5;
+    }
+  }
+
+  const hodOverrides = tenant && access.isOwnerOrAdmin ? await loadHodOverrides(createServerSupabaseClient(), tenant.id) : [];
+  const hodOnlyByDepartment = CREATABLE_DEPARTMENT_ROLES.filter((r) => r !== "Admin / GM").map((department) => ({
+    department,
+    hodOnly: HOD_ACTIONS.filter((a) => resolveHodOnly(department, hodOverrides).has(a)),
+  }));
 
   const discountPackages = tenant
     ? await listDiscountPackages(createServerSupabaseClient(), tenant.id).catch((error) => (console.error("[settings] discount codes hidden", error), []))
@@ -294,13 +322,18 @@ export default async function SettingsPage({ params }: { params: Promise<{ slug:
               icon={Users}
               meaning="team"
               title="Staff & Access"
-              subtitle="Security-sensitive setup — only Owner/Admin can create logins or reset passwords. An occasional task, not a daily one."
+              subtitle="Everyone signs in with their own login. Owner/Admin create each department's head (HOD); the HOD adds their own staff."
               info="Department logins and password resets. Kept here rather than in any department's own settings because it's security-sensitive and Owner/Admin-only."
             />
             <DepartmentAccessSetup
               slug={slug}
               initialDepartmentLogins={departmentLogins}
+              hrEmployees={hrEmployees}
+              isAdmin
             />
+            <ApprovalPinCard slug={slug} />
+            <HodActionsSettings slug={slug} initial={hodOnlyByDepartment} />
+            <IdleLockSettings slug={slug} initialEnabled={idleLock.enabled} initialMinutes={idleLock.minutes} />
           </section>
           </div>
         </HmsPage>

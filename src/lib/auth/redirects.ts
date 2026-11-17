@@ -36,7 +36,7 @@ export async function getUserHotelDashboardPath(userId: string): Promise<string 
     readHotelMembership(supabase, membership.tenant_id, userId),
   ]);
   const departmentRole = effectiveDepartmentRole(
-    membershipRole?.departmentRole,
+    membershipRole,
     userError ? null : (userResult.user?.user_metadata as Record<string, unknown> | undefined),
   );
 
@@ -50,6 +50,11 @@ export async function getUserHotelDashboardPath(userId: string): Promise<string 
   const tenantData = tenant as HotelTenantCore | null;
   if (!tenantData) return null;
   const slug = tenantData.subdomain || tenantData.name || tenantData.id;
+
+  // A new staff login replaces its temporary password before anything else.
+  if (membershipRole?.mustChangePassword) {
+    return `/auth/change-password?from=${encodeURIComponent(`/hms/${slug}`)}`;
+  }
 
   if (hasFullHotelAccess(membership.role ?? null, departmentRole)) {
     return `/hms/${slug}/dashboard`;

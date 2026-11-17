@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
+import { isActiveHotelAdmin } from "@/lib/hms/membership-role";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getHotelTenantBySlug, listRoomUnitsForTenant } from "@/lib/hms/data";
 import {
@@ -9,19 +10,9 @@ import {
 } from "@/lib/hms/room-inventory-type-caps";
 import { normalizeRoomTypes } from "@/lib/hms/room-pricing";
 
-const ADMIN_LIKE_ROLES = new Set(["owner", "admin"]);
 
 async function canManageRoomPricing(tenantId: string, userId: string) {
-  const service = createServerSupabaseClient();
-  const { data: membership } = await service
-    .schema("hotel")
-    .from("memberships")
-    .select("role")
-    .eq("tenant_id", tenantId)
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  return Boolean(membership && ADMIN_LIKE_ROLES.has(membership.role));
+  return isActiveHotelAdmin(createServerSupabaseClient(), tenantId, userId);
 }
 
 const PostSchema = z
