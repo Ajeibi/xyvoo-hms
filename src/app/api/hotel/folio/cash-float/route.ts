@@ -30,7 +30,7 @@ export async function GET(req: Request) {
   const [expected, card] = session
     ? await Promise.all([
         expectedCashInFloat(auth.service, session as { id: string; opening_balance: number }),
-        expectedCardInFloat(auth.service, session as { tenant_id: string; opened_at: string }),
+        expectedCardInFloat(auth.service, session as { tenant_id: string; opened_at: string; opened_by: string | null }),
       ])
     : [null, null];
   return NextResponse.json({ session, expected, card });
@@ -71,7 +71,7 @@ export async function POST(req: Request) {
     // Opening amount, plus cash taken (bills and deposits), less cash given back (refunds).
     const expected = await expectedCashInFloat(auth.service, session as { id: string; opening_balance: number });
     const variance = body.closingBalance - expected;
-    const card = await expectedCardInFloat(auth.service, session as { tenant_id: string; opened_at: string });
+    const card = await expectedCardInFloat(auth.service, session as { tenant_id: string; opened_at: string; opened_by: string | null });
     const cardVariance = body.cardReported != null ? Math.round((body.cardReported - card.total) * 100) / 100 : null;
 
     const { error } = await auth.service

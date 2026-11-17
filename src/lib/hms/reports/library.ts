@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { floorLabelPlain } from "@/lib/hms/floor-label";
 import { getBusinessDate } from "@/lib/hms/business-date";
+import { getDepartmentLoginsForTenant } from "@/lib/hms/department-logins";
 import { getHousekeepingDailyReport } from "@/lib/hms/housekeeping-reports";
 import { stayLinePart } from "@/lib/hms/folio";
 import { addDays, daysBetween, eachDate, formatLongDate, hotelDate, hotelDayStart, monthStart } from "@/lib/hms/reports/dates";
@@ -382,11 +383,11 @@ const CASHIER: ReportDef = {
   period: "range",
   async build(ctx, params) {
     const p = clampParams(params);
-    const lines = await fetchAll<{ kind: string; method: string; amount: number | string; created_at: string; pos_terminal_name: string | null; metadata: { depositMethod?: string } | null }>((a, b) =>
+    const lines = await fetchAll<{ kind: string; method: string; amount: number | string; created_at: string; pos_terminal_name: string | null; metadata: { depositMethod?: string } | null; posted_by: string | null }>((a, b) =>
       ctx.service
         .schema("hotel")
         .from("folio_transactions")
-        .select("kind,method,amount,created_at,pos_terminal_name,metadata")
+        .select("kind,method,amount,created_at,pos_terminal_name,metadata,posted_by")
         .eq("tenant_id", ctx.tenantId)
         .is("voided_at", null)
         .in("kind", ["payment", "refund"])
@@ -414,10 +415,22 @@ const CASHIER: ReportDef = {
     const methods = new Map<string, { count: number; total: number }>();
     // Card machine payments by machine; payments with no machine (older ones, or a hotel with none set up) are grouped apart.
     const terminals = new Map<string, { count: number; total: number }>();
+    // Who took each payment, by person.
+    const people = await getDepartmentLoginsForTenant(ctx.tenantId, { includeSuspended: true }).catch(() => []);
+    const nameOf = new Map(people.map((x) => [x.userId, x.fullName]));
+    const byPerson = new Map<string, { cash: number; card: number; other: number; refunds: number; count: number }>();
     for (const l of lines) {
       const day = days.get(hotelDate(l.created_at, ctx.timeZone));
       const amount = Math.abs(n(l.amount));
       if (!day) continue;
+      {
+        const who = l.posted_by ? nameOf.get(l.posted_by) ?? "Owner or admin" : "Not recorded";
+        const person = byPerson.get(who) ?? { cash: 0, card: 0, other: 0, refunds: 0, count: 0 };
+        if (l.kind === "refund") person.refunds += amount;
+        else person[bucket(l.method)] += amount;
+        person.count += 1;
+        byPerson.set(who, person);
+      }
       if (l.kind === "refund") day.refunds += amount;
       else day[bucket(l.method)] += amount;
       const key = l.kind === "refund" ? `Refund (${l.method})` : l.method;
@@ -446,16 +459,22 @@ const CASHIER: ReportDef = {
       methods.set(key, m);
     }
     const dayRows = [...days.entries()].filter(([, d]) => d.cash + d.card + d.other + d.refunds > 0);
-    const sessions = await fetchAll<{ opened_at: string; closed_at: string | null; opening_balance: number | string; expected_balance: number | string | null; closing_balance: number | string | null; variance: number | string | null }>((a, b) =>
-      ctx.service
-        .schema("hotel")
-        .from("cash_float_sessions")
-        .select("opened_at,closed_at,opening_balance,expected_balance,closing_balance,variance")
-        .eq("tenant_id", ctx.tenantId)
-        .gte("opened_at", hotelDayStart(p.from, ctx.timeZone))
-        .lt("opened_at", hotelDayStart(addDays(p.to, 1), ctx.timeZone))
-        .order("opened_at", { ascending: true })
-        .range(a, b),
+    type SessionRow = { opened_at: string; closed_at: string | null; opening_balance: number | string; expected_balance: number | string | null; closing_balance: number | string | null; variance: number | string | null; opened_by?: string | null; opened_by_name?: string | null; closed_by_name?: string | null };
+    const loadSessions = (columns: string) =>
+      fetchAll<SessionRow>((a, b) =>
+        ctx.service
+          .schema("hotel")
+          .from("cash_float_sessions")
+          .select(columns)
+          .eq("tenant_id", ctx.tenantId)
+          .gte("opened_at", hotelDayStart(p.from, ctx.timeZone))
+          .lt("opened_at", hotelDayStart(addDays(p.to, 1), ctx.timeZone))
+          .order("opened_at", { ascending: true })
+          .range(a, b),
+      );
+    // The name columns arrive with the Phase 3 migration; until then the drawers list without a cashier.
+    const sessions = await loadSessions("opened_at,closed_at,opening_balance,expected_balance,closing_balance,variance,opened_by,opened_by_name,closed_by_name").catch(() =>
+      loadSessions("opened_at,closed_at,opening_balance,expected_balance,closing_balance,variance"),
     );
     const tot = dayRows.reduce((s, [, d]) => ({ cash: s.cash + d.cash, card: s.card + d.card, other: s.other + d.other, refunds: s.refunds + d.refunds }), { cash: 0, card: 0, other: 0, refunds: 0 });
     return doc(
@@ -488,6 +507,21 @@ const CASHIER: ReportDef = {
           emptyMessage: "No payments or refunds in this period.",
         },
         {
+          title: "By cashier",
+          columns: [
+            { key: "who", label: "Cashier", kind: "text" },
+            { key: "count", label: "Payments and refunds", kind: "number" },
+            { key: "cash", label: "Cash in", kind: "money" },
+            { key: "card", label: "Card and POS in", kind: "money" },
+            { key: "other", label: "Other in", kind: "money" },
+            { key: "refunds", label: "Refunds paid out", kind: "money" },
+          ],
+          rows: [...byPerson.entries()]
+            .sort((a, b) => b[1].cash + b[1].card + b[1].other - (a[1].cash + a[1].card + a[1].other))
+            .map(([who, x]) => ({ who, count: num(x.count), cash: money(round2(x.cash)), card: money(round2(x.card)), other: money(round2(x.other)), refunds: money(round2(x.refunds)) })),
+          emptyMessage: "No payments or refunds in this period.",
+        },
+        {
           title: "Card machines",
           columns: [
             { key: "terminal", label: "Card machine", kind: "text" },
@@ -500,6 +534,7 @@ const CASHIER: ReportDef = {
         {
           title: "Cash drawers",
           columns: [
+            { key: "cashier", label: "Cashier", kind: "text" },
             { key: "opened", label: "Opened", kind: "text" },
             { key: "closed", label: "Closed", kind: "text" },
             { key: "opening", label: "Opening cash", kind: "money" },
@@ -508,6 +543,7 @@ const CASHIER: ReportDef = {
             { key: "variance", label: "Difference", kind: "money" },
           ],
           rows: sessions.map((s) => ({
+            cashier: s.opened_by_name || (s.opened_by ? nameOf.get(s.opened_by) : null) || "Not recorded",
             opened: s.opened_at.slice(0, 16).replace("T", " "),
             closed: s.closed_at ? s.closed_at.slice(0, 16).replace("T", " ") : "Still open",
             opening: money(n(s.opening_balance)),
@@ -961,6 +997,135 @@ const HOUSEKEEPING: ReportDef = {
   },
 };
 
+/* ---------- Staff ---------- */
+
+const STAFF_ACTIVITY: ReportDef = {
+  key: "staff-activity",
+  title: "Staff activity",
+  description: "What each person did: actions recorded against their login, the days they were active, rooms cleaned and how long a clean took.",
+  group: "Management",
+  // Owners, admins and Accounts. A head of department sees their own team on My team and Activity.
+  audience: "finance",
+  period: "range",
+  async build(ctx, params) {
+    const p = clampParams(params);
+    const from = hotelDayStart(p.from, ctx.timeZone);
+    const to = hotelDayStart(addDays(p.to, 1), ctx.timeZone);
+    type Log = { action: string; actor_user_id: string | null; actor_name: string | null; department: string | null; created_at: string };
+    const logs = await fetchAll<Log>((a, b) =>
+      ctx.service
+        .schema("hotel")
+        .from("audit_logs")
+        .select("action,actor_user_id,actor_name,department,created_at")
+        .eq("tenant_id", ctx.tenantId)
+        .not("actor_user_id", "is", null)
+        .gte("created_at", from)
+        .lt("created_at", to)
+        .order("created_at", { ascending: true })
+        .range(a, b),
+    ).catch(() =>
+      // Before the activity-log migration there are no name or department columns.
+      fetchAll<Log>((a, b) =>
+        ctx.service
+          .schema("hotel")
+          .from("audit_logs")
+          .select("action,actor_user_id,created_at")
+          .eq("tenant_id", ctx.tenantId)
+          .not("actor_user_id", "is", null)
+          .gte("created_at", from)
+          .lt("created_at", to)
+          .order("created_at", { ascending: true })
+          .range(a, b),
+      ),
+    );
+
+    type Clean = { completed_by: string | null; started_at: string | null; completed_at: string | null };
+    const cleans = await fetchAll<Clean>((a, b) =>
+      ctx.service
+        .schema("hotel")
+        .from("housekeeping_tasks")
+        .select("completed_by,started_at,completed_at")
+        .eq("tenant_id", ctx.tenantId)
+        .not("completed_by", "is", null)
+        .gte("completed_at", from)
+        .lt("completed_at", to)
+        .range(a, b),
+    ).catch(() => [] as Clean[]);
+
+    const people = await getDepartmentLoginsForTenant(ctx.tenantId, { includeSuspended: true }).catch(() => []);
+    const known = new Map(people.map((x) => [x.userId, x]));
+
+    type Person = { id: string; name: string; department: string; actions: number; days: Set<string>; byAction: Map<string, number>; cleaned: number; minutes: number[] };
+    const byPerson = new Map<string, Person>();
+    const personOf = (id: string, name?: string | null, department?: string | null): Person => {
+      let x = byPerson.get(id);
+      if (!x) {
+        const k = known.get(id);
+        x = { id, name: k?.fullName ?? name ?? "Owner or admin", department: k?.departmentRole ?? department ?? "", actions: 0, days: new Set(), byAction: new Map(), cleaned: 0, minutes: [] };
+        byPerson.set(id, x);
+      }
+      return x;
+    };
+    for (const l of logs) {
+      if (!l.actor_user_id) continue;
+      const x = personOf(l.actor_user_id, l.actor_name, l.department);
+      x.actions += 1;
+      x.days.add(hotelDate(l.created_at, ctx.timeZone));
+      x.byAction.set(l.action, (x.byAction.get(l.action) ?? 0) + 1);
+    }
+    for (const c of cleans) {
+      if (!c.completed_by) continue;
+      const x = personOf(c.completed_by);
+      x.cleaned += 1;
+      if (c.started_at && c.completed_at) {
+        const m = (new Date(c.completed_at).getTime() - new Date(c.started_at).getTime()) / 60_000;
+        if (m >= 0 && m < 600) x.minutes.push(m);
+      }
+    }
+    const rows = [...byPerson.values()].sort((a, b) => b.actions - a.actions);
+    const pretty = (s: string) => s.replace(/[._]/g, " ").replace(/^./, (c) => c.toUpperCase());
+    return doc(STAFF_ACTIVITY, ctx, rangeText(p), [
+      {
+        title: "By person",
+        columns: [
+          { key: "name", label: "Person", kind: "text" },
+          { key: "department", label: "Department", kind: "text" },
+          { key: "actions", label: "Actions", kind: "number" },
+          { key: "days", label: "Days active", kind: "number" },
+          { key: "cleaned", label: "Rooms cleaned", kind: "number" },
+          { key: "avg", label: "Average clean (minutes)", kind: "number" },
+        ],
+        rows: rows.map((x) => ({
+          name: x.name,
+          department: x.department || "—",
+          actions: num(x.actions),
+          days: num(x.days.size),
+          cleaned: num(x.cleaned),
+          avg: num(x.minutes.length ? Math.round(x.minutes.reduce((s, m) => s + m, 0) / x.minutes.length) : null),
+        })),
+        emptyMessage: "Nothing was recorded against a person in this period.",
+      },
+      {
+        title: "What they did most",
+        columns: [
+          { key: "name", label: "Person", kind: "text" },
+          { key: "top", label: "Most frequent actions", kind: "text" },
+        ],
+        rows: rows.map((x) => ({
+          name: x.name,
+          top:
+            [...x.byAction.entries()]
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 4)
+              .map(([action, n]) => `${pretty(action)} (${n})`)
+              .join(", ") || "—",
+        })),
+        emptyMessage: "Nothing was recorded against a person in this period.",
+      },
+    ], ["Actions are what the system recorded against each login. Staff who share a screen are counted separately, by the PIN they used. Work done before per-person logins were switched on shows against the shared login."]);
+  },
+};
+
 const MANAGERS: ReportDef = {
   key: "managers",
   title: "Manager's daily report",
@@ -994,6 +1159,7 @@ export const REPORTS: ReportDef[] = [
   DEPARTURES,
   IN_HOUSE,
   HOUSEKEEPING,
+  STAFF_ACTIVITY,
   GUEST_LEDGER,
   CASHIER,
   TAX,
