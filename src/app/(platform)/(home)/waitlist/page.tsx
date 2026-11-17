@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import { BellRing, FlaskConical, ShieldCheck } from "lucide-react";
 import { HeroWatermark } from "@/components/website/HeroWatermark";
 import WaitlistForm from "@/components/website/WaitlistForm";
-import { parseWaitlistProduct, waitlistProductName } from "@/lib/marketing/waitlist-products";
+import { waitlistProductName, type WaitlistProduct } from "@/lib/marketing/waitlist-products";
 
 export const metadata: Metadata = {
   title: "Join the waitlist",
-  description: "XYVOO HMS and Storefront are in alpha testing. Join the waitlist and we'll email you when a place opens.",
+  description: "XYVOO Storefront is in alpha testing. Join the waitlist and we'll email you when a place opens.",
   // The ?product= variants are the same page, so they all point at one URL.
   alternates: { canonical: "/waitlist" },
   robots: { index: true, follow: true },
@@ -31,8 +31,9 @@ const WHAT_HAPPENS = [
 ] as const;
 
 /** Where sign-in and registration send people while they're locked for alpha testing. */
-export default async function WaitlistPage({ searchParams }: { searchParams: Promise<{ product?: string | string[] }> }) {
-  const product = parseWaitlistProduct((await searchParams).product);
+/** Only the storefront is waitlisted: the HMS is open. */
+export default function WaitlistPage() {
+  const product: WaitlistProduct = "storefront";
 
   return (
     <section
@@ -59,7 +60,7 @@ export default async function WaitlistPage({ searchParams }: { searchParams: Pro
             Be first in line for <span className="text-xyvoo-blue">{waitlistProductName(product)}</span>.
           </h1>
           <p className="mt-6 max-w-lg text-p leading-relaxed text-slate-600">
-            {`We're testing ${product ? waitlistProductName(product) : "XYVOO HMS and Storefront"} with a small group of businesses before we open to everyone, so sign-in and registration aren't open yet. Join the waitlist and we'll let you know as soon as a place opens.`}
+            {`We're testing ${waitlistProductName(product)} with a small group of businesses before we open to everyone, so sign-in and registration aren't open yet. Join the waitlist and we'll let you know as soon as a place opens.`}
           </p>
         </div>
 

@@ -4,14 +4,14 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, MotionConfig, motion } from "framer-motion";
 import { ArrowRight, Check, Loader2, Mail } from "lucide-react";
-import { WAITLIST_CHOICES, waitlistProductName, type WaitlistProduct } from "@/lib/marketing/waitlist-products";
+import { waitlistProductName, type WaitlistProduct } from "@/lib/marketing/waitlist-products";
 import { cn } from "@/lib/utils";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /** The waitlist card: which product, an email address, then a confirmation in its place. */
 export default function WaitlistForm({ initialProduct }: { initialProduct: WaitlistProduct | null }) {
-  const [product, setProduct] = useState<WaitlistProduct | null>(initialProduct);
+  const [product] = useState<WaitlistProduct | null>(initialProduct);
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -113,48 +113,6 @@ export default function WaitlistForm({ initialProduct }: { initialProduct: Waitl
                   Join the waitlist
                 </h2>
                 <p className="mt-2 text-sm leading-relaxed text-slate-600">It takes a few seconds. We&apos;ll email you a confirmation.</p>
-
-                <fieldset className="mt-7">
-                  <legend className="text-sm font-semibold text-xyvoo-navy">
-                    What are you interested in? <span className="font-normal text-slate-500">(optional)</span>
-                  </legend>
-                  <div className="mt-3 grid gap-2.5">
-                    {WAITLIST_CHOICES.map((choice) => {
-                      const checked = product === choice.value;
-                      return (
-                        <label
-                          key={choice.value}
-                          className={cn(
-                            "flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-xyvoo-blue has-[:focus-visible]:ring-offset-1",
-                            checked ? "border-xyvoo-blue bg-xyvoo-blue/[0.06]" : "border-slate-200 hover:border-slate-300 hover:bg-slate-50",
-                          )}
-                        >
-                          <input
-                            type="radio"
-                            name="product"
-                            value={choice.value}
-                            checked={checked}
-                            onChange={() => setProduct(choice.value)}
-                            className="sr-only"
-                          />
-                          <span
-                            className={cn(
-                              "flex size-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
-                              checked ? "border-xyvoo-blue bg-xyvoo-blue" : "border-slate-300 bg-white",
-                            )}
-                            aria-hidden
-                          >
-                            {checked ? <span className="size-2 rounded-full bg-white" /> : null}
-                          </span>
-                          <span className="min-w-0">
-                            <span className="block text-sm font-semibold text-xyvoo-navy">{choice.label}</span>
-                            <span className="block text-xs leading-snug text-slate-600">{choice.hint}</span>
-                          </span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </fieldset>
 
                 <label htmlFor="waitlist-email" className="mt-6 block text-sm font-semibold text-xyvoo-navy">
                   Email address

@@ -156,7 +156,7 @@ export default async function ActivityPage({
         ) : (
           <HmsCard flush>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] text-sm">
+              <table data-stack className="w-full min-w-[720px] text-sm">
                 <caption className="sr-only">Recent activity, newest first</caption>
                 <thead>
                   <tr className="border-b border-slate-200 bg-slate-50 text-left">
@@ -170,21 +170,21 @@ export default async function ActivityPage({
                 <tbody className="divide-y divide-slate-200">
                   {rows.map((r) => (
                     <tr key={r.id}>
-                      <td className="whitespace-nowrap px-4 py-2.5 text-slate-700">
+                      <td data-label="When" className="whitespace-nowrap px-4 py-2.5 text-slate-700">
                         {new Date(r.created_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                       </td>
-                      <td className="px-4 py-2.5 font-medium text-slate-900">
+                      <td data-label="Who" className="px-4 py-2.5 font-medium text-slate-900">
                         {r.actor_name ||
                           (r.actor_user_id ? nameOf.get(r.actor_user_id) : null) ||
                           (r.after_state?._actor_name as string | undefined) ||
                           "—"}
                       </td>
-                      <td className="px-4 py-2.5 text-slate-700">{r.department || "—"}</td>
-                      <td className="px-4 py-2.5 text-slate-900">
+                      <td data-label="Department" className="px-4 py-2.5 text-slate-700">{r.department || "—"}</td>
+                      <td data-label="What" className="px-4 py-2.5 text-slate-900">
                         {label(r.action)}
                         <span className="ml-2 text-xs text-slate-500">{label(r.entity_type)}</span>
                       </td>
-                      <td className="px-4 py-2.5 text-slate-700">
+                      <td data-label="Approved by" className="px-4 py-2.5 text-slate-700">
                         {r.approver_name || (r.after_state?._approver_name as string | undefined) || "—"}
                       </td>
                     </tr>

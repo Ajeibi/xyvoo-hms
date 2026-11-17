@@ -59,7 +59,7 @@ async function applyAuthLock(request: NextRequest): Promise<NextResponse | null>
     return NextResponse.json({ error: "Sign-in and registration are not open yet." }, { status: 403 });
   }
 
-  if (matchesPrefix(pathname, LOCKED_PAGE_PREFIXES) || matchesPrefix(pathname, PROTECTED_PREFIXES)) {
+  if (matchesPrefix(pathname, LOCKED_PAGE_PREFIXES)) {
     const waitlist = new URL(WAITLIST_PATH, request.url);
     const product = waitlistProductFor(pathname);
     if (product) waitlist.searchParams.set("product", product);

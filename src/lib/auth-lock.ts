@@ -14,24 +14,19 @@ export const WAITLIST_PATH = "/waitlist";
 
 /** The product a locked page belongs to, so the waitlist can say which one they were after. */
 export function waitlistProductFor(pathname: string): "hms" | "storefront" | null {
-  if (matchesPrefix(pathname, ["/auth/login/storefront", "/register/storefront", "/storefront"])) return "storefront";
-  if (matchesPrefix(pathname, ["/auth/login", "/register", "/hms", "/hms-group"])) return "hms";
+  if (matchesPrefix(pathname, ["/auth/login/storefront", "/register/storefront", "/storefront", "/join"])) return "storefront";
   return null;
 }
 
-/** Pages that redirect to the waitlist page while locked. */
-// /join creates accounts for invited team members, so it is locked with sign-up.
-export const LOCKED_PAGE_PREFIXES = ["/auth/login", "/auth/forgot-password", "/register", "/join"];
+/**
+ * Only the storefront is locked: the HMS is open, so its sign-in, registration
+ * and dashboards are not listed here.
+ */
+// /join creates accounts for invited storefront team members, so it is locked with sign-up.
+export const LOCKED_PAGE_PREFIXES = ["/auth/login/storefront", "/register/storefront", "/join", "/storefront"];
 
 /** API routes that return 403 while locked. */
-export const LOCKED_API_PREFIXES = [
-  "/api/auth",
-  "/api/store/auth",
-  "/api/store/register",
-  "/api/store/team/join",
-  "/api/hotel/register",
-  "/api/platform/onboard-hotel",
-];
+export const LOCKED_API_PREFIXES = ["/api/store/auth", "/api/store/register", "/api/store/team/join"];
 
 export function matchesPrefix(pathname: string, prefixes: string[]) {
   return prefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
