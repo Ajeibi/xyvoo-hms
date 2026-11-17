@@ -67,8 +67,10 @@ function newFloorRowId() {
 
 function toFloorRowsFromPlan(plan: HotelFloorPlanEntry[]): FloorRowDraft[] {
   if (plan.length === 0) return [];
-  return plan.map((row) => ({
-    id: newFloorRowId(),
+  // Stable ids: these rows are built while the page renders on the server and again in the browser, and a
+  // random id would differ between the two and fail hydration. Rows added later still get a random id.
+  return plan.map((row, index) => ({
+    id: `floor-plan-${index}`,
     floor: String(row.floor),
     room_count: String(row.room_count),
     room_numbers: row.room_codes?.length ? row.room_codes.join(", ") : "",
@@ -246,12 +248,14 @@ type RoomTypeDraft = {
   boardBasis: string;
 };
 
-function createEmptyRoomType(): RoomTypeDraft {
+/** `stableId` is for the first blank row built during render, which must match between server and browser. */
+function createEmptyRoomType(stableId?: string): RoomTypeDraft {
   return {
     id:
-      typeof crypto !== "undefined" && "randomUUID" in crypto
+      stableId ??
+      (typeof crypto !== "undefined" && "randomUUID" in crypto
         ? crypto.randomUUID()
-        : `room-type-${Date.now()}`,
+        : `room-type-${Date.now()}`),
     name: "",
     shortLabel: "",
     rooms: "",
@@ -398,7 +402,7 @@ export default function HotelRoomPricingSetup({
   const [roomTypes, setRoomTypes] = useState<RoomTypeDraft[]>(
     initialRoomTypes.length
       ? initialRoomTypes.map(toRoomTypeDraft)
-      : [createEmptyRoomType()],
+      : [createEmptyRoomType("room-type-initial")],
   );
   const [pricingSetup, setPricingSetup] = useState(
     toPricingDraft(initialPricingSetup),
