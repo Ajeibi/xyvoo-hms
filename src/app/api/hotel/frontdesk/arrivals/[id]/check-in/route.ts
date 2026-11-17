@@ -35,20 +35,6 @@ export async function POST(
     const auth = await requireHotelApiMember(body.slug);
     if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
-    const { data: attendedMembership } = await auth.service
-      .schema("hotel")
-      .from("memberships")
-      .select("user_id")
-      .eq("tenant_id", auth.tenant.id)
-      .eq("user_id", body.checkedInByUserId)
-      .maybeSingle();
-
-    if (!attendedMembership) {
-      return NextResponse.json(
-        { error: "Selected staff member is not part of this hotel." },
-        { status: 400 },
-      );
-    }
 
     const guestSelect =
       "id,first_name,last_name,title,tags";
@@ -139,7 +125,8 @@ export async function POST(
       .update({
         status: "checked_in",
         checked_in_at: nowIso,
-        checked_in_by_staff_id: body.checkedInByUserId,
+        // The signed-in person, never the id the browser sent.
+        checked_in_by_staff_id: auth.user.id,
         room_unit_id: unit.id,
         room_type_code: unit.room_type_code,
         guest_remarks: remarks ?? null,

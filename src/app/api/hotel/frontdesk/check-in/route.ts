@@ -3,9 +3,7 @@ import { applyDepositsToFolio, snapshotDeposit } from "@/lib/hms/folio-deposits"
 import { setStayAgent } from "@/lib/hms/folio-commission";
 import { findExistingGuest } from "@/lib/hms/guest-match";
 import { z } from "zod";
-import { createSupabaseAuthServerClient } from "@/lib/supabase/auth-server";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { getHotelTenantBySlug } from "@/lib/hms/data";
 import { writeAuditLog } from "@/lib/hms/front-desk-ops";
 import { postWalkInFolioBundle } from "@/lib/hms/folio";
 import { setGuestTag } from "@/lib/hms/guest-management";
@@ -14,6 +12,7 @@ import { findUsableDiscountPackage, getCheckInDiscountThreshold } from "@/lib/hm
 import { assertBookingOptionAllowed } from "@/lib/hms/booking-options";
 import { postingDate } from "@/lib/hms/business-date";
 import { isAdminLikeRole } from "@/lib/hms/department-access";
+import { requireHotelApiSection } from "@/lib/hms/hotel-api-auth";
 import { verifyManagerPin } from "@/lib/hms/folio";
 import { readHotelMembership } from "@/lib/hms/membership-role";
 import { fetchCheckInStaffOptions } from "@/lib/hms/check-in-staff-options";
@@ -29,18 +28,6 @@ import {
   computeWalkInRoomPricing,
   nightlyBarBeforeDiscount,
 } from "@/lib/hms/walk-in-pricing";
-
-async function assertTenantMember(tenantId: string, userId: string) {
-  const service = createServerSupabaseClient();
-  const { data: membership } = await service
-    .schema("hotel")
-    .from("memberships")
-    .select("role")
-    .eq("tenant_id", tenantId)
-    .eq("user_id", userId)
-    .maybeSingle();
-  return Boolean(membership);
-}
 
 function uniqueCode(prefix: string) {
   const stamp = Date.now().toString(36).toUpperCase();
@@ -149,32 +136,18 @@ function minorGuestFields(g: MinorGuest, contact: GuestInsertContact, kind: "chi
 
 export async function POST(req: Request) {
   try {
-    const auth = await createSupabaseAuthServerClient();
-    const {
-      data: { user },
-    } = await auth.auth.getUser();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
     const parsed = walkInCheckInPayloadSchema.parse(await req.json());
-    const tenant = await getHotelTenantBySlug(parsed.slug);
-    if (!tenant) return NextResponse.json({ error: "Tenant not found." }, { status: 404 });
+    // Walk-in check-in is for the front desk and reservations (and owners/admins), signed in as themselves.
+    const auth = await requireHotelApiSection(parsed.slug, ["frontdesk", "reservations"]);
+    if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
+    const { user, tenant } = auth;
 
-    const allowed = await assertTenantMember(tenant.id, user.id);
-    if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-
-    if (parsed.checkInNow && parsed.checkedInByUserId) {
-      const attendedByMember = await assertTenantMember(tenant.id, parsed.checkedInByUserId);
-      if (!attendedByMember) {
-        return NextResponse.json(
-          { error: "Selected staff member is not part of this hotel." },
-          { status: 400 },
-        );
-      }
-    }
+    // Who checked the guest in is the signed-in person, whatever the browser sent.
+    if (parsed.checkInNow) parsed.checkedInByUserId = user.id;
 
     const roomTypes = normalizeRoomTypes(tenant.room_types);
     const pricing = normalizePricingSetup(tenant.pricing_setup);
-    const service = createServerSupabaseClient();
+    const service = auth.service;
 
     // Source and market segment: a built-in value or one of the hotel's own that is switched on. A stay that
     // already holds a value (even a custom one since switched off) may keep it.

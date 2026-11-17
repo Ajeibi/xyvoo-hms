@@ -1,3 +1,4 @@
+import { recordAudit } from "@/lib/hms/audit";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { departmentScopeForRole } from "@/lib/hms/guest-services-rbac";
 import { sendAlert, type AlertInput, type AlertSeverity } from "@/lib/hms/alerts";
@@ -33,17 +34,16 @@ export type AuditLogInput = {
 };
 
 export async function writeAuditLog(input: AuditLogInput) {
-  const supabase = createServerSupabaseClient();
-  const { error } = await supabase.schema("hotel").from("audit_logs").insert({
-    tenant_id: input.tenantId,
-    actor_user_id: input.actorUserId,
+  // The shared writer adds the person's name and department and the approver; see src/lib/hms/audit.ts.
+  await recordAudit(createServerSupabaseClient(), {
+    tenantId: input.tenantId,
+    actor: { userId: input.actorUserId },
     action: input.action,
-    entity_type: input.entityType,
-    entity_id: input.entityId ?? null,
-    before_state: input.before ?? null,
-    after_state: input.after ?? null,
+    entityType: input.entityType,
+    entityId: input.entityId ?? null,
+    before: input.before ?? null,
+    after: input.after ?? null,
   });
-  if (error) console.warn("[writeAuditLog]", error);
 }
 
 export function formatAuditMessage(params: {

@@ -274,14 +274,31 @@ export function sumCardTakings(input: {
  * payments on bills, card deposits and card sales at the restaurant since the float was opened,
  * less card-machine refunds. Staff compare it with the machine's own total when they close.
  */
-export async function expectedCardInFloat(supabase: SupabaseClient, session: { tenant_id: string; opened_at: string }, until = new Date().toISOString()) {
+export async function expectedCardInFloat(
+  supabase: SupabaseClient,
+  session: { tenant_id: string; opened_at: string; opened_by?: string | null },
+  until = new Date().toISOString(),
+) {
   const t = session.tenant_id;
   const from = session.opened_at;
+  // Each person's float counts only what they took (bill payments and deposits). Restaurant card
+  // sales are not tied to a till person, so they stay out of a personal count.
+  const person = session.opened_by ?? null;
+  let lines = supabase.schema("hotel").from("folio_transactions").select("kind,amount").eq("tenant_id", t).in("kind", ["payment", "refund"]).in("method", ["card", "pos"]).is("voided_at", null).gte("created_at", from).lt("created_at", until);
+  let depIn = supabase.schema("hotel").from("reservation_deposits").select("amount").eq("tenant_id", t).in("method", ["card", "pos"]).gte("received_at", from).lt("received_at", until);
+  let depOut = supabase.schema("hotel").from("reservation_deposits").select("amount").eq("tenant_id", t).eq("status", "refunded").eq("settle_method", "pos").gte("settled_at", from).lt("settled_at", until);
+  if (person) {
+    lines = lines.eq("posted_by", person);
+    depIn = depIn.eq("created_by", person);
+    depOut = depOut.eq("created_by", person);
+  }
   const [{ data: folioLines }, { data: depositsIn }, { data: depositsOut }, { data: fbOrders }] = await Promise.all([
-    supabase.schema("hotel").from("folio_transactions").select("kind,amount").eq("tenant_id", t).in("kind", ["payment", "refund"]).in("method", ["card", "pos"]).is("voided_at", null).gte("created_at", from).lt("created_at", until),
-    supabase.schema("hotel").from("reservation_deposits").select("amount").eq("tenant_id", t).in("method", ["card", "pos"]).gte("received_at", from).lt("received_at", until),
-    supabase.schema("hotel").from("reservation_deposits").select("amount").eq("tenant_id", t).eq("status", "refunded").eq("settle_method", "pos").gte("settled_at", from).lt("settled_at", until),
-    supabase.schema("hotel").from("fb_orders").select("subtotal").eq("tenant_id", t).eq("status", "closed").in("settlement_method", ["card", "pos"]).gte("closed_at", from).lt("closed_at", until),
+    lines,
+    depIn,
+    depOut,
+    person
+      ? Promise.resolve({ data: [] as { subtotal: number }[] })
+      : supabase.schema("hotel").from("fb_orders").select("subtotal").eq("tenant_id", t).eq("status", "closed").in("settlement_method", ["card", "pos"]).gte("closed_at", from).lt("closed_at", until),
   ]);
   return sumCardTakings({ folioLines: folioLines ?? [], depositsIn: depositsIn ?? [], depositsOut: depositsOut ?? [], fbOrders: fbOrders ?? [] });
 }

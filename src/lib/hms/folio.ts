@@ -1,3 +1,5 @@
+import { logFailedApproval, logSharedPinApproval, verifyPersonalApproval } from "@/lib/hms/approvals";
+import { attributionOf } from "@/lib/hms/attribution";
 import { createHash } from "crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { PaymentDisplayStatus } from "@/lib/hms/front-desk-board";
@@ -237,14 +239,20 @@ export async function verifyManagerPin(
 ): Promise<boolean> {
   if (isAdminLikeRole(role)) return true;
   if (!pin?.trim()) return false;
+  // A head of department's own PIN names who approved; the hotel's shared PIN still works until each head has one.
+  if (await verifyPersonalApproval(supabase, tenantId, pin)) return true;
   const { data } = await supabase
     .schema("hotel")
     .from("tenant_folio_settings")
     .select("manager_pin_hash")
     .eq("tenant_id", tenantId)
     .maybeSingle();
-  if (!data?.manager_pin_hash) return false;
-  return data.manager_pin_hash === hashManagerPin(pin);
+  if (data?.manager_pin_hash && data.manager_pin_hash === hashManagerPin(pin)) {
+    await logSharedPinApproval(supabase, tenantId);
+    return true;
+  }
+  await logFailedApproval(supabase, tenantId);
+  return false;
 }
 
 export async function getTenantFolioSettings(supabase: SupabaseClient, tenantId: string) {
@@ -656,16 +664,20 @@ export async function adjustFolioForEarlyCheckout(
   return { adjusted: true, unusedNights, creditAmount, actualNights };
 }
 
-export async function getActiveCashFloatSession(supabase: SupabaseClient, tenantId: string) {
-  const { data } = await supabase
+/**
+ * The open cash float. Each person has their own: with a signed-in person behind the client it is
+ * theirs (their float, their close), otherwise (cron, older callers) the newest open one in the hotel.
+ */
+export async function getActiveCashFloatSession(supabase: SupabaseClient, tenantId: string, openedBy?: string | null) {
+  const person = openedBy ?? attributionOf(supabase)?.actor.userId ?? null;
+  let query = supabase
     .schema("hotel")
     .from("cash_float_sessions")
     .select("*")
     .eq("tenant_id", tenantId)
-    .is("closed_at", null)
-    .order("opened_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .is("closed_at", null);
+  if (person) query = query.eq("opened_by", person);
+  const { data } = await query.order("opened_at", { ascending: false }).limit(1).maybeSingle();
   return data;
 }
 
@@ -693,7 +705,7 @@ export async function ensureActiveCashFloatSession(
   tenantId: string,
   openedBy: string,
 ) {
-  const existing = await getActiveCashFloatSession(supabase, tenantId);
+  const existing = await getActiveCashFloatSession(supabase, tenantId, openedBy);
   if (existing) return { session: existing, created: false };
   const { session, error } = await openCashFloatSession(supabase, {
     tenantId,
